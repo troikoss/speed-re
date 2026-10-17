@@ -55,6 +55,11 @@
       "address": "0x505450",
       "size": 47,
       "sha256": "8c43e57b7bcd7ccde6bf7571a00a79334bbbd6f6e459eb0e2de11cd6b6014641"
+    },
+    "FngFindPackage": {
+      "address": "0x52cef0",
+      "size": 106,
+      "sha256": "2ee00e5f20e5baebb43040125d3661874c00da28847848d4ed048ac6774353d4"
     }
   }
 }

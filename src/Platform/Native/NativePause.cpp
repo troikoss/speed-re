@@ -597,11 +597,7 @@ void NativeFrontendPlayScript(FengObject *object, unsigned int hash, bool restar
 
 std::string NativeFrontendString(unsigned int hash) { return Localised(hash); }
 
-// Package lookup, static-record lookup and queue storage remain native seams.
-FEPackage *FngFindPackage(const char *name) {
-    NativeScreen *screen = FindScreen(name);
-    return screen && screen->shown ? &screen->fePackage : 0;
-}
+// Static-record lookup, archive storage and queue dispatch remain native seams.
 FngRecord *FngFindRecord(unsigned int hash) {
     for (size_t i = 0; i < kScreenCount; ++i) {
         if (screens[i]->loaded && FengHash(screens[i]->name) == hash) return &screens[i]->record;
@@ -903,6 +899,7 @@ NativePause::~NativePause() { CloseAll(); }
 bool NativePause::Load(const char *gameDirectory, NativeTextureCache *cache, const char *fontPath, char *error,
                        int errorSize) {
     fengManager8384C4 = &nativeFengManager;
+    fengValue8384D0 = 0; // Native demo uses the live package collections.
     textures = cache;
     std::string base = gameDirectory;
     std::vector<unsigned char> bundle, global;
@@ -942,6 +939,7 @@ bool NativePause::Active() const { return ActiveScreen() != 0; }
 
 void NativePause::Open() {
     fengManager8384C4 = &nativeFengManager;
+    fengValue8384D0 = 0; // Native demo uses the live package collections.
     if (!pauseScreen.loaded || ActiveScreen()) return;
     request = kPauseRequestNone;
     ShowScreen(&pauseScreen);

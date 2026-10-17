@@ -311,3 +311,23 @@ No analysis jobs are left running at this checkpoint.
     unwinding, MSVC 7.1 and byte matching remain outstanding. See full evidence
     in `pc-pause-menu.md`. Next bounded candidates: package locator `0x52cef0`
     and archive search `0x51bb70`, then script activation `0x51cf70`/`0x517720`.
+
+25. **Package locator checkpoint (2026-10-18).** `FEngLocator.cpp` recovers
+    `0x52cef0` (106 bytes): mode `0x8384d0` plus manager availability chooses
+    live lists +0xdc/+0xec or archive node search. Live misses and a null live
+    queue do not fall through to the archive. The native locator adapter is
+    removed; native startup explicitly selects mode zero. Archive search and
+    list membership/loading remain native seams. The extended lookup verifier
+    now executes the actual locator in typed-wrapper compositions and controls
+    only archive `FindNode` (plus direct-test visitor callbacks). It passes
+    12,352 comparisons and rejects ten mutations; package regression passes
+    12,000. Native/mod-enabled builds and headless 19 settings, 10 Controls and
+    motion checks pass. See `pc-pause-menu.md` for validation and compiler limits. Next: archive search
+    `0x51bb70`, whose hash match moves the node to the front of its intrusive
+    list, then script activation `0x51cf70`/`0x517720`.
+
+User supplied `https://github.com/berkayylmao/NFSPluginSDK` during the locator
+checkpoint. Reviewed revision `d238bdffc648498840d17133edb256fa0310d355`;
+see `nfspluginsdk-reference.md` for pinned ProStreet FEng/script/string leads
+and the MW05 virtual-layout difference. No source imported or UG2 fields
+renamed from cross-title evidence alone.

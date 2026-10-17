@@ -10,6 +10,8 @@
 
 ## Recovery evidence
 
+- [NFSPluginSDK reference leads](nfspluginsdk-reference.md): pinned external type/naming leads and cross-title layout limits.
+
 - [Strings](pc-strings.md): nine byte-matching routines, behavioral checks, and local reproduction.
 - [HUD minimap](pc-hud-minimap.md): angle/TrackInfo/indicator helper verification, city-map integration and rendering seams.
 - [Collision notifications](pc-collision-notifications.md): collision sound wrappers, game message post and profile readers.

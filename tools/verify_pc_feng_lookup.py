@@ -25,7 +25,8 @@ PACKAGES = [ARENA + x for x in (0x100, 0x200, 0x300)]
 QUEUE, MANAGER, QUERY, VISITOR, VTABLE = [ARENA + x for x in (0x600, 0x800, 0x1200, 0x1300, 0x1400)]
 NAMES = [ARENA + 0x3000 + i * 0x100 for i in range(10)]
 NODES = [[ARENA + 0x4000 + p * 0x1000 + i * 0x100 for i in range(6)] for p in range(3)]
-GLOBAL, CALLBACK = 0x8384c4, STOP + 0x800
+GLOBAL, MODE, CALLBACK, ARCHIVE = 0x8384c4, 0x8384d0, STOP + 0x800, 0x8637b0
+ARCHIVE_NODE = ARENA + 0x1800
 PRESERVED = (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP)
 PREFIXES = {
     'QueryVisit': '?Visit@FEngHashQuery@', 'VisitChildren': '?VisitChildren@FEPackage@',
@@ -33,7 +34,7 @@ PREFIXES = {
     'CompareNames': '?FEngComparePackageNames@', 'FindByName': '?FindByName@FEngPackageList@',
     'QueueFindObject': '?FindObject@FEngQueue@', 'FngFindObject5379C0': '?FngFindObject5379C0@',
     'FngFindStringByHash': '?FngFindStringByHash@', 'FngFindImageByHash': '?FngFindImageByHash@',
-    'cihash': '_cihash',
+    'cihash': '_cihash', 'FngFindPackage': '?FngFindPackage@',
 }
 
 
@@ -41,6 +42,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--compiler', choices=('msvc', 'clang-cl'), default='msvc')
     parser.add_argument('--source', type=Path, default=ROOT / 'src/Speed/Indep/Src/Frontend/FEngLookup.cpp')
+    parser.add_argument('--locator-source', type=Path, default=ROOT / 'src/Speed/Indep/Src/Frontend/FEngLocator.cpp')
     parser.add_argument('--mutation-checks', action='store_true')
     args = parser.parse_args()
     manifest = json.loads((ROOT / 'config/SPEED2_EXE_1_2/feng-lookup.json').read_text())
@@ -53,7 +55,7 @@ def main():
         assert hashlib.sha256(image[offset:offset + f['size']]).hexdigest() == f['sha256']
     BUILD.mkdir(parents=True, exist_ok=True)
     objects = []
-    for source in (args.source, ROOT / 'src/Speed/Indep/Libs/bWare/Strings.cpp'):
+    for source in (args.source, args.locator_source, ROOT / 'src/Speed/Indep/Libs/bWare/Strings.cpp'):
         obj = BUILD / (source.stem + '.obj')
         if args.compiler == 'msvc':
             command = [str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe', '/nologo', '/c', '/Ox', '/Ob0', '/Z7', '/EHsc']
@@ -62,7 +64,9 @@ def main():
         subprocess.run(command + ['/Fo' + str(obj.relative_to(ROOT)), '/Isrc/Speed/Indep/Src/Frontend',
                                   os.path.relpath(source, ROOT)], cwd=ROOT, check=True)
         objects.append(obj)
-    external = {'?FngFindPackage@@YAPAUFEPackage@@PBD@Z': 0x52cef0,
+    external = {'?FindNode@FEngArchive@@QAEPAUFEngPackageNode@@PBD@Z': 0x51bb70,
+                '?fengArchive8637B0@@3UFEngArchive@@A': ARCHIVE,
+                '?fengValue8384D0@@3IA': MODE,
                 '?fengManager8384C4@@3PAUFEngManager@@A': GLOBAL,
                 '_strlen': STOP + 0x100, '??3@YAXPAX@Z': STOP + 0x200,
                 '??3@YAXPAXI@Z': STOP + 0x300, '__purecall': STOP + 0x400,
@@ -99,10 +103,17 @@ def main():
         query_entry = entries['QueryVisit'] if rebuilt else 0x5048d0
         hash_entry = entries['cihash'] if rebuilt else 0x505450
         compare_entry = entries['CompareNames'] if rebuilt else 0x505310
+        list_entry = entries['FindByName'] if rebuilt else 0x519e50
+        locator_entry = entries['FngFindPackage'] if rebuilt else 0x52cef0
 
         def hook(uc, address, size, user, ranges=ranges, query_entry=query_entry,
-                 hash_entry=hash_entry, compare_entry=compare_entry):
+                 hash_entry=hash_entry, compare_entry=compare_entry, list_entry=list_entry, locator_entry=locator_entry):
             sp = uc.reg_read(UC_X86_REG_ESP)
+            if address == locator_entry:
+                state['trace'].append(('package', words(uc, sp + 4)[0]))
+            if address == list_entry:
+                # The callee ignores this; Clang may omit its load even with /Ob0.
+                state['trace'].append(('package-list', words(uc, sp + 4, 2)))
             if address == query_entry:
                 this = uc.reg_read(UC_X86_REG_ECX)
                 state['trace'].append(('query', words(uc, this + 4, 2), words(uc, sp + 4)[0]))
@@ -110,11 +121,12 @@ def main():
                 state['trace'].append(('hash', words(uc, sp + 4)[0]))
             if address == compare_entry:
                 state['trace'].append(('name-compare', words(uc, sp + 4, 2)))
-            if address in (CALLBACK, 0x52cef0):
+            if address in (CALLBACK, 0x51bb70):
                 ret, argument = words(uc, sp, 2)
-                if address == 0x52cef0:
-                    state['trace'].append(('package', argument))
-                    result, cleanup = state['package'], 0
+                if address == 0x51bb70:
+                    assert uc.reg_read(UC_X86_REG_ECX) == ARCHIVE
+                    state['trace'].append(('archive', argument))
+                    result, cleanup = state['archive_node'], 4
                     if state['disable_manager']:
                         uc.mem_write(GLOBAL, bytes(4))
                 else:
@@ -143,11 +155,12 @@ def main():
     rng = random.Random(0x537a10)
     counts = dict.fromkeys(functions, 0)
 
-    def compare(name, memory, arguments, this=0, cleanup=0, byte_result=False, manager=0, **fixture):
+    def compare(name, memory, arguments, this=0, cleanup=0, byte_result=False, manager=0, mode=0, **fixture):
         outputs = []
         for rebuilt, uc in zip((False, True), machines):
             uc.mem_write(ARENA, bytes(memory))
             uc.mem_write(GLOBAL, struct.pack('<I', manager))
+            uc.mem_write(MODE, struct.pack('<I', mode))
             uc.mem_write(TIB, struct.pack('<I', 0x12345678))
             uc.mem_write(STACK, struct.pack('<I', STOP) + struct.pack('<' + 'I' * len(arguments), *arguments))
             uc.reg_write(UC_X86_REG_ESP, STACK)
@@ -163,9 +176,9 @@ def main():
             assert words(uc, TIB)[0] == 0x12345678
             value = uc.reg_read(UC_X86_REG_EAX)
             outputs.append((value & 255 if byte_result else value, bytes(uc.mem_read(ARENA, 0xe000)),
-                            words(uc, GLOBAL), state['trace']))
+                            words(uc, GLOBAL), words(uc, MODE), state['trace']))
         assert outputs[0] == outputs[1], ('state or call order mismatch', name, outputs[0][0], outputs[1][0],
-                                         outputs[0][3], outputs[1][3])
+                                         outputs[0][4], outputs[1][4])
         counts[name] += 1
 
     def hash_name(value):
@@ -186,6 +199,8 @@ def main():
             put(package + 4, PACKAGES[p + 1] if p + 1 < length else 0)
             name = 0 if p == 2 and trial % 2 == 0 else NAMES[p]
             name_index = p
+            if p == 2 and trial % 11 == 3:
+                name_index, name = 0, NAMES[0]
             if trial % 7 == 1 and p < 2:
                 name_index = 6 + p
                 name = NAMES[name_index]
@@ -203,20 +218,24 @@ def main():
             put(nodes[4] + 4, nodes[5])
             put(package + 0x4c, 0 if trial % 9 == p else nodes[0])
         put(QUEUE + 0xe4, PACKAGES[0] if length else 0)
+        put(QUEUE + 0xf4, 0 if trial % 4 == 1 else PACKAGES[trial % 3])
+        put(ARCHIVE_NODE + 0x18, rng.choice((0, *PACKAGES)))
         put(MANAGER + 8, QUEUE)
         put(VISITOR, VTABLE)
         put(VTABLE, STOP + 0x600, CALLBACK)
         hash_ = rng.randrange(6)
         put(QUERY, VTABLE, hash_, NODES[1][0])
         name = 0 if trial % 3 == 0 else NAMES[trial % 4]
-        if trial % 7 == 1:
+        if trial % 11 == 3:
+            name = NAMES[0]
+        elif trial % 7 == 1:
             assert hash_name(strings[6]) == hash_name(strings[7])
             name = NAMES[7]
         elif trial % 13 == 2:
             name = NAMES[8]
         elif trial % 17 == 4:
             name = NAMES[9]
-        fixture = {'package': rng.choice((0, PACKAGES[0], PACKAGES[1])), 'disable_manager': trial % 11 == 0,
+        fixture = {'archive_node': rng.choice((0, ARCHIVE_NODE)), 'mode': (0, 0, 1, 0x80000000, 0xffffffff)[trial // 5 % 5], 'disable_manager': trial % 11 == 0,
                    'mutation': trial % 4, 'stop_after': trial % 8, 'true_byte': (1, 2, 128, 255)[trial % 4]}
         manager = 0 if trial % 5 == 0 else MANAGER
         compare('QueryVisit', memory, [NODES[0][trial % 6]], QUERY, 4, True, manager, **fixture)
@@ -230,13 +249,17 @@ def main():
         for function in ('FngFindObject5379C0', 'FngFindStringByHash', 'FngFindImageByHash'):
             compare(function, memory, [name, hash_], manager=manager, **fixture)
         compare('cihash', memory, [name], manager=manager, **fixture)
+        compare('FngFindPackage', memory, [name], manager=manager, **fixture)
+        if trial % 16 == 0:
+            put(MANAGER + 8, 0)
+            compare('FngFindPackage', memory, [name], manager=MANAGER, **dict(fixture, mode=0))
     report = {'compiler': args.compiler, 'comparisons': counts, 'total': sum(counts.values()),
-              'fingerprints': functions, 'controlled_interfaces': ['FngFindPackage 0x52cef0', 'visitor callback in direct walk fixtures'],
-              'composition': 'real tree/hash query, package/name search, typed wrappers, hashing and name comparison',
+              'fingerprints': functions, 'controlled_interfaces': ['FEngArchive::FindNode 0x51bb70', 'visitor callback in direct walk fixtures'],
+              'composition': 'real tree/hash query, package locator, both live lists, typed wrappers, hashing and name comparison',
               'seh': 'normal-return FS chain restoration verified; exceptions/unwind excluded', 'byte_matching': 'not established',
               'limitations': ['finite acyclic trees/package chains', 'valid non-null queue behind non-null manager',
                               'null requested name with a non-null empty-name package is excluded',
-                              'native package membership and resource loading remain seams', 'MSVC pending with clang-cl']}
+                              'native package membership, archive lookup and resource loading remain seams', 'MSVC pending with clang-cl']}
     if args.mutation_checks:
         source = args.source.read_text()
         mutations = {
@@ -255,7 +278,25 @@ def main():
             path = BUILD / ('mutation-' + name + '.cpp')
             path.write_text(source.replace(before, after))
             result = subprocess.run([os.sys.executable, str(Path(__file__).resolve()), '--compiler', args.compiler,
-                                     '--source', str(path)], cwd=ROOT, capture_output=True, text=True)
+                                     '--source', str(path), '--locator-source', str(args.locator_source)], cwd=ROOT, capture_output=True, text=True)
+            (BUILD / ('mutation-' + name + '.log')).write_text(result.stdout + result.stderr)
+            assert result.returncode != 0 and 'state or call order mismatch' in result.stderr, name
+            rejected.append(name)
+        locator = args.locator_source.read_text()
+        locator_mutations = {
+            'ignore-mode': ('!fengValue8384D0 && fengManager8384C4', 'fengManager8384C4'),
+            'skip-secondary-list': ('return queue->packagesEC.FindByName(name, queue->packagesEC.first8);', 'return 0;'),
+            'prefer-secondary-list': ('FEPackage *package = queue->packagesDC.FindByName(name, queue->packagesDC.first8);',
+                                      'FEPackage *package = queue->packagesEC.FindByName(name, queue->packagesEC.first8);'),
+            'archive-on-live-miss': ('return queue->packagesEC.FindByName(name, queue->packagesEC.first8);',
+                                     'FEPackage *secondary = queue->packagesEC.FindByName(name, queue->packagesEC.first8);\n        if (secondary) return secondary;'),
+        }
+        for name, (before, after) in locator_mutations.items():
+            assert before in locator
+            path = BUILD / ('mutation-' + name + '.cpp')
+            path.write_text(locator.replace(before, after))
+            result = subprocess.run([os.sys.executable, str(Path(__file__).resolve()), '--compiler', args.compiler,
+                                     '--source', str(args.source), '--locator-source', str(path)], cwd=ROOT, capture_output=True, text=True)
             (BUILD / ('mutation-' + name + '.log')).write_text(result.stdout + result.stderr)
             assert result.returncode != 0 and 'state or call order mismatch' in result.stderr, name
             rejected.append(name)

@@ -857,3 +857,42 @@ under `build/analysis/feng-lookup/`. **MSVC 7.1/wibo verification is outstanding
 byte matching is not established.** Finite tree fixtures do not prove arbitrary
 callback reentrancy, malformed/cyclic trees, exception behavior or the complete
 GUI subsystem.
+
+## Live-list and archive package locator (2026-10-18)
+
+`Frontend/FEngLocator.cpp` recovers `0x52cef0` (106 bytes), added to the lookup
+manifest. When the unidentified 32-bit value `0x8384d0` is zero and the manager
+exists, it retains the manager's queue, returns null for a null queue, and
+searches live collections +0xdc and +0xec in that order (heads +0xe4/+0xf4).
+A live-list miss returns null without consulting the archive. Otherwise it calls
+`FEngArchive::FindNode` on receiver `0x8637b0` and returns the node's package
++0x18, or null. No null-name guard is added. The native direct screen locator
+is removed; native initialization explicitly selects mode zero and retains the
+existing shown-screen chain. The second collection is currently empty in the
+native demo. Original package membership and archive storage remain seams.
+
+The extended `verify_pc_feng_lookup.py` now composes the **actual locator** with
+all three lookup wrappers, both list searches, hashing, name comparison and
+object traversal. Only archive search `0x51bb70` and the direct-walk test visitor
+are controlled. Fixtures include independent mode/manager combinations,
+noncanonical nonzero mode values, empty/duplicate-name/secondary-only lists,
+archive misses, nodes with null packages, archive-induced manager changes and
+standalone null-queue cases. Name-list argument traces also agree. The original
+passes collection receivers +0xdc/+0xec; the search never reads that receiver,
+and Clang can omit its register load despite disabled inlining. The verifier
+compares the used arguments and results, rather than forcing a register load.
+
+The Clang i686 run passes **12,352 original/rebuilt comparisons** (1,024 across
+12 entries plus 64 standalone null-queue locator cases). All previous six
+mutations plus four locator mutations are rejected: ignoring mode, omitting the
+secondary list, preferring the secondary list and consulting the archive on a
+live miss. Normal-return SEH checks retain the earlier limits. **MSVC 7.1/wibo,
+byte matching, original archive search, arbitrary reentrancy and full package
+lifecycle behavior remain unverified.** Commands are unchanged from the lookup
+section above; generated locator logs remain under `build/analysis/feng-lookup/`.
+
+Native and mod-enabled builds pass after locator integration. Headless validation
+passes all 19 settings and 10 Controls scenarios plus scroller motion. Slider
+fill widths are 0/99/206 pixels with monotonically moving knobs; motion settles
+at the screen centre. These are integration checks, separate from PC execution
+comparisons. The existing package regression also passes 12,000 comparisons.

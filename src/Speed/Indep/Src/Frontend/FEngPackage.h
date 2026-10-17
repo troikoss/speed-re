@@ -13,11 +13,14 @@ struct FEngPackageList {
 struct FEngQueue {
     char unidentified0[0xdc];
     FEngPackageList packagesDC;
+    char unidentifiedE8[4];
+    FEngPackageList packagesEC;
     void Post(unsigned int message, void *sender, struct FEPackage *package,
               int target, int value10); // 0x51aa20, thiscall
     HudVisibilityObject *FindObject(unsigned int hash, const char *package); // 0x52c570
 };
 UG2_CHECK_OFFSET(FEngQueue, packagesDC, 0xdc);
+UG2_CHECK_OFFSET(FEngQueue, packagesEC, 0xec);
 UG2_CHECK_OFFSET(FEngPackageList, first8, 8);
 
 // Observed FEPackage prefix; unidentified fields retain their original offsets.
@@ -73,6 +76,7 @@ struct FngRecord {
     int value10;
 };
 extern FEngManager *fengManager8384C4;
+extern unsigned int fengValue8384D0;
 void __stdcall FngSetFocusEnabled(const char *name, unsigned int hash, unsigned char enabled); // 0x51cc60
 FEPackage *FngFindPackage(const char *name); // 0x52cef0
 FngRecord *FngFindRecord(unsigned int hash); // 0x50b840
