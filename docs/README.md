@@ -2,7 +2,7 @@
 
 ## Scope and development
 
-- [Decompilation scope](DECOMPILATION_SCOPE.md): complete-game objectives and required completion evidence.
+- [Decompilation scope](DECOMPILATION_SCOPE.md): the SPEED engine objective, the UG2 first-target milestone and required completion evidence.
 - [Repository guidelines](../AGENTS.md): contributor workflow, build commands, and recovery rules.
 - [Native modding](../modding/README.md): optional C SDK, native plugins, widescreen HUD/FOV, and physics-provider seams.
 - [Native demo](NATIVE_DEMO.md): recovered routines, platform seams, build/run instructions, and outstanding integration checks.

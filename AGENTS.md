@@ -2,7 +2,9 @@
 
 ## Objective and Recovery Rules
 
-Completely decompile UG2 PC v1.2 into verified, reproducibly buildable source. A playable demo is an intermediate milestone. Follow `docs/DECOMPILATION_SCOPE.md` for completion evidence.
+The final objective is to reverse engineer EA Black Box's **SPEED** engine into verified, reproducibly buildable source. To keep the scope small, Need for Speed Underground 2 (UG2) PC v1.2 is the first target: it is the reference build for all current evidence, and complete UG2 recovery is the first milestone. A playable demo is an intermediate milestone. Follow `docs/DECOMPILATION_SCOPE.md` for completion evidence.
+
+Keep engine-level code (the `Speed` namespace and `src/Speed/Indep` libraries) separate from UG2-specific game code and data layouts, so later SPEED titles can reuse it. Do not generalize beyond evidence: record only what the UG2 binary shows, and mark anything believed to be shared with other titles as unverified until another build confirms it.
 
 Recover original code and mechanics. Preserve evidence, call boundaries, and arithmetic order. Keep unknown fields offset-based until identified (for example, `value3F0`). Do not invent algorithms or force registers to fake a match. Report behavioral verification separately from byte matching.
 

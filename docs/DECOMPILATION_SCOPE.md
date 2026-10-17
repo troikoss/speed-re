@@ -1,8 +1,18 @@
-# Underground 2 decompilation: complete game recovery
+# SPEED engine decompilation: UG2 as the first target
 
-The objective was revised on 2026-10-11: completely decompile Underground 2
-PC v1.2 into verified, reproducibly buildable source. A basic playable demo
-remains an intermediate milestone; it does not complete this objective.
+The final objective is to reverse engineer EA Black Box's **SPEED** engine into
+verified, reproducibly buildable source. To keep the scope small, Need for Speed
+Underground 2 (UG2) PC v1.2 is the first target. The earlier objective (revised
+2026-10-11) was complete UG2 recovery; it is now the first milestone toward the
+engine objective, and its completion criteria below are unchanged. A basic
+playable demo remains an intermediate milestone; it does not complete either.
+
+Engine scope: code under the `Speed` namespace and `src/Speed/Indep` is treated
+as engine code and kept separate from UG2-specific game logic, data layouts and
+platform scaffolding. Evidence comes only from the UG2 binary. Claims that a
+routine or layout is shared by other SPEED titles stay unverified until another
+build confirms them; do not generalize ahead of evidence. Recovery of further
+titles is out of scope until the UG2 milestone is complete.
 
 Recover original code and mechanics from the locally supplied reference
 executable. Preserve evidence, call boundaries and arithmetic order. Keep

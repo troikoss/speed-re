@@ -9,13 +9,14 @@ HUD/frontend, and asset/world/presentation logic. Preserve necessary Linux
 backends, verify recovered routines and integration, and document unresolved
 dependencies and unavoidable platform seams.
 
-The larger repository objective is complete, verified, reproducibly buildable
-UG2 source; a playable demo is intermediate. Completion evidence is defined in
+The larger repository objective is a reverse-engineered SPEED engine, with
+complete, verified, reproducibly buildable UG2 source as the first target; a
+playable demo is intermediate. Completion evidence is defined in
 `docs/DECOMPILATION_SCOPE.md`. Do not redefine completion around isolated tests.
 
 The user requires verified changes to be committed and pushed between pauses.
 Push authorization persists for `main` at
-`https://github.com/troikoss/nfsu2-re.git`; do not ask again. Do not commit retail
+`https://github.com/troikoss/speed-re.git`; do not ask again. Do not commit retail
 assets, executables, compiler binaries, or generated disassembly. Keep unverified
 work clearly identified rather than describing it as a verified checkpoint.
 
