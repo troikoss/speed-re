@@ -306,14 +306,18 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
 - Selection label updates now call recovered `0x50da50`, using bound title
   +0x134 and description +0x138 objects. Named-string wrapper `0x4953c0`
   executes recovered hashing before typed string lookup. Native construction
-  binds `ICON_TITLE` and the original empty-name description; package traversal
-  and localized string storage remain seams. See [label evidence](pc-pause-menu.md#bound-scroller-labels-and-named-string-lookup-2026-10-18).
+  binds `ICON_TITLE` and the original empty-name description; localized string storage remains a seam. See [label evidence](pc-pause-menu.md#bound-scroller-labels-and-named-string-lookup-2026-10-18).
 - Language-hash setter `0x50c900` now calls recovered code for both menu labels
   and the GPS label requests. Hash +0x60, dirty writes and observer notification
   follow the original. A native observer at `*0x838478` supplies language lookup
   and UTF-16 storage; string-manager internals remain a seam. The native loader
   preserves string SH hashes instead of overwriting +0x60 with a child count.
   See [setter evidence](pc-pause-menu.md#language-hash-setter-and-observer-notification-2026-10-18).
+- Typed string/image lookup (`0x537a10`/`0x537a60`), generic wrapper `0x5379c0`,
+  recursive object traversal and package-list fallback now execute recovered code.
+  Native loading constructs root/child links; shown-screen membership and order,
+  package locator `0x52cef0`, and the legacy `FngFindObject` adapter remain seams.
+  See [lookup evidence](pc-pause-menu.md#object-tree-and-typed-package-lookup-2026-10-18).
 - FEng (`0x537a10`, `0x50c900`, `0x537c00`/`0x537cc0`, `0x55dda0`, ...):
   packages are reloaded on every showing; messages are queued and delivered to the screen's object;
   scripts fire package events and the bounded animation tracks described in the settings pass below.
@@ -322,8 +326,7 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   preceding tween advancement. Native scroller construction and script activation
   remain seams. Colour, lock/arrow-script policies and scrollbar geometry use recovered routines;
   LOCK/BUTTON_MASTER and all ScrollBar objects now bind the retail objects.
-  ScrollBar setup calls recovered constructor `0x542ac0`; formatting and typed image lookup
-  backends remain seams. See [placement evidence](pc-pause-menu.md#scroller-placement-and-cubic-tween)
+  ScrollBar setup calls recovered constructor `0x542ac0`; formatting remains a native seam. See [placement evidence](pc-pause-menu.md#scroller-placement-and-cubic-tween)
   and run `python tools/smoke_native_pause_scroller.py` for rendered motion checks.
 - FEng image centre/size writes and rendered text height now call recovered coordinate
   and metric routines. String and script-track prefixes expose the original offsets;

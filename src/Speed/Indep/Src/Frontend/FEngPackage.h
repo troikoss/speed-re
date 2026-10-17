@@ -3,24 +3,48 @@
 
 #include "../Hud/HudVisibility.h"
 
+struct FEPackage;
+struct FEngObjectVisitor;
+struct FEngPackageList {
+    char unidentified0[8];
+    FEPackage *first8;
+    FEPackage *FindByName(const char *name, FEPackage *first); // 0x519e50
+};
 struct FEngQueue {
+    char unidentified0[0xdc];
+    FEngPackageList packagesDC;
     void Post(unsigned int message, void *sender, struct FEPackage *package,
               int target, int value10); // 0x51aa20, thiscall
+    HudVisibilityObject *FindObject(unsigned int hash, const char *package); // 0x52c570
 };
+UG2_CHECK_OFFSET(FEngQueue, packagesDC, 0xdc);
+UG2_CHECK_OFFSET(FEngPackageList, first8, 8);
 
 // Observed FEPackage prefix; unidentified fields retain their original offsets.
 struct FEPackage {
-    char unidentified0[0x1c];
+    char unidentified0[4];
+    FEPackage *next4;
+    char unidentified8[4];
+    const char *nameC;
+    unsigned int nameHash10;
+    char unidentified14[8];
     unsigned int inputMask1C;
     unsigned int inputMask20;
     unsigned int inputMask24;
     unsigned int inputMask28;
-    char unidentified2C[0x60];
+    char unidentified2C[0x20];
+    HudVisibilityObject *firstObject4C;
+    char unidentified50[0x3c];
     HudVisibilityObject *focus8C;
     HudVisibilityObject **focusObjects90;
     unsigned int focusCount94;
     void SetFocus(FEngQueue *queue, HudVisibilityObject *object, unsigned char notify); // 0x52b3a0
+    bool VisitChildren(HudVisibilityObject *group, FEngObjectVisitor *visitor); // 0x504830
+    bool VisitObjects(FEngObjectVisitor *visitor); // 0x504880
+    HudVisibilityObject *FindObject(unsigned int hash); // 0x517f80
 };
+UG2_CHECK_OFFSET(FEPackage, nameC, 0xc);
+UG2_CHECK_OFFSET(FEPackage, firstObject4C, 0x4c);
 UG2_CHECK_OFFSET(FEPackage, inputMask1C, 0x1c);
 UG2_CHECK_OFFSET(FEPackage, inputMask28, 0x28);
 UG2_CHECK_OFFSET(FEPackage, focus8C, 0x8c);

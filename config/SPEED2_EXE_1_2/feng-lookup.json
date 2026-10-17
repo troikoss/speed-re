@@ -1,0 +1,60 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "QueryVisit": {
+      "address": "0x5048d0",
+      "size": 25,
+      "sha256": "b7c5ac638c74282457e996dbe9e7d1ad830c9b44b4dce63013f73990705bc59a"
+    },
+    "VisitChildren": {
+      "address": "0x504830",
+      "size": 74,
+      "sha256": "3ed9e02ed2d8d3b83be9ff2dd8729938d06e3878a60367b4f338b3feec1cb4d6"
+    },
+    "VisitObjects": {
+      "address": "0x504880",
+      "size": 70,
+      "sha256": "94340b08d70a8167000756f9902276a283b1a6b6d7c0c6bd28ef81fcc87a6dde"
+    },
+    "PackageFindObject": {
+      "address": "0x517f80",
+      "size": 81,
+      "sha256": "44fc9b61d07e328dcda002e856fa323ef590d315afa996d6c127e5150a097452"
+    },
+    "CompareNames": {
+      "address": "0x505310",
+      "size": 63,
+      "sha256": "c2f492c229d27a7abfe69cd966797491ec50227181f74281839f5f1bf15df4fb"
+    },
+    "FindByName": {
+      "address": "0x519e50",
+      "size": 87,
+      "sha256": "2c47c1d13e8ffa2b649dcafed78ca8bf215aafba46b167728fe273e709c942e3"
+    },
+    "QueueFindObject": {
+      "address": "0x52c570",
+      "size": 90,
+      "sha256": "13785b8562b4384dc640dfe7ffa798f353d283fc45f1827be7d7959701066620"
+    },
+    "FngFindObject5379C0": {
+      "address": "0x5379c0",
+      "size": 66,
+      "sha256": "5c9e1455cd06bff2577734aada82af225dd10aa64413b56e8a1c209ffae5ef30"
+    },
+    "FngFindStringByHash": {
+      "address": "0x537a10",
+      "size": 73,
+      "sha256": "2bf5e61aada0ab51477515e76294da11784e2549af5a9a5feaabad2fe95d764c"
+    },
+    "FngFindImageByHash": {
+      "address": "0x537a60",
+      "size": 73,
+      "sha256": "acba8fa8cba499473fdeb87a0e20f68cde46b71bd5c7f13478eada0e89e14f65"
+    },
+    "cihash": {
+      "address": "0x505450",
+      "size": 47,
+      "sha256": "8c43e57b7bcd7ccde6bf7571a00a79334bbbd6f6e459eb0e2de11cd6b6014641"
+    }
+  }
+}

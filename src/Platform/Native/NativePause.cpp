@@ -73,6 +73,9 @@ struct NativeScreen {
         memset(&fePackage, 0, sizeof(fePackage));
         focusObjects.clear();
         if (!package->Load(&data[0], data.size(), 0, error)) return false;
+        fePackage.nameC = name;
+        fePackage.nameHash10 = FengHash(name);
+        fePackage.firstObject4C = package->FirstRoot();
         const std::vector<FengObject *> &objects = package->Objects();
         for (size_t i = 0; i < objects.size(); ++i) {
             if (objects[i]->flags1C & 0x10000000) focusObjects.push_back(objects[i]);
@@ -163,6 +166,19 @@ PCHelpBarFNGObject nativeHelpBar;
 Replay8650B8 nativeReplay;
 FEngQueue nativeFengQueue;
 FEngManager nativeFengManager = {{0}, &nativeFengQueue};
+
+// Native package membership/order seam; recovered lookup traverses these links.
+void RefreshNativePackageChain() {
+    FEPackage **tail = &nativeFengQueue.packagesDC.first8;
+    *tail = 0;
+    for (size_t i = 0; i < kScreenCount; ++i) {
+        screens[i]->fePackage.next4 = 0;
+        if (!screens[i]->shown) continue;
+        *tail = &screens[i]->fePackage;
+        tail = &screens[i]->fePackage.next4;
+    }
+    *tail = 0;
+}
 
 NativeScreen *FindScreen(const char *name) {
     if (!name) return 0;
@@ -406,6 +422,7 @@ void DialogHighlight() {
 void CloseDialog() {
     dialog.shown = false;
     dialogScreen.shown = false;
+    RefreshNativePackageChain();
 }
 
 NativeScreen *ActiveScreen() {
@@ -421,6 +438,7 @@ void ShowScreen(NativeScreen *screen) {
     std::string error;
     if (!screen->Reset(&error)) NativeTrap("FEng package reload");
     screen->shown = true;
+    RefreshNativePackageChain();
     // FEng creation data: package name, three unidentified words, help-bar mask (+0x20).
     static unsigned int data[5];
     data[0] = (unsigned int)(size_t)screen->name;
@@ -432,6 +450,7 @@ void CloseScreen(NativeScreen *screen) {
     if (!screen->shown) return;
     screen->DestroyObject();
     screen->shown = false;
+    RefreshNativePackageChain();
     RemoveScripts(screen);
     for (size_t i = 0; i < messages.size();) {
         if (messages[i].screen == screen) messages.erase(messages.begin() + i);
@@ -622,12 +641,6 @@ int FngFormatBuffer(char *buffer, unsigned int size, const char *format, ...) {
     va_end(args);
     return result;
 }
-HudVisibilityObject *FngFindImageByHash(const char *package, unsigned int hash) {
-    // Original 0x537a60 package/manager lookup remains a native boundary.
-    FengObject *object = static_cast<FengObject *>(FngFindObject(package, hash));
-    return object && object->type18 == 1 ? object : 0;
-}
-
 // ---- IconScroller base seams --------------------------------------------------------------
 
 IconScrollerIcon::~IconScrollerIcon() {}  // 0x527770
@@ -712,19 +725,9 @@ void IconScrollerFNGObject::MessageHandler(unsigned int message, int value8, int
 
 unsigned int FngHash(const char *name) { return FengHash(name); }  // 0x505450
 
-void *FngFindObject(const char *package, unsigned int hash) {  // 0x537a10
+void *FngFindObject(const char *package, unsigned int hash) {  // native compatibility adapter
     NativeScreen *screen = FindScreen(package);
     return screen ? screen->package->Find(hash) : 0;
-}
-
-void *FngFindStringByHash(const char *package, unsigned int hash) {
-    // Original 0x537a10 is a type-2 lookup; manager/package search remains native.
-    FengObject *object = static_cast<FengObject *>(FngFindObject(package, hash));
-    return object && object->type18 == 2 ? object : 0;
-}
-
-void *FngFindObject5379C0(const char *package, unsigned int hash) {  // 0x5379c0
-    return FngFindObject(package, hash);
 }
 
 // 0x537be0: formats into the string object (the options use it with literal strings only).
@@ -826,6 +829,7 @@ void FngShowDialog(const char *package, const char *, int value8, unsigned int v
     dialog.backResult = value18;
     dialog.selected = value1C == 0 ? 0 : 1;
     dialogScreen.shown = true;
+    RefreshNativePackageChain();
     // Two-button form: the centre button and the memory-card header are not used here.
     const unsigned int hidden[] = {FengHash("Button3"), 0xda473d31, FengHash("Header_text_02"), 0xc26a8d5c};
     for (size_t i = 0; i < sizeof(hidden) / sizeof(hidden[0]); ++i) {

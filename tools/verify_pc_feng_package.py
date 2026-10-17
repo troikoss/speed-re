@@ -33,13 +33,17 @@ ARENA, STACK, STOP = 0x2000000, 0x200f000, 0x2100000
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", default="src/Speed/Indep/Src/Frontend/FEngPackage.cpp")
+    parser.add_argument("--compiler", choices=("msvc", "clang-cl"), default="msvc")
     args = parser.parse_args()
     raw = EXE.read_bytes()
     assert hashlib.sha256(raw).hexdigest() == "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7"
     image = pefile.PE(data=raw).get_memory_mapped_image()
     BUILD.mkdir(parents=True, exist_ok=True)
     obj = BUILD / "FEngPackage.obj"
-    subprocess.run([str(ROOT / "build/tools/wibo"), "build/compilers/Win32/7.1/cl.exe", "/nologo", "/c",
+    compiler = ([str(ROOT / "build/tools/wibo"), "build/compilers/Win32/7.1/cl.exe"]
+                if args.compiler == "msvc" else
+                ["clang-cl", "--target=i686-pc-windows-msvc", "/GS-", "/GR-", "/w"])
+    subprocess.run(compiler + ["/nologo", "/c",
                     "/Ox", "/Ob0", "/Z7", "/EHsc", "/Fo" + str(obj.relative_to(ROOT)),
                     "/Isrc/Speed/Indep/Src/Frontend", os.path.relpath(args.source, ROOT)], cwd=ROOT, check=True)
     external = {}
@@ -132,7 +136,7 @@ def main():
         struct.pack_into("<I", memory, 0x508, queue)
         compare("SetFocusByHash", memory, [ARENA, target], manager, 8, FindNode=rng.choice((0, node)))
         compare("FngSetFocusEnabled", memory, [ARENA, target, rng.choice((0, 1, 2, 0x80, 0xff))], cleanup=12, FindNode=rng.choice((0, node)))
-    report = {"comparisons": counts, "total": sum(counts.values()), "byte_matching": "not established",
+    report = {"compiler": args.compiler, "comparisons": counts, "total": sum(counts.values()), "byte_matching": "not established",
               "fingerprints": {name: {"address": hex(address), "size": size,
                                       "sha256": hashlib.sha256(image[address-0x400000:address-0x400000+size]).hexdigest()}
                                for name, (address, size) in FUNCTIONS.items()},

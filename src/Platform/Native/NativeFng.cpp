@@ -360,7 +360,10 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
         }
         if (!object->parent) roots_.push_back(object);
     }
-    // Native loader seam: build the original FEng child-chain prefix from PA links.
+    // Native loader seam: root and child chains retain parsed file order.
+    for (size_t i = 0; i < roots_.size(); ++i)
+        roots_[i]->next4 = i + 1 < roots_.size() ? roots_[i + 1] : 0;
+    // Build the original FEng child-chain prefix from PA links.
     for (size_t i = 0; i < objects_.size(); ++i) {
         FengObject *object = objects_[i];
         if (object->type18 == 2) object->languageHash60 = object->font;

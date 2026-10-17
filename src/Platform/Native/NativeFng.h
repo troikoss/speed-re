@@ -107,6 +107,7 @@ public:
     FengObject *FindGuid(unsigned int guid);
     const std::vector<FengResponse> &Responses() const { return responses_; }
     std::vector<FengObject *> &Objects() { return objects_; }
+    FengObject *FirstRoot() const { return roots_.empty() ? 0 : roots_[0]; }
     // Names from the executable are not needed to draw; `Describe` lists the package for debugging.
     void Describe() const;
     void ClearModTranslations() { modTranslations_.clear(); }

@@ -778,3 +778,82 @@ Generated logs remain in ignored
 `build/analysis/feng-text/`. **MSVC 7.1/wibo verification is outstanding; byte
 matching is not established.** Finite callbacks do not prove the complete
 original localization or observer subsystem.
+
+## Object-tree and typed package lookup (2026-10-18)
+
+`Frontend/FEngLookup.cpp` recovers the following UG2 PC v1.2 routines, with
+reference hashes in `config/SPEED2_EXE_1_2/feng-lookup.json`:
+
+| Address | Bytes | Observed responsibility |
+| --- | ---: | --- |
+| `0x504830` | 74 | Visit a group's child chain |
+| `0x504880` | 70 | Visit the package's root chain |
+| `0x5048d0` | 25 | Stop at the first matching object hash |
+| `0x517f80` | 81 | Construct the query and search a package |
+| `0x505310` | 63 | Compare package names with signed-byte ASCII folding |
+| `0x519e50` | 87 | Search package names by hash, then comparison |
+| `0x52c570` | 90 | Search the queue's package chain |
+| `0x5379c0` | 66 | Package-local lookup, then manager fallback |
+| `0x537a10` | 73 | The same lookup with a type-2 string filter |
+| `0x537a60` | 73 | The same lookup with a type-1 image filter |
+
+Traversal calls the visitor before recursing into type-5 groups and reloads
+sibling links after callbacks. A false callback byte stops the entire walk.
+The local query uses vptr/hash/result at offsets 0/4/8. Package roots are at
++0x4c; package next/name/hash are +4/+0xc/+0x10. Queue collection +0xdc has
+its first package at +8 (queue +0xe4). These are observed prefixes, not full
+class recoveries. The virtual destructor in the query interface models its
+observed slot; the original destructor body is not recovered here.
+
+The queue searches one named package or, for a null name, all packages in
+chain order. Wrappers first use `FngFindPackage` for a non-null name, then
+read the current manager at `*0x8384c4` for fallback. A found object of the
+wrong type is rejected without another fallback search. A non-null manager
+requires a valid queue when fallback is reached. Name search hashes even an
+empty list, handles null stored names separately, and resolves real hash
+collisions through comparison. The comparator folds only ASCII lowercase;
+high bytes and the final subtraction are signed.
+
+Native typed string/image wrappers and `FngFindObject5379C0` adapters are
+removed. The loader now links roots as well as children in parsed file order.
+A native adapter links shown screens in fixed screen-array order into the
+queue. Package loading, membership/order and `FngFindPackage` (`0x52cef0`)
+remain seams; archive search `0x51bb70` is not recovered by this checkpoint.
+The separate legacy native `FngFindObject` adapter still serves older callers.
+HUD's flat native lookup is also separate. These changes do not establish
+complete FEng resource loading or original package lifecycle behavior.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_lookup.py --mutation-checks
+# Explicit fallback when MSVC 7.1/wibo is absent:
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_lookup.py --compiler clang-cl --mutation-checks
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_package.py --compiler clang-cl
+```
+
+Clang Windows i686 verification passes **11,264 original/rebuilt comparisons**
+(1,024 fixtures across eleven entries including recovered `cihash`). Lookup
+compositions execute the actual traversal, query, hashing, name comparison,
+package-list and queue routines. Only package locator `0x52cef0` is controlled;
+direct walk fixtures additionally control the visitor callback. Cases include
+nested acyclic groups, empty chains, duplicate object hashes, null/mixed-case/
+missing/empty names, signed high bytes, the genuine name-hash collision
+`B!.fng`/`AB.fng`, manager absence and callback-induced global changes.
+Direct visitors exercise stopping, sibling/type mutations and noncanonical
+true bytes. Guarded memory, callback/hash/comparison traces, return values,
+stack cleanup, preserved registers and global state agree.
+
+The original package query creates a compiler SEH frame. The verifier supplies
+a valid FS/TIB and checks normal-return chain restoration. **Exception unwinding
+is excluded**; generated compiler handlers must remain unexecuted. Null query
+names with a non-null empty-name package are excluded because the original can
+reach a null string comparison. Six mutations are rejected: continuing after a
+match, omitting group recursion, wrong image type, ignoring name collisions,
+skipping manager fallback and retrying a wrong-type string result.
+
+Package regression passes **12,000 comparisons** with the extended headers.
+Native build and headless checks pass: all 19 settings scenarios, all 10 Controls
+scenarios and scroller-motion pixel assertions. Logs and reports remain ignored
+under `build/analysis/feng-lookup/`. **MSVC 7.1/wibo verification is outstanding;
+byte matching is not established.** Finite tree fixtures do not prove arbitrary
+callback reentrancy, malformed/cyclic trees, exception behavior or the complete
+GUI subsystem.

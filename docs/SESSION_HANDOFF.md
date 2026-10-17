@@ -295,3 +295,19 @@ filenames. Local tools are `build/tools/wibo` and
 sandbox; a sandbox exit 159 does not establish a native program failure.
 Git mutations/push also require escalation because `.git` is sandbox read-only.
 No analysis jobs are left running at this checkpoint.
+
+24. **Object-tree and typed package lookup checkpoint (2026-10-18).**
+    `FEngLookup.cpp` recovers visitor walks `0x504830`/`0x504880`, query
+    `0x5048d0`, package object search `0x517f80`, signed ASCII name comparison
+    `0x505310`, package-list search `0x519e50`, queue fallback `0x52c570`, and
+    wrappers `0x5379c0`/`0x537a10`/`0x537a60`. This supersedes the lookup gaps
+    listed above. Root/child links now feed recovered traversal; native screen
+    membership/order and package locator `0x52cef0` remain seams. The legacy
+    generic `FngFindObject` is still a compatibility adapter, not `0x537a10`.
+    Clang i686 verification passes 11,264 comparisons with actual composed
+    helpers and rejects six mutations. Package regression passes 12,000;
+    native build, all 19 settings, all 10 Controls and motion pixel checks pass
+    headlessly. Normal-return SEH-chain restoration is verified; exception
+    unwinding, MSVC 7.1 and byte matching remain outstanding. See full evidence
+    in `pc-pause-menu.md`. Next bounded candidates: package locator `0x52cef0`
+    and archive search `0x51bb70`, then script activation `0x51cf70`/`0x517720`.
