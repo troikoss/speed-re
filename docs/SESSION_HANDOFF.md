@@ -331,3 +331,18 @@ checkpoint. Reviewed revision `d238bdffc648498840d17133edb256fa0310d355`;
 see `nfspluginsdk-reference.md` for pinned ProStreet FEng/script/string leads
 and the MW05 virtual-layout difference. No source imported or UG2 fields
 renamed from cross-title evidence alone.
+
+26. **Archive search checkpoint (2026-10-18).** `FEngArchive.cpp` recovers
+    `0x51bb70` (206 bytes): nullable length/hash, backward backslash scan,
+    two record formats, first hash hit and ordered unlink/prepend. Leading
+    backslash and zero-candidate behavior are preserved. Native `FindNode` is
+    removed; native shown-screen membership and hash-record construction remain
+    seams. Standalone Clang i686 verification passes 8,192 comparisons and
+    rejects six mutations, including exact link-write order and repeated calls.
+    The lookup verifier's `--compose-archive` mode executes the real archive
+    dependency and passes 13,376 comparisons, rejecting the ten existing
+    lookup/locator mutations. Native/mod builds and headless all 19 settings,
+    all 10 Controls, slider pixels and motion checks pass. Legacy compiler/byte matching,
+    arbitrary malformed lists and archive lifecycle remain unverified. Next:
+    script activation `0x51cf70`/`0x517720`; tracing shows name hashing on each
+    search iteration and script-current-pointer reload after activation.

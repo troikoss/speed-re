@@ -64,6 +64,10 @@ struct NativeScreen {
         memset(&record, 0, sizeof(record));
         memset(&node, 0, sizeof(node));
         node.package18 = &fePackage;
+        nodeRecord[0] = 0x30210;
+        nodeRecord[1] = 0;
+        nodeRecord[2] = FengHash(name);
+        node.value10 = nodeRecord;
     }
     // Every showing starts from the package's loaded state, as a newly pushed FEng package does.
     bool Reset(std::string *error) {
@@ -108,6 +112,7 @@ struct NativeScreen {
     FEPackage fePackage;  // original prefix, native object loading remains a seam
     FngRecord record;      // static FNG selection survives package reloads
     FEngPackageNode node;
+    unsigned int nodeRecord[3];
     std::vector<HudVisibilityObject *> focusObjects;
     std::map<FengObject *, unsigned int> currentScript;  // object +0x54 script hash
     void *object;          // FNG object created by the package's FNGINIT factory
@@ -169,6 +174,9 @@ FEngManager nativeFengManager = {{0}, &nativeFengQueue};
 
 // Native package membership/order seam; recovered lookup traverses these links.
 void RefreshNativePackageChain() {
+    // Archive allocation/header construction remains a native adapter.
+    FEngArchiveLink *root = &fengArchive8637B0.root4;
+    root->next0 = root->previous4 = root;
     FEPackage **tail = &nativeFengQueue.packagesDC.first8;
     *tail = 0;
     for (size_t i = 0; i < kScreenCount; ++i) {
@@ -176,6 +184,11 @@ void RefreshNativePackageChain() {
         if (!screens[i]->shown) continue;
         *tail = &screens[i]->fePackage;
         tail = &screens[i]->fePackage.next4;
+        FEngArchiveLink *link = &screens[i]->node.links4;
+        link->next0 = root;
+        link->previous4 = root->previous4;
+        root->previous4->next0 = link;
+        root->previous4 = link;
     }
     *tail = 0;
 }
@@ -604,10 +617,6 @@ FngRecord *FngFindRecord(unsigned int hash) {
     }
     return 0;
 }
-FEngPackageNode *FEngArchive::FindNode(const char *name) {
-    NativeScreen *screen = FindScreen(name);
-    return screen && screen->shown ? &screen->node : 0;
-}
 void FEngQueue::Post(unsigned int message, void *sender, FEPackage *package, int target, int) {
     for (size_t i = 0; i < kScreenCount; ++i) {
         if (&screens[i]->fePackage != package) continue;
@@ -929,6 +938,7 @@ bool NativePause::Load(const char *gameDirectory, NativeTextureCache *cache, con
     gameFlow8900D8 = &nativeFlow;
     pcHelpBar8384D8 = &nativeHelpBar;
     replay8650B8 = &nativeReplay;
+    RefreshNativePackageChain();
     NativePauseOptionsLoad(gameDirectory);
     return true;
 }

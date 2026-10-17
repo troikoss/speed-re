@@ -29,6 +29,7 @@ shared across the engine based on these header similarities. Original UG2
 execution, fingerprints and bounded differential tests remain authoritative.
 
 For the active frontend work, the SDK is most useful for script, object and
-string naming hypotheses. The inspected types do not remove the archive search
-`0x51bb70`, package lifecycle or Linux rendering/storage seams documented in
+string naming hypotheses. The inspected types do not provide the original archive search body
+`0x51bb70` (now independently recovered here), package lifecycle or Linux
+rendering/storage implementations documented in
 [the pause-menu evidence](pc-pause-menu.md).

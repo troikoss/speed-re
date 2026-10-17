@@ -43,24 +43,32 @@ def main():
     parser.add_argument('--compiler', choices=('msvc', 'clang-cl'), default='msvc')
     parser.add_argument('--source', type=Path, default=ROOT / 'src/Speed/Indep/Src/Frontend/FEngLookup.cpp')
     parser.add_argument('--locator-source', type=Path, default=ROOT / 'src/Speed/Indep/Src/Frontend/FEngLocator.cpp')
+    parser.add_argument('--compose-archive', action='store_true', help='Execute recovered archive search instead of controlling it')
     parser.add_argument('--mutation-checks', action='store_true')
     args = parser.parse_args()
     manifest = json.loads((ROOT / 'config/SPEED2_EXE_1_2/feng-lookup.json').read_text())
     raw = EXE.read_bytes()
     assert hashlib.sha256(raw).hexdigest() == manifest['executable_sha256']
     image = pefile.PE(data=raw).get_memory_mapped_image()
-    functions = manifest['functions']
+    functions = dict(manifest['functions'])
+    if args.compose_archive:
+        archive_manifest = json.loads((ROOT / 'config/SPEED2_EXE_1_2/feng-archive.json').read_text())
+        assert archive_manifest['executable_sha256'] == manifest['executable_sha256']
+        functions.update(archive_manifest['functions'])
     for f in functions.values():
         offset = int(f['address'], 16) - 0x400000
         assert hashlib.sha256(image[offset:offset + f['size']]).hexdigest() == f['sha256']
     BUILD.mkdir(parents=True, exist_ok=True)
     objects = []
-    for source in (args.source, args.locator_source, ROOT / 'src/Speed/Indep/Libs/bWare/Strings.cpp'):
+    sources = [args.source, args.locator_source, ROOT / 'src/Speed/Indep/Libs/bWare/Strings.cpp']
+    if args.compose_archive:
+        sources.append(ROOT / 'src/Speed/Indep/Src/Frontend/FEngArchive.cpp')
+    for source in sources:
         obj = BUILD / (source.stem + '.obj')
         if args.compiler == 'msvc':
             command = [str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe', '/nologo', '/c', '/Ox', '/Ob0', '/Z7', '/EHsc']
         else:
-            command = ['clang-cl', '--target=i686-pc-windows-msvc', '/nologo', '/c', '/O2', '/Ob0', '/GS-', '/GR-', '/w', '/EHsc']
+            command = ['clang-cl', '--target=i686-pc-windows-msvc', '/nologo', '/c', '/O2', '/Ob0', '/GS-', '/GR-', '/w', '/EHsc', '/clang:-fno-builtin']
         subprocess.run(command + ['/Fo' + str(obj.relative_to(ROOT)), '/Isrc/Speed/Indep/Src/Frontend',
                                   os.path.relpath(source, ROOT)], cwd=ROOT, check=True)
         objects.append(obj)
@@ -71,9 +79,13 @@ def main():
                 '_strlen': STOP + 0x100, '??3@YAXPAX@Z': STOP + 0x200,
                 '??3@YAXPAXI@Z': STOP + 0x300, '__purecall': STOP + 0x400,
                 '___CxxFrameHandler3': STOP + 0x500, '___CxxFrameHandler': STOP + 0x500}
+    if args.compose_archive:
+        del external['?FindNode@FEngArchive@@QAEPAUFEngPackageNode@@PBD@Z']
     linked = link_objects(objects, external)
     entries = {name: next(a for n, a in linked['exports'].items() if n.startswith(prefix))
                for name, prefix in PREFIXES.items()}
+    if args.compose_archive:
+        entries['FindNode'] = next(a for n, a in linked['exports'].items() if n.startswith('?FindNode@FEngArchive@'))
     state, machines = {}, []
 
     def words(uc, address, count=1):
@@ -121,7 +133,7 @@ def main():
                 state['trace'].append(('hash', words(uc, sp + 4)[0]))
             if address == compare_entry:
                 state['trace'].append(('name-compare', words(uc, sp + 4, 2)))
-            if address in (CALLBACK, 0x51bb70):
+            if address == CALLBACK or (address == 0x51bb70 and not args.compose_archive):
                 ret, argument = words(uc, sp, 2)
                 if address == 0x51bb70:
                     assert uc.reg_read(UC_X86_REG_ECX) == ARCHIVE
@@ -153,7 +165,7 @@ def main():
         machines.append(uc)
 
     rng = random.Random(0x537a10)
-    counts = dict.fromkeys(functions, 0)
+    counts = dict.fromkeys((name for name in functions if name != 'strlenWithNullcheck'), 0)
 
     def compare(name, memory, arguments, this=0, cleanup=0, byte_result=False, manager=0, mode=0, **fixture):
         outputs = []
@@ -161,6 +173,9 @@ def main():
             uc.mem_write(ARENA, bytes(memory))
             uc.mem_write(GLOBAL, struct.pack('<I', manager))
             uc.mem_write(MODE, struct.pack('<I', mode))
+            if args.compose_archive:
+                head = ARCHIVE_NODE + 4 if fixture['archive_node'] else ARCHIVE + 4
+                uc.mem_write(ARCHIVE + 4, struct.pack('<II', head, head))
             uc.mem_write(TIB, struct.pack('<I', 0x12345678))
             uc.mem_write(STACK, struct.pack('<I', STOP) + struct.pack('<' + 'I' * len(arguments), *arguments))
             uc.reg_write(UC_X86_REG_ESP, STACK)
@@ -176,7 +191,8 @@ def main():
             assert words(uc, TIB)[0] == 0x12345678
             value = uc.reg_read(UC_X86_REG_EAX)
             outputs.append((value & 255 if byte_result else value, bytes(uc.mem_read(ARENA, 0xe000)),
-                            words(uc, GLOBAL), words(uc, MODE), state['trace']))
+                            words(uc, GLOBAL), words(uc, MODE), state['trace'],
+                            bytes(uc.mem_read(ARCHIVE, 12)) if args.compose_archive else b''))
         assert outputs[0] == outputs[1], ('state or call order mismatch', name, outputs[0][0], outputs[1][0],
                                          outputs[0][4], outputs[1][4])
         counts[name] += 1
@@ -220,6 +236,10 @@ def main():
         put(QUEUE + 0xe4, PACKAGES[0] if length else 0)
         put(QUEUE + 0xf4, 0 if trial % 4 == 1 else PACKAGES[trial % 3])
         put(ARCHIVE_NODE + 0x18, rng.choice((0, *PACKAGES)))
+        if args.compose_archive:
+            put(ARCHIVE_NODE + 4, ARCHIVE + 4, ARCHIVE + 4)
+            put(ARCHIVE_NODE + 0x10, ARENA + 0x1900)
+            put(ARENA + 0x1900, 0x30210, 0, hash_name(strings[trial % 10]))
         put(MANAGER + 8, QUEUE)
         put(VISITOR, VTABLE)
         put(VTABLE, STOP + 0x600, CALLBACK)
@@ -250,16 +270,20 @@ def main():
             compare(function, memory, [name, hash_], manager=manager, **fixture)
         compare('cihash', memory, [name], manager=manager, **fixture)
         compare('FngFindPackage', memory, [name], manager=manager, **fixture)
+        if args.compose_archive:
+            compare('FindNode', memory, [name], ARCHIVE, 4, manager=manager, **fixture)
         if trial % 16 == 0:
             put(MANAGER + 8, 0)
             compare('FngFindPackage', memory, [name], manager=MANAGER, **dict(fixture, mode=0))
     report = {'compiler': args.compiler, 'comparisons': counts, 'total': sum(counts.values()),
-              'fingerprints': functions, 'controlled_interfaces': ['FEngArchive::FindNode 0x51bb70', 'visitor callback in direct walk fixtures'],
+              'fingerprints': functions, 'controlled_interfaces': (['visitor callback in direct walk fixtures'] if args.compose_archive else
+                  ['FEngArchive::FindNode 0x51bb70', 'visitor callback in direct walk fixtures']),
               'composition': 'real tree/hash query, package locator, both live lists, typed wrappers, hashing and name comparison',
+              'archive_composed': args.compose_archive,
               'seh': 'normal-return FS chain restoration verified; exceptions/unwind excluded', 'byte_matching': 'not established',
               'limitations': ['finite acyclic trees/package chains', 'valid non-null queue behind non-null manager',
                               'null requested name with a non-null empty-name package is excluded',
-                              'native package membership, archive lookup and resource loading remain seams', 'MSVC pending with clang-cl']}
+                              'native package membership and resource loading remain seams', 'MSVC pending with clang-cl']}
     if args.mutation_checks:
         source = args.source.read_text()
         mutations = {
@@ -278,7 +302,7 @@ def main():
             path = BUILD / ('mutation-' + name + '.cpp')
             path.write_text(source.replace(before, after))
             result = subprocess.run([os.sys.executable, str(Path(__file__).resolve()), '--compiler', args.compiler,
-                                     '--source', str(path), '--locator-source', str(args.locator_source)], cwd=ROOT, capture_output=True, text=True)
+                                     '--source', str(path), '--locator-source', str(args.locator_source)] + (['--compose-archive'] if args.compose_archive else []), cwd=ROOT, capture_output=True, text=True)
             (BUILD / ('mutation-' + name + '.log')).write_text(result.stdout + result.stderr)
             assert result.returncode != 0 and 'state or call order mismatch' in result.stderr, name
             rejected.append(name)
@@ -296,12 +320,13 @@ def main():
             path = BUILD / ('mutation-' + name + '.cpp')
             path.write_text(locator.replace(before, after))
             result = subprocess.run([os.sys.executable, str(Path(__file__).resolve()), '--compiler', args.compiler,
-                                     '--source', str(args.source), '--locator-source', str(path)], cwd=ROOT, capture_output=True, text=True)
+                                     '--source', str(args.source), '--locator-source', str(path)] + (['--compose-archive'] if args.compose_archive else []), cwd=ROOT, capture_output=True, text=True)
             (BUILD / ('mutation-' + name + '.log')).write_text(result.stdout + result.stderr)
             assert result.returncode != 0 and 'state or call order mismatch' in result.stderr, name
             rejected.append(name)
         report['rejected_mutations'] = rejected
-    (BUILD / 'verification.json').write_text(json.dumps(report, indent=2) + '\n')
+    report_name = 'archive-composition.json' if args.compose_archive else 'verification.json'
+    (BUILD / report_name).write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))
 
 

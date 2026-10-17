@@ -896,3 +896,73 @@ passes all 19 settings and 10 Controls scenarios plus scroller motion. Slider
 fill widths are 0/99/206 pixels with monotonically moving knobs; motion settles
 at the screen centre. These are integration checks, separate from PC execution
 comparisons. The existing package regression also passes 12,000 comparisons.
+
+## Archive hash search and intrusive-list promotion (2026-10-18)
+
+`Frontend/FEngArchive.cpp` recovers `0x51bb70` (206 bytes), fingerprinted in
+`config/SPEED2_EXE_1_2/feng-archive.json` with its already recovered helpers
+`strlenWithNullcheck` (`0x43dbb0`, 26 bytes) and `cihash` (`0x505450`, 47 bytes).
+The routine uses an archive sentinel at receiver +4 and node links at +4/+8;
+node +0xc/+0x10 point to records, with live package +0x18. These remain partial
+layouts; record names/ownership and allocation are not inferred here.
+
+Name scanning begins at the terminating NUL and walks backward until reaching
+the original pointer, stripping only a backslash found before that stopping
+point. A backslash at the first byte is therefore retained. Forward slashes
+are not separators. A null name passes the nullable length/hash helpers without
+an added early return. Record kind `0x30210` supplies its hash at record +8.
+Kind `0x30203` hashes data +0x28 only when data words +0/+8 equal `0xe76e4546` /
+`0x64486b50` and unsigned version +0x10 is at least `0x20000`. Rejected headers
+and other kinds yield candidate hash zero; the original still compares that
+zero with the query. This can match a genuine zero-hash name such as bytes
+`1f 41 21`. Hash equality alone selects a node, including collisions; there is
+no subsequent name comparison in this routine.
+
+The first hit is unlinked and prepended to the sentinel list, even if it was
+already first. Source preserves the six link-write operations and their order.
+A repeated lookup sees the promoted node. The list must be valid and circular;
+a null head is not a valid empty-list representation for this routine. An empty
+list points its head/tail to the sentinel.
+
+The native `FindNode` screen adapter is removed. Native scaffolding builds
+`0x30210` hash records and a circular list of shown screens, rebuilding it when
+screen membership changes. Recovered search now performs subsequent promotion.
+This retains a native membership/order/header-construction seam; it does not
+recover original archive loading, decompression, allocation or persistence.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_archive.py --mutation-checks
+# Explicit fallback when MSVC 7.1/wibo is absent:
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_archive.py --compiler clang-cl --mutation-checks
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_lookup.py --compiler clang-cl --compose-archive --mutation-checks
+```
+
+Clang i686 archive verification passes **8,192 original/rebuilt comparisons**:
+4,096 fixtures each called twice without restoring the list between calls.
+It executes both recovered string helpers; no callee is controlled. Comparisons
+check guarded memory, exact ordered arena writes, helper-call arguments/order,
+return values, stack cleanup and preserved registers. Cases cover empty and
+one-to-five-node lists, duplicate/colliding/zero hashes, valid/rejected records,
+unsigned version boundaries, null/empty/high-byte/path names and repeated hits.
+Six mutations are rejected: omitted promotion, wrong magic, wrong inclusive
+version boundary, refusing zero candidates, ignoring the basename and stripping
+a leading backslash. The Clang verifier disables builtin substitution so the
+nullable-length loop executes rather than a generated host `strlen` call.
+
+The optional lookup composition passes **13,376 comparisons**, executing the
+actual archive routine, locator, both live searches, object traversal and typed
+wrappers. Its archive fixtures are empty or single-node `0x30210` records; the
+larger standalone archive test covers the other records and list promotion.
+Only direct visitor fixtures control a callback. Normal-return SEH checks retain
+the preceding scope. **MSVC 7.1/wibo and byte matching remain outstanding.**
+Finite valid lists do not establish behavior for malformed pointers, arbitrary
+reentrancy or complete archive lifecycle. Generated reports/logs remain ignored
+under `build/analysis/feng-archive/` and
+`build/analysis/feng-lookup/archive-composition.json`.
+
+Native and mod-enabled builds pass after archive integration. Headless checks
+pass all 19 settings scenarios, all 10 Controls scenarios, slider fill/knob
+pixel assertions and selected-icon motion/settled-centre assertions. These
+integration checks are separate from the original/rebuilt execution evidence.
+The composed lookup run also rejects all ten existing lookup/locator mutations;
+its archive-specific mutations are exercised by the standalone verifier.

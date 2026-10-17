@@ -55,13 +55,27 @@ UG2_CHECK_OFFSET(FEPackage, focusObjects90, 0x90);
 UG2_CHECK_OFFSET(FEPackage, focusCount94, 0x94);
 UG2_CHECK_SIZE(FEPackage, 0x98);
 
+struct FEngArchiveLink {
+    FEngArchiveLink *next0;
+    FEngArchiveLink *previous4;
+};
 struct FEngPackageNode {
-    char unidentified0[0x18];
+    char unidentified0[4];
+    FEngArchiveLink links4;
+    unsigned int *valueC;
+    unsigned int *value10;
+    char unidentified14[4];
     FEPackage *package18;
 };
 struct FEngArchive {
+    char unidentified0[4];
+    FEngArchiveLink root4;
     FEngPackageNode *FindNode(const char *name); // 0x51bb70
 };
+UG2_CHECK_OFFSET(FEngPackageNode, links4, 4);
+UG2_CHECK_OFFSET(FEngPackageNode, valueC, 0xc);
+UG2_CHECK_OFFSET(FEngPackageNode, value10, 0x10);
+UG2_CHECK_OFFSET(FEngArchive, root4, 4);
 struct FEngManager {
     char unidentified0[8];
     FEngQueue *queue8;
@@ -77,6 +91,7 @@ struct FngRecord {
 };
 extern FEngManager *fengManager8384C4;
 extern unsigned int fengValue8384D0;
+extern FEngArchive fengArchive8637B0;
 void __stdcall FngSetFocusEnabled(const char *name, unsigned int hash, unsigned char enabled); // 0x51cc60
 FEPackage *FngFindPackage(const char *name); // 0x52cef0
 FngRecord *FngFindRecord(unsigned int hash); // 0x50b840

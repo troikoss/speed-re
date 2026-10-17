@@ -316,9 +316,12 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
 - Typed string/image lookup (`0x537a10`/`0x537a60`), generic wrapper `0x5379c0`,
   recursive object traversal and package-list fallback now execute recovered code.
   Native loading constructs root/child links; shown-screen membership and order,
-  archive search `0x51bb70`, and the legacy `FngFindObject` adapter remain seams.
+  archive record construction, and the legacy `FngFindObject` adapter remain seams.
   Package locator `0x52cef0` now selects the two live lists or archive boundary
   through recovered code; the native demo initializes its mode flag to zero.
+  Archive search `0x51bb70` also executes recovered code, including hash/header
+  checks and list promotion. Native scaffolding still supplies shown-screen
+  archive membership and simple hash records.
   See [lookup evidence](pc-pause-menu.md#object-tree-and-typed-package-lookup-2026-10-18).
 - FEng (`0x537a10`, `0x50c900`, `0x537c00`/`0x537cc0`, `0x55dda0`, ...):
   packages are reloaded on every showing; messages are queued and delivered to the screen's object;
