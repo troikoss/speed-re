@@ -33,7 +33,11 @@ struct FEScriptTrack {
     signed char state7;
     char unidentified8[0x10];
     float base18[4];
-    char unidentified28[0x10];
+    char unidentified28[4];
+    unsigned char value2C;
+    char unidentified2D[3];
+    void *value30;
+    char unidentified34[4];
 };
 UG2_CHECK_OFFSET(FEScriptTrack, base18, 0x18);
 UG2_CHECK_SIZE(FEScriptTrack, 0x38);
@@ -41,6 +45,8 @@ UG2_CHECK_SIZE(FEScriptTrack, 0x38);
 // Partial original FEng object (FEObject) layout, from the object reader 0x555140 and its users.
 // Native FNG objects retain this prefix so recovered routines operate on it directly.
 struct HudVisibilityObject {
+    void InitializeScript(); // 0x517720
+    void SetScript(FEScript *script); // 0x5178b0
     void SetColourState(int key, const unsigned int *value, unsigned char add); // 0x517ad0
     void SetVectorState(int key, const float *value, unsigned char add); // 0x5178d0
     char unidentified0[4];

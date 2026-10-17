@@ -382,6 +382,7 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
         for (size_t j = 0; j < object->scripts.size(); ++j) {
             FengScript &script = object->scripts[j];
             script.originalTracks.resize(script.tracks.size());
+            script.originalKeys.resize(script.tracks.size());
             for (size_t k = 0; k < script.tracks.size(); ++k) {
                 const FengTrack &native = script.tracks[k];
                 FEScriptTrack &track = script.originalTracks[k];
@@ -391,6 +392,17 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                 track.value2 = native.interpolation;
                 track.flags3 = native.flags3;
                 track.state7 = native.state7;
+                // 0x5515e0 puts the first Kd key inline at track+8; later keys form the delta list.
+                std::vector<FengScriptKey> &keys = script.originalKeys[k];
+                keys.resize(native.keys.empty() ? 0 : native.keys.size() - 1);
+                for (size_t n = 0; n < keys.size(); ++n) {
+                    memset(&keys[n], 0, sizeof(keys[n]));
+                    keys[n].next4 = n + 1 < keys.size() ? &keys[n + 1] : 0;
+                    keys[n].previous8 = n ? &keys[n - 1] : 0;
+                    keys[n].timeC = native.keys[n + 1].first;
+                    memcpy(keys[n].value10, &native.keys[n + 1].second[0], native.size < 16 ? native.size : 16);
+                }
+                track.value30 = keys.empty() ? 0 : &keys[0];
                 if (!native.baseline.empty()) memcpy(track.base18, &native.baseline[0], native.size < 16 ? native.size : 16);
             }
             FEScript &header = script.header;
@@ -463,7 +475,9 @@ bool FengPackage::PlayScriptHash(FengObject *object, unsigned int hash, bool res
             object->scripts[i].header.time10 = 0;
             object->scriptRemainder = 0;
         }
-        object->currentScript54 = &object->scripts[i].header;
+        if (object->currentScript54 != &object->scripts[i].header) {
+            object->SetScript(&object->scripts[i].header);
+        }
         return true;
     }
     return false;
@@ -475,6 +489,7 @@ void FengPackage::AdvanceScripts(float seconds) {
         if (!object->currentScript54) continue;
         // FengScript begins with its FEScript header.
         FengScript &script = *reinterpret_cast<FengScript *>(object->currentScript54);
+        if (!script.header.time10) object->scriptRemainder = 0; // Native sub-millisecond clock seam.
         unsigned char state[84] = {};
         memcpy(state, object->colour, 16);
         memcpy(state + 16, object->pivot, 12);
@@ -487,6 +502,8 @@ void FengPackage::AdvanceScripts(float seconds) {
             if (!track.baseline.empty()) {
                 memcpy(&track.baseline[0], script.originalTracks[k].base18, track.size < 16 ? track.size : 16);
             }
+            for (size_t n = 0; n < script.originalKeys[k].size(); ++n)
+                memcpy(&track.keys[n + 1].second[0], script.originalKeys[k][n].value10, track.size < 16 ? track.size : 16);
             ApplyTrack(track, state, sizeof(state), script.header.time10);
         }
         ReadState(object, state, sizeof(state));

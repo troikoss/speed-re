@@ -73,7 +73,6 @@ struct NativeScreen {
     bool Reset(std::string *error) {
         delete package;
         package = new FengPackage;
-        currentScript.clear();
         memset(&fePackage, 0, sizeof(fePackage));
         focusObjects.clear();
         if (!package->Load(&data[0], data.size(), 0, error)) return false;
@@ -114,7 +113,6 @@ struct NativeScreen {
     FEngPackageNode node;
     unsigned int nodeRecord[3];
     std::vector<HudVisibilityObject *> focusObjects;
-    std::map<FengObject *, unsigned int> currentScript;  // object +0x54 script hash
     void *object;          // FNG object created by the package's FNGINIT factory
 };
 
@@ -124,6 +122,7 @@ struct RunningScript {
     const FengScript *script;
     float milliseconds;
     size_t nextEvent;
+    bool finished;
 };
 
 struct PendingMessage {
@@ -282,8 +281,8 @@ void RemoveScripts(NativeScreen *screen) {
     }
 }
 
-// 0x5178b0 with the object's script list: the object's current script, its tracks (FengPackage)
-// and its package events (EXIT_COMPLETE).
+// Native hash-selection/event adapter. Recovered SetScript handles track activation;
+// playback clocks and package-event delivery remain native.
 void PlayScript(NativeScreen *screen, FengObject *object, unsigned int hash, bool restart) {
     if (!screen || !object) return;
     for (size_t i = 0; i < object->scripts.size(); ++i) {
@@ -295,9 +294,8 @@ void PlayScript(NativeScreen *screen, FengObject *object, unsigned int hash, boo
                 break;
             }
         }
-        screen->currentScript[object] = hash;
         FengPackage::PlayScriptHash(object, hash, restart);
-        RunningScript running = {screen, object, &object->scripts[i], 0.0f, 0};
+        RunningScript running = {screen, object, &object->scripts[i], 0.0f, 0, false};
         scripts.push_back(running);
         return;
     }
@@ -327,7 +325,7 @@ void RunResponse(NativeScreen *screen, const FengResponse &response, FengObject 
     const std::vector<FengResponseCommand> &commands = response.commands;
     for (size_t i = 0; i < commands.size(); ++i) {
         const FengResponseCommand &command = commands[i];
-        unsigned int current = object && screen->currentScript.count(object) ? screen->currentScript[object] : 0;
+        unsigned int current = object && object->currentScript54 ? object->currentScript54->hash30 : 0;
         switch (command.type) {
         case 0:
             PlayScript(screen, object, command.parameter, true);
@@ -743,11 +741,6 @@ void FngPrintf(void *object, const char *format, ...) {
 void FngHideObject(void *object) { FengPackage::Hide(static_cast<FengObject *>(object)); }  // 0x50ca00
 void FngShowObject(void *object) { FengPackage::Show(static_cast<FengObject *>(object)); }  // 0x50ca50
 
-// 0x51cf70: object script by name (Highlight, UnHighlight, Disable, Disabled, Blink).
-void FngSetObjectScript(void *object, const char *script, bool restart) {
-    NativeFrontendPlayScript(static_cast<FengObject *>(object), FengHash(script), restart);
-}
-
 // 0x50d150: menu sound from table 0x837fe0; there is no frontend audio in the demo.
 void FngPlayMenuSound(const char *, int, int) {}
 
@@ -796,7 +789,7 @@ bool FngScriptActive(const char *package, unsigned int object, const char *scrip
 bool FngScriptRunning(const char *package, unsigned int object, unsigned int script) {
     NativeScreen *screen = FindScreen(package);
     for (size_t i = 0; i < scripts.size(); ++i) {
-        if (scripts[i].screen == screen && scripts[i].object->hash10 == object && scripts[i].script->hash == script)
+        if (scripts[i].screen == screen && scripts[i].object->hash10 == object && scripts[i].script->hash == script && !scripts[i].finished)
             return true;
     }
     return false;
@@ -1011,6 +1004,36 @@ void NativePause::Pointer(float x, float y, bool click, bool drag) {
     }
 }
 
+// Native event delivery seam: observe the script header selected by recovered code.
+// Retain completed cursors until selection changes, so a finished script is not replayed.
+void SynchronizeNativeScriptEvents() {
+    for (size_t n = 0; n < kScreenCount; ++n) {
+        NativeScreen *screen = screens[n];
+        if (!screen->shown) continue;
+        const std::vector<FengObject *> &objects = screen->package->Objects();
+        for (size_t j = 0; j < objects.size(); ++j) {
+            FengObject *object = objects[j];
+            size_t found = scripts.size();
+            for (size_t k = 0; k < scripts.size(); ++k)
+                if (scripts[k].object == object) { found = k; break; }
+            if (found < scripts.size() && &scripts[found].script->header != object->currentScript54) {
+                scripts.erase(scripts.begin() + found);
+                found = scripts.size();
+            }
+            if (!object->currentScript54) continue;
+            if (found == scripts.size()) {
+                RunningScript running = {screen, object, reinterpret_cast<FengScript *>(object->currentScript54),
+                                         (float)object->currentScript54->time10, 0, false};
+                scripts.push_back(running);
+            } else if (!object->currentScript54->time10 && scripts[found].milliseconds > 0.0f) {
+                scripts[found].milliseconds = 0.0f;
+                scripts[found].nextEvent = 0;
+                scripts[found].finished = false;
+            }
+        }
+    }
+}
+
 void NativePause::Update(float seconds) {
     frontendDelta865198 = seconds;
     // Real-time clock seam 0x8651ac (4 kHz units assumed); AcceptsInput (0x4a7bc0) waits for
@@ -1021,8 +1044,10 @@ void NativePause::Update(float seconds) {
     clockRemainder -= (float)ticks;
     if (clockRemainder < 0.0f) clockRemainder = 0.0f;
     realClock8651AC += ticks;
-    for (size_t i = 0; i < scripts.size();) {
+    SynchronizeNativeScriptEvents();
+    for (size_t i = 0; i < scripts.size(); ++i) {
         RunningScript &running = scripts[i];
+        if (running.finished) continue;
         running.milliseconds += seconds * 1000.0f;
         const std::vector<FengEvent> &events = running.script->events;
         while (running.nextEvent < events.size() && events[running.nextEvent].time <= running.milliseconds) {
@@ -1031,9 +1056,7 @@ void NativePause::Update(float seconds) {
             ++running.nextEvent;
         }
         if (running.nextEvent >= events.size() && running.milliseconds >= running.script->duration)
-            scripts.erase(scripts.begin() + i);
-        else
-            ++i;
+            running.finished = true;
     }
     for (size_t i = 0; i < kScreenCount; ++i) {
         if (!screens[i]->shown) continue;

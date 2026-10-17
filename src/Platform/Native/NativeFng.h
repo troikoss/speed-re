@@ -35,12 +35,21 @@ struct FengEvent {
     unsigned int target;
     int time;
 };
+// Native ownership for the observed key-node prefix (reader 0x5515e0).
+struct FengScriptKey {
+    unsigned int value0;
+    FengScriptKey *next4;
+    FengScriptKey *previous8;
+    int timeC;
+    unsigned char value10[16];
+};
 struct FengScript {
     FEScript header;  // original prefix: links, lengthC (duration), time10, hash30
     unsigned int hash;
     int duration;
     std::vector<FengTrack> tracks;
     std::vector<FEScriptTrack> originalTracks;
+    std::vector<std::vector<FengScriptKey> > originalKeys;
     std::vector<FengEvent> events;
 };
 
@@ -128,7 +137,7 @@ public:
     static void GetSize(FengObject *object, float *x, float *y);
     static void SetState(FengObject *object, int key, const float *value);
     static void PlayScript(FengObject *object, const char *name, bool restart);
-    static bool PlayScriptHash(FengObject *object, unsigned int hash, bool restart);  // 0x5178b0
+    static bool PlayScriptHash(FengObject *object, unsigned int hash, bool restart);  // native hash adapter, recovered SetScript activation
     void AdvanceScripts(float seconds);
     // Native pointer seam, using the same composed transforms as the renderer.
     bool Contains(FengObject *object, float x, float y);

@@ -966,3 +966,94 @@ pixel assertions and selected-icon motion/settled-centre assertions. These
 integration checks are separate from the original/rebuilt execution evidence.
 The composed lookup run also rejects all ten existing lookup/locator mutations;
 its archive-specific mutations are exercised by the standalone verifier.
+
+## Script selection and track activation (2026-10-18)
+
+`Frontend/FEngScript.cpp` recovers the following PC v1.2 routines, fingerprinted
+in `config/SPEED2_EXE_1_2/feng-script.json`:
+
+| Address | Bytes | Observed responsibility |
+| --- | ---: | --- |
+| `0x4fe890` | 21 | Resolve a reference chain to its direct head |
+| `0x4fe6b0` | 184 | Four-component quaternion multiplication |
+| `0x505580` | 60 | Four wrapping integer differences |
+| `0x517720` | 369 | Initialize the selected script's tracks |
+| `0x5178b0` | 19 | Assign a script pointer and initialize if non-null |
+| `0x51cf70` | 97 | Select by name and conditionally reset time |
+
+`0x51cf70` hashes the name on **each** visited script, stopping at the first
+matching hash. Null object and empty script list do not hash. A changed selection
+writes current script +0x54, calls initialization directly, then reloads +0x54
+before zeroing time +0x10. A nonzero restart byte additionally zeros the found
+script's time. A same-pointer selection without restart performs no initialization
+or reset. `0x5178b0` is a pointer setter, not the native hash-selection loop that
+was previously labelled with that address: it always assigns, initializes any
+non-null pointer (including the same pointer), and does not itself reset time.
+
+Initialization snapshots the selected track table and unsigned count. Each
+0x38-byte track has flag bit `0x80` cleared. Only interpolation bytes 3/4 compute
+an activation difference. The signed track byte +7 indexes the live state in
+four-byte units. Flag +0x2c chooses direct key pointer +0x30 or reference resolution
+through the reference pointer at +0x30; a null resolved key is skipped. Parameter types 1–6 write
+integer scalar, float scalar, float two-vector, float three-vector, quaternion,
+or integer four-vector differences at key +0x10. Other parameter types leave
+that value untouched. Live state is reloaded per track; table/count stay fixed.
+
+The reference resolver reads nonzero flag +4 and follows +8 until a direct
+receiver, returning its +8. Valid acyclic references are required. Integer
+subtraction uses unsigned words to retain x86 wrapping without signed-overflow
+assumptions and caches inputs before aliasing output writes. Quaternion recovery
+retains operand grouping, caches inputs, and explicitly rounds the third cross
+component to float as the original stack store does. Name selection, pointer
+assignment, initialization and arithmetic helpers keep their separate observed
+call boundaries; no artificial register loads are added for matching.
+
+The native name-selection adapter is removed. The existing native hash adapter
+now calls recovered pointer activation on a changed script; that adapter and
+package-level wrappers remain seams. Static tracing of reader `0x5515e0` confirms
+the first serialized Kd key goes inline at track +8 and later keys form the delta
+list. The native loader now owns those later key-node prefixes, links them in
+file order and exposes their head at track +0x30. Activation writes flow back to
+the native playback data. Allocation, reference sharing and the complete original
+reader are not recovered here.
+
+The native script-hash map is removed; compatibility response conditions read
+the recovered current header. Native event delivery observes selected headers,
+resets its cursor on restart and retains completed cursors until selection changes
+to avoid replaying completed events. Fractional frame timing, event delivery,
+script-running predicates and the limited interpolation backend remain documented
+native seams. In particular this checkpoint does **not** establish original
+playback of interpolation modes 3/4, despite recovering their activation path.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_script.py --mutation-checks
+# Explicit fallback when MSVC 7.1/wibo is absent:
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_script.py --compiler clang-cl --mutation-checks
+```
+
+Clang Windows i686 (`/arch:IA32`) passes **14,336 original/rebuilt comparisons**:
+1,024 fixtures across seven entries at each x87 control word `0x027f`/`0x037f`.
+All called helpers are recovered and executed; no interface is controlled.
+Guarded memory, hash/initialization/reference/arithmetic call traces, return
+values where defined, stack cleanup, preserved registers, x87 control and stack
+balance agree. Fixtures include empty/duplicate/missing name chains, null object/
+name/script, changed/unchanged selection, noncanonical restart/reference bytes,
+zero-to-eight tracks, signed offsets, null direct/resolved keys, types outside
+1–6, output/input aliasing, and activation that aliases the current-script pointer.
+Arithmetic inputs use finite normal floats of varied signs/exponents and arbitrary
+integer words; non-finite/subnormal behavior is not established.
+
+Nine mutations are rejected: retaining track flag `0x80`, omitting mode 4,
+unsigned state offset, skipping reference resolution, omitted time reset,
+resetting the original pointer instead of reloading selection, unconditional
+same-pointer restart, retaining null selection and hashing once before the loop.
+**MSVC 7.1/wibo and byte matching remain outstanding.** Finite valid lists and
+normal floating fixtures do not prove arbitrary aliasing, malformed/cyclic data,
+all floating special values, allocation or the full animation subsystem. Reports
+and captures remain ignored under `build/analysis/feng-script/`.
+
+Native and mod-enabled builds pass. Final headless integration checks pass all
+19 settings and 10 Controls scenarios, slider pixel assertions and the selected
+icon's motion/settled-centre assertions after the event adapter changes. The
+native event observer, ownership and clock glue remain scaffolding rather than
+original/rebuilt proof of the original playback/event subsystem.

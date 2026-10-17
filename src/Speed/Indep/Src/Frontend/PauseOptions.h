@@ -15,7 +15,7 @@ void FngShowObject(void *object); // 0x50ca50
 bool FngScriptRunning(const char *package, unsigned int object, unsigned int script); // 0x537d40
 void FngSetScriptHash(const char *package, unsigned int object, unsigned int script, int restart); // 0x537c60
 void FngPrintf(void *object, const char *format, ...); // 0x537be0
-void FngSetObjectScript(void *object, const char *script, bool restart); // 0x51cf70
+void FngSetObjectScript(void *object, const char *script, unsigned char restart); // 0x51cf70
 void FngPlayMenuSound(const char *package, int row, int column); // 0x50d150, table 0x837fe0
 
 // Game interfaces.

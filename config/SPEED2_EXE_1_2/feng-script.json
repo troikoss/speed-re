@@ -1,0 +1,40 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "Resolve": {
+      "address": "0x4fe890",
+      "size": 21,
+      "sha256": "33f45012aff64cadf815e8ca9e54f4ea80b1bed5360dc017d895bf3838a2dd1e"
+    },
+    "Multiply": {
+      "address": "0x4fe6b0",
+      "size": 184,
+      "sha256": "68282ebc7bdf0e4be81283f6387157c2fa27ed1127441aa9e584548cdd1b8788"
+    },
+    "Subtract": {
+      "address": "0x505580",
+      "size": 60,
+      "sha256": "dc9ab22a3876e7b816ce79941ebfa4bf5eb283721a16546fc6cf2d6191b10dfa"
+    },
+    "InitializeScript": {
+      "address": "0x517720",
+      "size": 369,
+      "sha256": "2687ea76faf5e3d9d50f2462b8835a5a93c4347fa4e9a8defec7582d2f33658a"
+    },
+    "SetScript": {
+      "address": "0x5178b0",
+      "size": 19,
+      "sha256": "b9cd312b9c571dc1570b0e467defe3951cc13401f9bdf0ccdfb4e7a9971665d3"
+    },
+    "FngSetObjectScript": {
+      "address": "0x51cf70",
+      "size": 97,
+      "sha256": "9e61ea98d597b7afbd9736a6ae01f9d5317cf64c52064b2db221ee2a362afd2d"
+    },
+    "cihash": {
+      "address": "0x505450",
+      "size": 47,
+      "sha256": "8c43e57b7bcd7ccde6bf7571a00a79334bbbd6f6e459eb0e2de11cd6b6014641"
+    }
+  }
+}

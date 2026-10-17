@@ -328,8 +328,12 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   scripts fire package events and the bounded animation tracks described in the settings pass below.
 - Pause icon placement/reset/frame tick and cubic tweening now use recovered routines.
   Smaller icons centre-align; the icon row moves under a fixed selection frame, with placement
-  preceding tween advancement. Native scroller construction and script activation
-  remain seams. Colour, lock/arrow-script policies and scrollbar geometry use recovered routines;
+  preceding tween advancement. Native scroller construction remains a seam. Name selection `0x51cf70`,
+  pointer assignment `0x5178b0` and track activation `0x517720` now use recovered
+  code and arithmetic helpers; native loading supplies key nodes and event
+  delivery observes the selected header. Playback and package/hash wrappers
+  remain seams. See [activation evidence](pc-pause-menu.md#script-selection-and-track-activation-2026-10-18).
+  Colour, lock/arrow-script policies and scrollbar geometry use recovered routines;
   LOCK/BUTTON_MASTER and all ScrollBar objects now bind the retail objects.
   ScrollBar setup calls recovered constructor `0x542ac0`; formatting remains a native seam. See [placement evidence](pc-pause-menu.md#scroller-placement-and-cubic-tween)
   and run `python tools/smoke_native_pause_scroller.py` for rendered motion checks.

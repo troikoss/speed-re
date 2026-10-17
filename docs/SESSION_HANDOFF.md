@@ -346,3 +346,20 @@ renamed from cross-title evidence alone.
     arbitrary malformed lists and archive lifecycle remain unverified. Next:
     script activation `0x51cf70`/`0x517720`; tracing shows name hashing on each
     search iteration and script-current-pointer reload after activation.
+
+27. **Script selection/activation checkpoint (2026-10-18).** `FEngScript.cpp`
+    recovers name selection `0x51cf70`, pointer assignment `0x5178b0`, track
+    initialization `0x517720`, reference resolver `0x4fe890`, quaternion helper
+    `0x4fe6b0` and integer helper `0x505580`. Byte restart signature replaces
+    provisional bool. Actual helper composition passes 14,336 Clang i686
+    comparisons at x87 53/64-bit precision and rejects nine mutations. Aliased
+    current-script reload and helper output aliasing are checked; special float
+    values, arbitrary aliasing and byte matching remain unestablished.
+    Native name adapter/hash map removed; native loader owns delta-key prefixes
+    per reader `0x5515e0` and event cursors follow selected headers. Hash/package
+    wrappers, script-running predicates, allocation and playback remain seams.
+    Native/mod builds and final headless all 19 settings, all 10 Controls,
+    slider pixels and scroller motion pass after event-observer integration.
+    Next candidates: hash selector `0x51cfe0`, wrappers `0x537c00`/`0x537c60`, predicates `0x537cc0`/
+    `0x537d40` and original playback/update dependencies. Do not confuse pointer
+    setter `0x5178b0` with the native hash-selection adapter.
