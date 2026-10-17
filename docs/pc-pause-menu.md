@@ -586,3 +586,73 @@ absent in this checkout, so legacy-compiler validation remains outstanding.**
 The verifier defaults to MSVC and records the explicit Clang fallback when used.
 Finite synthetic comparisons exclude the original missing-package crash and
 do not prove full GUI behavior. **Byte matching is not established.**
+
+## Icon construction, insertion and texture dispatch (2026-10-18)
+
+`Frontend/IconScrollerInsertion.cpp` recovers icon constructor `0x51f670`
+(80 bytes), insertion `0x543c10` (291 bytes), and owner AddIcon wrapper
+`0x50dab0` (46 bytes). `config/SPEED2_EXE_1_2/icon-scroller-insertion.json`
+pins the same UG2 reference executable and the three function bodies.
+
+The constructor initializes only the fields written by the original: texture
++0xc, object +0x10, offsets +0x14/+0x18, flags +0x20..+0x23, identifiers
++0x2c/+0x30, four floats +0x34..+0x40, and bytes +0x44/+0x45. Links
++4/+8, colour +0x1c, dimensions +0x24/+0x28 and padding +0x46/+0x47
+remain untouched. This removes extra native zeroing. The compiler's abstract
+icon vtable is normalized to original `0x79b4d8` for constructor comparison;
+this is separate from the root destructor's `0x79afdc`. Destructor recovery
+and allocation remain outside this checkpoint.
+
+Insertion formats `%s%d` into a 32-byte buffer, looks up a typed named image,
+and deletes a non-null icon on lookup failure. A successful lookup increments
++0x28 even when the icon argument is null, then returns null in that case.
+With a valid icon it binds the image, reads size, samples colour, copies running
+offset +0xe0, overwrites colour with white, reads size again, and reads size a
+third time into scratch. The final width advances `(spacing + running) + width`
+without an intermediate binary32 spill. It then appends the icon's +4 node and,
+if current +0xc is null, selects the first list icon and requests focus through
+the manager when its image exists. This is not necessarily the appended icon
+when the list was already nonempty. The wrapper dispatches virtual slot +8,
+then changes image texture and sets dirty bit `0x400000` only if texture differs.
+
+Native code now delegates this slot to recovered InsertIcon and uses the
+recovered owner wrapper. Its duplicate counter, running offset, geometry cache,
+manual linking, texture setter and constructor implementation are removed.
+The remaining native entry vector tracks ownership and pointer hit testing;
+full scroller construction/destruction and owner message dispatch remain seams.
+The native construction seam supplies prefix `option_` and spacing 40 in the
+original fields instead of keeping separate insertion state.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_icon_scroller_insertion.py --mutation-checks
+# Explicit fallback when MSVC 7.1/wibo is unavailable:
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_icon_scroller_insertion.py --compiler clang-cl --mutation-checks
+```
+
+The Clang Windows i686 build passes **6,000 original/rebuilt comparisons**:
+2,000 each for constructor, insertion and wrapper, under 53-/64-bit x87 precision.
+Compared evidence includes guarded memory, untouched constructor fields, return
+values, stack cleanup, preserved registers and intermediate state at each helper
+call. Fixtures cover empty/nonempty lists, existing/absent current icon,
+manager presence, missing first-icon image, missing lookup, null insertion
+argument, wrapping option indices, equal/different textures, three differing
+size replies and a cancellation case detecting early binary32 rounding.
+Six mutations are rejected: clearing untouched links, wrong numbering, wrong
+offset, retaining sampled colour, wrong dirty bit and early float spill.
+
+Formatting, named-image lookup, size, colour, focus and virtual scalar deletion
+are controlled interfaces in this verifier; their complete composition is not
+proved here. Formatting fixtures fit the buffer. The original wrapper reads
+the icon texture after insertion even when insertion deletes the icon; the
+controlled deletion fixture retains mapped storage, so post-deletion lifetime
+is not verified. Null icons are excluded for the wrapper, which dereferences
+them in the original. Native destruction and heap behavior remain scaffolding.
+**MSVC 7.1/wibo validation is outstanding; byte matching is not established.**
+Generated reports remain in ignored `build/analysis/icon-scroller-insertion/`.
+The native build and the previous 10,800 input-helper comparisons pass after
+integration. Desktop settings/Controls/motion checks pass; the same scripts now
+default to SDL offscreen software rendering and retain their pixel assertions.
+All 19 headless settings scenarios, 10 Controls scenarios and motion also pass,
+as does the optional HUD verifier across
+four aspect ratios, all eleven skins and its 120-frame capture. See the native
+demo guide for `--game`, `--headless` and `--headed` options.

@@ -449,24 +449,19 @@ void CloseAll() {
 }
 
 // IconScroller embedded at IconScrollerFNGObject +0x4c (base vtable 0x795cbc, derived
-// 0x79c0f4). Construction/insertion and ownership remain native seams. Navigation, selection,
+// 0x79c0f4). Construction and ownership remain native seams. Insertion, navigation, selection,
 // placement/reset/frame tick and the cubic tween call recovered routines.
 class NativeIconScroller : public IconScroller4C {
 public:
     struct Entry {
         IconScrollerIcon *icon;
         FengObject *object;
-        float x;
-        float width;
-        float height;
     };
 
     struct State {
         IconScrollerFNGObject *owner;
         FengObject *master;
         std::vector<Entry> entries;
-        int count;
-        float runningX;
         int selected;
     };
     static std::map<NativeIconScroller *, State> &States() {
@@ -478,8 +473,6 @@ public:
     explicit NativeIconScroller(IconScrollerFNGObject *owner) {
         State &state = S();
         state.owner = owner;
-        state.count = 1;
-        state.runningX = 0.0f;
         state.selected = -1;
         memset(&next4, 0, sizeof(IconScroller4C) - 4);
         next4 = previous8 = &next4;
@@ -488,6 +481,8 @@ public:
         direction34 = -9;
         alignmentC0 = 1;
         option28 = 1;
+        prefix20 = "option_";
+        spacing24 = 40.0f;
         windowCC = 480.0f;
         tween90.duration24 = 0.3f;
         tween90.limit28 = 1.0f;
@@ -509,7 +504,15 @@ public:
 
     void UnknownSlot00() { NativeTrap("IconScroller scalar destructor 0x543bf0"); }
     void UnknownSlot04() { UpdateLayout(); }  // 0x538940
-    void UnknownSlot08() { NativeTrap("IconScroller add slot 0x543c10 (reached through AddIcon)"); }
+    HudVisibilityObject *UnknownSlot08(IconScrollerIcon *icon) {
+        HudVisibilityObject *object = InsertIcon(icon);
+        if (object && icon) {
+            Entry entry = {icon, static_cast<FengObject *>(object)};
+            S().entries.push_back(entry);
+            if (S().selected < 0) S().selected = 0;
+        }
+        return object;
+    }
     void UnknownSlot0C(unsigned int message, int value8, int valueC, int value10) { Dispatch(message, value8, valueC, value10); }
     bool UnknownSlot10(int index) { return SelectIndex(index); }
     bool UnknownSlot14(IconScrollerIcon *icon) {
@@ -520,36 +523,6 @@ public:
     void UnknownSlot18() { NativeTrap("IconScroller slot 0x538b80"); }
     void UnknownSlot1C() { NativeTrap("IconScroller slot 0x51f870"); }
     void UnknownSlot20(int index) { ResetLayout(index); }
-
-    // 0x543c10: icons fill the package's option_1, option_2, ... objects left to right,
-    // 40 units apart; an icon without an object is deleted.
-    void Add(IconScrollerIcon *icon) {
-        char name[32];
-        snprintf(name, sizeof(name), "option_%d", S().count);
-        FengObject *object = static_cast<FengObject *>(FngFindObject(S().owner->package4, FngHash(name)));
-        if (!object) {
-            delete icon;
-            return;
-        }
-        ++S().count;
-        option28 = S().count;
-        Entry entry = {icon, object, S().runningX, object->size[0], object->size[1]};
-        S().runningX += 40.0f + entry.width;
-        // 0x50dab0: the object's texture becomes the icon's valueC.
-        FengPackage::SetTexture(object, icon->valueC);
-        // Native list insertion seam: links carry the original icon +4 addresses.
-        icon->next4 = &next4;
-        icon->previous8 = previous8;
-        *static_cast<void **>(previous8) = &icon->next4;
-        previous8 = &icon->next4;
-        icon->object10 = object;
-        icon->offset14 = entry.x;
-        icon->width24 = entry.width;
-        icon->height28 = entry.height;
-        icon->colour1C = 0xffffffff;
-        S().entries.push_back(entry);
-        if (S().selected < 0) { S().selected = 0; currentC = icon; }
-    }
 
     bool Move(int direction) {
         IconScrollerIcon *old = currentC;
@@ -657,27 +630,6 @@ HudVisibilityObject *FngFindImageByHash(const char *package, unsigned int hash) 
 
 // ---- IconScroller base seams --------------------------------------------------------------
 
-// 0x51f670, as read.
-IconScrollerIcon::IconScrollerIcon(unsigned int value0C, unsigned int value2C_, unsigned int value30_) {
-    next4 = previous8 = 0;
-    object10 = 0;
-    offset14 = value18 = 0;
-    colour1C = 0;
-    memset(unidentified21, 0, sizeof(unidentified21));
-    width24 = height28 = 0;
-    memset(unidentified34, 0, sizeof(unidentified34));
-    memset(unidentified46, 0, sizeof(unidentified46));
-    valueC = value0C;
-    value2C = value2C_;
-    value30 = value30_;
-    value20 = 0;
-    unidentified21[0] = 1;  // +0x21
-    float one = 1.0f;
-    for (int i = 0; i < 4; ++i) memcpy(unidentified34 + i * 4, &one, 4);  // +0x34..+0x40
-    unidentified34[0x10] = 1;  // +0x44
-    value45 = 0;
-}
-
 IconScrollerIcon::~IconScrollerIcon() {}  // 0x527770
 
 // 0x552330 / 0x551de0: package name from data[0], help-bar mask +0x20 from data[3].
@@ -758,8 +710,6 @@ void IconScrollerFNGObject::SelectedIconChanged() {
     IconScrollerIcon *icon = ScrollerOf(this)->Selected();
     FngSetLabelString(FngFindObject(package4, FngHash("ICON_TITLE")), icon ? icon->value2C : 0);
 }
-
-void IconScrollerFNGObject::AddIcon(IconScrollerIcon *icon) { ScrollerOf(this)->Add(icon); }  // 0x50dab0
 
 // ---- FEng seams (cdecl interfaces declared in PauseMenu.h / PauseOptions.h) -----------------
 

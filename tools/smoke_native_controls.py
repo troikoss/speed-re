@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Retail Controls package routing/capture checks; native integration, not byte matching."""
-import os
+import argparse
 from pathlib import Path
 import subprocess
+from native_gui_test import add_render_arguments, render_environment
 ROOT = Path(__file__).resolve().parents[1]
 CASES = {
     'pad_button_secondary': ('CGRAH', ['pad-bound action=3 slot=1 code=3']),
@@ -17,12 +18,18 @@ CASES = {
     'player_controls_entry': ('RARRRA'+'D'*10+'A', ['pause: showing UI_Options_PC_Controller.fng']),
 }
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--demo', type=Path, default=ROOT / 'build/native/ug2demo')
+    parser.add_argument('--game', type=Path, default=ROOT / 'Need for Speed Underground 2')
+    add_render_arguments(parser)
+    args = parser.parse_args()
     out = ROOT / 'build/analysis/native-controls';out.mkdir(parents=True,exist_ok=True)
     for name,(keys,expected) in CASES.items():
         image=out/(name+'.ppm')
-        r=subprocess.run([str(ROOT/'build/native/ug2demo'),'--car','SKYLINE','--frames',str(80+30*len(keys)),
+        image.unlink(missing_ok=True)
+        r=subprocess.run([str(args.demo),'--game',str(args.game),'--car','SKYLINE','--frames',str(80+30*len(keys)),
                           '--pause-at','20','--pause-keys',keys,'--screenshot',str(image)],
-                         cwd=ROOT,env=dict(os.environ,UG2_DEBUG_PAUSE='1'),capture_output=True,text=True,timeout=120)
+                         cwd=ROOT,env=render_environment(args,UG2_DEBUG_PAUSE='1'),capture_output=True,text=True,timeout=120)
         log=r.stdout+r.stderr;(out/(name+'.log')).write_text(log)
         assert r.returncode==0,(name,r.returncode)
         assert image.exists() and image.read_bytes().startswith(b'P6\n'),name

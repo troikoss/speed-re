@@ -158,7 +158,7 @@ classes write FEng internals directly, so the work is staged:
    **Next**: recover the rest of IconScroller (vtable `0x79c0f4`, base `0x795cbc`, 0xe8 bytes at
    IconScrollerFNGObject `+0x4c`) replacing `NativeIconScroller`:
    ctors `0x543840`/`0x543a90`, slots `0x543bf0`,
-   `0x543c10`, `0x538b80`, `0x51f870`; helpers `0x51fb70`,
+   `0x538b80`, `0x51f870`; helpers `0x51fb70`,
    `0x538130`, `0x52e4e0`, `0x52e670`, `0x51fd10`, `0x51fd60`,
    list helper `0x43be80`; script activation `0x51cf70`/`0x517720`.
    Layout notes: `+4/+8` icon list sentinel (icon node at icon `+4`), `+0xc` current icon,
@@ -179,8 +179,20 @@ classes write FEng internals directly, so the work is staged:
    and 10 Controls scenarios pass. MSVC 7.1/wibo is absent from this checkout;
    legacy-compiler validation and byte matching remain unestablished. Lookup
    `0x52cef0`, construction and message dispatch remain native seams.
+   **Icon construction/insertion done (2026-10-18)**: `IconScrollerInsertion.cpp`
+   recovers `0x51f670`, `0x543c10` and owner wrapper `0x50dab0`. Original partial
+   initialization replaces native zeroing; insertion owns numbering, dimensions,
+   colour writes, running offset, list links and initial focus. Native storage
+   now retains only ownership/hit-test entries and the selected-index adapter.
+   `verify_pc_icon_scroller_insertion.py --compiler clang-cl --mutation-checks`
+   passes 6,000 comparisons under 53-/64-bit x87 and rejects six mutations.
+   UI helper/deletion interfaces are controlled in that proof; native build,
+   19 settings, 10 Controls and rendered scroller motion pass. MSVC and byte
+   matching remain outstanding. Full scroller construction/destruction and
+   owner dispatch remain seams. Native GUI smoke scripts now default to SDL
+   offscreen software rendering, with `--headed` available; see NATIVE_DEMO.md.
 4. Recover IconScrollerFNGObject: ctors `0x551de0`/`0x552330`, dtor `0x4defb0`, message handler
-   `0x543d40` (sounds via table `0x837fe0` -> `0x458520`), `0x50da50`, `0x50dab0`,
+   `0x543d40` (sounds via table `0x837fe0` -> `0x458520`), `0x50da50`,
    `0x538c00`/
    `0x538ca0` (dim scripts on object `0x47ff4e7c`).
 5. Then the options scroller and option items in `NativePauseOptions.cpp`, the in-game dialog

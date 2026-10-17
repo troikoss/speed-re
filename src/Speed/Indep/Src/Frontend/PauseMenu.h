@@ -116,7 +116,11 @@ public:
     float height28;
     unsigned int value2C;
     unsigned int value30;
-    char unidentified34[0x11];
+    float value34;
+    float value38;
+    float value3C;
+    float value40;
+    unsigned char value44;
     unsigned char value45;
     char unidentified46[2];
 };
@@ -126,6 +130,8 @@ UG2_CHECK_OFFSET(IconScrollerIcon, valueC, 0xc);
 UG2_CHECK_OFFSET(IconScrollerIcon, object10, 0x10);
 UG2_CHECK_OFFSET(IconScrollerIcon, value20, 0x20);
 UG2_CHECK_OFFSET(IconScrollerIcon, value2C, 0x2c);
+UG2_CHECK_OFFSET(IconScrollerIcon, value34, 0x34);
+UG2_CHECK_OFFSET(IconScrollerIcon, value44, 0x44);
 UG2_CHECK_OFFSET(IconScrollerIcon, value45, 0x45);
 UG2_CHECK_SIZE(IconScrollerIcon, 0x48);
 
@@ -189,7 +195,7 @@ class IconScroller4C {
 public:
     virtual void UnknownSlot00() = 0;
     virtual void UnknownSlot04() = 0;
-    virtual void UnknownSlot08() = 0;
+    virtual HudVisibilityObject *UnknownSlot08(IconScrollerIcon *icon) = 0;
     virtual void UnknownSlot0C(unsigned int message, int value8, int valueC, int value10) = 0;
     virtual bool UnknownSlot10(int index) = 0;
     virtual bool UnknownSlot14(IconScrollerIcon *icon) = 0;
@@ -213,6 +219,7 @@ public:
     bool SelectIndex(int index); // 0x52f7c0, zero-based input
     int IndexOf(IconScrollerIcon *icon); // 0x51f820, 1-based; -1 if absent
     void Dispatch(unsigned int message, int value8, int valueC, int value10); // 0x50d980
+    HudVisibilityObject *InsertIcon(IconScrollerIcon *icon); // 0x543c10
 
     void *next4;
     void *previous8;

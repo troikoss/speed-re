@@ -1,0 +1,20 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "Constructor": {
+      "address": "0x51f670",
+      "size": 80,
+      "sha256": "df36d552b986d9c2c2071b6532ff7e5bd0f8cac0b1b141a6e75c3a1e550fd6a9"
+    },
+    "InsertIcon": {
+      "address": "0x543c10",
+      "size": 291,
+      "sha256": "61e5573a2fa42fa07aefaee8ee33b0819ad9b4c493f0bf65733f8a3e9cb07ff0"
+    },
+    "AddIcon": {
+      "address": "0x50dab0",
+      "size": 46,
+      "sha256": "d5153c345e0f5ba22443053a926c44dabaad9d67b328f4bb035ecc1faf763e2a"
+    }
+  }
+}

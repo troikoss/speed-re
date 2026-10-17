@@ -222,6 +222,12 @@ python tools/verify_native_modding.py --build build/modding \
 python tools/verify_native_mod_hud.py --build build/modding
 ```
 
+HUD image verification defaults to SDL offscreen software OpenGL, with desktop
+display variables removed. It still renders and checks the screenshots. Pass
+`--headed` to use the desktop display or `--headless` to select the default
+explicitly. This needs SDL offscreen OpenGL support (validated with Mesa); the
+interactive demo's default behavior is unchanged.
+
 CTest exercises loader/protocol fixtures without assets. The optional game test
 checks the real collision adapter, impulse/mass/inertia exchange, stale handles,
 respawn, invalid-state cleanup, and 1201-frame baseline/empty/forwarding equivalence.

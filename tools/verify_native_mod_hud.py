@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import subprocess
 from PIL import Image, ImageChops
+from native_gui_test import add_render_arguments, render_environment
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -14,6 +15,7 @@ def main():
     parser.add_argument('--build', type=Path, default=ROOT / 'build/modding')
     parser.add_argument('--game', type=Path, default=ROOT / 'Need for Speed Underground 2')
     parser.add_argument('--skins', default=','.join(str(i) for i in range(11)))
+    add_render_arguments(parser)
     args = parser.parse_args()
     build = args.build.resolve()
     output = build / 'mod-tests/hud'
@@ -33,7 +35,8 @@ def main():
             command += ['--no-mods', '--no-hud']
         elif mode == 'scene-modded':
             command += ['--no-hud']
-        result = subprocess.run(command, text=True, capture_output=True)
+        path.unlink(missing_ok=True)
+        result = subprocess.run(command, env=render_environment(args), text=True, capture_output=True, timeout=120)
         (output / (name + '.log')).write_text(result.stdout + result.stderr)
         if result.returncode:
             raise RuntimeError(f'{name}: return {result.returncode}: {result.stderr}')

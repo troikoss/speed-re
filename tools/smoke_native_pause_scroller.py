@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Observe rendered pause-icon motion; native integration, separate from PC equivalence."""
-import os
+import argparse
 from pathlib import Path
 import subprocess
+from native_gui_test import add_render_arguments, render_environment
 ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -27,13 +28,19 @@ def icon_centre(path):
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--demo', type=Path, default=ROOT / 'build/native/ug2demo')
+    parser.add_argument('--game', type=Path, default=ROOT / 'Need for Speed Underground 2')
+    add_render_arguments(parser)
+    args = parser.parse_args()
     out = ROOT / 'build/analysis/native-pause-scroller'; out.mkdir(parents=True, exist_ok=True)
     centres = []
     for frames in (53, 60, 75):
         image = out / ('motion-%d.ppm' % frames)
-        result = subprocess.run([str(ROOT / 'build/native/ug2demo'), '--car', 'SKYLINE', '--frames', str(frames),
+        image.unlink(missing_ok=True)
+        result = subprocess.run([str(args.demo), '--game', str(args.game), '--car', 'SKYLINE', '--frames', str(frames),
                                  '--pause-at', '20', '--pause-keys', 'R', '--screenshot', str(image)], cwd=ROOT,
-                                env=dict(os.environ, UG2_DEBUG_PAUSE='1'), capture_output=True, text=True, timeout=90)
+                                env=render_environment(args, UG2_DEBUG_PAUSE='1'), capture_output=True, text=True, timeout=90)
         log = result.stdout + result.stderr; (out / ('motion-%d.log' % frames)).write_text(log)
         assert result.returncode == 0 and 'unrecovered original code' not in log, (frames, result.returncode)
         centre, width = icon_centre(image); centres.append(centre)

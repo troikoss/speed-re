@@ -2,13 +2,14 @@
 """Exercise the native settings integration with the player's retail FNG assets.
 
 This checks native routing and session state, not original/rebuilt equivalence.
-Run the PC verifiers separately for recovered-code evidence. Requires a working
-SDL/OpenGL display; screenshots and logs stay in ignored build/analysis.
+Run the PC verifiers separately for recovered-code evidence. Requires SDL with
+offscreen OpenGL support; screenshots and logs stay in ignored build/analysis.
+Use --headed to run with the desktop display instead.
 """
 import argparse
-import os
 from pathlib import Path
 import subprocess
+from native_gui_test import add_render_arguments, render_environment
 
 ROOT = Path(__file__).resolve().parents[1]
 CASES = {
@@ -67,6 +68,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--demo', type=Path, default=ROOT / 'build/native/ug2demo')
     parser.add_argument('--game', type=Path, default=ROOT / 'Need for Speed Underground 2')
+    add_render_arguments(parser)
     args = parser.parse_args()
     out = ROOT / 'build/analysis/native-options'
     out.mkdir(parents=True, exist_ok=True)
@@ -77,7 +79,7 @@ def main():
                '--pause-at', '20', '--pause-keys', keys, '--screenshot', str(image)]
         if name == 'player_without_hud':
             cmd.append('--no-hud')
-        result = subprocess.run(cmd, env=dict(os.environ, UG2_DEBUG_PAUSE='1'), capture_output=True, text=True, timeout=90)
+        result = subprocess.run(cmd, env=render_environment(args, UG2_DEBUG_PAUSE='1'), capture_output=True, text=True, timeout=90)
         log = result.stdout + result.stderr
         (out / (name + '.log')).write_text(log)
         assert result.returncode == 0, f'{name}: demo exit {result.returncode}, see {out / (name + ".log")}'

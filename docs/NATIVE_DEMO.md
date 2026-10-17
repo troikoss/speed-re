@@ -288,7 +288,7 @@ read; `UI_Pause.fng`'s `FORWARD` script sends `EXIT_COMPLETE` (`0xe1fde1d1`) to 
 Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, not verified):
 
 - Remaining IconScroller base construction/dispatch (`0x552330`, `0x543d40`,
-  `0x50dab0`/`0x543c10`, `0x50da50`): icons fill `option_1..n` 40 units apart,
+  `0x50da50`): icons fill `option_1..n` 40 units apart,
   anchored on the hidden `OPTION_MASTER`; unselected icons are drawn at 0.8 and centre aligned
   by recovered `0x52f8c0`, shown inside a 480-unit window (`0x50d9c0`); moves skip disabled icons without
   wrapping using recovered `0x51f9f0`; accept reacts immediately for dialog items (`+0x45`) and after
@@ -298,12 +298,17 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   now call recovered code, including the original package-mask writes. Native
   input gates use scroller +0x2f; owner stopped state lives at +0x14c. Full input
   dispatch and package lookup remain seams. See [bounded evidence](pc-pause-menu.md#scroller-deferred-messages-and-input-masks-2026-10-18).
+- Icon construction `0x51f670`, insertion `0x543c10` and owner wrapper `0x50dab0`
+  now call recovered code. Insertion binds typed images, preserves size/colour
+  call order, appends original list links and requests first-icon focus; the
+  wrapper writes texture/dirty state. Native vector ownership remains a seam.
+  See [insertion evidence](pc-pause-menu.md#icon-construction-insertion-and-texture-dispatch-2026-10-18).
 - FEng (`0x537a10`, `0x50c900`, `0x537c00`/`0x537cc0`, `0x55dda0`, ...):
   packages are reloaded on every showing; messages are queued and delivered to the screen's object;
   scripts fire package events and the bounded animation tracks described in the settings pass below.
 - Pause icon placement/reset/frame tick and cubic tweening now use recovered routines.
   Smaller icons centre-align; the icon row moves under a fixed selection frame, with placement
-  preceding tween advancement. Native construction/insertion and script activation
+  preceding tween advancement. Native scroller construction and script activation
   remain seams. Colour, lock/arrow-script policies and scrollbar geometry use recovered routines;
   LOCK/BUTTON_MASTER and all ScrollBar objects now bind the retail objects.
   ScrollBar setup calls recovered constructor `0x542ac0`; formatting and typed image lookup
@@ -317,7 +322,7 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   helper `0x43be60` and focus-flag helper `0x51cc60` are recovered too. The embedded
   scroller has its complete observed 0xe8-byte extent, with native vector/ownership state
   stored separately. Focus flags and the saved scroller index are written by original
-  code; construction and insertion remain seams. See
+  code; scroller construction remains a seam. See
   [selection evidence](pc-pause-menu.md#icon-selection-and-the-full-scroller-layout).
 - Icon stepping/indexing/selected-item dispatch now use recovered `0x51f9f0`, `0x51fac0`,
   `0x5276d0`/`0x527700`, `0x527730`/`0x527750`, `0x51f820` and `0x50d980`.
@@ -486,6 +491,17 @@ effects remain incomplete. Changes are session-only. Scripted keys also support 
 python tools/smoke_native_pause_options.py
 build/native/ug2demo --frames 260 --pause-at 20 --pause-keys RAALDL --screenshot build/audio.ppm
 ```
+
+The settings, Controls and scroller-motion Python smoke scripts default to
+headless SDL `offscreen` rendering with software OpenGL. Their child processes
+have `DISPLAY` and `WAYLAND_DISPLAY` removed; no display server or Xvfb is needed
+on the validated SDL/Mesa installation. The screenshot and pixel assertions still
+run. Use `--game '/path/to/game'` and optionally `--demo '/path/to/ug2demo'` to
+avoid a local asset symlink. `--headed` uses the inherited desktop configuration;
+`--headless` explicitly selects the default. Systems without SDL offscreen OpenGL
+support need the headed mode or an externally supplied display server. The demo
+itself remains interactive by default. Emulation verifiers and `ug2sim` already
+run without a display.
 
 Generated screenshots for this pass: `build/analysis/native-options/{audio,display,gameplay,player}.ppm`.
 
