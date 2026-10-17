@@ -170,9 +170,18 @@ classes write FEng internals directly, so the work is staged:
    Icon (0x48, ctor `0x51f670`): `+0xc` texture, `+0x10` object, `+0x14` offset, `+0x1c`
    colour, `+0x20` disabled, `+0x24/+0x28` size, `+0x2c/+0x30` title/description,
    `+0x34..+0x44` fade state, `+0x45` reacts.
+   **Input/deferred helpers done (2026-10-18)**: `IconScrollerInput.cpp` recovers
+   storage `0x50da20`, stop/start `0x52fbf0`/`0x52fba0`; `FEngDiagnostic.cpp`
+   recovers the retail no-op sink `0x50d510`. Native booleans are removed in favor
+   of scroller +0x2f and owner +0x14c; package mask writes now follow the original.
+   `verify_pc_icon_scroller_input.py --compiler clang-cl --mutation-checks`
+   passes 10,800 comparisons and rejects five mutations. Native build, 19 settings
+   and 10 Controls scenarios pass. MSVC 7.1/wibo is absent from this checkout;
+   legacy-compiler validation and byte matching remain unestablished. Lookup
+   `0x52cef0`, construction and message dispatch remain native seams.
 4. Recover IconScrollerFNGObject: ctors `0x551de0`/`0x552330`, dtor `0x4defb0`, message handler
    `0x543d40` (sounds via table `0x837fe0` -> `0x458520`), `0x50da50`, `0x50dab0`,
-   `0x52fbf0`/`0x52fba0` (stop/start input on the package masks), `0x50da20`, `0x538c00`/
+   `0x538c00`/
    `0x538ca0` (dim scripts on object `0x47ff4e7c`).
 5. Then the options scroller and option items in `NativePauseOptions.cpp`, the in-game dialog
    `0x558790`, and game-flow queue `0x5f41e0`/`0x5f4240`.

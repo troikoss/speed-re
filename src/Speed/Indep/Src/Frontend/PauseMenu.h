@@ -272,6 +272,7 @@ public:
     virtual void Setup() = 0;
     virtual void AddIcon(IconScrollerIcon *icon); // 0x50dab0
     void StopInput(); // 0x52fbf0
+    void StartInput(); // 0x52fba0
     void Value50DA20(unsigned int message, int value8, int valueC, int value10); // 0x50da20
     IconScroller4C *Scroller() { return reinterpret_cast<IconScroller4C *>(scroller4C); }
 
@@ -281,12 +282,18 @@ public:
     char unidentified24[0x28];
     char scroller4C[0x13c - 0x4c]; // embedded scroller; extent unidentified
     unsigned int value13C;
-    char unidentified140[0x10];
+    int value140;
+    int value144;
+    int value148;
+    unsigned char inputStopped14C;
+    char unidentified14D[3];
 };
 UG2_CHECK_OFFSET(IconScrollerFNGObject, package4, 4);
 UG2_CHECK_OFFSET(IconScrollerFNGObject, value20, 0x20);
 UG2_CHECK_OFFSET(IconScrollerFNGObject, scroller4C, 0x4c);
 UG2_CHECK_OFFSET(IconScrollerFNGObject, value13C, 0x13c);
+UG2_CHECK_OFFSET(IconScrollerFNGObject, value140, 0x140);
+UG2_CHECK_OFFSET(IconScrollerFNGObject, inputStopped14C, 0x14c);
 UG2_CHECK_SIZE(IconScrollerFNGObject, 0x150);
 
 // Timer value; the pause constructor zeroes +0x150 before copying 0x8651ac.

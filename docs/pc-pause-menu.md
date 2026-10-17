@@ -530,3 +530,59 @@ The empty default constructor supports temporary enclosing native storage only; 
 parameterized constructor is used for actual setup. Full IconScroller construction remains
 unrecovered. Native build, layout/pause/options regressions and settings/Controls/motion
 smoke checks pass.
+
+## Scroller deferred messages and input masks (2026-10-18)
+
+`Frontend/IconScrollerInput.cpp` recovers deferred-message storage `0x50da20`
+(43 bytes), StopInput `0x52fbf0` (65 bytes) and StartInput `0x52fba0` (67 bytes).
+The original reference executable SHA-256 is
+`f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7`;
+`config/SPEED2_EXE_1_2/icon-scroller-input.json` pins each body.
+
+The message helper writes exactly four dwords at +0x13c..+0x148, leaving the
+stopped byte +0x14c and surrounding bytes unchanged. StopInput clears scroller
+byte +0x2f (owner +0x7b), looks up the package, calls the diagnostic sink, clears
+package masks +0x1c/+0x24 and sets stopped +0x14c to 1. StartInput does nothing
+when stopped is zero; any nonzero byte enables scroller +0x2f, looks up the
+package, copies saved mask +0x20 into +0x1c/+0x28, calls the diagnostic sink,
+then clears stopped. Stop leaves +0x20/+0x28 untouched; start leaves +0x24
+untouched. Neither original routine checks for a missing package.
+
+`FEngDiagnostic.cpp` recovers the retail diagnostic sink `0x50d510` (three bytes,
+`xor eax,eax; ret`). Keeping it in a separate translation unit preserves the
+diagnostic call boundaries without exposing its implementation to caller
+optimization. Original StopInput relies on its ECX preservation; source instead
+retains the package pointer across the normal C++ call. No register forcing is
+used. Diagnostic format strings, arguments and state at call time are compared.
+
+Native pause code now calls these recovered routines, reads scroller +0x2f for
+its existing input gates and uses the explicit deferred fields. The native map's
+`inputEnabled`/`stopped` booleans and native message-storage implementation are
+removed. Full owner construction, message dispatch, package lookup and routing
+remain native seams; this does not establish complete original input dispatch.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_icon_scroller_input.py --mutation-checks
+# Available fallback when the legacy compiler is absent:
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_icon_scroller_input.py --compiler clang-cl --mutation-checks
+cmake --build build/native -j4
+build/venv/bin/python tools/smoke_native_pause_options.py --game '/path/to/game'
+```
+
+The Clang Windows i686 build passes **10,800 original/rebuilt routine comparisons**:
+2,400 message writes, 3,600 stops, 3,600 starts and 1,200 diagnostic calls.
+Fixtures begin with arbitrary bytes and cover stopped values 0/1/2/128/255,
+arbitrary dword arguments/masks, repeated stops/starts and deferred writes
+between transitions. Full guarded object/package memory, intermediate sequence
+states, lookup/diagnostic traces, callee-saved registers and stack cleanup agree.
+The real diagnostic body runs on both sides; package lookup alone is controlled
+and returns a valid package. Five source mutations are rejected (wrong stop
+mask, saved mask, noncanonical-byte handling, deferred argument and stopped byte).
+Generated results remain in ignored `build/analysis/icon-scroller-input/`.
+
+The native build, all 19 settings scenarios, all 10 Controls scenarios and
+rendered scroller motion (869 -> 758.5 -> 640 px) pass. **MSVC 7.1/wibo is
+absent in this checkout, so legacy-compiler validation remains outstanding.**
+The verifier defaults to MSVC and records the explicit Clang fallback when used.
+Finite synthetic comparisons exclude the original missing-package crash and
+do not prove full GUI behavior. **Byte matching is not established.**

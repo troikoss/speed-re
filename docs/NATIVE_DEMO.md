@@ -287,13 +287,17 @@ read; `UI_Pause.fng`'s `FORWARD` script sends `EXIT_COMPLETE` (`0xe1fde1d1`) to 
 
 Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, not verified):
 
-- Remaining IconScroller base (`0x552330`, `0x543d40`, `0x50dab0`/`0x543c10`, `0x50da50`, `0x52fbf0`,
-  `0x50da20`, scroller slots `0x538940`/`0x538a30`): icons fill `option_1..n` 40 units apart,
+- Remaining IconScroller base construction/dispatch (`0x552330`, `0x543d40`,
+  `0x50dab0`/`0x543c10`, `0x50da50`): icons fill `option_1..n` 40 units apart,
   anchored on the hidden `OPTION_MASTER`; unselected icons are drawn at 0.8 and centre aligned
   by recovered `0x52f8c0`, shown inside a 480-unit window (`0x50d9c0`); moves skip disabled icons without
   wrapping using recovered `0x51f9f0`; accept reacts immediately for dialog items (`+0x45`) and after
   `EXIT_COMPLETE` otherwise, only for the focused icon object (`0x50d980`). Scroll animation now uses recovered tweening;
   sounds and Dim/UNDIM scripts are not modelled.
+- Deferred message storage `0x50da20` and input stop/start `0x52fbf0`/`0x52fba0`
+  now call recovered code, including the original package-mask writes. Native
+  input gates use scroller +0x2f; owner stopped state lives at +0x14c. Full input
+  dispatch and package lookup remain seams. See [bounded evidence](pc-pause-menu.md#scroller-deferred-messages-and-input-masks-2026-10-18).
 - FEng (`0x537a10`, `0x50c900`, `0x537c00`/`0x537cc0`, `0x55dda0`, ...):
   packages are reloaded on every showing; messages are queued and delivered to the screen's object;
   scripts fire package events and the bounded animation tracks described in the settings pass below.

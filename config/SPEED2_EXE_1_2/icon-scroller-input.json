@@ -1,0 +1,25 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "Value50DA20": {
+      "address": "0x50da20",
+      "size": 43,
+      "sha256": "9d21355b34daea627ccf96b245718d3edc88c05e0be8db28167ae18d34426dd6"
+    },
+    "StartInput": {
+      "address": "0x52fba0",
+      "size": 67,
+      "sha256": "f041d0a42ddcbff047d72e9ac0e2083b53fff73e8953e4593a97ee3ac9520b36"
+    },
+    "StopInput": {
+      "address": "0x52fbf0",
+      "size": 65,
+      "sha256": "e0cd651df6371b0c65ec20fd01e2ddb3fd421432764c92f39054dd61fb001bc1"
+    },
+    "FngScrollerDiagnostic": {
+      "address": "0x50d510",
+      "size": 3,
+      "sha256": "4bc724f3b1d0caf4fe369c18cba3102e6c4ea057f63fe1587e3973134a7f755e"
+    }
+  }
+}

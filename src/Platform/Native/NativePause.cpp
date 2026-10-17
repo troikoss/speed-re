@@ -468,8 +468,6 @@ public:
         int count;
         float runningX;
         int selected;
-        bool inputEnabled;
-        bool stopped;
     };
     static std::map<NativeIconScroller *, State> &States() {
         static std::map<NativeIconScroller *, State> states;
@@ -483,8 +481,6 @@ public:
         state.count = 1;
         state.runningX = 0.0f;
         state.selected = -1;
-        state.inputEnabled = true;
-        state.stopped = false;
         memset(&next4, 0, sizeof(IconScroller4C) - 4);
         next4 = previous8 = &next4;
         package1C = owner->package4;
@@ -692,7 +688,9 @@ IconScrollerFNGObject::IconScrollerFNGObject(void *data) {
     value20 = (int)words[3];
     memset(unidentified24, 0, sizeof(unidentified24));
     value13C = 0;
-    memset(unidentified140, 0, sizeof(unidentified140));
+    value140 = value144 = value148 = 0;
+    inputStopped14C = 0;
+    memset(unidentified14D, 0, sizeof(unidentified14D));
     typedef char scroller_fits[sizeof(NativeIconScroller) <= sizeof(scroller4C) ? 1 : -1];
     (void)sizeof(scroller_fits);
     new (scroller4C) NativeIconScroller(this);
@@ -722,7 +720,7 @@ void IconScrollerFNGObject::MessageHandler(unsigned int message, int value8, int
         break;
     case kPadLeft:
     case kPadRight:
-        if (scroller->Empty() || !scroller->S().inputEnabled) return;
+        if (scroller->Empty() || !scroller->value2F) return;
         if (scroller->Move(message == kPadLeft ? -1 : 1)) {
             SelectedIconChanged();
             FngSetPackageValue10(package4, scroller->SelectedIndex());
@@ -730,7 +728,7 @@ void IconScrollerFNGObject::MessageHandler(unsigned int message, int value8, int
         break;
     case kAccept: {
         IconScrollerIcon *icon = scroller->Selected();
-        if (scroller->Empty() || !scroller->S().inputEnabled || !icon || icon->value20) return;
+        if (scroller->Empty() || !scroller->value2F || !icon || icon->value20) return;
         if (!icon->value45) {
             StopInput();
         } else {
@@ -746,16 +744,11 @@ void IconScrollerFNGObject::MessageHandler(unsigned int message, int value8, int
     case kExitComplete: {
         IconScrollerIcon *icon = scroller->Selected();
         if (scroller->Empty() || !icon || icon->value45) return;
-        int stored[3];
-        memcpy(stored, unidentified140, sizeof(stored));
-        scroller->React(value13C, stored[0], stored[1], stored[2]);
+        scroller->React(value13C, value140, value144, value148);
         break;
     }
     case kStopDim:
-        if (scroller->S().stopped) {
-            scroller->S().inputEnabled = true;
-            scroller->S().stopped = false;
-        }
+        StartInput();
         break;
     }
 }
@@ -767,17 +760,6 @@ void IconScrollerFNGObject::SelectedIconChanged() {
 }
 
 void IconScrollerFNGObject::AddIcon(IconScrollerIcon *icon) { ScrollerOf(this)->Add(icon); }  // 0x50dab0
-
-void IconScrollerFNGObject::StopInput() {  // 0x52fbf0
-    ScrollerOf(this)->S().inputEnabled = false;
-    ScrollerOf(this)->S().stopped = true;
-}
-
-void IconScrollerFNGObject::Value50DA20(unsigned int message, int value8, int valueC, int value10) {  // 0x50da20
-    value13C = message;
-    int stored[3] = {value8, valueC, value10};
-    memcpy(unidentified140, stored, sizeof(stored));
-}
 
 // ---- FEng seams (cdecl interfaces declared in PauseMenu.h / PauseOptions.h) -----------------
 
