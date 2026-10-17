@@ -18,6 +18,7 @@
 
 // Original 0x505450: case-insensitive h = h * 33 + c from 0xffffffff.
 unsigned int FengHash(const char *text);
+void BindNativeStringObserver(const std::vector<unsigned char> *language);
 
 // Platform ownership of the retail script data. Arithmetic primitives are recovered.
 struct FengTrack {

@@ -727,10 +727,6 @@ void *FngFindObject5379C0(const char *package, unsigned int hash) {  // 0x5379c0
     return FngFindObject(package, hash);
 }
 
-void FngSetLabelString(void *object, unsigned int hash) {  // 0x50c900
-    if (object) FengPackage::SetText(static_cast<FengObject *>(object), hash ? Localised(hash).c_str() : "");
-}
-
 // 0x537be0: formats into the string object (the options use it with literal strings only).
 void FngPrintf(void *object, const char *format, ...) {
     if (object) FengPackage::SetText(static_cast<FengObject *>(object), format);
@@ -926,6 +922,7 @@ bool NativePause::Load(const char *gameDirectory, NativeTextureCache *cache, con
         LoadPlainPackage(frontend, &controlsScreen, &reason);
     if (!controlsScreen.loaded) fprintf(stderr, "ug2demo: %s; controls screen unavailable\n", reason.c_str());
     ReadNativeFile(base + "/LANGUAGES/English.bin", &language);
+    BindNativeStringObserver(&language);
     if (!font.Load(gameDirectory, cache, fontPath)) fprintf(stderr, "ug2demo: no font found; pause menu text is not drawn\n");
     // Objects behind the .bss pointers the recovered code dereferences.
     gameFlow8900D8 = &nativeFlow;

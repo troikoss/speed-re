@@ -308,6 +308,12 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   executes recovered hashing before typed string lookup. Native construction
   binds `ICON_TITLE` and the original empty-name description; package traversal
   and localized string storage remain seams. See [label evidence](pc-pause-menu.md#bound-scroller-labels-and-named-string-lookup-2026-10-18).
+- Language-hash setter `0x50c900` now calls recovered code for both menu labels
+  and the GPS label requests. Hash +0x60, dirty writes and observer notification
+  follow the original. A native observer at `*0x838478` supplies language lookup
+  and UTF-16 storage; string-manager internals remain a seam. The native loader
+  preserves string SH hashes instead of overwriting +0x60 with a child count.
+  See [setter evidence](pc-pause-menu.md#language-hash-setter-and-observer-notification-2026-10-18).
 - FEng (`0x537a10`, `0x50c900`, `0x537c00`/`0x537cc0`, `0x55dda0`, ...):
   packages are reloaded on every showing; messages are queued and delivered to the screen's object;
   scripts fire package events and the bounded animation tracks described in the settings pass below.

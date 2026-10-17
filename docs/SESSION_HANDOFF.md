@@ -30,7 +30,7 @@ unless the user or applicable repository/skill instructions request delegation.
 ## Authoritative checkpoint
 
 Workspace: `/home/dq/Documents/Development/speed-re`, branch `main`.
-Latest verified checkpoint: **Recover bound scroller title and description updates**
+Latest verified checkpoint: **Recover FEng language-hash setter and observer notification**
 (see Git history for its commit). Navigation checkpoint: `c0b18f1`; package mask/focus
 checkpoint: `3878b16`. Direct user authorization to commit and push to `main` was renewed on 2026-10-12. The preceding code checkpoint is `3e58488` — **Give native
 FEng objects the original object and script prefix**.
@@ -204,6 +204,22 @@ classes write FEng internals directly, so the work is staged:
    settings, 10 Controls and rendered motion pass; input/insertion regression
    verifiers and their mutations also pass. Next small target: setter `0x50c900`
    (hash +0x60, flags +0x1c, virtual observer through `*0x838478`), still native.
+   **Language setter done (2026-10-18)**: `FEngText.cpp` recovers `0x50c900`,
+   including unchanged-hash notification, incoming flag-bit snapshot and
+   post-callback dirty/bit-2 handling. The shared object prefix exposes string
+   language hash +0x60 as a union with group child count. Native loading preserves
+   initial SH hashes; a native first-slot observer retains language lookup and
+   UTF-16 ownership. The GPS caller's misleading native `HudObjectTexture`
+   adapter is removed in favor of the recovered setter. `verify_pc_feng_text.py
+   --compiler clang-cl --mutation-checks` passes 8,192 setter/composed-label
+   comparisons and rejects six mutations. Freeroam HUD now supports explicit
+   Clang fallback and passes 15,180 comparisons; that verifier still controls
+   the setter. Native/mod builds pass. Original observer internals, localization,
+   asset loading, MSVC validation and byte matching remain unestablished.
+   Headless 19 settings/10 Controls, scroller motion and HUD aspect/skin captures
+   pass with the new observer. Next bounded candidates: typed object lookups
+   `0x537a10`/`0x537a60` and their `0x517f80`/`0x52c570` search dependencies,
+   then script activation `0x51cf70`/`0x517720`.
 4. Recover IconScrollerFNGObject: ctors `0x551de0`/`0x552330`, dtor `0x4defb0`, message handler
    `0x543d40` (sounds via table `0x837fe0` -> `0x458520`),
    `0x538c00`/

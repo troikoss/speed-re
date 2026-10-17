@@ -716,5 +716,65 @@ constructor or GUI behavior.
 Next bounded lead: static tracing of setter `0x50c900` shows a language hash at
 object +0x60, conditional dirty writes at +0x1c, a virtual notification through
 global `*0x838478`, and clearing flag bit 2 after notification. The native
-immediate text replacement remains a substitute for that state/callback path;
-this setter has not yet been recovered or differentially verified here.
+immediate text replacement was a substitute for that state/callback path;
+the recovery below supersedes this lead.
+
+## Language-hash setter and observer notification (2026-10-18)
+
+`Frontend/FEngText.cpp` recovers `0x50c900` (82 bytes), fingerprinted with the
+composed label updater in `config/SPEED2_EXE_1_2/feng-text.json`. String language
+hash +0x60 is represented as a union with group child count; all offsets and the
+0x68-byte shared prefix remain unchanged. Only the first virtual slot of the
+receiver at `*0x838478` is established; `FEngStringObserver` is a provisional
+interface for that observed call boundary.
+
+For a non-null object the setter saves incoming flags, conditionally writes
+the changed hash and dirty bit `0x400000`, and calls the observer even when the
+hash is unchanged. After notification it reloads flags, clears bit 2, and adds
+the dirty bit if bit 2 was set **before** notification. Callback flag/hash writes
+remain visible; the incoming bit controls the final dirty decision. Null objects
+perform no writes or callback. There is no object-type guard in the original.
+
+The native immediate text setter is removed. A native first-slot observer now
+adapts type-2 objects to the existing language-table lookup and UTF-16 storage.
+HUD and pause loading bind that receiver; initial SH hashes are preserved at
++0x60 instead of being overwritten by native child counts. Localization, initial
+asset loading and allocation remain native seams, and the observer's other
+original methods/behavior have not been recovered. The interactive renderer
+still uses native text storage; this does not establish the original string
+manager implementation.
+
+The GPS updater `0x4c8410` also calls this address. Its former provisional helper
+`HudObjectTexture` incorrectly sent language hashes to the native image-texture
+setter. Those two recovered call sites now call `FngSetLabelString` directly;
+GPS route production and complete presentation remain unresolved separately.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_text.py --mutation-checks
+# Explicit fallback when MSVC 7.1/wibo is absent:
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_text.py --compiler clang-cl --mutation-checks
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_hud_freeroam.py --compiler clang-cl
+```
+
+The Clang Windows i686 build passes **8,192 original/rebuilt comparisons**:
+4,096 standalone setter cases and 4,096 label-updater compositions executing
+the actual recovered setter. The observer virtual slot alone is controlled.
+Fixtures cover null object/receiver, unchanged/changed hashes, arbitrary flags,
+callback flag/hash mutation, disabling the observer, aliased/null labels and
+callback-induced selection/binding changes. Guarded memory, state at callback,
+global observer state, stack cleanup and preserved registers agree. Recursive
+setter calls are not covered. Six mutations are rejected: skipping unchanged
+hashes, wrong hash field, omitted dirty write, retaining flag 2, using the
+callback's flag for the final dirty decision, and omitted notification.
+
+The broader freeroam HUD verifier now supports an explicit Clang fallback and
+passes **15,180 comparisons** under its 53-/64-bit x87 fixtures. That verifier
+still controls presentation interfaces, including the setter, rather than
+proving the full GPS/setter/observer composition. MSVC remains its default.
+Native and mod-enabled builds pass. All 19 headless settings scenarios, 10
+Controls scenarios, scroller-motion pixel checks and HUD captures (four aspect
+ratios, eleven skins and a 120-frame run) pass after observer integration.
+Generated logs remain in ignored
+`build/analysis/feng-text/`. **MSVC 7.1/wibo verification is outstanding; byte
+matching is not established.** Finite callbacks do not prove the complete
+original localization or observer subsystem.

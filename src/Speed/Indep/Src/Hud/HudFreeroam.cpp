@@ -1,5 +1,6 @@
 #include "HudFreeroam.h"
 #include "HudPlayerMasks.h"
+#include "../Frontend/FEngText.h"
 
 extern HudFlagHolder hudHolder85B940;
 extern CareerBank861E74 careerBank861E74;
@@ -164,10 +165,10 @@ void HudHeatFeature::Update(HudPlayerSlot *player) {
 void HudGpsFeature::Update(HudPlayerSlot *player) {
     if (HudGpsMode() == 1) {
         HudShowObject(object2C);
-        HudObjectTexture(object2C, 0x155409e8);
+        FngSetLabelString(object2C, 0x155409e8);
     } else if (HudGpsMode() == 2) {
         HudShowObject(object2C);
-        HudObjectTexture(object2C, 0x31139b65);
+        FngSetLabelString(object2C, 0x31139b65);
     } else HudHideObject(object2C);
     unsigned char arrived = 0;
     if (HudGpsMode() == 0 || HudGpsMode() == 1 || HudGpsMode() == 2) {

@@ -23,7 +23,6 @@ void HudVerticalBar(void *object, float value, float maximum, float start, float
 void HudHorizontalBar(void *object, float value, float maximum, float start, float end, int flag); // 0x4c67e0
 int HudGpsMode(); // 0x501100, route manager 0x838590
 void HudGpsPosition(float *x, float *y); // 0x5010c0, route manager 0x838590
-void HudObjectTexture(void *object, unsigned int hash); // 0x50c900
 void HudObjectPosition(void *object, float x, float y); // 0x51d4d0
 void HudGpsEvent(void *receiver, int event); // 0x458520
 struct HudNotificationEntry {

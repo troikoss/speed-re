@@ -18,7 +18,7 @@ execution. This pass extends the existing gauges, visibility and minimap; it
   layouts, mask rotation, colours and exported negative angle. Fraction zero
   hides the fill; fractions above one retain their extra-capacity behavior.
   The existing recovered `0x5925b0` fraction provider remains a separate routine.
-- Heat clamp and bar update. GPS arrow mode/texture/position update, offset-based
+- Heat clamp and bar update. GPS arrow mode/label/position update, offset-based
   camera flag, repeated route queries, and arrival event `0x12`.
 - Region hash change/localisation/ZoomIn; cash formatting, suppression and
   reward animation; delayed one-shot reward text, language separator and globals.
@@ -203,3 +203,19 @@ Native build and a 120-frame scripted offscreen stock Skyline run passed. The
 inspected `build/analysis/freeroam-hud/native-final.png` shows the gauge cluster,
 boost dial and city minimap without sample region/reward/cash messages. This is
 native smoke evidence, separate from retail routine comparisons.
+
+## Shared language-hash setter correction (2026-10-18)
+
+GPS update `0x4c8410` calls `0x50c900` for hashes `0x155409e8`/`0x31139b65`.
+This is a language-hash setter at string +0x60, not an image-texture setter.
+The former `HudObjectTexture` native adapter is removed; the recovered caller
+now calls recovered `FngSetLabelString`. Its conditional dirty writes, observer
+call through `*0x838478`, and post-callback flag processing are verified in
+[the FEng text checkpoint](pc-pause-menu.md#language-hash-setter-and-observer-notification-2026-10-18).
+The native observer retains language lookup and UTF-16 allocation as explicit
+backend seams. This does not recover GPS route production.
+
+`verify_pc_hud_freeroam.py --compiler clang-cl` passes all **15,180 comparisons**;
+MSVC 7.1 remains the default and has not been provisioned in the current checkout.
+The HUD verifier still controls the setter call; standalone setter and composed
+scroller-label execution are covered separately by `verify_pc_feng_text.py`.

@@ -61,7 +61,10 @@ struct HudVisibilityObject {
     char unidentified50[4];
     FEScript *currentScript54;
     char unidentified58[8];
-    int childCount60;
+    union {
+        int childCount60;
+        unsigned int languageHash60; // type-2 string, written by 0x50c900
+    };
     union {
         HudVisibilityObject *firstChild64;
         unsigned short *text64;
@@ -75,6 +78,7 @@ UG2_CHECK_OFFSET(HudVisibilityObject, data2C, 0x2c);
 UG2_CHECK_OFFSET(HudVisibilityObject, scripts4C, 0x4c);
 UG2_CHECK_OFFSET(HudVisibilityObject, currentScript54, 0x54);
 UG2_CHECK_OFFSET(HudVisibilityObject, childCount60, 0x60);
+UG2_CHECK_OFFSET(HudVisibilityObject, languageHash60, 0x60);
 UG2_CHECK_OFFSET(HudVisibilityObject, firstChild64, 0x64);
 UG2_CHECK_SIZE(HudVisibilityObject, 0x68);
 

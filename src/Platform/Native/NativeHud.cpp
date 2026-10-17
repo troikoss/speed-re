@@ -82,7 +82,6 @@ void HudNotificationType13(HudNotificationEntry *, HudPlayerSlot *) { NativeTrap
 void HudNotificationType14(HudNotificationEntry *, HudPlayerSlot *) { NativeTrap("HUD notification render 0x4aba30"); }
 void HudNotificationSound(int, int) { NativeTrap("HUD notification sound 0x51de30"); }
 void HudNotificationTexture(void *o, unsigned int hash) { FengPackage::SetTexture(static_cast<FengObject *>(o), hash); }
-void HudObjectTexture(void *o, unsigned int hash) { FengPackage::SetTexture(static_cast<FengObject *>(o), hash); }
 void HudObjectPosition(void *o, float x, float y) { FengPackage::SetPosition(static_cast<FengObject *>(o), x, y); }
 void HudObjectColour(void *o, unsigned int value) { FengPackage::SetColour(static_cast<FengObject *>(o), value); }
 void *HudLookupObject(void *package, unsigned int hash) { return static_cast<FengPackage *>(package)->Find(hash); }
@@ -286,6 +285,7 @@ bool NativeHud::Load(const char *gameDirectory, NativeTextureCache *textures, co
     // (the retail image holds -1 until startup selects a language).
     language7F70D0 = 0;
     ReadNativeFile(base + "/LANGUAGES/English.bin", &language_);
+    BindNativeStringObserver(&language_);
     if (!font_.Load(gameDirectory, textures, fontPath)) fprintf(stderr, "ug2demo: no HUD font found; HUD text is not drawn\n");
     loaded_ = true;
 #ifdef UG2_ENABLE_MODDING

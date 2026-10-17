@@ -5,6 +5,7 @@ FEng, localisation, cash, GPS, notification presentation and nitrous fraction
 providers are controlled interfaces,
 not verification of their internals. Retail arithmetic constants are retained.
 """
+import argparse
 import hashlib
 import itertools
 import json
@@ -81,7 +82,7 @@ INTERFACES = {
     'HudPackageScript': (0x537c00, 4, 0),
     'HudPlayerVisibility': (0x5f1e10, 1, 4),
     'HudGpsMode': (0x501100, 0, 0), 'HudGpsPosition': (0x5010c0, 2, 8),
-    'HudObjectTexture': (0x50c900, 2, 0), 'HudObjectPosition': (0x51d4d0, 3, 0),
+    'FngSetLabelString': (0x50c900, 2, 0), 'HudObjectPosition': (0x51d4d0, 3, 0),
     'HudGpsEvent': (0x458520, 1, 4),
     'GetClassIndex': (0x5b5330, 0, 0),
     'Update': (0x4ca840, 0, 0),  # HudMinimap::Update, verified by verify_pc_hud_minimap.py
@@ -96,26 +97,28 @@ INTERFACES = {
 
 
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--compiler', choices=('msvc', 'clang-cl'), default='msvc')
+    args = parser.parse_args()
+    compiler = ([str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe']
+                if args.compiler == 'msvc' else
+                ['clang-cl', '--target=i686-pc-windows-msvc', '/GS-', '/GR-', '/w', '/arch:IA32'])
     BUILD.mkdir(parents=True, exist_ok=True)
     raw = EXE.read_bytes()
     assert hashlib.sha256(raw).hexdigest() == 'f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7'
     pe = pefile.PE(data=raw)
     image = pe.get_memory_mapped_image()
     obj = BUILD / 'HudFreeroam.obj'
-    subprocess.run([str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe',
-                    '/nologo', '/c', '/Ox', '/Ob0', '/Z7', '/EHsc',
+    subprocess.run(compiler + ['/nologo', '/c', '/Ox', '/Ob0', '/Z7', '/EHsc',
                     '/Fo' + str(obj.relative_to(ROOT)), 'src/Speed/Indep/Src/Hud/HudFreeroam.cpp'], cwd=ROOT, check=True)
     animation = BUILD / 'HudAnimation.obj'
-    subprocess.run([str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe',
-                    '/nologo', '/c', '/Ox', '/Ob0', '/Z7', '/EHsc',
+    subprocess.run(compiler + ['/nologo', '/c', '/Ox', '/Ob0', '/Z7', '/EHsc',
                     '/Fo' + str(animation.relative_to(ROOT)), 'src/Speed/Indep/Src/Hud/HudAnimation.cpp'], cwd=ROOT, check=True)
     controller = BUILD / 'HudController.obj'
-    subprocess.run([str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe',
-                    '/nologo', '/c', '/Ox', '/Ob0', '/Z7', '/EHsc',
+    subprocess.run(compiler + ['/nologo', '/c', '/Ox', '/Ob0', '/Z7', '/EHsc',
                     '/Fo' + str(controller.relative_to(ROOT)), 'src/Speed/Indep/Src/Hud/HudController.cpp'], cwd=ROOT, check=True)
     gauge = BUILD / 'HudGauge.obj'
-    subprocess.run([str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe',
-                    '/nologo', '/c', '/Ox', '/Ob0', '/Z7', '/EHsc',
+    subprocess.run(compiler + ['/nologo', '/c', '/Ox', '/Ob0', '/Z7', '/EHsc',
                     '/Fo' + str(gauge.relative_to(ROOT)), 'src/Speed/Indep/Src/Hud/HudGauge.cpp'], cwd=ROOT, check=True)
     symbols = [s for o in (controller, obj, animation, gauge) for s in read_object(o)['symbols'].values()]
     externals = {}
@@ -441,7 +444,7 @@ def main():
             g = globals_for() + [(0x89e7d9, bytes([drift])), (0x890104, struct.pack('<i', 0)), (0x89e7b0, struct.pack('<i', race))]
             compare('ControllerMasks', m, struct.pack('<III', arena + 0x3000 if player_present else 0, low, high), arena,
                     g, script_active=script_active)
-    report = {'reference_sha256': hashlib.sha256(raw).hexdigest(), 'comparisons': counts, 'total': sum(counts.values()),
+    report = {'compiler': args.compiler, 'reference_sha256': hashlib.sha256(raw).hexdigest(), 'comparisons': counts, 'total': sum(counts.values()),
               'fingerprints': {n: {'address': hex(a), 'span': size, 'sha256': hashlib.sha256(image[a-0x400000:a-0x400000+size]).hexdigest()} for n, (a, size) in FUNCTIONS.items()},
               'interfaces': INTERFACES, 'byte_matching': False,
               'retained_helpers': ['__ftol2 0x75bed4', 'shift point getter 0x5947b0'],

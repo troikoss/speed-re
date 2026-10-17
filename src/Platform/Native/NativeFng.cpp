@@ -1,6 +1,8 @@
 #include "NativeFng.h"
 #include "NativeAssets.h"
+#include "NativeHud.h"
 #include "../../Speed/Indep/Src/Frontend/FEngColour.h"
+#include "../../Speed/Indep/Src/Frontend/FEngText.h"
 #include "../../Speed/Indep/Src/Hud/HudAnimation.h"
 
 #include <algorithm>
@@ -16,6 +18,20 @@ void NativeTrap(const char *what);
 #include "third_party/imstb_truetype.h"
 
 namespace {
+
+// Localization and UTF-16 ownership remain native behind the original observer ABI.
+class NativeStringObserver : public FEngStringObserver {
+public:
+    const std::vector<unsigned char> *language;
+    void StringChanged(HudVisibilityObject *value) {
+        if (!value || value->type18 != 2 || !language) return;
+        FengObject *object = static_cast<FengObject *>(value);
+        object->font = object->languageHash60;
+        std::string text = object->languageHash60 ? LookupNativeString(*language, object->languageHash60) : "";
+        FengPackage::SetText(object, text.c_str());
+    }
+};
+NativeStringObserver nativeStringObserver;
 
 unsigned int Rd32(const unsigned char *p) { return p[0] | p[1] << 8 | p[2] << 16 | (unsigned int)p[3] << 24; }
 unsigned int Rd16(const unsigned char *p) { return p[0] | p[1] << 8; }
@@ -117,6 +133,11 @@ void ReadState(FengObject *object, const unsigned char *state, int size) {
 }
 
 }  // namespace
+
+void BindNativeStringObserver(const std::vector<unsigned char> *language) {
+    nativeStringObserver.language = language;
+    fengStringObserver838478 = &nativeStringObserver;
+}
 
 unsigned int FengHash(const char *text) {
     unsigned int hash = 0xffffffff;
@@ -342,7 +363,8 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
     // Native loader seam: build the original FEng child-chain prefix from PA links.
     for (size_t i = 0; i < objects_.size(); ++i) {
         FengObject *object = objects_[i];
-        object->childCount60 = (int)object->children.size();
+        if (object->type18 == 2) object->languageHash60 = object->font;
+        else object->childCount60 = (int)object->children.size();
         object->firstChild64 = object->children.empty() ? 0 : object->children[0];
         if (object->type18 == 2) {
             if (object->originalText.empty()) {
