@@ -7,6 +7,8 @@
 // FEng/game-flow interfaces at the original call boundaries (all cdecl).
 unsigned int FngHash(const char *name); // 0x505450
 void *FngFindObject(const char *package, unsigned int hash); // 0x537a10
+void *FngFindStringByHash(const char *package, unsigned int hash); // 0x537a10, typed string boundary
+void *FngFindNamedString(const char *package, const char *name); // 0x4953c0
 void FngSetLabelString(void *object, unsigned int hash); // 0x50c900
 void FngSetPackageValue10(const char *package, int value); // 0x50b8c0
 int FngGetPackageValue10(const char *package); // 0x50b8a0
@@ -287,7 +289,9 @@ public:
     char unidentified8[0x18];
     int value20;
     char unidentified24[0x28];
-    char scroller4C[0x13c - 0x4c]; // embedded scroller; extent unidentified
+    char scroller4C[0xe8];
+    void *title134;
+    void *description138;
     unsigned int value13C;
     int value140;
     int value144;
@@ -298,6 +302,8 @@ public:
 UG2_CHECK_OFFSET(IconScrollerFNGObject, package4, 4);
 UG2_CHECK_OFFSET(IconScrollerFNGObject, value20, 0x20);
 UG2_CHECK_OFFSET(IconScrollerFNGObject, scroller4C, 0x4c);
+UG2_CHECK_OFFSET(IconScrollerFNGObject, title134, 0x134);
+UG2_CHECK_OFFSET(IconScrollerFNGObject, description138, 0x138);
 UG2_CHECK_OFFSET(IconScrollerFNGObject, value13C, 0x13c);
 UG2_CHECK_OFFSET(IconScrollerFNGObject, value140, 0x140);
 UG2_CHECK_OFFSET(IconScrollerFNGObject, inputStopped14C, 0x14c);

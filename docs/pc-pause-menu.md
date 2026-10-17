@@ -656,3 +656,65 @@ All 19 headless settings scenarios, 10 Controls scenarios and motion also pass,
 as does the optional HUD verifier across
 four aspect ratios, all eleven skins and its 120-frame capture. See the native
 demo guide for `--game`, `--headless` and `--headed` options.
+
+## Bound scroller labels and named-string lookup (2026-10-18)
+
+`Frontend/IconScrollerLabels.cpp` recovers selection label update `0x50da50`
+(81 bytes) and named-string lookup wrapper `0x4953c0` (22 bytes). The wrapper
+executes the already recovered `cihash` at `0x505450` (47 bytes). All three
+bodies and the reference executable are fingerprinted in
+`config/SPEED2_EXE_1_2/icon-scroller-labels.json`.
+
+The owner layout now separates the complete 0xe8-byte scroller from its bound
+title object +0x134 and description object +0x138. These pointers formerly lay
+in excess native scroller storage. Original constructor `0x552330` binds them
+through `0x4953c0` with names `ICON_TITLE` and the empty string, respectively;
+the native construction seam now performs those bindings through the recovered
+wrapper. Full original construction is not recovered by this change.
+
+`0x50da50` always calls the label setter twice. The first call uses the current
+icon's +0x2c identifier or zero when no icon is selected. It then reloads the
+current pointer and calls the second bound label with icon +0x30 or zero. A
+setter can change the selection and description binding; caching either would
+change observed behavior. The former native implementation looked up only
+`ICON_TITLE` on each update and omitted the second call. Null bound labels are
+still forwarded to the setter.
+
+`0x4953c0` hashes the object name before typed string lookup, including null
+package/name arguments. It now calls recovered `cihash` directly. The native
+typed lookup adapter enforces type 2; the older generic `FngFindObject` adapter
+remains a separate seam used by other code. Original manager/package traversal,
+localization and text allocation are not established by this wrapper proof.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_icon_scroller_labels.py --mutation-checks
+# Explicit fallback when MSVC 7.1/wibo is absent:
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_icon_scroller_labels.py --compiler clang-cl --mutation-checks
+```
+
+The Clang Windows i686 build passes **6,000 original/rebuilt comparisons**:
+2,000 label updates, 2,000 named lookups and 2,000 direct hash calls. Named
+lookup cases also execute actual recovered hash code on the rebuilt side.
+Compared evidence includes guarded memory, integer/pointer returns, preserved
+registers, stack cleanup and hash/lookup/setter traces with state at call time.
+Fixtures cover selected/null icons, null/aliased/different label pointers,
+setter-induced selection and description changes, null package/name, empty,
+mixed-case, high-byte and 127-character names, and found/missing lookup results.
+Typed lookup and the localized label setter alone are controlled interfaces.
+Five mutations are rejected: omitted description, wrong description identifier,
+cached selection, wrong bound label and hashing the package instead of the name.
+
+The native build, all 19 headless settings scenarios, 10 Controls scenarios and
+rendered scroller motion pass. The previous input and insertion verifiers also
+pass their 10,800 and 6,000 comparisons with five and six rejected mutations,
+respectively, after the owner-layout refinement. Generated reports remain in ignored
+`build/analysis/icon-scroller-labels/`. **MSVC 7.1/wibo verification remains
+outstanding; byte matching is not established for the newly recovered routines.**
+Finite synthetic comparisons do not establish complete FEng localization,
+constructor or GUI behavior.
+
+Next bounded lead: static tracing of setter `0x50c900` shows a language hash at
+object +0x60, conditional dirty writes at +0x1c, a virtual notification through
+global `*0x838478`, and clearing flag bit 2 after notification. The native
+immediate text replacement remains a substitute for that state/callback path;
+this setter has not yet been recovered or differentially verified here.

@@ -29,8 +29,8 @@ unless the user or applicable repository/skill instructions request delegation.
 
 ## Authoritative checkpoint
 
-Workspace: `/home/dq/Documents/Developement/nfsu2decomp/nfsu2-re`, branch `main`.
-Latest verified checkpoint: **Recover pause scrollbar construction**
+Workspace: `/home/dq/Documents/Development/speed-re`, branch `main`.
+Latest verified checkpoint: **Recover bound scroller title and description updates**
 (see Git history for its commit). Navigation checkpoint: `c0b18f1`; package mask/focus
 checkpoint: `3878b16`. Direct user authorization to commit and push to `main` was renewed on 2026-10-12. The preceding code checkpoint is `3e58488` — **Give native
 FEng objects the original object and script prefix**.
@@ -191,8 +191,21 @@ classes write FEng internals directly, so the work is staged:
    matching remain outstanding. Full scroller construction/destruction and
    owner dispatch remain seams. Native GUI smoke scripts now default to SDL
    offscreen software rendering, with `--headed` available; see NATIVE_DEMO.md.
+   **Bound labels done (2026-10-18)**: `IconScrollerLabels.cpp` recovers
+   `0x50da50` and named string lookup `0x4953c0`, executing the already recovered
+   `cihash` at `0x505450`. Owner storage separates scroller +0x4c..+0x133 from
+   title +0x134 and description +0x138. Native construction binds both original
+   names (`ICON_TITLE` and empty), and no longer looks up just the title on every
+   selection change. The label setter can change selection; the second read is
+   retained. `verify_pc_icon_scroller_labels.py --compiler clang-cl --mutation-checks`
+   passes 6,000 comparisons and rejects five mutations. Typed lookup and localized
+   label storage remain controlled interfaces; full constructor recovery, MSVC
+   verification and byte matching remain outstanding. Native build, 19 headless
+   settings, 10 Controls and rendered motion pass; input/insertion regression
+   verifiers and their mutations also pass. Next small target: setter `0x50c900`
+   (hash +0x60, flags +0x1c, virtual observer through `*0x838478`), still native.
 4. Recover IconScrollerFNGObject: ctors `0x551de0`/`0x552330`, dtor `0x4defb0`, message handler
-   `0x543d40` (sounds via table `0x837fe0` -> `0x458520`), `0x50da50`,
+   `0x543d40` (sounds via table `0x837fe0` -> `0x458520`),
    `0x538c00`/
    `0x538ca0` (dim scripts on object `0x47ff4e7c`).
 5. Then the options scroller and option items in `NativePauseOptions.cpp`, the in-game dialog

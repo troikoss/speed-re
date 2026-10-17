@@ -287,8 +287,8 @@ read; `UI_Pause.fng`'s `FORWARD` script sends `EXIT_COMPLETE` (`0xe1fde1d1`) to 
 
 Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, not verified):
 
-- Remaining IconScroller base construction/dispatch (`0x552330`, `0x543d40`,
-  `0x50da50`): icons fill `option_1..n` 40 units apart,
+- Remaining IconScroller base construction/dispatch (`0x552330`, `0x543d40`):
+  icons fill `option_1..n` 40 units apart,
   anchored on the hidden `OPTION_MASTER`; unselected icons are drawn at 0.8 and centre aligned
   by recovered `0x52f8c0`, shown inside a 480-unit window (`0x50d9c0`); moves skip disabled icons without
   wrapping using recovered `0x51f9f0`; accept reacts immediately for dialog items (`+0x45`) and after
@@ -303,6 +303,11 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   call order, appends original list links and requests first-icon focus; the
   wrapper writes texture/dirty state. Native vector ownership remains a seam.
   See [insertion evidence](pc-pause-menu.md#icon-construction-insertion-and-texture-dispatch-2026-10-18).
+- Selection label updates now call recovered `0x50da50`, using bound title
+  +0x134 and description +0x138 objects. Named-string wrapper `0x4953c0`
+  executes recovered hashing before typed string lookup. Native construction
+  binds `ICON_TITLE` and the original empty-name description; package traversal
+  and localized string storage remain seams. See [label evidence](pc-pause-menu.md#bound-scroller-labels-and-named-string-lookup-2026-10-18).
 - FEng (`0x537a10`, `0x50c900`, `0x537c00`/`0x537cc0`, `0x55dda0`, ...):
   packages are reloaded on every showing; messages are queued and delivered to the screen's object;
   scripts fire package events and the bounded animation tracks described in the settings pass below.

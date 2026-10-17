@@ -1,0 +1,20 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "SelectedIconChanged": {
+      "address": "0x50da50",
+      "size": 81,
+      "sha256": "fb5c1496882299f4d356af8bacba976e4191a86b0c4469de5f0e765ba0c6c4ce"
+    },
+    "FngFindNamedString": {
+      "address": "0x4953c0",
+      "size": 22,
+      "sha256": "9cb8cc1be2baa9dca2187c264f2ec6c7a220f0d610833d24337c3198b33711b8"
+    },
+    "cihash": {
+      "address": "0x505450",
+      "size": 47,
+      "sha256": "8c43e57b7bcd7ccde6bf7571a00a79334bbbd6f6e459eb0e2de11cd6b6014641"
+    }
+  }
+}

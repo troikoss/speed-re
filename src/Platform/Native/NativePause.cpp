@@ -646,6 +646,9 @@ IconScrollerFNGObject::IconScrollerFNGObject(void *data) {
     typedef char scroller_fits[sizeof(NativeIconScroller) <= sizeof(scroller4C) ? 1 : -1];
     (void)sizeof(scroller_fits);
     new (scroller4C) NativeIconScroller(this);
+    // Original 0x552330 binds these through named type-2 string lookup.
+    title134 = FngFindNamedString(package4, "ICON_TITLE");
+    description138 = FngFindNamedString(package4, "");
 }
 
 IconScrollerFNGObject::~IconScrollerFNGObject() {  // 0x4defb0
@@ -705,12 +708,6 @@ void IconScrollerFNGObject::MessageHandler(unsigned int message, int value8, int
     }
 }
 
-// 0x50da50: ICON_TITLE shows the selected icon's value2C; the second label (name "") is absent.
-void IconScrollerFNGObject::SelectedIconChanged() {
-    IconScrollerIcon *icon = ScrollerOf(this)->Selected();
-    FngSetLabelString(FngFindObject(package4, FngHash("ICON_TITLE")), icon ? icon->value2C : 0);
-}
-
 // ---- FEng seams (cdecl interfaces declared in PauseMenu.h / PauseOptions.h) -----------------
 
 unsigned int FngHash(const char *name) { return FengHash(name); }  // 0x505450
@@ -718,6 +715,12 @@ unsigned int FngHash(const char *name) { return FengHash(name); }  // 0x505450
 void *FngFindObject(const char *package, unsigned int hash) {  // 0x537a10
     NativeScreen *screen = FindScreen(package);
     return screen ? screen->package->Find(hash) : 0;
+}
+
+void *FngFindStringByHash(const char *package, unsigned int hash) {
+    // Original 0x537a10 is a type-2 lookup; manager/package search remains native.
+    FengObject *object = static_cast<FengObject *>(FngFindObject(package, hash));
+    return object && object->type18 == 2 ? object : 0;
 }
 
 void *FngFindObject5379C0(const char *package, unsigned int hash) {  // 0x5379c0
