@@ -1,6 +1,7 @@
 // Native ABI probe for the recovered grid body. All cells and strings are synthetic.
 #include "../../Speed/Indep/Src/Frontend/FEngGrid.h"
 #include "../../Speed/Indep/Src/Frontend/FEngHash.h"
+#include "../../Speed/Indep/Src/Frontend/FEngObject.h"
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -12,6 +13,8 @@
 #include <vector>
 
 static unsigned int allocationBytes, freeCalls;
+unsigned int FEngNextObjectGuid = 1;
+unsigned int FEngValue7F7CC4 = 0x518e20;
 void *FEngGridAllocateCells(unsigned int bytes) { allocationBytes = bytes; return malloc(bytes); }
 void FEngGridFreeCells(void *cells) { ++freeCalls; free(cells); }
 
@@ -106,7 +109,13 @@ int main() {
     assert(owner.messages[0].sender == &grid && owner.messages[0].value8 == 0xff && !owner.messages[0].valueC);
     // Compose recovered allocation, full reset, setters, fill and navigation.
     Owner storageOwner;
-    FEGridObject storage; memset(&storage, 0, sizeof(storage));
+    FEGridObject storage; memset(&storage, 0xa5, sizeof(storage));
+    unsigned int guidBefore = FEngNextObjectGuid;
+    assert(storage.Construct() == &storage && FEngNextObjectGuid == guidBefore + 1);
+    assert(((HudVisibilityObject *)&storage)->guidC == guidBefore);
+    assert(((HudVisibilityObject *)&storage)->type18 == 6);
+    assert(*(unsigned int *)(storage.unidentifiedA4 + 0x18) == FEngValue7F7CC4);
+    assert(!storage.cells8C && !storage.callbackC0 && storage.flags68 == 2);
     unsigned int pool[16] = {};
     storage.owner5C = &storageOwner; storage.flags68 = 8;
     storage.value98 = 8; storage.value9C = pool;
@@ -132,7 +141,8 @@ int main() {
     assert(allocationBytes == 48 && freeCalls == 1 && storage.value98 == 5);
     assert(pool[7] == 101 && pool[6] == 102 && pool[5] == 103);
     FEngGridFreeCells(storage.cells8C);
-    FEGridObject poolGrid; memset(&poolGrid, 0, sizeof(poolGrid));
+    FEGridObject poolGrid; memset(&poolGrid, 0xa5, sizeof(poolGrid));
+    poolGrid.Construct();
     FEGridCell textCells[2]; memset(textCells, 0, sizeof(textCells));
     poolGrid.count60 = 2; poolGrid.count64 = 1; poolGrid.cells8C = textCells;
     poolGrid.value6C = 2; poolGrid.value70 = 1;

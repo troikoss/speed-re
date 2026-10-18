@@ -5,6 +5,7 @@
 #include "../../Speed/Indep/Src/Frontend/FEngText.h"
 #include "../../Speed/Indep/Src/Frontend/FEngScript.h"
 #include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
+#include "../../Speed/Indep/Src/Frontend/FEngObject.h"
 #include "../../Speed/Indep/Src/Hud/HudAnimation.h"
 
 #include <algorithm>
@@ -14,6 +15,11 @@
 #include <string.h>
 
 void NativeTrap(const char *what);
+
+// Native storage for recovered original data. Vtable/default callback words
+// remain opaque retail address tokens; native code does not dispatch them.
+unsigned int FEngNextObjectGuid = 1; // original 0x7f7cf8 initial value
+unsigned int FEngValue7F7CC4 = 0x518e20;
 
 #define IMSTB_TRUETYPE_IMPLEMENTATION
 #define STB_TRUETYPE_IMPLEMENTATION
@@ -214,10 +220,17 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                         if (id3 == 0xea624f46) {
                             FengObject *object = new FengObject;
                             memset(object->colour, 0, sizeof(object->colour));
-                            memset(static_cast<HudVisibilityObject *>(object), 0, sizeof(HudVisibilityObject));
-                            object->hash10 = object->guidC = object->flags1C = object->parentGuid = 0;
+                            // Native deterministic defaults only for words the original
+                            // base constructor leaves untouched; derived readers are pending.
+                            object->type18 = 0;
+                            object->resource22 = 0;
+                            object->currentScript54 = 0;
+                            *(unsigned int *)(object->unidentified58 + 4) = 0;
+                            object->childCount60 = 0;
+                            object->firstChild64 = 0;
+                            object->ConstructBase();
+                            object->parentGuid = 0;
                             object->resource = -1;
-                            object->texture24 = 0;
                             object->data2C = reinterpret_cast<float *>(object->colour);
                             object->justification6C = 0;
                             object->font = 0;
@@ -433,8 +446,10 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
         if (!object->parent) roots_.push_back(object);
     }
     // Native loader seam: root and child chains retain parsed file order.
-    for (size_t i = 0; i < roots_.size(); ++i)
+    for (size_t i = 0; i < roots_.size(); ++i) {
         roots_[i]->next4 = i + 1 < roots_.size() ? roots_[i + 1] : 0;
+        roots_[i]->previous8 = i ? roots_[i - 1] : 0;
+    }
     // Build the original FEng child-chain prefix from PA links.
     for (size_t i = 0; i < objects_.size(); ++i) {
         FengObject *object = objects_[i];
@@ -448,8 +463,10 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
             object->originalText.push_back(0);
             object->text64 = &object->originalText[0];
         }
-        for (size_t j = 0; j < object->children.size(); ++j)
+        for (size_t j = 0; j < object->children.size(); ++j) {
             object->children[j]->next4 = j + 1 < object->children.size() ? object->children[j + 1] : 0;
+            object->children[j]->previous8 = j ? object->children[j - 1] : 0;
+        }
         // Native loader seam: original FEScript headers of the loaded scripts, linked in file order.
         for (size_t j = 0; j < object->scripts.size(); ++j) {
             FengScript &script = object->scripts[j];

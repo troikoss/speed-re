@@ -1,5 +1,6 @@
 // Asset-free projection/integration fixture. Its FNG bytes are synthetic test scaffolding.
 #include "NativeFng.h"
+#include "../../Speed/Indep/Src/Frontend/FEngObject.h"
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -27,10 +28,14 @@ static std::vector<unsigned char> Chunk(unsigned int id, const std::vector<unsig
     std::vector<unsigned char> bytes; Word(bytes, id); Word(bytes, value.size());
     bytes.insert(bytes.end(), value.begin(), value.end()); return bytes;
 }
-static void Run(unsigned int wrap) {
+static void Run(unsigned int wrap, bool explicitGuid) {
     std::vector<unsigned char> data, value;
     Word(value, 4); Tag(data, 0x744f, value); value.clear(); // Ot
     Word(value, 0x12345678); Tag(data, 0x684f, value); value.clear(); // Oh
+    if (explicitGuid) {
+        Word(value, 0); Word(value, 0); Word(value, 0); Word(value, 0xffff);
+        Tag(data, 0x504f, value); value.clear(); // OP: explicit GUID0, resource -1.
+    }
     Word(value, 3); Word(value, 2); Tag(data, 0x644c, value); value.clear(); // Ld
     for (int i = 0; i < 3; ++i) {
         Float(value, (i + 1) * .25f); Float(value, 10 + i); Tag(data, 0x634c, value); value.clear();
@@ -48,6 +53,7 @@ static void Run(unsigned int wrap) {
     objectData.insert(objectData.end(), script.begin(), script.end());
     data = Chunk(0x30203, Chunk(0xe76e4546, Chunk(0xcc6a624f, Chunk(0xea624f46, objectData))));
     FengPackage package; std::string error;
+    const unsigned int generatedGuid = FEngNextObjectGuid;
     assert(package.Load(data.data(), data.size(), 0, &error));
     assert(package.Objects().size() == 1);
     FengObject *object = package.Objects()[0];
@@ -55,7 +61,10 @@ static void Run(unsigned int wrap) {
     assert(object->currentScript54 && object->currentScript54->hash30 == 0x1744b3 && !object->currentScript54->trackCount1C);
     assert(object->parentGuid == 0 && object->parent == 0 && object->children.empty());
     assert(package.Find(0x12345678) == object && package.Find(0x87654321) == 0);
-    assert(package.FindGuid(0) == object && package.FindGuid(1) == 0);
+    const unsigned int expectedGuid = explicitGuid ? 0 : generatedGuid;
+    assert(object->guidC == expectedGuid && FEngNextObjectGuid == generatedGuid + 1);
+    assert(package.FindGuid(expectedGuid) == object && package.FindGuid(expectedGuid + 1) == 0);
+    assert(!object->next4 && !object->previous8);
     FEListObject *list = reinterpret_cast<FEListObject *>(object);
     assert(list->count60 == 3 && list->count64 == 2 && list->value88 == 2 && list->value8C == 0);
     assert(list->value78 == object->listColumns.data() && list->value7C == object->listRows.data());
@@ -69,6 +78,6 @@ static void Run(unsigned int wrap) {
     assert(object->hash10 == 0x12345678 && object->resource == -1 && object->parentGuid == 0);
 }
 int main() {
-    Run(0); Run(1);
+    Run(0, false); Run(1, false); Run(0, true); Run(1, true);
     puts("PASS native FNG type4 projection/offsets/Cc selection/navigation/ticking (no assets or display)");
 }

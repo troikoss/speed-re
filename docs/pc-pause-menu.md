@@ -2453,3 +2453,73 @@ to be observed. MSVC 7.1/wibo are absent; reports stay ignored under
 `build/analysis/feng-grid-cells/`. Production constructor/base-object lifecycle,
 reader, text assignment, cell rendering/ticking and owner callbacks still require
 recovery/binding. The native type-6 dispatch trap remains explicit.
+
+## Common FEng and grid construction (2026-10-18)
+
+`FEngConstruct.cpp` recovers common object constructor **0x52af20** (97 bytes)
+and grid constructor **0x52b9e0** (185 bytes), including the actual base call.
+`config/SPEED2_EXE_1_2/feng-construct.json` fingerprints both complete spans and
+original data words **0x7f7cf8** (initial GUID counter 1) and **0x7f7cc4** (initial
+opaque word 0x518e20). These globals have explicit verification bindings;
+`NativeFng.cpp` supplies independent native storage with those initial values.
+The original vtable/default address words remain numeric tokens in native data,
+not callable native implementations.
+
+The common constructor initializes the +0/+0x34/+0x44 vtable words, marks +4/+8
+links `0xabadcafe`, clears the observed list/count/pointer/flag words, reads and
+increments the GUID counter with 32-bit wrap, writes the previous counter into
++0xc, and returns the object pointer. It deliberately leaves type +0x18,
+resource +0x22, current script +0x54 and derived storage untouched. Only the
+16-bit word at +0x20 is cleared: widening this to a DWORD would erase +0x22.
+
+The grid constructor calls that body, zeros the observed grid fields, sets flags
++0x68 to 2, copies exact phase/default words (+0xa4 float 1 bits, +0xa8 0xbab60b61,
++0xac/+0xb0/+0xb4/+0xb8 each DWORD 0xff), zeros +0xc0/+0xc4, copies the current
+0x7f7cc4 word into +0xbc, and sets object type +0x18 to 6. Its object-pointer
+return is verified. The +0xbc source retains an offset-based name; its eventual
+callback dispatch is not recovered by this constructor checkpoint.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_construct.py --compiler clang-cl --mutation-checks
+ctest --test-dir build/native -R '^feng_(queue|list|grid)_native$' --output-on-failure
+```
+
+The verifier passes **8,192 comparisons**, 4,096 per constructor, and rejects
+**14 mutations**. The actual base body runs inside grid construction; there are
+no stubbed calls. Cases use dirty surrounding bytes, random counter/default data,
+counter values 0/1/0xfffffffe/0xffffffff, and selected object/global overlaps
+that expose increment-versus-GUID-store order and the late +0xbc default read.
+Full normal-object and global-region bytes, ordered constructor-entry snapshots,
+full EAX pointer returns, stack cleanup and preserved registers are compared.
+Mutations include widened clearing at +0x20, clearing untouched +0x54, wrong
+GUID progression, omitted base call, changed grid defaults and early default
+capture. Compiler/link failures do not count as mutation rejections.
+
+**Common construction is active in the native loader.** Whole-prefix memset and
+manual hash/GUID/flags/texture zeroing are removed in favor of `ConstructBase`.
+The native projection still explicitly initializes fields the original leaves
+untouched (including currentScript54 and the currently generic derived prefix),
+binds data2C to native-owned state, and constructs native root/child forward and
+back links from parsed file order. Those are platform/reader seams, not recovered
+constructor behavior. Parsed `OP` values can still override generated GUIDs.
+The asset-free list fixture now checks both a missing-OP generated GUID and an
+explicit OP GUID of zero, including lookup and counter progression, for both
+navigation modes. It no longer assumes all unassigned native GUIDs are zero.
+
+The native grid probe starts with dirty bytes, calls the recovered grid
+constructor, checks counter/type/defaults, then composes recovered allocation,
+pool operations, initial fill and navigation. Production type-6 objects still
+need a valid 0xc8-byte native prefix and original reader/owner/text/render/lifecycle
+binding; the grid dispatch trap remains. Fixed address tokens are not dispatched.
+
+This remains bounded behavioral evidence. Arbitrary aliases, concurrent global
+access, original virtual dispatch/destruction and full reader/lifecycle behavior
+are unverified. MSVC 7.1/wibo and byte matching remain pending; Clang is the stated
+verification compiler. Reports remain ignored under `build/analysis/feng-construct/`.
+
+Native and mod-enabled builds pass, as do all three queue/list/grid CTests.
+With recovered common construction active, headless integration passes all 19
+settings scenarios (including slider fill/knob pixels), all 10 Controls scenarios,
+scroller motion/settled centering and modded HUD checks at 640x480, 1280x720,
+1680x720 and 2560x720. These establish current demo regression coverage, not full
+original constructor/reader/virtual-lifecycle recovery.

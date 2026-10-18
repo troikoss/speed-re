@@ -1,0 +1,29 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "ConstructBase": {
+      "address": "0x52af20",
+      "size": 97,
+      "sha256": "1de0c2d71f9b715b82ea2f39e5477443d4af8aa2e1f19b8d4e09028dabc52da3"
+    },
+    "ConstructGrid": {
+      "address": "0x52b9e0",
+      "size": 185,
+      "sha256": "9b9b72f8e1b66c1124ced519b0564ffdc165ab7605c4f0b8d8d373c68f73b0af"
+    }
+  },
+  "data": {
+    "NextObjectGuid": {
+      "address": "0x7f7cf8",
+      "size": 4,
+      "sha256": "67abdd721024f0ff4e0b3f4c2fc13bc5bad42d0b7851d456d88d203d15aaa450",
+      "initial_word": 1
+    },
+    "Value7F7CC4": {
+      "address": "0x7f7cc4",
+      "size": 4,
+      "sha256": "e6b83404ad6237da9df0b5068b783f42c6d449b9628d2ea3fbe8013d047dcb08",
+      "initial_word": 5344800
+    }
+  }
+}

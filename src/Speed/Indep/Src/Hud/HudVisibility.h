@@ -46,6 +46,7 @@ UG2_CHECK_SIZE(FEScriptTrack, 0x38);
 // Partial original FEng object (FEObject) layout, from the object reader 0x555140 and its users.
 // Native FNG objects retain this prefix so recovered routines operate on it directly.
 struct HudVisibilityObject {
+    HudVisibilityObject *ConstructBase(); // 0x52af20; writes only the original 0x5c-byte prefix.
     FEScript *FindScriptByHash(unsigned int hash); // 0x5046b0
     void Call52BD70(int x, int y);
     void InitializeScript(); // 0x517720

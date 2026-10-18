@@ -379,6 +379,12 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   `0x5196b0`/`0x5197d0`/`0x5198f0` are also recovered. The synthetic native probe
   checks UTF-16 truncation/rebinding and aliased pair writes; original reader
   composition, text assignment and owner population remain pending.
+  The common FEng constructor `0x52af20` now executes in the native FNG loader,
+  replacing whole-prefix zeroing and native GUID-zero defaults. Grid constructor
+  `0x52b9e0` is recovered and composes with storage/fill/navigation in the asset-free
+  probe; production type-6 construction/reader binding remains pending. Unknown
+  base fields retain explicit native defaults, and native root/child chain links
+  remain a loader seam. See [constructor evidence](pc-pause-menu.md#common-feng-and-grid-construction-2026-10-18).
   Name hashing `0x505450` now executes recovered source; the native hash loop is
   removed. See [grid/hash evidence](pc-pause-menu.md#type-6-grid-navigation-and-original-name-hashing-2026-10-18).
   See [message delivery evidence](pc-pause-menu.md#full-queued-message-delivery-2026-10-18).
