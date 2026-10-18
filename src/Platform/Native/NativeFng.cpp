@@ -274,6 +274,12 @@ void *__thiscall NativeDeleteScriptKey(void *pointer, unsigned int flags) {
 void *__thiscall NativeDeleteScriptKeyBlock(void *pointer, unsigned int flags) {
     return ((FEngScriptKeyPoolBlock *)pointer)->Destroy(flags);
 }
+void *__thiscall NativeDeleteScriptHeader(void *pointer, unsigned int flags) {
+    return ((FEScript *)pointer)->Destroy(flags);
+}
+void *__thiscall NativeDeleteScriptBlock(void *pointer, unsigned int flags) {
+    return ((FEngScriptPoolBlock *)pointer)->Destroy(flags);
+}
 void BindNativeFengVtables() {
     static bool bound = false;
     if (bound) return;
@@ -282,7 +288,8 @@ void BindNativeFengVtables() {
         // Preserve retail constants and replace only these verified virtual slots.
         if (*(unsigned int *)0x79a9e8 != 0x4fdb00 || *(unsigned int *)0x79aa38 != 0x53ee60 ||
             *(unsigned int *)0x79bf50 != 0x53eb20 || *(unsigned int *)0x79aa34 != 0x531fe0 ||
-            *(unsigned int *)0x79b9ec != 0x531bc0) NativeTrap("FEng response vtable contents");
+            *(unsigned int *)0x79b9ec != 0x531bc0 || *(unsigned int *)0x79ad28 != 0x53ee30 ||
+            *(unsigned int *)0x79bf54 != 0x53ec20) NativeTrap("FEng response vtable contents");
     } else {
         const unsigned int pages[] = {0x79a000, 0x79b000};
         for (unsigned int i = 0; i < 2; ++i) {
@@ -296,11 +303,14 @@ void BindNativeFengVtables() {
     *(void **)0x79bf50 = (void *)NativeDeleteResponseBlock;
     *(void **)0x79aa34 = (void *)NativeDeleteScriptKey;
     *(void **)0x79b9ec = (void *)NativeDeleteScriptKeyBlock;
+    *(void **)0x79ad28 = (void *)NativeDeleteScriptHeader;
+    *(void **)0x79bf54 = (void *)NativeDeleteScriptBlock;
     bound = true;
 }
 }
 FEngResponsePool FEngResponseHeaderPool = {{0x79a9ec, 0, 0, 0}};
 FEngScriptKeyPool FEngScriptKeysPool = {{0x79a9ec, 0, 0, 0}};
+FEngScriptPool FEngScriptHeaderPool = {{0x79a9ec, 0, 0, 0}};
 
 // Native movable reference owner. Header allocation, destruction, return-to-pool
 // and empty-block cleanup all execute recovered code.
@@ -323,29 +333,25 @@ FengResponse &FengResponse::operator=(FengResponse &&other) noexcept {
     return *this;
 }
 
-// Inline script headers remain native owners. Their owned tracks, keys, names
-// and events now use recovered construction and normal destruction.
-FengScript::FengScript() : header() {
+// Native movable owner for the recovered script-header pool reference.
+FengScript::FengScript() : original(0) {
     BindNativeFengVtables();
-    FEngConstructScript(&header);
-    header.time10 = 0; // Native reader binding; the original constructor leaves it untouched.
+    original = FEngScriptHeaderPool.Acquire();
+    FEngConstructScript(original);
+    original->time10 = 0; // Native reader binding; original construction leaves it untouched.
 }
-FengScript::~FengScript() { FEngDestructScript(&header); }
+FengScript::~FengScript() { if (original) original->Destroy(1); }
 FengScript::FengScript(FengScript &&other) noexcept
-    : header(other.header), tracks(std::move(other.tracks)), originalKeys(std::move(other.originalKeys)) {
-    other.header.name2C = 0;
-    other.header.trackCount1C = 0; other.header.tracks20 = 0;
-    other.header.eventCount24 = 0; other.header.events28 = 0;
+    : original(other.original), tracks(std::move(other.tracks)), originalKeys(std::move(other.originalKeys)) {
+    other.original = 0;
 }
 FengScript &FengScript::operator=(FengScript &&other) noexcept {
     if (this != &other) {
-        FEngDestructScript(&header);
-        header = other.header;
+        if (original) original->Destroy(1);
+        original = other.original;
         tracks = std::move(other.tracks);
         originalKeys = std::move(other.originalKeys);
-        other.header.name2C = 0;
-        other.header.trackCount1C = 0; other.header.tracks20 = 0;
-        other.header.eventCount24 = 0; other.header.events28 = 0;
+        other.original = 0;
     }
     return *this;
 }
@@ -601,10 +607,10 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                     if (tag == 0x6e53 && retainNames) { // Sn; original script reader uses byte +0xa.
                                         std::string bounded;
                                         for (unsigned int i = 0; i < len && pl[i]; ++i) bounded += (char)pl[i];
-                                        script.header.SetName(bounded.c_str());
+                                        script.Header().SetName(bounded.c_str());
                                     } else if (tag == 0x6853) {
-                                        if (len >= 4) script.header.hash30 = Rd32(pl);
-                                        if (len >= 8) script.header.lengthC = (int)Rd32(pl + 4);
+                                        if (len >= 4) script.Header().hash30 = Rd32(pl);
+                                        if (len >= 8) script.Header().lengthC = (int)Rd32(pl + 4);
                                     } else if (tag == 0x4946) {            // 'FI'
                                         FengTrack track;
                                         track.type = pl[0];
@@ -629,7 +635,7 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                     } else if (tag == 0x7454 && !tracks.empty()) {  // 'Tt'
                                         tracks.back().interpolation = pl[0];
                                     } else if (tag == 0x5645) {  // EV replaces, rather than appends, event storage.
-                                        FEngScriptEventStorage *events = reinterpret_cast<FEngScriptEventStorage *>(&script.header.eventCount24);
+                                        FEngScriptEventStorage *events = reinterpret_cast<FEngScriptEventStorage *>(&script.Header().eventCount24);
                                         events->Resize((int)(len / 12));
                                         for (unsigned int k = 0; k < len / 12; ++k) {
                                             events->data4[k].message = Rd32(pl + k * 12);
@@ -648,7 +654,7 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                     }
                                     t += 4 + len;
                                 }
-                                if (script.header.hash30 == kInitScript) {
+                                if (script.Header().hash30 == kInitScript) {
                                     for (size_t k = 0; k < tracks.size(); ++k)
                                         ApplyTrack(tracks[k], state.empty() ? 0 : &state[0], (int)state.size(), 0);
                                 }
@@ -702,11 +708,11 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
         // Native loader seam: original FEScript headers of the loaded scripts, linked in file order.
         for (size_t j = 0; j < object->scripts.size(); ++j) {
             FengScript &script = object->scripts[j];
-            script.header.SetTracks(script.tracks.size());
+            script.Header().SetTracks(script.tracks.size());
             script.originalKeys.resize(script.tracks.size());
             for (size_t k = 0; k < script.tracks.size(); ++k) {
                 const FengTrack &native = script.tracks[k];
-                FEScriptTrack &track = static_cast<FEScriptTrack *>(script.header.tracks20)[k];
+                FEScriptTrack &track = static_cast<FEScriptTrack *>(script.Header().tracks20)[k];
                 // Native reader binding of known input data; remaining parser is a seam.
                 memset(track.base18, 0, sizeof(track.base18));
                 track.key8.timeC = native.keys.empty() ? 0 : native.keys[0].first;
@@ -734,11 +740,11 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                 *(FengScriptKey **)track.unidentified34 = keys.empty() ? 0 : keys.back();
                 if (!native.baseline.empty()) memcpy(track.base18, &native.baseline[0], native.size < 16 ? native.size : 16);
             }
-            FEScript &header = script.header;
-            header.previous8 = j ? &object->scripts[j - 1].header : 0;
-            header.next4 = j + 1 < object->scripts.size() ? &object->scripts[j + 1].header : 0;
+            FEScript &header = script.Header();
+            header.previous8 = j ? &object->scripts[j - 1].Header() : 0;
+            header.next4 = j + 1 < object->scripts.size() ? &object->scripts[j + 1].Header() : 0;
         }
-        object->scripts4C = object->scripts.empty() ? 0 : &object->scripts[0].header;
+        object->scripts4C = object->scripts.empty() ? 0 : &object->scripts[0].Header();
         // Native loader seam: original script reader 0x5515e0 selects Init;
         // package reader 0x5554a0 selects it again, initializes tracks and resets time.
         object->currentScript54 = object->FindScriptByHash(kInitScript);
@@ -819,9 +825,13 @@ void FengPackage::AdvanceScripts(float seconds) {
     for (size_t i = 0; i < objects_.size(); ++i) {
         FengObject *object = objects_[i];
         if (!object->currentScript54) continue;
-        // FengScript begins with its FEScript header.
-        FengScript &script = *reinterpret_cast<FengScript *>(object->currentScript54);
-        if (!script.header.time10) object->scriptRemainder = 0; // Native sub-millisecond clock seam.
+        // Native playback metadata is indexed by the stable original pool node.
+        FengScript *selected = 0;
+        for (size_t j = 0; j < object->scripts.size(); ++j)
+            if (object->scripts[j].original == object->currentScript54) { selected = &object->scripts[j]; break; }
+        if (!selected) continue;
+        FengScript &script = *selected;
+        if (!script.Header().time10) object->scriptRemainder = 0; // Native sub-millisecond clock seam.
         unsigned char state[84] = {};
         memcpy(state, object->colour, 16);
         memcpy(state + 16, object->pivot, 12);
@@ -832,19 +842,19 @@ void FengPackage::AdvanceScripts(float seconds) {
         for (size_t k = 0; k < script.tracks.size(); ++k) {
             FengTrack &track = script.tracks[k];
             if (!track.baseline.empty()) {
-                memcpy(&track.baseline[0], static_cast<FEScriptTrack *>(script.header.tracks20)[k].base18, track.size < 16 ? track.size : 16);
+                memcpy(&track.baseline[0], static_cast<FEScriptTrack *>(script.Header().tracks20)[k].base18, track.size < 16 ? track.size : 16);
             }
             for (size_t n = 0; n < script.originalKeys[k].size(); ++n)
                 memcpy(&track.keys[n + 1].second[0], script.originalKeys[k][n]->value10, track.size < 16 ? track.size : 16);
-            ApplyTrack(track, state, sizeof(state), script.header.time10);
+            ApplyTrack(track, state, sizeof(state), script.Header().time10);
         }
         ReadState(object, state, sizeof(state));
-        float milliseconds = (float)script.header.time10 + object->scriptRemainder + seconds * 1000.0f;
+        float milliseconds = (float)script.Header().time10 + object->scriptRemainder + seconds * 1000.0f;
         bool cycling = false;
         for (size_t k = 0; k < script.tracks.size(); ++k) cycling |= script.tracks[k].cycle == 1;
-        if (!cycling && milliseconds > script.header.lengthC) milliseconds = (float)script.header.lengthC + 1.0f;
-        script.header.time10 = (int)milliseconds;
-        object->scriptRemainder = milliseconds - (float)script.header.time10;
+        if (!cycling && milliseconds > script.Header().lengthC) milliseconds = (float)script.Header().lengthC + 1.0f;
+        script.Header().time10 = (int)milliseconds;
+        object->scriptRemainder = milliseconds - (float)script.Header().time10;
         // Native clock adapter; 0x54ce60 ticks type4 after script state application.
         if (object->type18 == 4) reinterpret_cast<FEListObject *>(object)->Tick(seconds * 1000.0f);
     }

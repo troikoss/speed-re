@@ -402,8 +402,8 @@ static void RunScriptStorage() {
         FengPackage package; std::string error;
         assert(package.Load(object.data(), object.size(), 0, &error, enabled != 0));
         assert(package.Objects()[0]->scripts.size() == 2);
-        FEScript &one = package.Objects()[0]->scripts[0].header;
-        FEScript &two = package.Objects()[0]->scripts[1].header;
+        FEScript &one = package.Objects()[0]->scripts[0].Header();
+        FEScript &two = package.Objects()[0]->scripts[1].Header();
         assert(one.hash30 == 0x12345678 && one.lengthC == 300);
         assert(one.eventCount24 == 1 && two.eventCount24 == 2 && one.events28 != two.events28);
         FEScriptEvent *event = static_cast<FEScriptEvent *>(one.events28);
@@ -423,18 +423,18 @@ static void RunScriptStorage() {
         storage->Resize(0); assert(!one.events28 && !one.eventCount24 && two.eventCount24 == 2);
     }
     FengScript owner;
-    owner.header.SetName("owned");
-    reinterpret_cast<FEngScriptEventStorage *>(&owner.header.eventCount24)->Resize(2);
-    void *events = owner.header.events28; char *name = owner.header.name2C;
+    owner.Header().SetName("owned");
+    reinterpret_cast<FEngScriptEventStorage *>(&owner.Header().eventCount24)->Resize(2);
+    void *events = owner.Header().events28; char *name = owner.Header().name2C;
     FengScript moved(std::move(owner));
-    assert(!owner.header.name2C && !owner.header.events28 && !owner.header.eventCount24);
-    assert(moved.header.name2C == name && moved.header.events28 == events);
+    assert(!owner.original);
+    assert(moved.Header().name2C == name && moved.Header().events28 == events);
     FengScript assigned;
-    assigned.header.SetName("release");
-    reinterpret_cast<FEngScriptEventStorage *>(&assigned.header.eventCount24)->Resize(1);
+    assigned.Header().SetName("release");
+    reinterpret_cast<FEngScriptEventStorage *>(&assigned.Header().eventCount24)->Resize(1);
     assigned = std::move(moved);
-    assert(!moved.header.name2C && !moved.header.events28 && !moved.header.eventCount24);
-    assert(assigned.header.name2C == name && assigned.header.events28 == events && assigned.header.eventCount24 == 2);
+    assert(!moved.original);
+    assert(assigned.Header().name2C == name && assigned.Header().events28 == events && assigned.Header().eventCount24 == 2);
 }
 static FEngReference *injectedReference;
 static unsigned int keyCallbackCalls;
@@ -473,7 +473,7 @@ static void RunTrackOwnership() {
         data = Chunk(0x30203, Chunk(0xe76e4546, Chunk(0xcc6a624f, Chunk(0xea624f46, data))));
         FengPackage package; std::string error;
         assert(package.Load(data.data(), data.size(), 0, &error));
-        FEScript &header = package.Objects()[0]->scripts[0].header;
+        FEScript &header = package.Objects()[0]->scripts[0].Header();
         assert(header.trackCount1C == 1 && static_cast<unsigned int *>(header.tracks20)[-1] == 1);
         FEScriptTrack &track = static_cast<FEScriptTrack *>(header.tracks20)[0];
         assert(track.key8.vtable0 == (void *)0x79aa34 && track.key8.timeC == -1);
@@ -558,6 +558,28 @@ static void RunTrackOwnership() {
     for (unsigned int i = 0; i < keys.size(); ++i) keys[i]->Destroy(1);
     assert(!FEngScriptKeysPool.blocks0.count4 && !FEngScriptKeysPool.blocks0.first8 && !FEngScriptKeysPool.blocks0.valueC);
 }
+static void RunScriptPool() {
+    assert(!FEngScriptHeaderPool.blocks0.count4);
+    {
+        std::vector<FengScript> scripts;
+        FEScript *first = 0;
+        for (unsigned int i = 0; i < 70; ++i) {
+            scripts.emplace_back();
+            FEScript &header = scripts.back().Header();
+            if (!i) first = &header;
+            header.SetName("pool-owned");
+            header.hash30 = i;
+            header.SetTracks(1);
+            ((FEngScriptEventStorage *)&header.eventCount24)->Resize(1);
+            assert(&scripts[0].Header() == first); // Vector growth does not move original nodes.
+        }
+        assert(FEngScriptHeaderPool.blocks0.count4 == 3);
+        for (unsigned int i = 0; i < scripts.size(); ++i) {
+            assert(scripts[i].Header().hash30 == i && !strcmp(scripts[i].Header().name2C, "pool-owned"));
+        }
+    }
+    assert(!FEngScriptHeaderPool.blocks0.count4 && !FEngScriptHeaderPool.blocks0.first8 && !FEngScriptHeaderPool.blocks0.valueC);
+}
 static void RunResponsePool() {
     assert(!FEngResponseHeaderPool.blocks0.count4 && !FEngResponseHeaderPool.blocks0.first8);
     std::vector<FengResponse> responses;
@@ -621,5 +643,6 @@ int main() {
     RunResponsePool();
     RunScriptStorage();
     RunTrackOwnership();
+    RunScriptPool();
     puts("PASS native FNG owned text/names, inheritance/GUID lookup and type4 projection/navigation/ticking (no assets or display)");
 }

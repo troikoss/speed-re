@@ -121,7 +121,7 @@ struct NativeScreen {
 struct RunningScript {
     NativeScreen *screen;
     FengObject *object;
-    const FengScript *script;
+    const FEScript *script;
     float milliseconds;
     size_t nextEvent;
     bool finished;
@@ -912,13 +912,13 @@ void SynchronizeNativeScriptEvents() {
             size_t found = scripts.size();
             for (size_t k = 0; k < scripts.size(); ++k)
                 if (scripts[k].object == object) { found = k; break; }
-            if (found < scripts.size() && &scripts[found].script->header != object->currentScript54) {
+            if (found < scripts.size() && scripts[found].script != object->currentScript54) {
                 scripts.erase(scripts.begin() + found);
                 found = scripts.size();
             }
             if (!object->currentScript54) continue;
             if (found == scripts.size()) {
-                RunningScript running = {screen, object, reinterpret_cast<FengScript *>(object->currentScript54),
+                RunningScript running = {screen, object, object->currentScript54,
                                          (float)object->currentScript54->time10, 0, false};
                 scripts.push_back(running);
             } else if (!object->currentScript54->time10 && scripts[found].milliseconds > 0.0f) {
@@ -945,14 +945,14 @@ void NativePause::Update(float seconds) {
         RunningScript &running = scripts[i];
         if (running.finished) continue;
         running.milliseconds += seconds * 1000.0f;
-        const FengEvent *events = static_cast<const FengEvent *>(running.script->header.events28);
-        const unsigned int eventCount = (unsigned int)running.script->header.eventCount24;
+        const FengEvent *events = static_cast<const FengEvent *>(running.script->events28);
+        const unsigned int eventCount = (unsigned int)running.script->eventCount24;
         while (running.nextEvent < eventCount && events[running.nextEvent].time <= running.milliseconds) {
             if (events[running.nextEvent].target == 0xffffffff)
                 Post(running.screen, events[running.nextEvent].message, 0, kTargetGame);
             ++running.nextEvent;
         }
-        if (running.nextEvent >= eventCount && running.milliseconds >= running.script->header.lengthC)
+        if (running.nextEvent >= eventCount && running.milliseconds >= running.script->lengthC)
             running.finished = true;
     }
     for (size_t i = 0; i < kScreenCount; ++i) {

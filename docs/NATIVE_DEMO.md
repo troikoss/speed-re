@@ -362,7 +362,7 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   comparisons and 15 mutations. Native event vectors and duplicate hash/duration
   metadata are removed; EV uses recovered arrays and repeated EV replaces them.
   Optional Sn retention calls the recovered name setter. Clock/event firing,
-  full script parsing/copying and script-header pool ownership remain seams. See [script storage evidence](pc-pause-menu.md#script-names-and-owned-event-array-storage-2026-10-18).
+  full script parsing/copy binding and production owner-list teardown remain seams. See [script storage evidence](pc-pause-menu.md#script-names-and-owned-event-array-storage-2026-10-18).
 - Script track replacement `0x535210`, owned/borrowed key cleanup, the 256-slot
   key pool, and normal script construction/destruction now execute recovered
   code. Fourteen routines pass 3,584 comparisons and reject 21 mutations.
@@ -377,8 +377,16 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   See [assignment evidence](pc-pause-menu.md#track-assignment-and-ownedborrowed-key-copying-2026-10-18).
   Complete script copy construction `0x551be0` is recovered too, including
   shallow reference headers and deep assignment. Native fixtures exercise its
-  ownership and teardown; the production script reader/header pool remain pending.
+  ownership and teardown; the production script reader remains pending.
   See [copy evidence](pc-pause-menu.md#complete-script-copy-construction-2026-10-18).
+- Script headers now come from recovered pool `0x54beb0` and return through
+  deleting wrapper `0x53ee30`/release `0x525b90`. Blocks contain 32 headers;
+  construction/destruction and empty-block cleanup execute recovered code.
+  Six routines pass 1,536 original comparisons and reject 12 mutations.
+  Native wrappers transfer stable pointers; playback metadata and event-clock
+  adapters no longer cast original headers to embedded native wrappers.
+  Original reader `0x5515e0`, its Ti registry binding and owner-list cleanup remain pending.
+  See [script pool evidence](pc-pause-menu.md#script-header-pool-and-native-stable-ownership-2026-10-18).
 - Native image/group/list teardown now invokes recovered `0x532660`/`0x534bf0`/
   `0x534a50`, alongside string destruction. Original list storage/cell release
   `0x516dc0`/`0x5042e0` and the three deleting wrappers are verified together with

@@ -4079,3 +4079,78 @@ Complete reader `0x5515e0`, header pools/deleting wrappers, original owner
 teardown, clocks and interpolation remain pending. Exceptional unwind, general
 allocation failure, arbitrary overlapping/invalid pointers, enormous iteration
 counts and byte identity remain unproven. MSVC 7.1/wibo remains unavailable.
+
+## Script-header pool and native stable ownership (2026-10-18)
+
+This checkpoint removes inline native script-header storage. `FEngScriptPool`
+at original `0x839c30` allocates 32 0x34-byte headers per 0x6a0-byte block:
+slots start at +0xc, free-list prefix +0x68c (count +0x690, head +0x694,
+cursor +0x698), used count +0x69c. These dimensions are independently verified
+against UG2, separately from response and key pools; no cross-title sharing
+is inferred.
+
+The recovered entries are block constructor `0x53e910` (518 bytes), normal
+block destructor `0x53ec40` (211), block deleting wrapper `0x53ec20` (30),
+acquire `0x54beb0` (186), release `0x525b90` (86) and script deleting wrapper
+`0x53ee30` (40). Fingerprints are in `feng-script-pool.json`.
+Block construction calls the actual CRT iterator with script ctor/dtor
+`0x511d70`/`0x535170`, initializes the observed free list, then performs ordered
+inline insertion (retail unrolls four slots). It leaves each script time field
+untouched. Acquire scans free counts, allocates/constructs a block when needed,
+reloads the pool head before prepending, removes the first slot through actual
+`0x505400` and increments used count.
+
+Release uses unsigned half-open membership `[block+0xc, block+0x68c)` with no
+alignment check. It calls actual insertion wrapper `0x4951b0`, decrements used
+count, and on zero removes the block through actual `0x505400` before virtual
+deletion with flags one. Block destruction drains the free list inline, calls
+actual `0x511670`, reverse-destructs all 32 embedded scripts and writes the base
+vtable. Each embedded script normal destructor includes unconditional event
+free, even for null pointers. The script deleting wrapper calls actual normal
+script destruction first; flags bit zero then selects base virtual destruction
+with flags zero and header-pool release. It returns the original receiver bits,
+including when release freed its containing block.
+
+`UG2_EXE=... build/venv/bin/python tools/verify_pc_feng_script_pool.py
+--compiler clang-cl --mutation-checks` passes **1,536 comparisons** (256 for
+each root) and rejects **12 semantic mutations**. Original helpers include
+19,456 normal script destructions, 9,536 script constructions, 765 track
+destructions and actual list/virtual cleanup. Only heap calls are controlled.
+Full arena and both pool globals, ordered method/heap snapshots, receiver
+results where contracted, preserved registers, stack cleanup and restored FS
+exception head are compared. Cases cover partially full/exhausted/chained
+blocks, allocation-time pool-head changes, name/event pointer changes during
+free, cookie-based nested track destruction, null/outside/boundary/misaligned
+release pointers, last-slot block deletion and flags 0/1/0x100/0x101/0xffffffff.
+Mapped malformed states are arithmetic/control-flow evidence, not proof of
+allocator or C++ lifetime validity. Allocation failure throughout all paths,
+cycles, invalid pointers, concurrent mutation, exceptional unwind and byte
+identity remain unproven. MSVC 7.1/wibo remains unavailable.
+
+Native `FengScript` now owns a pooled pointer, accessed through `Header()`.
+Construction still supplies time zero as an explicit reader binding. Moves
+transfer the pointer and native metadata; destruction calls actual deleting
+wrapper with flags one. Native event scheduling now keeps an `FEScript` pointer
+directly. Native interpolation finds its metadata by matching that stable header
+pointer within the object's wrappers. Both replace casts that assumed an inline
+header occupied the first bytes of a native wrapper. Metadata, clocks and
+interpolation remain native seams. Script owner lists are still projected and
+detached by native object adapters before wrapper teardown.
+
+The native vtable bridge verifies and patches script/header-block slots
+`0x79ad28`/`0x79bf54` in addition to its five prior slots. No retail text is
+executed in the demo. Asset-free fixtures retain private data pages. New fixture
+coverage allocates 70 named scripts across three blocks, gives each track/event
+storage, verifies header addresses survive native vector growth, and releases
+all blocks through actual normal/deleting routines. Move tests now check an
+empty source owner pointer rather than cleared fields in an embedded header.
+Native and mod-enabled builds and all three CTests pass.
+
+The full reader trace identifies additional Ti dependencies before production
+replacement: `0x504a00` maps selector through `0x7992f4` and compares signed
+track state bytes. At `0x55194a..0x551972`, context +0x3c supplies the registry
+base (+0x4134); `0x505480` takes object type +0x18 and returns a descriptor,
+then `0x5147f0` takes the Ti selector as its index. Each callee pops four bytes;
+the first leaves the already-pushed selector for the second. Earlier decompiler
+void signatures hid this dependency. Registry construction/binding and complete
+reader ownership remain pending; no invented Ti metadata is supplied.

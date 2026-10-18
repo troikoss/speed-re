@@ -1,0 +1,35 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "ScriptBlockConstruct": {
+      "address": "0x53e910",
+      "size": 518,
+      "sha256": "f67be5952d2df47267041866a74ba60dbe5482e27877fdd643b570d5f6fe4856"
+    },
+    "ScriptBlockDestruct": {
+      "address": "0x53ec40",
+      "size": 211,
+      "sha256": "244f5ed42b15ec1ab952626bc8941aedaaa1a5589bc84cb2bf4c357ab694b9a4"
+    },
+    "ScriptBlockDestroy": {
+      "address": "0x53ec20",
+      "size": 30,
+      "sha256": "7b5a9b2306c09dd9ed24051e5468cb272530c12fc883eb64c0a5a3c11b921298"
+    },
+    "ScriptAcquire": {
+      "address": "0x54beb0",
+      "size": 186,
+      "sha256": "a87c62eba6ee0475a9147c8a89f8bdf3e8e1444dbca2d642db4d2b20fddb885f"
+    },
+    "ScriptRelease": {
+      "address": "0x525b90",
+      "size": 86,
+      "sha256": "e165c6fe0a7048591c926a9cf64368311dfd07105071fad848f4b3221bbed3d9"
+    },
+    "ScriptDestroy": {
+      "address": "0x53ee30",
+      "size": 40,
+      "sha256": "9969dc96470171bde7b6f7d206d189b85087b66dc5b93850f69ad88ad4c1edb5"
+    }
+  }
+}

@@ -12,6 +12,7 @@
 #include "../../Speed/Indep/Src/Frontend/FEngCoordinates.h"
 #include "../../Speed/Indep/Src/Frontend/FEngResponse.h"
 #include "../../Speed/Indep/Src/Frontend/FEngResponsePool.h"
+#include "../../Speed/Indep/Src/Frontend/FEngScriptPool.h"
 #include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
 #include "../../Speed/Indep/Src/Frontend/FEngList.h"
 #include "../../Speed/Indep/Src/Frontend/FEngHash.h"
@@ -41,7 +42,9 @@ typedef FEScriptEvent FengEvent;
 // Native ownership for the observed key-node prefix (reader 0x5515e0).
 typedef FEngScriptKey FengScriptKey;
 struct FengScript {
-    FEScript header;  // original prefix: links, lengthC (duration), time10, hash30
+    FEScript *original; // Recovered pooled header; native owner transfers only this pointer.
+    FEScript &Header() { return *original; }
+    const FEScript &Header() const { return *original; }
     std::vector<FengTrack> tracks;
     std::vector<std::vector<FengScriptKey *> > originalKeys; // Native index of recovered owned pool nodes.
     FengScript();
