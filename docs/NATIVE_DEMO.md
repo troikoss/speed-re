@@ -316,6 +316,13 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   preserves string SH hashes instead of overwriting +0x60 with a child count.
   See [setter evidence](pc-pause-menu.md#language-hash-setter-and-observer-notification-2026-10-18)
   and [owned UTF-16 storage](pc-pause-menu.md#owned-utf-16-storage-in-native-strings).
+- String property reader `0x534fc0` now applies all seven original string tags,
+  calling recovered member label setters `0x4fe940`/`0x519f40`, actual hash and
+  UTF-16 storage methods. Native parsing disables optional `SL` retention and
+  retains bounds, terminated input and renderer byte projections as seams.
+  Observer binding uses relocated native storage; string-object destruction,
+  original localization and surrounding reader ownership remain pending.
+  See [string reader evidence](pc-pause-menu.md#complete-string-property-dispatch-and-member-label-helpers).
 - Typed string/image lookup (`0x537a10`/`0x537a60`), generic wrapper `0x5379c0`,
   recursive object traversal and package-list fallback now execute recovered code.
   Native loading constructs root/child links; shown-screen membership and order,

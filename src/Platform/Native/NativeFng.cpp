@@ -3,6 +3,7 @@
 #include "NativeHud.h"
 #include "../../Speed/Indep/Src/Frontend/FEngColour.h"
 #include "../../Speed/Indep/Src/Frontend/FEngText.h"
+#include "../../Speed/Indep/Src/Frontend/FEngStringReader.h"
 #include "../../Speed/Indep/Src/Frontend/FEngScript.h"
 #include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObject.h"
@@ -21,6 +22,7 @@ void NativeTrap(const char *what);
 // remain opaque retail address tokens; native code does not dispatch them.
 unsigned int FEngNextObjectGuid = 1; // original 0x7f7cf8 initial value
 unsigned int FEngValue7F7CC4 = 0x518e20;
+FEngStringObserver *fengStringObserver838478 = 0; // Relocated native storage for original 0x838478.
 
 // Native heap adapter for original 0x575620/0x575630 boundaries.
 void *FEngAllocateQueueNode(unsigned int size) { return malloc(size); }
@@ -300,6 +302,40 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                         unsigned int tag = Rd16(data + t);
                                         unsigned int len = Rd16(data + t + 2);
                                         const unsigned char *pl = data + t + 4;
+                                        if (len > end4 - t - 4) break; // Native container bounds.
+                                        if (object->type18 == 2 && (tag == 0x4853 || tag == 0x4c53 || tag == 0x6253 ||
+                                            tag == 0x6a53 || tag == 0x6c53 || tag == 0x7453 || tag == 0x7753)) {
+                                            FEngStringPropertyReader reader = {};
+                                            reader.objectC = object;
+                                            // SL label retention is disabled in this native reader adapter.
+                                            const unsigned short *property = reinterpret_cast<const unsigned short *>(data + t);
+                                            std::vector<unsigned short> bounded;
+                                            if (tag == 0x7453) {
+                                                // Native bounded input seam: preserve valid St code units,
+                                                // terminate truncated input before the original unbounded copy.
+                                                bounded.push_back((unsigned short)tag);
+                                                bounded.push_back((unsigned short)len);
+                                                for (unsigned int i = 0; i + 1 < len; i += 2) {
+                                                    unsigned short c = (unsigned short)Rd16(pl + i);
+                                                    if (!c) break;
+                                                    bounded.push_back(c);
+                                                }
+                                                bounded.push_back(0);
+                                                property = bounded.data();
+                                            } else if (tag != 0x4c53 && len < 4) {
+                                                t += 4 + len;
+                                                continue;
+                                            }
+                                            reader.ReadProperty(property);
+                                            if (tag == 0x4853) object->font = object->languageHash60;
+                                            if (tag == 0x7453) {
+                                                object->text.clear();
+                                                for (const unsigned short *c = object->text64; c && *c; ++c)
+                                                    object->text += (char)(*c < 256 ? *c : '?');
+                                            }
+                                            t += 4 + len;
+                                            continue;
+                                        }
                                         switch (tag) {
                                         case 0x744f:
                                             object->type18 = (int)Rd32(pl); // 'Ot'
@@ -312,23 +348,6 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                             break;
                                         case 0x4150: object->parentGuid = Rd32(pl); break;  // 'PA'
                                         case 0x4153: state.assign(pl, pl + len); break;     // 'SA'
-                                        case 0x7453: {                                      // 'St' UTF-16
-                                            std::vector<unsigned short> text; // Bounded input conversion seam.
-                                            for (unsigned int i = 0; i + 1 < len; i += 2) {
-                                                unsigned int c = Rd16(pl + i);
-                                                if (!c) break;
-                                                text.push_back((unsigned short)c);
-                                                object->text += (char)(c < 256 ? c : '?');
-                                            }
-                                            text.push_back(0);
-                                            if (object->type18 == 2)
-                                                reinterpret_cast<FEngTextStorage *>(&object->text64)->Assign(text.data());
-                                            break;
-                                        }
-                                        case 0x6a53: object->justification6C = (int)Rd32(pl); break;  // 'Sj'
-                                        case 0x4853: object->font = Rd32(pl); break;                 // 'SH'
-                                        case 0x6c53: object->leading70 = (int)Rd32(pl); break;         // 'Sl'
-                                        case 0x7753: object->maxWidth74 = Rd32(pl); break;             // 'Sw'
                                         case 0x644c: // Ld: observed 0x52b740 dimension records.
                                             if (object->type18 == 4 && len >= 8) {
                                                 object->listColumns.resize(Rd32(pl));
@@ -488,8 +507,7 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
     // Build the original FEng child-chain prefix from PA links.
     for (size_t i = 0; i < objects_.size(); ++i) {
         FengObject *object = objects_[i];
-        if (object->type18 == 2) object->languageHash60 = object->font;
-        else if (object->type18 != 4) object->childCount60 = (int)object->children.size();
+        if (object->type18 != 2 && object->type18 != 4) object->childCount60 = (int)object->children.size();
         if (object->type18 != 4 && object->type18 != 2)
             object->firstChild64 = object->children.empty() ? 0 : object->children[0];
         for (size_t j = 0; j < object->children.size(); ++j) {

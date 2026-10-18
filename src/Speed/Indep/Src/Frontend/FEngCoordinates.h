@@ -5,6 +5,8 @@
 // String-specific extension; +0x64 is text64 rather than the group child pointer.
 struct FEStringObject : HudVisibilityObject {
     FEStringObject *Construct(); // 0x495630, normal return
+    void SetLabelHash(unsigned int hash); // 0x4fe940
+    void SetLabelBytes(const char *source); // 0x519f40; owns label pointer at +0x5c.
     unsigned int textCapacity68; // FEngTextStorage capacity at string+0x64+4.
     int justification6C;
     int leading70;

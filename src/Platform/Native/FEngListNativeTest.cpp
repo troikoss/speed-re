@@ -2,6 +2,7 @@
 #include "NativeFng.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObject.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObjectFactory.h"
+#include "../../Speed/Indep/Src/Frontend/FEngText.h"
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -78,28 +79,53 @@ static void Run(unsigned int wrap, bool explicitGuid) {
     assert(!(list->value5C & 0x62) && list->value70 == (wrap ? 0 : .75f));
     assert(object->hash10 == 0x12345678 && object->resource == -1 && object->parentGuid == 0);
 }
+class StringObserver : public FEngStringObserver {
+public:
+    unsigned int calls;
+    StringObserver() : calls(0) {}
+    void StringChanged(HudVisibilityObject *object) {
+        assert(object->type18 == 2 && object->languageHash60 == 0x12345678);
+        assert((object->flags1C & 0x400002) == 0x400002);
+        ++calls;
+    }
+};
 static void RunString() {
     std::vector<unsigned char> data, value;
     Word(value, 2); Tag(data, 0x744f, value); value.clear(); // Ot
+    Word(value, 0); Word(value, 0); Word(value, 2); Word(value, 0xffff);
+    Tag(data, 0x504f, value); value.clear(); // OP preserves bit2 through the member setter.
+    Word(value, 0x12345678); Tag(data, 0x4853, value); Tag(data, 0x4853, value); value.clear();
+    Word(value, 'z'); Tag(data, 0x4c53, value); value.clear(); // SL disabled by native flag9.
+    Word(value, 2); Tag(data, 0x6a53, value); value.clear();
+    Word(value, 0xfffffffe); Tag(data, 0x6c53, value); value.clear();
+    Word(value, 0x80000000); Tag(data, 0x7753, value); value.clear();
+    Word(value, 9); Tag(data, 0x6253, value); value.clear();
+    Word(value, 'X'); Tag(data, 0x7453, value); value.clear(); // Earlier St must be replaced.
     // Synthetic St payload retains non-ASCII code units in recovered storage.
     const unsigned short text[] = {'A', 0x3a9, 0xd83d, 0xde00, 0};
     for (unsigned int i = 0; i < sizeof(text) / sizeof(text[0]); ++i) {
         value.push_back(text[i]); value.push_back(text[i] >> 8);
     }
-    Tag(data, 0x7453, value);
+    Tag(data, 0x7453, value); value.clear();
+    Word(value, 6); Tag(data, 0x6253, value); // Sb reallocates despite capacity9 > request6.
     data = Chunk(0x30203, Chunk(0xe76e4546, Chunk(0xcc6a624f,
         Chunk(0xea624f46, Chunk(0x446a624f, data)))));
+    StringObserver observer;
+    fengStringObserver838478 = &observer;
     for (int repeat = 0; repeat < 3; ++repeat) {
         FengPackage package; std::string error;
         assert(package.Load(data.data(), data.size(), 0, &error));
         FengObject *object = package.Objects()[0];
         FEngTextStorage *storage = reinterpret_cast<FEngTextStorage *>(&object->text64);
         assert(object->type18 == 2 && object->text == "A???");
-        assert(storage->capacity4 == 5 && !memcmp(storage->text0, text, sizeof(text)));
-        assert(storage->GetBuffer(5) == object->text64);
+        assert(storage->capacity4 == 6 && !memcmp(storage->text0, text, sizeof(text)));
+        assert(storage->GetBuffer(6) == object->text64);
+        assert(object->languageHash60 == 0x12345678 && object->font == 0x12345678);
+        assert(object->justification6C == 2 && object->leading70 == -2 && object->maxWidth74 == 0x80000000);
+        assert(!*(unsigned int *)(object->unidentified58 + 4) && (object->flags1C & 2));
         unsigned short *buffer = storage->text0;
         FengPackage::SetText(object, "xy");
-        assert(storage->text0 == buffer && storage->capacity4 == 5);
+        assert(storage->text0 == buffer && storage->capacity4 == 6);
         assert(storage->text0[0] == 'x' && storage->text0[1] == 'y' && !storage->text0[2]);
         FengPackage::SetText(object, "0123456789");
         assert(storage->capacity4 == 11 && storage->text0[9] == '9' && !storage->text0[10]);
@@ -108,6 +134,8 @@ static void RunString() {
         assert(object->text.empty() && storage->text0 == buffer && !*storage->text0 && storage->capacity4 == 11);
         // Each package destructor releases this owned buffer.
     }
+    assert(observer.calls == 6);
+    fengStringObserver838478 = 0;
 }
 int main() {
     RunString();

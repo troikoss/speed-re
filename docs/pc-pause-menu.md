@@ -2915,9 +2915,10 @@ Native heap adapters were moved from the pause screen to the FNG module so this
 ownership path also links into the asset-free parser fixture.
 
 This is storage integration, not complete string-object or reader recovery.
-Normal string destructor `0x4956a0`, property reader `0x534fc0`, label helpers,
-original localization, complete object/state/list ownership, reader iteration and
-SEH unwind are still separate work. The C++ wrapper, temporary bounded input,
+At this checkpoint, normal string destructor `0x4956a0`, property reader
+`0x534fc0`, label helpers, original localization, complete object/state/list
+ownership, reader iteration and SEH unwind were separate work. The following
+checkpoint recovers the property reader and label helpers. The C++ wrapper, temporary bounded input,
 byte rendering projection and native observer are documented platform seams.
 The native synthetic package fixture checks retained non-ASCII UTF-16, pointer
 reuse for shorter/empty assignments, longer growth and repeated package teardown.
@@ -2928,3 +2929,95 @@ scenarios and slider fill/knob pixels, all 10 Controls scenarios, pause/scroller
 motion and settled centering, and modded HUD translation at 640x480, 1280x720,
 1680x720 and 2560x720. These establish current native integration behavior,
 separately from the bounded original/rebuilt storage comparisons above.
+
+### Complete string-property dispatch and member label helpers
+
+`FEngStringReader.cpp` recovers member hash setter `0x4fe940` (42-byte span),
+owned byte-label setter `0x519f40` (121 bytes), and the full string property
+reader `0x534fc0` (159 bytes). The reference SHA-256 and complete function spans
+are recorded in `config/SPEED2_EXE_1_2/feng-string-reader.json`.
+
+The member hash setter writes language hash `+0x60` and dirty bit `0x400000` only
+when the hash changes, then notifies the current observer's first slot whenever
+that observer exists. It **preserves bit 2**, including observer changes to flags;
+the extra saved-bit/clear-bit behavior of cdecl `0x50c900` does not apply here.
+Original tail jumps are represented by ordinary source calls with the same
+arguments and normal return behavior; matching instruction selection is pending.
+
+The byte-label setter unconditionally frees old label `+0x5c`, resets it to null,
+optionally allocates/copies source bytes including their terminator, calls actual
+recovered `FngHash` on fresh `+0x5c`, writes `+0x60` and dirty, then notifies the
+current observer. Null input still frees/reset the label and hashes null to
+`0xffffffff`. Nonnull input has no allocation-failure guard in the original.
+This byte label and UTF-16 text `+0x64` have separate ownership.
+
+| Property | Original action |
+| --- | --- |
+| `SH` / `0x4853` | Actual member hash setter with payload DWORD |
+| `SL` / `0x4c53` | Actual byte-label setter with payload string, only if reader byte `+9` is nonzero |
+| `Sb` / `0x6253` | Actual storage `Grow(payload DWORD)` at object `+0x64` |
+| `Sj` / `0x6a53` | Write justification `+0x6c` |
+| `Sl` / `0x6c53` | Write leading `+0x70` |
+| `St` / `0x7453` | Actual storage `Assign(payload UTF-16)` at object `+0x64` |
+| `Sw` / `0x7753` | Write width `+0x74` |
+
+The reader's current object is at `+0xc`. It ignores the property length word;
+unknown tags and disabled `SL` do not dereference the object. `SL` and `Sl` are
+different tags and are not interchangeable. Reader ownership and iteration
+remain separate from this complete dispatch method.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_string_reader.py --compiler clang-cl --mutation-checks
+```
+
+**6,144 comparisons** pass, with 2,048 per new entry. All seven recognized tags
+and nine unknown/adjacent values receive 128 direct reader cases each. Actual
+member setters, hash and storage callees execute together; allocation, free and
+observer slot 0 are the only controlled interfaces. Cases include unchanged and
+changed hashes, null/empty/non-ASCII byte labels, UTF-16 payloads, absent/present
+observers, zero/high-bit reader gates, ignored length words, capacity/length
+boundaries and heap/observer callbacks that change flags, hashes, pointers,
+capacity or observer binding. Full fixture memory and ordered helper/heap/observer
+arguments and snapshots, stack balance and preserved registers are compared.
+Unknown/disabled properties also run with null object pointers. **Fourteen
+semantic mutations** are rejected, covering notification/dirty/bit2 handling,
+label free/reset/allocation/hash, length/gate dispatch and storage/field writes.
+Compile/link failures are not semantic rejections. Reports stay in ignored
+`build/analysis/feng-string-reader/`. Controlled heaps retain mapped freed memory;
+nonnull label allocation failure, invalid/unterminated pointers, arbitrary stack
+aliasing and exhaustive behavior are not established. Clang behavioral checks
+pass; MSVC 7.1/wibo and byte matching remain pending.
+
+**The complete string reader now executes in the native FNG loader.** Native
+manual `SH`/`Sj`/`Sl`/`St`/`Sw` field writes are removed; `Sb` now reaches original
+growth instead of being ignored. The native adapter leaves reader byte `+9` zero,
+so optional `SL` allocation is disabled. Both gate states are verified against
+UG2, but recovery of how the original surrounding reader initializes that byte
+remains pending. Full byte-label lifetime integration awaits the normal string
+object destructor and complete object ownership. Existing recovered UTF-16
+teardown remains active.
+
+The adapter retains native property bounds and temporary terminated `St` input;
+malformed/truncated asset behavior is not the original reader contract. Renderer
+byte text and the legacy `font` label-hash field are projections of recovered
+results. Repeated `St` replaces text, and finalization preserves the constructor's
+`0xffffffff` hash when no label property is present. The observer binding has
+relocated native storage instead of an absolute linker assignment at `0x838478`;
+its initial null value and native receiver remain platform scaffolding, with
+all recovered observer users resolving the same symbol. Localization itself,
+outer reader `0x555140`, factory/state ownership and string destructor `0x4956a0`
+remain separate work.
+
+The synthetic native fixture exercises all seven properties, unchanged-hash
+notifications, retained bit2, disabled `SL`, scalar offsets, repeated `St`, and a
+`Sb` request of 6 with existing capacity 9 and text length 4: actual `Grow`
+reallocates to capacity 6. It also retains the prior non-ASCII storage and package
+teardown checks. All three asset-free native CTests pass.
+
+Native and mod-enabled builds pass. With recovered dispatch active, headless
+retail-asset checks pass all 19 settings scenarios and slider pixels, all 10
+Controls scenarios, pause/scroller motion and settled centering, and all tested
+HUD skins at 640x480, 1280x720, 1680x720 and 2560x720. A settings capture was
+visually inspected; the review PNG remains ignored at
+`build/analysis/feng-string-reader/settings.png`. These are native integration
+checks, separately from the original/rebuilt execution evidence above.

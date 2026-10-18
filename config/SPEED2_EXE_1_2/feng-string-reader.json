@@ -1,0 +1,20 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "SetLabelHash": {
+      "address": "0x4fe940",
+      "size": 42,
+      "sha256": "85847f53a4a1f2eaeb4947ea38777117cd35c98e3940b2219fad40aca6c9c41f"
+    },
+    "SetLabelBytes": {
+      "address": "0x519f40",
+      "size": 121,
+      "sha256": "efb6d76a2843b810198ed4c77006bda57fedc4481d50bb5d028ae2a72ed41334"
+    },
+    "ReadProperty": {
+      "address": "0x534fc0",
+      "size": 159,
+      "sha256": "c4e225e4f6fd610e82debcd1c2dec612d2f7d6d07aeb54021ee45dc764271681"
+    }
+  }
+}

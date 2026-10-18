@@ -832,7 +832,6 @@ fengArchive8637B0 = 0x8637b0;
 
 fengManager8384C4 = 0x8384c4;
 fengValue8384D0 = 0x8384d0;
-fengStringObserver838478 = 0x838478;
 
 /* Original FEng coordinate tolerance and script state-key table. */
 fengEpsilon7992EC = 0x7992ec;
