@@ -27,7 +27,7 @@ still should come from recovered code.
 | # | Item | Diff. | Imp. |
 | --- | --- | --- | --- |
 | 1 | Car update `0x6012b0` and world update `0x609ce0` (replace `StepNativeVehicle`) | 3 | 5 |
-| 2 | Wire in verified-but-unintegrated tuning routines | 1 | 3 |
+| 2 | ~~Wire in verified-but-unintegrated tuning routines~~ (already linked; reachable only once the tuning-table loader, item 8, exists) | 1 | 3 |
 | 3 | FEng messaging: frame manager `0x558c00`, delivery `0x541fc0`, dispatch `0x5367e0` | 3 | 4 |
 | 4 | Car constructor `0x604260` and participant setup `0x6065b0` (replace `CreateNativeVehicle`) | 4 | 5 |
 | 5 | FEng package/object loader `0x5554a0`/`0x555860` | 4 | 4 |
@@ -56,7 +56,7 @@ still should come from recovered code.
 | `CreateNativeVehicle`: allocation, vtable shims, defaults, yaw-matrix placement, collider attach | `NativeVehicle.cpp:~228–310` | Car constructor `0x604260`, mover factory `0x5f46a0`, participant setup `0x6065b0` | 4 | 5 | Largest native substitute in the driving path. |
 | `New...` allocation factories (`NewMoverBody`, `NewEngine`, …), zero-filled blocks | `NativeVehicle.cpp:100–160` | Slot pools `0x440e50` and the original factories | 3 | 2 | Zero-filling hides uninitialised-read differences. |
 | Tuning bound to car by native code | `NativeVehicle.cpp:228` | The original caller that binds tuning to its car (unidentified) | 3 | 3 | Composer `0x5b4dc0` itself is recovered. |
-| Verified routines not yet integrated: mode variants `0x5a7530`/`0x5a7750`/`0x5a77c0`/`0x5a7830`, offset `0x59aee0`, field switch `0x59b200`, normalisation `0x59b3c0`, reader `0x5a7da0`, range/setter leaves | not called | Integrate the existing recovered source | 1 | 3 | Quick wins; see [substitute audit](demo-substitute-audit.md). |
+| Verified routines not yet integrated: mode variants `0x5a7530`/`0x5a7750`/`0x5a77c0`/`0x5a7830`, offset `0x59aee0`, field switch `0x59b200`, normalisation `0x59b3c0`, reader `0x5a7da0`, range/setter leaves | not called | Already linked (2026-10-18 check) | — | 3 | Mode variants run from composer `0x5b4dc0`; the tuning routines run under `0x5b4780`, which the composer calls only when `CountActive() > 0`. No tuning entries exist natively, so they stay unreached until the tuning-table loader and binder are recovered. |
 | GLOBALB.BUN CarTypeInfo chunk kept resident and installed at `0x8a1ccc` | `NativeVehicle.cpp:91` | CarTypeInfo chunk loader (unrecovered) | 3 | 3 | |
 | Tuning-table loader absent, so full tuning never runs | — | Tuning-table loader | 3 | 3 | |
 | Collision hull read (`0x80034020`) with stock `_CV` key | `NativeVehicle.cpp:133`, `NativeCollision.cpp:36` | `0x61c320`, `0x610310`, the car geometry loader | 2 | 2 | Hull loader `0x5a1750` is recovered. |
