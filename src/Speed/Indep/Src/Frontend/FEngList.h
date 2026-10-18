@@ -18,6 +18,8 @@ struct FEListObject {
     volatile float value94, value98;
     float value9C, valueA0, valueA4, valueA8;
     FEListObject *Construct(); // 0x5349c0
+    void ResizeColumns(unsigned int count); // 0x52a910, normal return
+    void ResizeRows(unsigned int count); // 0x52ab30, normal return
     void ReleaseCells(); // 0x5042e0
     void ReleaseStorage(); // 0x516dc0
     void Destruct(); // 0x534a50, normal return

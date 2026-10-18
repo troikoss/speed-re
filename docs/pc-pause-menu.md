@@ -3158,8 +3158,9 @@ and full PE spans plus original execution remain authoritative.
 cleanup**, alongside type-2 strings. The common native adapter detaches borrowed
 inline state and vector-backed script/response list prefixes. Groups detach the
 borrowed child-list prefix because the package's object vector owns the child
-wrappers. Lists clear the original owned-axis bit because native vectors own the
-axes. C++ members then release their own storage. These explicit ownership seams
+wrappers. At this checkpoint, lists cleared the original owned-axis bit because native
+vectors owned the axes. The following storage checkpoint replaces those vectors
+and preserves the bit, with a separate native heap owner. C++ members then release their own storage. These explicit ownership seams
 remain separate from recovered code; production allocation, original owned
 state/list nodes and general virtual dispatch still require recovery/integration.
 Other object types are not redirected to these cleanup bodies without evidence.
@@ -3180,3 +3181,88 @@ scenarios, pause/scroller motion and settled centering, and HUD skins at 640x480
 and package resets, separately from original/rebuilt cleanup evidence. Original
 production state/list allocation, outer reader/inheritance and SEH unwind remain
 pending.
+
+### Original type-4 axis and cell allocation
+
+`FEngListStorage.cpp` recovers column resize `0x52a910` (536-byte full PE span)
+and row resize `0x52ab30` (424 bytes). `FEngCellConstruct.cpp` recovers cell
+constructor `0x504150` (40 bytes) and constructor iterator `0x401650` (48 bytes).
+Fingerprints are in `config/SPEED2_EXE_1_2/feng-list-storage.json`.
+
+Each nonzero resize allocates `count*12` axis bytes, copies the retained axis
+entries forward as DWORDs, frees the fresh old axis pointer, and zeros new axis
+entries. It computes the opposite-axis count product, allocates `product*0x30`
+cells when nonzero, invokes the actual constructor iterator/callback and actual
+`FEngGridResetCells`, migrates retained data when an old array exists, and frees
+the fresh old cell array. Final count, cell and axis pointer stores retain their
+original order. Heap callbacks can change later field reads. The owned bit at
+`+0x5c` is not set by either resize routine.
+
+Two original behaviors are deliberately preserved. Column migration copies
+**retained-column bytes per row**, while row migration copies **columns times
+retained-row bytes**: these are not multiplied by the 0x30-byte cell stride.
+Resetting the added tail still uses cell indices and counts. Zero-axis requests
+clear a counted axis pointer/count before calling actual cell release; that
+release then sees a zero product and leaves the cell pointer untouched. A later
+zero-product resize can overwrite that pointer with null without freeing the
+old allocation. This checkpoint does not repair these behaviors.
+
+The constructor writes words 0/3/4/5/6/8 to zero, words 1/2 to `0x3f800000`, and
+word 9 to `0xffffffff`, leaving words 7/10/11 untouched. Its observed ABI takes
+one ECX pointer and returns that pointer in EAX. The source expresses this with
+a legacy-compatible one-argument fastcall interface; original C++ member
+provenance is not claimed. The stdcall iterator takes four stack arguments and
+uses signed `(count-1) >= 0` as its entry gate, calls the ECX-only constructor
+exactly `count` times on an entered loop, and advances the pointer by the supplied
+stride in 32-bit arithmetic. The native compatibility header supplies the GCC
+fastcall spelling; recovered code uses the legacy compiler keyword.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_list_storage.py --compiler clang-cl --mutation-checks
+```
+
+**8,192 comparisons** pass, 2,048 per new entry, with actual constructor
+iteration/callback, reset and cell-release callees. Allocation/free are the only
+controlled boundaries. Cases include growth/shrink/unchanged/zero dimensions,
+empty/nonempty previous cells, partial-byte migration, zeroed axis tails,
+wrapped-zero allocation size, dirty constructor words, zero/nonzero iterator
+strides, high-bit iterator skips and heap callbacks changing counts or later
+axis/cell pointers. Full fixture memory and ordered helper/heap arguments and
+snapshots, preserved registers, stack balance, full pointer returns where
+defined and final original FS:[0] restoration are compared. Constructor callback
+addresses are normalized to their original/rebuilt entry identity. **Thirteen
+semantic mutations** are rejected, covering byte-versus-cell migration, missing
+free/zero/construct/reset operations, early zero-axis release, wrong stores,
+unwritten constructor fields, sentinels, returns and iterator gate/stride.
+Compile/link failures do not count as semantic rejection. Finite mapped heap
+fixtures do not establish allocation-failure behavior, arbitrary aliases,
+concurrency, enormous entered loops or SEH registration/unwind/exception-frame
+inspection. Reports stay ignored under `build/analysis/feng-list-storage/`.
+Clang behavior passes; MSVC 7.1/wibo and byte matching remain pending.
+
+**Native `Ld` now invokes actual column and row resizing.** The two persistent
+axis vectors and final pointer projection are removed. Native `Lc`/`Lr` projection
+writes the actual allocated axes, and recovered offset/navigation code consumes
+those arrays. Newly allocated cell storage also comes from the original path.
+The full list-property reader `0x52b740`, cell payload helpers and surrounding
+reader ownership remain separate work; native property bounds/iteration and
+selection setup still form an adapter.
+
+The Linux heap boundary has an explicit per-wrapper allocation owner while
+executing list allocation. Original free calls remove their records before
+calling native free. Any surviving allocations are released by the native heap
+owner **after** recovered normal teardown, including allocations the original
+zero/product paths no longer reference. This is platform heap lifetime
+scaffolding, not a recovered game cleanup step or a change to the original
+resize/release order. The constructor/resize ownership bit is preserved; native
+teardown no longer clears it to protect axis vectors. Inline state and
+script/response/child ownership adapters remain as previously documented.
+
+The asset-free parser fixture checks actual initialized cells, raw axes and
+allocation records still alive at base cleanup, and a 3x2 -> 0x2 dimension
+sequence whose lost cell allocation stays registered for native heap-owner
+teardown. All three native CTests pass. Native and mod-enabled builds and all
+affected headless checks pass: 19 settings scenarios and slider pixels, 10
+Controls scenarios, scroller motion/settled centering, and HUD skins at 640x480,
+1280x720, 1680x720 and 2560x720. These are native integration checks, separately
+from original/rebuilt storage evidence.

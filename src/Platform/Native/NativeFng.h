@@ -95,7 +95,7 @@ struct FengObject : FEStringObject {
 
     std::vector<FengScript> scripts;
     std::vector<FengResponse> responses;
-    std::vector<FEListAxisEntry> listColumns, listRows; // Native ownership, original 12-byte records.
+    std::vector<void *> listAllocations; // Native heap owner around original list allocator calls.
     float scriptRemainder;   // native frame-time fraction below currentScript54->time10
 
     bool Hidden() const { return (flags1C & 1) != 0; }

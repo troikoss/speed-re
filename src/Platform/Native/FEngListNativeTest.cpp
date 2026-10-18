@@ -7,6 +7,7 @@
 #undef NDEBUG
 #endif
 #include <assert.h>
+#include <algorithm>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -69,7 +70,9 @@ static void Run(unsigned int wrap, bool explicitGuid) {
     assert(!object->next4 && !object->previous8);
     FEListObject *list = reinterpret_cast<FEListObject *>(object);
     assert(list->count60 == 3 && list->count64 == 2 && list->value88 == 2 && list->value8C == 0);
-    assert(list->value78 == object->listColumns.data() && list->value7C == object->listRows.data());
+    assert(list->value78 && list->value7C && list->value90 && object->listAllocations.size() == 3);
+    const unsigned int *cells = static_cast<const unsigned int *>(list->value90);
+    assert(cells[0] == 0xffffffff && cells[1] == 0x3f800000 && cells[6] == 0 && cells[7] == 0 && cells[10] == 0x3f800000);
     assert(list->value78[0].value4 == 0 && list->value78[1].value4 == .25f && list->value78[2].value4 == .75f);
     assert(list->value7C[0].value4 == 0 && list->value7C[1].value4 == 1);
     assert(list->value78[2].value8 == 12 && list->value7C[1].value8 == 21);
@@ -169,7 +172,10 @@ public:
             FEListObject *list = reinterpret_cast<FEListObject *>(object);
             assert(!(list->value5C & 1));
             assert(list->count60 == 3 && list->count64 == 2);
-            assert(list->value78 == object->listColumns.data() && list->value7C == object->listRows.data());
+            assert(list->value78 && list->value7C && list->value90 && object->listAllocations.size() == 3);
+            assert(std::find(object->listAllocations.begin(), object->listAllocations.end(), list->value78) != object->listAllocations.end());
+            assert(std::find(object->listAllocations.begin(), object->listAllocations.end(), list->value7C) != object->listAllocations.end());
+            assert(std::find(object->listAllocations.begin(), object->listAllocations.end(), list->value90) != object->listAllocations.end());
             assert(object->scripts.size() == 1);
         } else if (object->type18 == 5) {
             FEngGroupObject *group = reinterpret_cast<FEngGroupObject *>(object);
@@ -195,6 +201,23 @@ static void RunHierarchy() {
     assert(package.Objects().size() == 2);
     assert(package.Objects()[0]->children.size() == 1 && package.Objects()[0]->firstChild64 == package.Objects()[1]);
 }
+static void RunZeroDimension() {
+    std::vector<unsigned char> data, value;
+    Word(value, 4); Tag(data, 0x744f, value); value.clear();
+    Word(value, 3); Word(value, 2); Tag(data, 0x644c, value); value.clear();
+    Word(value, 0); Word(value, 2); Tag(data, 0x644c, value);
+    data = Chunk(0x30203, Chunk(0xe76e4546, Chunk(0xcc6a624f,
+        Chunk(0xea624f46, Chunk(0x446a624f, data)))));
+    FengPackage package; std::string error;
+    assert(package.Load(data.data(), data.size(), 0, &error));
+    FengObject *object = package.Objects()[0];
+    FEListObject *list = reinterpret_cast<FEListObject *>(object);
+    assert(!list->count60 && list->count64 == 2 && !list->value78 && list->value7C && !list->value90);
+    // Original zero/product behavior can drop the cell field without freeing it.
+    // The native heap owner retains the old cells plus the replacement row axis.
+    assert(object->listAllocations.size() == 2);
+    assert(std::find(object->listAllocations.begin(), object->listAllocations.end(), list->value7C) != object->listAllocations.end());
+}
 int main() {
     RunString();
     TypedTeardownObserver teardown;
@@ -203,5 +226,6 @@ int main() {
     RunHierarchy();
     assert(teardown.calls == 6);
     FEngObjectDestructionObserver = 0;
+    RunZeroDimension();
     puts("PASS native FNG owned UTF-16 storage and type4 projection/offsets/Cc selection/navigation/ticking (no assets or display)");
 }

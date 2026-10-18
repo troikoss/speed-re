@@ -330,9 +330,16 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
 - Native image/group/list teardown now invokes recovered `0x532660`/`0x534bf0`/
   `0x534a50`, alongside string destruction. Original list storage/cell release
   `0x516dc0`/`0x5042e0` and the three deleting wrappers are verified together with
-  base/pool/list cleanup. Native adapters detach borrowed children, axes, state
+  base/pool/list cleanup. Native adapters detach borrowed children, state
   and vector-owned headers; original production ownership remains pending.
   See [typed cleanup evidence](pc-pause-menu.md#image-group-and-type-4-list-cleanup).
+- Type-4 `Ld` parsing now calls recovered column/row allocation `0x52a910`/
+  `0x52ab30`, including actual `0x401650` constructor iteration and `0x504150`
+  cell construction. Axis vectors are removed; navigation uses original allocated
+  arrays. A native per-wrapper heap owner releases surviving allocations after
+  recovered teardown while preserving original resize/release quirks. Full list
+  property dispatch and cell payload handling remain pending.
+  See [list storage evidence](pc-pause-menu.md#original-type-4-axis-and-cell-allocation).
 - Typed string/image lookup (`0x537a10`/`0x537a60`), generic wrapper `0x5379c0`,
   recursive object traversal and package-list fallback now execute recovered code.
   Native loading constructs root/child links; shown-screen membership and order,

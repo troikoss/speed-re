@@ -5,5 +5,6 @@
 #define __cdecl __attribute__((cdecl))
 #define __stdcall __attribute__((stdcall))
 #define __thiscall __attribute__((thiscall))
+#define __fastcall __attribute__((fastcall))
 
 #endif

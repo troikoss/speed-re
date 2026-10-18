@@ -26,13 +26,39 @@ FEngStringObserver *fengStringObserver838478 = 0; // Relocated native storage fo
 FEngStatePoolManager FEngObjectStateManager = {}; // Original 0x863770; native strings still bind inline state.
 FEngDestructionObserver *FEngObjectDestructionObserver = 0; // Original 0x838474.
 
+namespace {
+// Native heap owner only: original resizing/free calls remain in recovered code.
+// Retain surviving allocations until wrapper teardown, including original zero-
+// dimension/storage-release cases that leave cell allocations unfreed.
+std::vector<void *> *nativeListAllocationOwner = 0;
+class NativeListAllocationScope {
+    std::vector<void *> *previous;
+public:
+    explicit NativeListAllocationScope(std::vector<void *> *owner) : previous(nativeListAllocationOwner) {
+        nativeListAllocationOwner = owner;
+    }
+    ~NativeListAllocationScope() { nativeListAllocationOwner = previous; }
+};
+}
 // Native heap adapter for original 0x575620/0x575630 boundaries.
-void *FEngAllocateQueueNode(unsigned int size) { return malloc(size); }
-void FEngFreeQueueNode(void *pointer) { free(pointer); }
+void *FEngAllocateQueueNode(unsigned int size) {
+    void *pointer = malloc(size);
+    if (pointer && nativeListAllocationOwner) nativeListAllocationOwner->push_back(pointer);
+    return pointer;
+}
+void FEngFreeQueueNode(void *pointer) {
+    if (nativeListAllocationOwner) {
+        std::vector<void *> &owned = *nativeListAllocationOwner;
+        std::vector<void *>::iterator entry = std::find(owned.begin(), owned.end(), pointer);
+        if (entry != owned.end()) owned.erase(entry);
+    }
+    free(pointer);
+}
 void *FEngGridAllocateCells(unsigned int bytes) { return malloc(bytes); }
 void FEngGridFreeCells(void *cells) { free(cells); }
 
 FengObject::~FengObject() {
+    NativeListAllocationScope heapOwner(&listAllocations);
     if (type18 == 1 || type18 == 2 || type18 == 4 || type18 == 5) {
         // Native ownership adapter: the state is inline, and script/response
         // headers belong to vectors. Detach those borrowed prefixes before
@@ -48,7 +74,6 @@ FengObject::~FengObject() {
         case 2: DestructString(); break;
         case 4: {
             FEListObject *list = reinterpret_cast<FEListObject *>(this);
-            list->value5C &= ~1u; // Native vectors own the axes; no original storage ownership.
             list->Destruct();
             break;
         }
@@ -62,6 +87,10 @@ FengObject::~FengObject() {
         }
         }
     }
+    // Platform heap-owner teardown, after original normal cleanup. This is not
+    // an extra recovered game cleanup step or a change to its release ordering.
+    for (size_t i = 0; i < listAllocations.size(); ++i) free(listAllocations[i]);
+    listAllocations.clear();
 }
 
 #define IMSTB_TRUETYPE_IMPLEMENTATION
@@ -378,11 +407,10 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                         case 0x4153: state.assign(pl, pl + len); break;     // 'SA'
                                         case 0x644c: // Ld: observed 0x52b740 dimension records.
                                             if (object->type18 == 4 && len >= 8) {
-                                                object->listColumns.resize(Rd32(pl));
-                                                object->listRows.resize(Rd32(pl + 4));
+                                                NativeListAllocationScope heapOwner(&object->listAllocations);
                                                 FEListObject *list = reinterpret_cast<FEListObject *>(object);
-                                                list->count60 = object->listColumns.size();
-                                                list->count64 = object->listRows.size();
+                                                list->ResizeColumns(Rd32(pl));
+                                                list->ResizeRows(Rd32(pl + 4));
                                                 list->SetColumn(0); list->SetRow(0);
                                                 listColumn = listRow = listCell = -1;
                                             }
@@ -391,15 +419,17 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                             if (object->type18 == 4 && ++listCell) reinterpret_cast<FEListObject *>(object)->AdvanceCell();
                                             break;
                                         case 0x634c: // Lc: column extent and unidentified value+8.
-                                            if (object->type18 == 4 && len >= 8 && ++listColumn < (int)object->listColumns.size()) {
-                                                object->listColumns[listColumn].value0 = RdF(pl);
-                                                object->listColumns[listColumn].value8 = RdF(pl + 4);
+                                            if (object->type18 == 4 && len >= 8 && ++listColumn < (int)reinterpret_cast<FEListObject *>(object)->count60) {
+                                                FEListAxisEntry *columns = reinterpret_cast<FEListObject *>(object)->value78;
+                                                columns[listColumn].value0 = RdF(pl);
+                                                columns[listColumn].value8 = RdF(pl + 4);
                                             }
                                             break;
                                         case 0x724c: // Lr: row extent and unidentified value+8.
-                                            if (object->type18 == 4 && len >= 8 && ++listRow < (int)object->listRows.size()) {
-                                                object->listRows[listRow].value0 = RdF(pl);
-                                                object->listRows[listRow].value8 = RdF(pl + 4);
+                                            if (object->type18 == 4 && len >= 8 && ++listRow < (int)reinterpret_cast<FEListObject *>(object)->count64) {
+                                                FEListAxisEntry *rows = reinterpret_cast<FEListObject *>(object)->value7C;
+                                                rows[listRow].value0 = RdF(pl);
+                                                rows[listRow].value8 = RdF(pl + 4);
                                             }
                                             break;
                                         case 0x734c: // Ls
@@ -432,8 +462,6 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                             }
                             if (object->type18 == 4) {
                                 FEListObject *list = reinterpret_cast<FEListObject *>(object);
-                                list->value78 = object->listColumns.empty() ? 0 : &object->listColumns[0];
-                                list->value7C = object->listRows.empty() ? 0 : &object->listRows[0];
                                 list->CalculateOffsets(); // 0x5554a0 calls this before script initialization.
                             }
                             // Run the INIT script's tracks over the state block (0x541f60 at time 0).

@@ -5,6 +5,9 @@ struct FEGridObject;
 // 0x555800 -> reader+0x38 -> grid+0x5c supplies the queue's owner instance.
 typedef FEngQueueObserver FEGridOwner;
 struct FEGridCell { unsigned int value0[12]; };
+typedef void *(__fastcall *FEngArrayConstructor)(void *value);
+void *__fastcall FEngConstructCell(void *value); // 0x504150, shared UG2 list/grid cell constructor
+void __stdcall FEngConstructArray(void *memory, unsigned int stride, unsigned int count, FEngArrayConstructor constructor); // 0x401650
 typedef void (__cdecl *FEGridRefill)(void *context, FEGridObject *grid, int column, int row);
 struct FEGridObject {
     char unidentified0[0x5c];
