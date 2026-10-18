@@ -8,3 +8,4 @@ __pycache__/
 *.exe
 *.dll
 /Need for Speed Underground 2/
+speed-re.*
