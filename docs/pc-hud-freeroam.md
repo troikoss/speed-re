@@ -146,7 +146,7 @@ complete coverage. Fingerprints below cover the recovered original spans:
 The native demo registers the retail constructor object names/masks using fixed
 node storage, supplies its one-player chase/map context, and uses recovered
 `0x4ca090` transitions. It runs recovered dispatch `0x4ec5a0` (gauge with shift light, turbo, nitrous, region, cash
-reward and map/minimap updates for the attached features), then bounded script playback.
+reward and map/minimap updates for the attached features), then original script playback.
 Parent containers are revealed without recursively showing unrelated siblings.
 Retail authoring sample strings for cash/reward/region are cleared at native
 initialisation so they cannot appear as live events.
@@ -156,14 +156,12 @@ career/world producer. The demo does not call it and does not invent a wallet,
 region transition or reward event. An ignored analysis fixture supplied explicit
 synthetic values to inspect these layouts; they are not gameplay evidence.
 
-The native FNG adapter retains scripts and supports constant tracks plus
-interpolation-1 type-4 vector/type-6 colour message tracks with cycle 0 or 1. The `-1`
-key is a baseline and later keys are offsets, as in `0x52bdc0`; arithmetic calls
-use recovered primitives. ZoomIn and Cash_Animate use this bounded path.
-Unsupported dynamic interpolation/cycles trap. The full FEng track dispatcher,
-quaternion/relative/other-cycle playback and script lifecycle remain unrecovered.
-Cycle-1 support was added for the settings highlight scripts; see
-[settings integration](pc-pause-options.md).
+Script reading and playback are original: reader `0x5515e0`, per-object update
+`0x54ce60`, apply `0x541db0`, events `0x534c70` and the track evaluators and
+interpolators beneath them, driven by the native ≤20 ms frame seam; see
+[playback evidence](pc-pause-menu.md#original-script-playback-in-the-native-demo-2026-10-18).
+The HUD package is not yet registered with a frame manager: its events post to a
+HUD-local queue whose messages are discarded each frame (seam).
 
 Original rendering trace `0x536a50 -> 0x51a5d0 -> 0x5c7ea0 -> 0x5c5020` leads to
 texture state `0x5bcc30`: blend mode 2 selects SRCALPHA/ONE, mode 5

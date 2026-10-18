@@ -619,3 +619,17 @@ renamed from cross-title evidence alone.
     queue (seam). Slider fill widths changed to [0,107,214]. Next (user order):
     messaging — frame manager `0x558c00`, delivery/dispatch around `0x541fc0`/
     `0x5367e0`, registering HUD with the queue; then the package/object loader.
+
+42. **Pause screen flash fix and FEng/HUD status (2026-10-18).** Screens shown
+    during the native pump were drawn one frame in their loaded Init state
+    before the opening script applied; `Pump()` now runs a zero-length script
+    phase for them (seam, commit 187244b). FEng work paused by the user.
+    Remaining, in agreed order: messaging (frame manager `0x558c00`, delivery
+    `0x541fc0`, dispatch `0x5367e0`, HUD queue registration); package/object
+    loader (`0x5554a0`, `0x555860`, chunk walk, native setters); frontend
+    classes (IconScroller remainder, IconScrollerFNGObject `0x551de0`/`0x552330`,
+    handler `0x543d40`, dialog `0x558790`, options/Controls). HUD features:
+    constructor `0x4f73e0`, allocator `0x440ec0`, mask caller `0x600590`,
+    minimap pools `0x4ec950`, region/career/notification/GPS producers,
+    mirror `0x5f1e10`, race reset `0x5fc2a0`. Rendering (`0x536a50` path, NOS
+    stencil, minimap blend mode 5) remains a translation seam.
