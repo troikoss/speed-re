@@ -485,6 +485,31 @@ static void RunTrackOwnership() {
         assert(first->timeC == 0 && last->timeC == 100);
         assert(*(unsigned int *)first->value10 == 0x55667788 && *(unsigned int *)last->value10 == 0xaabbccdd);
         assert(FEngScriptKeysPool.blocks0.count4 == 1);
+        header.SetName("track-copy");
+        header.hash30 = 0x13579bdf; header.time10 = -7; header.flags14 = 0xa5; header.chain18 = &header;
+        ((FEngScriptEventStorage *)&header.eventCount24)->Resize(2);
+        FEScriptEvent events[] = {{1, 2, -1}, {3, 4, 0x12345678}};
+        memcpy(header.events28, events, sizeof(events));
+        for (unsigned int mode = 0; mode < 2; ++mode) {
+            FEScript copy;
+            memset(&copy, 0xcd, sizeof(copy)); // Copy construction ignores prior storage bits.
+            assert(copy.CopyConstruct(&header, mode ? 0x80 : 0) == &copy);
+            assert(copy.hash30 == header.hash30 && copy.time10 == -7 && copy.flags14 == 0xa5 && !copy.chain18);
+            assert(copy.name2C != header.name2C && !strcmp(copy.name2C, header.name2C));
+            assert(copy.eventCount24 == 2 && copy.events28 != header.events28 && !memcmp(copy.events28, events, sizeof(events)));
+            FEScriptTrack &copiedTrack = static_cast<FEScriptTrack *>(copy.tracks20)[0];
+            assert(copiedTrack.value2C == (mode ? 1 : 0));
+            if (mode) {
+                assert(copiedTrack.value30 == track.unidentified28);
+                assert(copiedTrack.key8.next4 == track.key8.next4 && copiedTrack.key8.previous8 == track.key8.previous8);
+            } else {
+                assert(copiedTrack.value30 != track.value30);
+                FEngScriptKey *copiedKey = static_cast<FEngScriptKey *>(copiedTrack.value30);
+                assert(copiedKey && copiedKey->timeC == first->timeC && !memcmp(copiedKey->value10, first->value10, 16));
+            }
+            FEngDestructScript(&copy);
+            assert(first->vtable0 == (void *)0x79aa34 && first->next4 == last);
+        }
         FEScriptTrack clone;
         FEngConstructScriptTrack(&clone);
         clone.Assign(&track);

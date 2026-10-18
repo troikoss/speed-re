@@ -375,6 +375,10 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   fixture: owned sources clone pooled keys; borrowed sources retain their direct
   reference. Full script copying/reading has not yet been bound to it in the demo.
   See [assignment evidence](pc-pause-menu.md#track-assignment-and-ownedborrowed-key-copying-2026-10-18).
+  Complete script copy construction `0x551be0` is recovered too, including
+  shallow reference headers and deep assignment. Native fixtures exercise its
+  ownership and teardown; the production script reader/header pool remain pending.
+  See [copy evidence](pc-pause-menu.md#complete-script-copy-construction-2026-10-18).
 - Native image/group/list teardown now invokes recovered `0x532660`/`0x534bf0`/
   `0x534a50`, alongside string destruction. Original list storage/cell release
   `0x516dc0`/`0x5042e0` and the three deleting wrappers are verified together with

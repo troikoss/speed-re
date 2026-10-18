@@ -4016,3 +4016,66 @@ destruction. Native and mod-enabled builds and all three CTests pass. There
 is no production playback or rendered-layout change in this checkpoint.
 Byte matching, exceptional unwind, invalid-pointer behavior and complete script
 copy/reader recovery remain unproven. MSVC 7.1/wibo remains unavailable.
+
+## Complete script copy construction (2026-10-18)
+
+`FEngScriptCopy.cpp` recovers the complete 510-byte routine `0x551be0` as
+`FEScript::CopyConstruct(other, shallow)`. The receiver is unconstructed script
+storage; this is not assignment over an owned script. The original inlines
+initialization, then calls name setter `0x518730`, track replacement `0x535210`
+and event resize `0x519a10`. It returns the receiver and pops eight argument
+bytes. Shallow mode tests only the low argument byte; every nonzero byte selects
+that branch. The reference SHA and function fingerprint are recorded in
+`config/SPEED2_EXE_1_2/feng-script-copy.json`.
+
+Construction writes vtable/link sentinels, zeros owned fields, length, flags and
+chain, and leaves current time untouched until copying it after the name setter.
+It owns a new copy of the name, then overwrites its computed hash with the fresh
+source hash, copies length/time/flags and allocates the source track count.
+The source chain is not copied. Original construction does not call the normal
+script constructor as an out-of-line helper and does not free fields that
+previously occupied the destination bytes.
+
+Deep mode calls actual `0x54d350` for each track. Shallow mode instead copies
+bytes +0..+7, inline key links +0xc/+0x10, time +0x14 and the four baseline
+DWORDs +0x18..+0x24. It preserves the newly constructed inline vtable at +8.
+It conditionally clears the fresh destination reference and points it at
+**the source track's reference header at +0x28**, then sets the borrowed flag.
+It does not copy the source head directly or resolve a reference chain.
+The null-target branch exists in the original arithmetic, though ordinary
+mapped source tracks do not reach it. Both loops reload destination logical
+track count after the body; heap-induced count changes in allocation can
+therefore reduce how many initialized tracks receive copied values.
+
+Finally, event resize creates independent storage. Copy construction reads the
+source event pointer and destination count/data after that call and performs
+forward DWORD copying with wrapped `uint(count)*12` byte arithmetic. The
+retail residual-byte loop has an identically zero count because the byte
+size is a multiple of four; the source records this without inventing a
+memcpy boundary or a separate tail algorithm.
+
+`UG2_EXE=... build/venv/bin/python tools/verify_pc_feng_script_copy.py
+--compiler clang-cl --mutation-checks` compares the complete routine with actual
+name/hash, track/array construction, assignment, key pool and event resize
+execution. Only allocation/free are controlled; original normal SEH setup and
+restoration execute. Arena/global bytes and ordered method/heap snapshots,
+receiver return, preserved registers, stack cleanup and restored FS exception
+head are compared. **1,024 comparisons pass and 16 semantic mutations are rejected.**
+Cases include zero through three tracks, zero through four
+events, null/empty/high-byte names, all reference-flag categories, low-byte
+shallow values 0/1/0x80/0xff with varying high argument bytes, name hash override,
+and selected heap-induced source metadata/event-pointer and destination-count
+changes. Selected same-receiver mapped states show the original destructive
+initialization; they do not establish valid C++ object lifetime or safe assignment.
+
+Native fixtures construct both deep and shallow copies of an actual parsed
+track, check independent names/events, hash override, copied time/flags, reset
+chain, independent deep key storage and shallow source-reference retention.
+They then run normal recovered script teardown and confirm source keys remain
+live. Native and mod-enabled builds and all three headless CTests pass.
+The demo's production script reader has not yet been replaced, so this recovery
+is a verified dependency and fixture integration, not a new runtime cloning path.
+Complete reader `0x5515e0`, header pools/deleting wrappers, original owner
+teardown, clocks and interpolation remain pending. Exceptional unwind, general
+allocation failure, arbitrary overlapping/invalid pointers, enormous iteration
+counts and byte identity remain unproven. MSVC 7.1/wibo remains unavailable.

@@ -7,6 +7,7 @@
 // track table and name hash (script reader 0x5515e0, script set 0x517720).
 struct FEResponse;
 struct FEScript {
+    FEScript *CopyConstruct(const FEScript *other, unsigned char shallow); // 0x551be0, unconstructed receiver
     void SetTracks(unsigned int count); // 0x535210, destructive replacement even for equal counts.
     void SetName(const char *name); // 0x518730, owns +2c and hashes into +30.
     void *vtable0;

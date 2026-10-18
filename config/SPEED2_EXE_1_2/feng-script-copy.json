@@ -1,0 +1,10 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "ScriptCopy": {
+      "address": "0x551be0",
+      "size": 510,
+      "sha256": "38354b078be269b9e9d91e095353c03eb0889d594dce040db026c33a75ddc954"
+    }
+  }
+}
