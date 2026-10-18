@@ -16,6 +16,7 @@
 #include "../../Speed/Indep/Src/Frontend/FEngList.h"
 #include "../../Speed/Indep/Src/Frontend/FEngHash.h"
 #include "../../Speed/Indep/Src/Frontend/FEngScript.h"
+#include "../../Speed/Indep/Src/Frontend/FEngScriptKeyPool.h"
 
 #include <GL/gl.h>
 #include <string>
@@ -38,18 +39,11 @@ struct FengTrack {
 // Target 0xffffffff is read as the owning package (EXIT_COMPLETE in UI_Pause.fng).
 typedef FEScriptEvent FengEvent;
 // Native ownership for the observed key-node prefix (reader 0x5515e0).
-struct FengScriptKey {
-    unsigned int value0;
-    FengScriptKey *next4;
-    FengScriptKey *previous8;
-    int timeC;
-    unsigned char value10[16];
-};
+typedef FEngScriptKey FengScriptKey;
 struct FengScript {
     FEScript header;  // original prefix: links, lengthC (duration), time10, hash30
     std::vector<FengTrack> tracks;
-    std::vector<FEScriptTrack> originalTracks;
-    std::vector<std::vector<FengScriptKey> > originalKeys;
+    std::vector<std::vector<FengScriptKey *> > originalKeys; // Native index of recovered owned pool nodes.
     FengScript();
     ~FengScript();
     FengScript(FengScript &&other) noexcept;

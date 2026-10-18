@@ -3880,3 +3880,83 @@ baseline HUD translation at 640x480/1280x720/1680x720/2560x720, all 11 skins at
 1280x720 and the scripted HUD capture. These verify native integration of owned
 script storage separately from original execution and byte-matching evidence;
 they do not establish original event timing or the full script reader.
+
+## Script track ownership, key pool and normal script teardown (2026-10-18)
+
+This checkpoint supersedes the native track/key ownership and script-normal-
+destructor limitations in the preceding entry. The complete script reader,
+copying and header-pool ownership remain pending.
+
+`FEngScriptTrack.cpp` and `FEngScriptKeyPool.cpp` recover fourteen routines:
+key constructor/deleting wrapper `0x4fe8b0`/`0x531fe0`; pool block constructor,
+normal destructor and deleting wrapper `0x5319c0`/`0x531be0`/`0x531bc0`;
+acquire/release `0x53e650`/`0x525bf0`; count-free reference remove/clear
+`0x5055c0`/`0x511d00`; track constructor/destructor `0x525e80`/`0x52b960`;
+track replacement `0x535210`; and script constructor/normal destructor
+`0x511d70`/`0x535170`. Reference headers are 16 bytes with head/tail at +8/+C.
+Key nodes are 32 bytes. The pool at `0x839bd0` has 256 slots per 0x2020-byte
+block, independently verified from the 64-slot response-header pool.
+
+Track construction initializes links, vtables, flags and empty ownership but
+leaves inline key time +0x14, baseline +0x18..+0x27 and padding +0x2d..+0x2f
+untouched. Destruction captures flag +0x2c and clears keys only when it is zero;
+borrowed references retain their fields. Reference clear removes the first node
+through the original method, then reloads the head after every virtual deleting
+callback. Key deletion calls the shared normal destructor at `0x51ab10`, then
+its base virtual slot and pool release when flags bit zero is set. The source
+has two ABI views of that shared original entry (message member and ECX-only
+array callback); verification canonicalizes both to `0x51ab10`, with no extra
+wrapper call in the recovered boundary.
+
+`SetTracks` always destroys and rebuilds storage, including equal-count requests.
+It uses the allocation cookie for reverse destruction, frees the captured base,
+clears the pointer and writes count before allocation, allocates `count*0x38+4`
+with 32-bit arithmetic, and invokes the actual array constructor iterator.
+Only the new pointer is installed afterward; heap-induced count changes persist.
+Script construction leaves time +0x10 untouched. Normal script destruction
+cleans tracks first, then conditionally frees a fresh name pointer, then
+unconditionally frees the fresh event pointer including null. It clears these
+pointers, but retains counts, hash and time. Exceptional cleanup is not recovered.
+
+`UG2_EXE=... build/venv/bin/python tools/verify_pc_feng_script_tracks.py
+--compiler clang-cl --mutation-checks` passes **3,584 comparisons** (256 per
+root) and rejects **21 semantic mutations**. Fingerprints are recorded in
+`config/SPEED2_EXE_1_2/feng-script-tracks.json`. Original execution includes
+156,116 shared key-destructor calls, actual virtual pool cleanup and original
+CRT array/SEH prolog, normal finally and epilog paths; only heap calls are
+controlled. Comparisons include arena/global bytes, ordered callback/heap
+snapshots, preserved registers and stack cleanup. Cases cover owned/borrowed
+references, head changes during deletion, cookies differing from logical counts,
+untouched constructor bytes, allocation-time rebinding, wrapped sizes with finite
+iterations, pool growth, last-slot block deletion and release boundaries.
+Selected malformed mapped states do not prove allocator/lifetime validity.
+Invalid pointers, cyclic lists, arbitrary huge iteration counts, allocation
+failure throughout all paths, exceptional unwind and byte identity remain
+unproven. MSVC 7.1/wibo remains unavailable; this is clang-cl behavioral evidence.
+The existing script selection/activation verifier also passes 16,384 comparisons
+and rejects 10 mutations after the reference layout extension.
+
+**Native track vectors are removed.** The bounded reader now calls recovered
+`SetTracks` and allocates key nodes through the actual key pool. Native vectors
+retain parsed metadata and a non-owning pointer index; actual track references
+own keys. Native script moves transfer track/name/event ownership and normal
+cleanup calls recovered `0x535170`. The adapter still supplies baseline zeros,
+initial inline key time, duration bits and bounded payload copies. These defaults
+are native bindings, not writes attributed to the original constructors.
+`AdvanceScripts` reads original track baselines and pointed key payloads; its
+clock, interpolation and event delivery remain scaffolding. Full script reader
+`0x5515e0`, copy `0x551be0`, deep/shallow assignment `0x54d350`, script-header
+pool/deleting wrappers and production owner teardown remain required work.
+
+The native vtable bridge verifies and binds key/key-block deleting slots
+`0x79aa34`/`0x79b9ec`, alongside the three existing base/response slots. Retail
+text is never executed by the demo. Asset-free fixtures use private data pages;
+production bindings preserve the mapped retail data. Fixtures cover actual
+reader projection, same-count destructive replacement, borrowed-key retention,
+head insertion during deleting callbacks and 270 keys spanning two blocks.
+Native and mod-enabled builds and all three CTests pass. Headless checks pass
+19 settings scenarios plus slider pixels, 10 Controls scenarios, pause/scroller
+motion, baseline HUD translation at four resolutions, all 11 skins at 1280x720
+and the scripted HUD capture. These are integration checks, separate from
+original-execution and byte-matching evidence. Ghidra labels/comments cover all
+fourteen entries; known method signatures and the pool global are annotated.

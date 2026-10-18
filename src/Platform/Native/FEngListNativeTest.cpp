@@ -436,6 +436,84 @@ static void RunScriptStorage() {
     assert(!moved.header.name2C && !moved.header.events28 && !moved.header.eventCount24);
     assert(assigned.header.name2C == name && assigned.header.events28 == events && assigned.header.eventCount24 == 2);
 }
+static FEngReference *injectedReference;
+static unsigned int keyCallbackCalls;
+static void *__thiscall DeleteAndInjectKey(void *pointer, unsigned int flags) {
+    FEngScriptKey *key = static_cast<FEngScriptKey *>(pointer);
+    assert(flags == 1 && (unsigned int)key->next4 == 0xabadcafe && (unsigned int)key->previous8 == 0xabadcafe);
+    key->Destroy(flags);
+    ++keyCallbackCalls;
+    FEngScriptKey *injected = FEngScriptKeysPool.Acquire();
+    FEngConstructScriptKey(injected);
+    injected->next4 = static_cast<FEngScriptKey *>(injectedReference->value8);
+    if (injected->next4) injected->next4->previous8 = injected;
+    injected->previous8 = 0;
+    injectedReference->value8 = injected;
+    if (!injectedReference->valueC) injectedReference->valueC = injected;
+    return pointer;
+}
+static void RunTrackOwnership() {
+    assert(!FEngScriptKeysPool.blocks0.count4);
+    {
+        std::vector<unsigned char> data, value, script;
+        Word(value, 1); Tag(data, 0x744f, value);
+        value.clear(); Word(value, 0x2468); Word(value, 100); Tag(script, 0x6853, value);
+        value.clear(); value.push_back(4); value.push_back(12); value.push_back(1); value.push_back(0);
+        Word(value, 2400); Tag(script, 0x4946, value);
+        value.clear();
+        const unsigned int times[] = {0xffffffff, 0, 100};
+        const unsigned int values[] = {0x11223344, 0x55667788, 0xaabbccdd};
+        for (unsigned int i = 0; i < 3; ++i) {
+            Word(value, times[i]);
+            for (unsigned int j = 0; j < 3; ++j) Word(value, values[i] + j);
+        }
+        Tag(script, 0x644b, value);
+        data = Chunk(0x446a624f, data); script = Chunk(0x70726353, script);
+        data.insert(data.end(), script.begin(), script.end());
+        data = Chunk(0x30203, Chunk(0xe76e4546, Chunk(0xcc6a624f, Chunk(0xea624f46, data))));
+        FengPackage package; std::string error;
+        assert(package.Load(data.data(), data.size(), 0, &error));
+        FEScript &header = package.Objects()[0]->scripts[0].header;
+        assert(header.trackCount1C == 1 && static_cast<unsigned int *>(header.tracks20)[-1] == 1);
+        FEScriptTrack &track = static_cast<FEScriptTrack *>(header.tracks20)[0];
+        assert(track.key8.vtable0 == (void *)0x79aa34 && track.key8.timeC == -1);
+        assert((*(unsigned int *)track.unidentified4 & 0xffffff) == 2400);
+        assert(*(unsigned int *)track.base18 == 0x11223344 && !track.value2C);
+        FEngScriptKey *first = static_cast<FEngScriptKey *>(track.value30);
+        FEngScriptKey *last = *reinterpret_cast<FEngScriptKey **>(track.unidentified34);
+        assert(first && last && first->next4 == last && last->previous8 == first);
+        assert(first->timeC == 0 && last->timeC == 100);
+        assert(*(unsigned int *)first->value10 == 0x55667788 && *(unsigned int *)last->value10 == 0xaabbccdd);
+        assert(FEngScriptKeysPool.blocks0.count4 == 1);
+        FEScriptTrack borrowed = track;
+        borrowed.value2C = 1; borrowed.value30 = track.unidentified28;
+        FEngDestructScriptTrack(&borrowed);
+        assert(first->vtable0 == (void *)0x79aa34); // Borrowed cleanup leaves the owned list live.
+        header.SetTracks(1); // Equal count still destroys old keys and reconstructs the array.
+        assert(header.trackCount1C == 1 && !static_cast<FEScriptTrack *>(header.tracks20)[0].value30);
+        assert(!FEngScriptKeysPool.blocks0.count4);
+    }
+    assert(!FEngScriptKeysPool.blocks0.count4);
+    FEngReference reference = {};
+    FEngScriptKey *first = FEngScriptKeysPool.Acquire(), *second = FEngScriptKeysPool.Acquire();
+    FEngConstructScriptKey(first); FEngConstructScriptKey(second);
+    first->next4 = second; first->previous8 = 0; second->next4 = 0; second->previous8 = first;
+    reference.value8 = first; reference.valueC = second;
+    void *slots[] = {reinterpret_cast<void *>(DeleteAndInjectKey)};
+    first->vtable0 = slots;
+    injectedReference = &reference; keyCallbackCalls = 0;
+    reference.ClearOwned(); // Callback inserts a node; recovered code must reload the head.
+    injectedReference = 0;
+    assert(keyCallbackCalls == 1 && !reference.value8 && !reference.valueC && !FEngScriptKeysPool.blocks0.count4);
+    std::vector<FEngScriptKey *> keys;
+    for (unsigned int i = 0; i < 270; ++i) {
+        FEngScriptKey *key = FEngScriptKeysPool.Acquire(); FEngConstructScriptKey(key);
+        keys.push_back(key);
+    }
+    assert(FEngScriptKeysPool.blocks0.count4 == 2);
+    for (unsigned int i = 0; i < keys.size(); ++i) keys[i]->Destroy(1);
+    assert(!FEngScriptKeysPool.blocks0.count4 && !FEngScriptKeysPool.blocks0.first8 && !FEngScriptKeysPool.blocks0.valueC);
+}
 static void RunResponsePool() {
     assert(!FEngResponseHeaderPool.blocks0.count4 && !FEngResponseHeaderPool.blocks0.first8);
     std::vector<FengResponse> responses;
@@ -498,5 +576,6 @@ int main() {
     RunResponseStorage();
     RunResponsePool();
     RunScriptStorage();
+    RunTrackOwnership();
     puts("PASS native FNG owned text/names, inheritance/GUID lookup and type4 projection/navigation/ticking (no assets or display)");
 }

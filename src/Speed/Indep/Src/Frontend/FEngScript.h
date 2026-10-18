@@ -15,11 +15,30 @@ UG2_CHECK_SIZE(FEScriptEvent, 12);
 UG2_CHECK_OFFSET(FEScriptEvent, time, 8);
 UG2_CHECK_SIZE(FEngScriptEventStorage, 8);
 
+struct FEngScriptKey {
+    void *vtable0;
+    FEngScriptKey *next4, *previous8;
+    int timeC;
+    unsigned char value10[16];
+    FEngScriptKey *Destroy(unsigned int flags); // 0x531fe0
+};
+UG2_CHECK_SIZE(FEngScriptKey, 0x20);
+void *__fastcall FEngConstructScriptKey(void *memory); // 0x4fe8b0
+// ECX-only callback ABI view of the already recovered 0x51ab10 body.
+void __fastcall FEngDestructScriptKey(void *memory);
+void *__fastcall FEngConstructScriptTrack(void *memory); // 0x525e80
+void __fastcall FEngDestructScriptTrack(void *memory); // 0x52b960
+void *__fastcall FEngConstructScript(void *memory); // 0x511d70
+void __fastcall FEngDestructScript(void *memory); // 0x535170
+
 struct FEngReference {
     char unidentified0[4];
     unsigned char value4;
     char unidentified5[3];
     void *value8;
+    void *valueC;
+    void Remove(FEngScriptKey *key); // 0x5055c0, no count field
+    void ClearOwned(); // 0x511d00, actual first Remove call; later inline unlinking
     void *Resolve(); // 0x4fe890
 };
 struct FEngQuaternion {

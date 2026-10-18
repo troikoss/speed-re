@@ -7,6 +7,7 @@
 // track table and name hash (script reader 0x5515e0, script set 0x517720).
 struct FEResponse;
 struct FEScript {
+    void SetTracks(unsigned int count); // 0x535210, destructive replacement even for equal counts.
     void SetName(const char *name); // 0x518730, owns +2c and hashes into +30.
     void *vtable0;
     FEScript *next4;
@@ -30,6 +31,12 @@ UG2_CHECK_OFFSET(FEScript, hash30, 0x30);
 UG2_CHECK_OFFSET(FEScript, name2C, 0x2c);
 
 // Original 0x38-byte script track prefix, used by state writers.
+struct FEngScriptKey;
+struct FEngInlineKeyHeader {
+    void *vtable0;
+    FEngScriptKey *next4, *previous8;
+    int timeC;
+};
 struct FEScriptTrack {
     unsigned char value0;
     unsigned char value1;
@@ -37,7 +44,10 @@ struct FEScriptTrack {
     unsigned char flags3;
     unsigned char unidentified4[3];
     signed char state7;
-    char unidentified8[0x10];
+    union {
+        char unidentified8[0x10];
+        FEngInlineKeyHeader key8;
+    };
     float base18[4];
     char unidentified28[4];
     unsigned char value2C;

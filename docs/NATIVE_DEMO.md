@@ -362,8 +362,15 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   comparisons and 15 mutations. Native event vectors and duplicate hash/duration
   metadata are removed; EV uses recovered arrays and repeated EV replaces them.
   Optional Sn retention calls the recovered name setter. Clock/event firing,
-  full script parsing/copying, track/key ownership and original script teardown
-  remain seams. See [script storage evidence](pc-pause-menu.md#script-names-and-owned-event-array-storage-2026-10-18).
+  full script parsing/copying and script-header pool ownership remain seams. See [script storage evidence](pc-pause-menu.md#script-names-and-owned-event-array-storage-2026-10-18).
+- Script track replacement `0x535210`, owned/borrowed key cleanup, the 256-slot
+  key pool, and normal script construction/destruction now execute recovered
+  code. Fourteen routines pass 3,584 comparisons and reject 21 mutations.
+  Native track vectors are removed; bounded parsing projects payloads into
+  original arrays and pooled key nodes. Key pointer indexes, initial baseline/time
+  defaults, playback clocks and full script copying remain adapters or pending
+  recovery. Byte identity and exceptional unwind remain unverified.
+  See [track ownership evidence](pc-pause-menu.md#script-track-ownership-key-pool-and-normal-script-teardown-2026-10-18).
 - Native image/group/list teardown now invokes recovered `0x532660`/`0x534bf0`/
   `0x534a50`, alongside string destruction. Original list storage/cell release
   `0x516dc0`/`0x5042e0` and the three deleting wrappers are verified together with

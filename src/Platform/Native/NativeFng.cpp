@@ -32,7 +32,7 @@ FEngStatePoolManager FEngObjectStateManager = {}; // Original 0x863770; native s
 FEngDestructionObserver *FEngObjectDestructionObserver = 0; // Original 0x838474.
 
 namespace {
-void BindNativeResponseVtables();
+void BindNativeFengVtables();
 // Native heap owner only: original resizing/free calls remain in recovered code.
 // Retain surviving allocations until wrapper teardown, including original zero-
 // dimension/storage-release cases that leave cell allocations unfreed.
@@ -166,7 +166,7 @@ void ReadResponses(const unsigned char *data, size_t size, std::vector<FengRespo
         if (terminate) bounded.push_back(0);
         t += 4 + len;
     }
-    BindNativeResponseVtables();
+    BindNativeFengVtables();
     FEngResponseReader reader = {};
     reader.package0 = package;
     reader.objectC = object;
@@ -268,14 +268,21 @@ void *__thiscall NativeDeleteResponseBlock(void *pointer, unsigned int flags) {
 void *__thiscall NativeDeleteResponseHeader(void *pointer, unsigned int flags) {
     return ((FEResponse *)pointer)->Destroy(flags);
 }
-void BindNativeResponseVtables() {
+void *__thiscall NativeDeleteScriptKey(void *pointer, unsigned int flags) {
+    return ((FEngScriptKey *)pointer)->Destroy(flags);
+}
+void *__thiscall NativeDeleteScriptKeyBlock(void *pointer, unsigned int flags) {
+    return ((FEngScriptKeyPoolBlock *)pointer)->Destroy(flags);
+}
+void BindNativeFengVtables() {
     static bool bound = false;
     if (bound) return;
     if (IsOriginalImageMapped()) {
         // MapOriginalImage owns this writable data range and verifies its SHA-256.
         // Preserve retail constants and replace only these verified virtual slots.
         if (*(unsigned int *)0x79a9e8 != 0x4fdb00 || *(unsigned int *)0x79aa38 != 0x53ee60 ||
-            *(unsigned int *)0x79bf50 != 0x53eb20) NativeTrap("FEng response vtable contents");
+            *(unsigned int *)0x79bf50 != 0x53eb20 || *(unsigned int *)0x79aa34 != 0x531fe0 ||
+            *(unsigned int *)0x79b9ec != 0x531bc0) NativeTrap("FEng response vtable contents");
     } else {
         const unsigned int pages[] = {0x79a000, 0x79b000};
         for (unsigned int i = 0; i < 2; ++i) {
@@ -287,15 +294,18 @@ void BindNativeResponseVtables() {
     *(void **)0x79a9e8 = (void *)NativeDeleteBaseNode;
     *(void **)0x79aa38 = (void *)NativeDeleteResponseHeader;
     *(void **)0x79bf50 = (void *)NativeDeleteResponseBlock;
+    *(void **)0x79aa34 = (void *)NativeDeleteScriptKey;
+    *(void **)0x79b9ec = (void *)NativeDeleteScriptKeyBlock;
     bound = true;
 }
 }
 FEngResponsePool FEngResponseHeaderPool = {{0x79a9ec, 0, 0, 0}};
+FEngScriptKeyPool FEngScriptKeysPool = {{0x79a9ec, 0, 0, 0}};
 
 // Native movable reference owner. Header allocation, destruction, return-to-pool
 // and empty-block cleanup all execute recovered code.
 FengResponse::FengResponse() : original(0) {
-    BindNativeResponseVtables();
+    BindNativeFengVtables();
     original = FEngResponseHeaderPool.Acquire();
     FEngConstructResponseHeader(original);
 }
@@ -313,31 +323,29 @@ FengResponse &FengResponse::operator=(FengResponse &&other) noexcept {
     return *this;
 }
 
-// Native inline header/track ownership remains a seam. Only name and event
-// storage use these recovered operations; this is not the original script destructor.
-FengScript::FengScript() : header() {}
-FengScript::~FengScript() {
-    header.SetName(0);
-    reinterpret_cast<FEngScriptEventStorage *>(&header.eventCount24)->Resize(0);
+// Inline script headers remain native owners. Their owned tracks, keys, names
+// and events now use recovered construction and normal destruction.
+FengScript::FengScript() : header() {
+    BindNativeFengVtables();
+    FEngConstructScript(&header);
+    header.time10 = 0; // Native reader binding; the original constructor leaves it untouched.
 }
+FengScript::~FengScript() { FEngDestructScript(&header); }
 FengScript::FengScript(FengScript &&other) noexcept
-    : header(other.header), tracks(std::move(other.tracks)), originalTracks(std::move(other.originalTracks)),
-      originalKeys(std::move(other.originalKeys)) {
+    : header(other.header), tracks(std::move(other.tracks)), originalKeys(std::move(other.originalKeys)) {
     other.header.name2C = 0;
-    other.header.eventCount24 = 0;
-    other.header.events28 = 0;
+    other.header.trackCount1C = 0; other.header.tracks20 = 0;
+    other.header.eventCount24 = 0; other.header.events28 = 0;
 }
 FengScript &FengScript::operator=(FengScript &&other) noexcept {
     if (this != &other) {
-        header.SetName(0);
-        reinterpret_cast<FEngScriptEventStorage *>(&header.eventCount24)->Resize(0);
+        FEngDestructScript(&header);
         header = other.header;
         tracks = std::move(other.tracks);
-        originalTracks = std::move(other.originalTracks);
         originalKeys = std::move(other.originalKeys);
         other.header.name2C = 0;
-        other.header.eventCount24 = 0;
-        other.header.events28 = 0;
+        other.header.trackCount1C = 0; other.header.tracks20 = 0;
+        other.header.eventCount24 = 0; other.header.events28 = 0;
     }
     return *this;
 }
@@ -694,33 +702,39 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
         // Native loader seam: original FEScript headers of the loaded scripts, linked in file order.
         for (size_t j = 0; j < object->scripts.size(); ++j) {
             FengScript &script = object->scripts[j];
-            script.originalTracks.resize(script.tracks.size());
+            script.header.SetTracks(script.tracks.size());
             script.originalKeys.resize(script.tracks.size());
             for (size_t k = 0; k < script.tracks.size(); ++k) {
                 const FengTrack &native = script.tracks[k];
-                FEScriptTrack &track = script.originalTracks[k];
-                memset(&track, 0, sizeof(track));
+                FEScriptTrack &track = static_cast<FEScriptTrack *>(script.header.tracks20)[k];
+                // Native reader binding of known input data; remaining parser is a seam.
+                memset(track.base18, 0, sizeof(track.base18));
+                track.key8.timeC = native.keys.empty() ? 0 : native.keys[0].first;
                 track.value0 = native.type;
                 track.value1 = native.size;
                 track.value2 = native.interpolation;
                 track.flags3 = native.flags3;
+                *(unsigned int *)track.unidentified4 = (unsigned int)native.duration & 0xffffff;
                 track.state7 = native.state7;
                 // 0x5515e0 puts the first Kd key inline at track+8; later keys form the delta list.
-                std::vector<FengScriptKey> &keys = script.originalKeys[k];
+                std::vector<FengScriptKey *> &keys = script.originalKeys[k];
                 keys.resize(native.keys.empty() ? 0 : native.keys.size() - 1);
                 for (size_t n = 0; n < keys.size(); ++n) {
-                    memset(&keys[n], 0, sizeof(keys[n]));
-                    keys[n].next4 = n + 1 < keys.size() ? &keys[n + 1] : 0;
-                    keys[n].previous8 = n ? &keys[n - 1] : 0;
-                    keys[n].timeC = native.keys[n + 1].first;
-                    memcpy(keys[n].value10, &native.keys[n + 1].second[0], native.size < 16 ? native.size : 16);
+                    keys[n] = FEngScriptKeysPool.Acquire();
+                    FEngConstructScriptKey(keys[n]);
+                    keys[n]->timeC = native.keys[n + 1].first;
+                    memset(keys[n]->value10, 0, sizeof(keys[n]->value10));
+                    memcpy(keys[n]->value10, &native.keys[n + 1].second[0], native.size < 16 ? native.size : 16);
                 }
-                track.value30 = keys.empty() ? 0 : &keys[0];
+                for (size_t n = 0; n < keys.size(); ++n) {
+                    keys[n]->next4 = n + 1 < keys.size() ? keys[n + 1] : 0;
+                    keys[n]->previous8 = n ? keys[n - 1] : 0;
+                }
+                track.value30 = keys.empty() ? 0 : keys[0];
+                *(FengScriptKey **)track.unidentified34 = keys.empty() ? 0 : keys.back();
                 if (!native.baseline.empty()) memcpy(track.base18, &native.baseline[0], native.size < 16 ? native.size : 16);
             }
             FEScript &header = script.header;
-            header.trackCount1C = script.originalTracks.size();
-            header.tracks20 = script.originalTracks.empty() ? 0 : &script.originalTracks[0];
             header.previous8 = j ? &object->scripts[j - 1].header : 0;
             header.next4 = j + 1 < object->scripts.size() ? &object->scripts[j + 1].header : 0;
         }
@@ -818,10 +832,10 @@ void FengPackage::AdvanceScripts(float seconds) {
         for (size_t k = 0; k < script.tracks.size(); ++k) {
             FengTrack &track = script.tracks[k];
             if (!track.baseline.empty()) {
-                memcpy(&track.baseline[0], script.originalTracks[k].base18, track.size < 16 ? track.size : 16);
+                memcpy(&track.baseline[0], static_cast<FEScriptTrack *>(script.header.tracks20)[k].base18, track.size < 16 ? track.size : 16);
             }
             for (size_t n = 0; n < script.originalKeys[k].size(); ++n)
-                memcpy(&track.keys[n + 1].second[0], script.originalKeys[k][n].value10, track.size < 16 ? track.size : 16);
+                memcpy(&track.keys[n + 1].second[0], script.originalKeys[k][n]->value10, track.size < 16 ? track.size : 16);
             ApplyTrack(track, state, sizeof(state), script.header.time10);
         }
         ReadState(object, state, sizeof(state));
