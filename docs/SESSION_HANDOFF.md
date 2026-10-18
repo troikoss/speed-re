@@ -363,3 +363,19 @@ renamed from cross-title evidence alone.
     Next candidates: hash selector `0x51cfe0`, wrappers `0x537c00`/`0x537c60`, predicates `0x537cc0`/
     `0x537d40` and original playback/update dependencies. Do not confuse pointer
     setter `0x5178b0` with the native hash-selection adapter.
+
+28. **Hash selection and package script wrappers (2026-10-18).** Hash selector
+    `0x51cfe0`, setters `0x537c00`/`0x537c60` and predicates `0x537cc0`/
+    `0x537d40` now use recovered code. Keep low-byte restart, null selector calls,
+    formatter-after-lookup order, current-header reload after formatting, and
+    signed inclusive time checks. Native hash loops/event-list predicates and
+    the unused frontend script adapter are removed; HUD/Controls name calls
+    also use the recovered selector. Selector suite passes 16,384 Clang i686
+    comparisons at 53/64-bit precision and rejects ten mutations. Full
+    `--compose-scripts` lookup passes 17,472 comparisons; only formatted hashing
+    and direct visitor callbacks are controlled; seventeen mutations are rejected.
+    Native/mod builds, all headless 19 settings/10 Controls, motion and HUD
+    captures (four ratios, eleven skins, 120 frames) pass. See `pc-pause-menu.md` for
+    coverage and remaining compiler/byte-match limits. Next bounded leads:
+    formatted hash `0x50b9c0` and its profiled formatting boundary `0x43fbc0`,
+    then command execution `0x52c7c0` and original playback/update dependencies.

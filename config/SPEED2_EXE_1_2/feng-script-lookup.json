@@ -1,0 +1,25 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "FngSetScript": {
+      "address": "0x537c00",
+      "size": 84,
+      "sha256": "583eacf34d0057e5ab9a12b8104b80a553d17ec976d8451a453d899986cb0d4e"
+    },
+    "FngSetScriptHash": {
+      "address": "0x537c60",
+      "size": 84,
+      "sha256": "bc93185f4352a32dd8c10fb02ce281d608ba189666dffc8d935baaa635592432"
+    },
+    "FngScriptActive": {
+      "address": "0x537cc0",
+      "size": 115,
+      "sha256": "c89285fb278d22e414e520ba6f79bff52f7950ba676f9ea5ea158796b5b95f2d"
+    },
+    "FngScriptRunning": {
+      "address": "0x537d40",
+      "size": 96,
+      "sha256": "06b077072e667863ac29877048465b853f7825eb70b8168a5b88044434ad0085"
+    }
+  }
+}

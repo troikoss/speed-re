@@ -43,9 +43,12 @@ def main():
     parser.add_argument('--compiler', choices=('msvc', 'clang-cl'), default='msvc')
     parser.add_argument('--source', type=Path, default=ROOT / 'src/Speed/Indep/Src/Frontend/FEngLookup.cpp')
     parser.add_argument('--locator-source', type=Path, default=ROOT / 'src/Speed/Indep/Src/Frontend/FEngLocator.cpp')
+    parser.add_argument('--script-lookup-source', type=Path, default=ROOT / 'src/Speed/Indep/Src/Frontend/FEngScriptLookup.cpp')
+    parser.add_argument('--compose-scripts', action='store_true', help='Execute recovered script wrappers and activation through actual archive lookup')
     parser.add_argument('--compose-archive', action='store_true', help='Execute recovered archive search instead of controlling it')
     parser.add_argument('--mutation-checks', action='store_true')
     args = parser.parse_args()
+    if args.compose_scripts: args.compose_archive = True
     manifest = json.loads((ROOT / 'config/SPEED2_EXE_1_2/feng-lookup.json').read_text())
     raw = EXE.read_bytes()
     assert hashlib.sha256(raw).hexdigest() == manifest['executable_sha256']
@@ -55,6 +58,11 @@ def main():
         archive_manifest = json.loads((ROOT / 'config/SPEED2_EXE_1_2/feng-archive.json').read_text())
         assert archive_manifest['executable_sha256'] == manifest['executable_sha256']
         functions.update(archive_manifest['functions'])
+    if args.compose_scripts:
+        for name in ('feng-script', 'feng-script-lookup'):
+            extra = json.loads((ROOT / ('config/SPEED2_EXE_1_2/' + name + '.json')).read_text())
+            assert extra['executable_sha256'] == manifest['executable_sha256']
+            functions.update(extra['functions'])
     for f in functions.values():
         offset = int(f['address'], 16) - 0x400000
         assert hashlib.sha256(image[offset:offset + f['size']]).hexdigest() == f['sha256']
@@ -63,12 +71,14 @@ def main():
     sources = [args.source, args.locator_source, ROOT / 'src/Speed/Indep/Libs/bWare/Strings.cpp']
     if args.compose_archive:
         sources.append(ROOT / 'src/Speed/Indep/Src/Frontend/FEngArchive.cpp')
+    if args.compose_scripts:
+        sources.extend([ROOT / 'src/Speed/Indep/Src/Frontend/FEngScript.cpp', args.script_lookup_source])
     for source in sources:
         obj = BUILD / (source.stem + '.obj')
         if args.compiler == 'msvc':
             command = [str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe', '/nologo', '/c', '/Ox', '/Ob0', '/Z7', '/EHsc']
         else:
-            command = ['clang-cl', '--target=i686-pc-windows-msvc', '/nologo', '/c', '/O2', '/Ob0', '/GS-', '/GR-', '/w', '/EHsc', '/clang:-fno-builtin']
+            command = ['clang-cl', '--target=i686-pc-windows-msvc', '/nologo', '/c', '/O2', '/Ob0', '/GS-', '/GR-', '/w', '/EHsc', '/clang:-fno-builtin', '/arch:IA32']
         subprocess.run(command + ['/Fo' + str(obj.relative_to(ROOT)), '/Isrc/Speed/Indep/Src/Frontend',
                                   os.path.relpath(source, ROOT)], cwd=ROOT, check=True)
         objects.append(obj)
@@ -79,6 +89,8 @@ def main():
                 '_strlen': STOP + 0x100, '??3@YAXPAX@Z': STOP + 0x200,
                 '??3@YAXPAXI@Z': STOP + 0x300, '__purecall': STOP + 0x400,
                 '___CxxFrameHandler3': STOP + 0x500, '___CxxFrameHandler': STOP + 0x500}
+    if args.compose_scripts:
+        external['?FngFormatHash@@YAIPBDZZ'] = 0x50b9c0
     if args.compose_archive:
         del external['?FindNode@FEngArchive@@QAEPAUFEngPackageNode@@PBD@Z']
     linked = link_objects(objects, external)
@@ -86,6 +98,9 @@ def main():
                for name, prefix in PREFIXES.items()}
     if args.compose_archive:
         entries['FindNode'] = next(a for n, a in linked['exports'].items() if n.startswith('?FindNode@FEngArchive@'))
+    if args.compose_scripts:
+        for name in ('FngSetScript', 'FngSetScriptHash', 'FngScriptActive', 'FngScriptRunning'):
+            entries[name] = next(a for n, a in linked['exports'].items() if n.startswith('?' + name + '@'))
     state, machines = {}, []
 
     def words(uc, address, count=1):
@@ -118,9 +133,25 @@ def main():
         list_entry = entries['FindByName'] if rebuilt else 0x519e50
         locator_entry = entries['FngFindPackage'] if rebuilt else 0x52cef0
 
+        script_calls = {}
+        if args.compose_scripts:
+            for name, original, prefix in (
+                ('name-select', 0x51cf70, '?FngSetObjectScript@'),
+                ('hash-select', 0x51cfe0, '?FngSetObjectScriptHash@'),
+                ('initialize', 0x517720, '?InitializeScript@HudVisibilityObject@')):
+                entry = next(a for n, a in linked['exports'].items() if n.startswith(prefix)) if rebuilt else original
+                script_calls[entry] = name
         def hook(uc, address, size, user, ranges=ranges, query_entry=query_entry,
-                 hash_entry=hash_entry, compare_entry=compare_entry, list_entry=list_entry, locator_entry=locator_entry):
+                 hash_entry=hash_entry, compare_entry=compare_entry, list_entry=list_entry, locator_entry=locator_entry, script_calls=script_calls):
             sp = uc.reg_read(UC_X86_REG_ESP)
+            if address in script_calls:
+                method = script_calls[address]
+                if method == 'initialize':
+                    this = uc.reg_read(UC_X86_REG_ECX)
+                    state['trace'].append((method, this, words(uc, this + 0x54)[0]))
+                else:
+                    obj, script, restart = words(uc, sp + 4, 3)
+                    state['trace'].append((method, obj, script, restart & 255))
             if address == locator_entry:
                 state['trace'].append(('package', words(uc, sp + 4)[0]))
             if address == list_entry:
@@ -133,6 +164,18 @@ def main():
                 state['trace'].append(('hash', words(uc, sp + 4)[0]))
             if address == compare_entry:
                 state['trace'].append(('name-compare', words(uc, sp + 4, 2)))
+            if address == 0x50b9c0 and args.compose_scripts:
+                ret, argument = words(uc, sp, 2)
+                state['trace'].append(('format-hash', argument))
+                if state['format_mutation']:
+                    for nodes in NODES:
+                        for node in nodes: uc.mem_write(node + 0x54, bytes(4))
+                uc.reg_write(UC_X86_REG_EAX, state['format_hash'])
+                uc.reg_write(UC_X86_REG_ECX, 0xcccccccc)
+                uc.reg_write(UC_X86_REG_EDX, 0xdddddddd)
+                uc.reg_write(UC_X86_REG_ESP, sp + 4)
+                uc.reg_write(UC_X86_REG_EIP, ret)
+                return
             if address == CALLBACK or (address == 0x51bb70 and not args.compose_archive):
                 ret, argument = words(uc, sp, 2)
                 if address == 0x51bb70:
@@ -165,9 +208,9 @@ def main():
         machines.append(uc)
 
     rng = random.Random(0x537a10)
-    counts = dict.fromkeys((name for name in functions if name != 'strlenWithNullcheck'), 0)
+    counts = dict.fromkeys(entries, 0)
 
-    def compare(name, memory, arguments, this=0, cleanup=0, byte_result=False, manager=0, mode=0, **fixture):
+    def compare(name, memory, arguments, this=0, cleanup=0, byte_result=False, manager=0, mode=0, void_result=False, **fixture):
         outputs = []
         for rebuilt, uc in zip((False, True), machines):
             uc.mem_write(ARENA, bytes(memory))
@@ -190,7 +233,7 @@ def main():
             assert all(uc.reg_read(r) == 0x12345000 + i for i, r in enumerate(PRESERVED))
             assert words(uc, TIB)[0] == 0x12345678
             value = uc.reg_read(UC_X86_REG_EAX)
-            outputs.append((value & 255 if byte_result else value, bytes(uc.mem_read(ARENA, 0xe000)),
+            outputs.append((None if void_result else value & 255 if byte_result else value, bytes(uc.mem_read(ARENA, 0xe000)),
                             words(uc, GLOBAL), words(uc, MODE), state['trace'],
                             bytes(uc.mem_read(ARCHIVE, 12)) if args.compose_archive else b''))
         assert outputs[0] == outputs[1], ('state or call order mismatch', name, outputs[0][0], outputs[1][0],
@@ -233,6 +276,29 @@ def main():
             put(nodes[3] + 0x64, nodes[4])
             put(nodes[4] + 4, nodes[5])
             put(package + 0x4c, 0 if trial % 9 == p else nodes[0])
+        if args.compose_scripts:
+            memory[0x2a00:0x2a03] = b'go\0'
+            limits = ((0, 0), (1, 0), (0xffffffff, 0), (0x80000000, 0x7fffffff),
+                      (0x7fffffff, 0x80000000), (100, 100), (101, 100))
+            for p, nodes in enumerate(NODES):
+                for n, node in enumerate(nodes):
+                    index = p * 6 + n
+                    base = ARENA + 0x8000 + index * 0x100
+                    track = ARENA + 0xa000 + index * 0x80
+                    state_pointer = ARENA + 0xc000 + index * 0x40
+                    put(node + 0x2c, state_pointer)
+                    put(node + 0x4c, 0 if (trial + index) % 7 == 0 else base)
+                    put(node + 0x54, 0 if (trial + index) % 5 == 0 else base + 0x40)
+                    for j in range(3):
+                        script = base + j * 0x40
+                        put(script + 4, script + 0x40 if j + 1 < (trial + index) % 4 else 0)
+                        time, duration = limits[(trial + index + j) % len(limits)]
+                        put(script + 0xc, duration, time)
+                        put(script + 0x1c, trial % 2, track)
+                        put(script + 0x30, 0xffffffff if j == 0 else 0x535)
+                    memory[track - ARENA] = 1
+                    memory[track + 2 - ARENA] = 1  # real initialization clears flags; no float operation
+                    memory[track + 7 - ARENA] = 0
         put(QUEUE + 0xe4, PACKAGES[0] if length else 0)
         put(QUEUE + 0xf4, 0 if trial % 4 == 1 else PACKAGES[trial % 3])
         put(ARCHIVE_NODE + 0x18, rng.choice((0, *PACKAGES)))
@@ -256,6 +322,7 @@ def main():
         elif trial % 17 == 4:
             name = NAMES[9]
         fixture = {'archive_node': rng.choice((0, ARCHIVE_NODE)), 'mode': (0, 0, 1, 0x80000000, 0xffffffff)[trial // 5 % 5], 'disable_manager': trial % 11 == 0,
+                   'format_mutation': trial % 3 == 0, 'format_hash': (0x535, 0xffffffff, 0xdeadbeef)[trial % 3],
                    'mutation': trial % 4, 'stop_after': trial % 8, 'true_byte': (1, 2, 128, 255)[trial % 4]}
         manager = 0 if trial % 5 == 0 else MANAGER
         compare('QueryVisit', memory, [NODES[0][trial % 6]], QUERY, 4, True, manager, **fixture)
@@ -272,6 +339,29 @@ def main():
         compare('FngFindPackage', memory, [name], manager=manager, **fixture)
         if args.compose_archive:
             compare('FindNode', memory, [name], ARCHIVE, 4, manager=manager, **fixture)
+        if args.compose_scripts:
+            script_name = 0 if trial % 7 == 0 else ARENA + 0x2a00
+            script_hash = (0x535, 0xffffffff, 0xdeadbeef)[trial % 3]
+            restart = (0, 1, 2, 128, 255, 0x100, 0x10001, 0xffffffff)[trial % 8]
+            wrapper_name, wrapper_hash, wrapper_manager, wrapper_fixture = name, hash_, manager, fixture
+            if restart == 0x100:
+                # Break fixture correlations: a high-byte-only restart must reach an unchanged selection.
+                wrapper_name, wrapper_manager = NAMES[0], MANAGER
+                wrapper_fixture = dict(fixture, mode=0, disable_manager=False)
+                wrapper_hash = struct.unpack_from('<I', memory, NODES[0][0] + 0x10 - ARENA)[0]
+                put(PACKAGES[0] + 0xc, NAMES[0], hash_name(strings[0]))
+                put(PACKAGES[0] + 0x4c, NODES[0][0])
+                put(QUEUE + 0xe4, PACKAGES[0])
+                put(NODES[0][0] + 0x4c, ARENA + 0x8000)
+                put(NODES[0][0] + 0x54, ARENA + 0x8040)
+                put(ARENA + 0x8004, ARENA + 0x8040)
+                put(ARENA + 0x8044, 0)
+                put(ARENA + 0x804c, 100, 100)
+                script_name, script_hash = ARENA + 0x2a00, 0x535
+            compare('FngSetScript', memory, [wrapper_name, wrapper_hash, script_name, restart], void_result=True, manager=wrapper_manager, **wrapper_fixture)
+            compare('FngSetScriptHash', memory, [wrapper_name, wrapper_hash, script_hash, restart], void_result=True, manager=wrapper_manager, **wrapper_fixture)
+            compare('FngScriptActive', memory, [wrapper_name, wrapper_hash, script_name], byte_result=True, manager=wrapper_manager, **wrapper_fixture)
+            compare('FngScriptRunning', memory, [wrapper_name, wrapper_hash, script_hash], byte_result=True, manager=wrapper_manager, **wrapper_fixture)
         if trial % 16 == 0:
             put(MANAGER + 8, 0)
             compare('FngFindPackage', memory, [name], manager=MANAGER, **dict(fixture, mode=0))
@@ -279,11 +369,12 @@ def main():
               'fingerprints': functions, 'controlled_interfaces': (['visitor callback in direct walk fixtures'] if args.compose_archive else
                   ['FEngArchive::FindNode 0x51bb70', 'visitor callback in direct walk fixtures']),
               'composition': 'real tree/hash query, package locator, both live lists, typed wrappers, hashing and name comparison',
-              'archive_composed': args.compose_archive,
+              'archive_composed': args.compose_archive, 'scripts_composed': args.compose_scripts,
               'seh': 'normal-return FS chain restoration verified; exceptions/unwind excluded', 'byte_matching': 'not established',
               'limitations': ['finite acyclic trees/package chains', 'valid non-null queue behind non-null manager',
                               'null requested name with a non-null empty-name package is excluded',
                               'native package membership and resource loading remain seams', 'MSVC pending with clang-cl']}
+    if args.compose_scripts: report['controlled_interfaces'].append('FngFormatHash 0x50b9c0')
     if args.mutation_checks:
         source = args.source.read_text()
         mutations = {
@@ -302,7 +393,7 @@ def main():
             path = BUILD / ('mutation-' + name + '.cpp')
             path.write_text(source.replace(before, after))
             result = subprocess.run([os.sys.executable, str(Path(__file__).resolve()), '--compiler', args.compiler,
-                                     '--source', str(path), '--locator-source', str(args.locator_source)] + (['--compose-archive'] if args.compose_archive else []), cwd=ROOT, capture_output=True, text=True)
+                                     '--source', str(path), '--locator-source', str(args.locator_source)] + (['--compose-scripts'] if args.compose_scripts else ['--compose-archive'] if args.compose_archive else []), cwd=ROOT, capture_output=True, text=True)
             (BUILD / ('mutation-' + name + '.log')).write_text(result.stdout + result.stderr)
             assert result.returncode != 0 and 'state or call order mismatch' in result.stderr, name
             rejected.append(name)
@@ -320,12 +411,37 @@ def main():
             path = BUILD / ('mutation-' + name + '.cpp')
             path.write_text(locator.replace(before, after))
             result = subprocess.run([os.sys.executable, str(Path(__file__).resolve()), '--compiler', args.compiler,
-                                     '--source', str(args.source), '--locator-source', str(path)] + (['--compose-archive'] if args.compose_archive else []), cwd=ROOT, capture_output=True, text=True)
+                                     '--source', str(args.source), '--locator-source', str(path)] + (['--compose-scripts'] if args.compose_scripts else ['--compose-archive'] if args.compose_archive else []), cwd=ROOT, capture_output=True, text=True)
             (BUILD / ('mutation-' + name + '.log')).write_text(result.stdout + result.stderr)
             assert result.returncode != 0 and 'state or call order mismatch' in result.stderr, name
             rejected.append(name)
+        if args.compose_scripts:
+            wrappers = args.script_lookup_source.read_text()
+            wrapper_mutations = {
+                'skip-script-fallback': ('if (!object && fengManager8384C4)', 'if (false)'),
+                'exclusive-script-finish': ('->time10 <= object->currentScript54->lengthC', '->time10 < object->currentScript54->lengthC'),
+                'unsigned-script-time': ('object->currentScript54->time10 <= object->currentScript54->lengthC',
+                                         '(unsigned int)object->currentScript54->time10 <= (unsigned int)object->currentScript54->lengthC'),
+                'skip-format-on-miss': ('unsigned int scriptHash = FngFormatHash(script);',
+                                        'unsigned int scriptHash = object ? FngFormatHash(script) : 0;'),
+                'cache-selection-before-format': (
+                    'unsigned int scriptHash = FngFormatHash(script);\n    return object && object->currentScript54 && object->currentScript54->hash30 == scriptHash &&\n           object->currentScript54->time10 <= object->currentScript54->lengthC;',
+                    'FEScript *selected = object ? object->currentScript54 : 0;\n    unsigned int scriptHash = FngFormatHash(script);\n    return selected && selected->hash30 == scriptHash && selected->time10 <= selected->lengthC;'),
+                'skip-null-selector': ('FngSetObjectScriptHash(object, script, (unsigned char)restart);',
+                                       'if (object) FngSetObjectScriptHash(object, script, (unsigned char)restart);'),
+                'full-word-restart': ('(unsigned char)restart', '(restart ? 1 : 0)'),
+            }
+            for name, (before, after) in wrapper_mutations.items():
+                assert before in wrappers
+                path = BUILD / ('mutation-' + name + '.cpp')
+                path.write_text(wrappers.replace(before, after))
+                result = subprocess.run([os.sys.executable, str(Path(__file__).resolve()), '--compiler', args.compiler,
+                                         '--compose-scripts', '--script-lookup-source', str(path)], cwd=ROOT, capture_output=True, text=True)
+                (BUILD / ('mutation-' + name + '.log')).write_text(result.stdout + result.stderr)
+                assert result.returncode != 0 and 'state or call order mismatch' in result.stderr, name
+                rejected.append(name)
         report['rejected_mutations'] = rejected
-    report_name = 'archive-composition.json' if args.compose_archive else 'verification.json'
+    report_name = 'script-composition.json' if args.compose_scripts else 'archive-composition.json' if args.compose_archive else 'verification.json'
     (BUILD / report_name).write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))
 

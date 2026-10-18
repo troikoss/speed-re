@@ -98,3 +98,20 @@ void FngSetObjectScript(void *value, const char *name, unsigned char restart) {
         }
     }
 }
+
+// Original 0x51cfe0: the hash variant keeps the same selection/reset boundaries.
+void FngSetObjectScriptHash(void *value, unsigned int hash, unsigned char restart) {
+    HudVisibilityObject *object = (HudVisibilityObject *)value;
+    if (!object) return;
+    for (FEScript *script = object->scripts4C; script; script = script->next4) {
+        if (script->hash30 == hash) {
+            if (script != object->currentScript54) {
+                object->currentScript54 = script;
+                object->InitializeScript();
+                object->currentScript54->time10 = 0;
+            }
+            if (restart) script->time10 = 0;
+            return;
+        }
+    }
+}

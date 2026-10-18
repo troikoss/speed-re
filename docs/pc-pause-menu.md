@@ -1057,3 +1057,79 @@ Native and mod-enabled builds pass. Final headless integration checks pass all
 icon's motion/settled-centre assertions after the event adapter changes. The
 native event observer, ownership and clock glue remain scaffolding rather than
 original/rebuilt proof of the original playback/event subsystem.
+
+## Hash selection, package script wrappers and running queries (2026-10-18)
+
+`FEngScript.cpp` adds hash selection `0x51cfe0` (83 bytes) with the same direct
+initialization and current-pointer reload order as name selection. The four
+routines in `Frontend/FEngScriptLookup.cpp` are fingerprinted in
+`config/SPEED2_EXE_1_2/feng-script-lookup.json`:
+
+| Address | Bytes | Observed responsibility |
+| --- | ---: | --- |
+| `0x537c00` | 84 | Find the object, then select a script by name |
+| `0x537c60` | 84 | Find the object, then select a script by hash |
+| `0x537cc0` | 115 | Find the object, format/hash a name, then query current script |
+| `0x537d40` | 96 | Find the object, then query a current script hash |
+
+Each keeps local-package search and manager queue fallback explicit, rather than
+calling a new shared lookup helper. Setters call their selector even for a null
+object. Only the low restart byte is used; full-word `0x100` means no restart.
+The named running query calls **formatted** hashing `0x50b9c0` after lookup,
+even on a miss, and reads the selected header after that call. It is not a simple
+case-insensitive hash wrapper. Both predicates require a current header with the
+requested hash and **signed** `time10 <= lengthC`, including equality. Only AL
+is the defined predicate return; upper EAX bits are not compared.
+
+Native package wrappers, event-list-based running predicates and the duplicate
+hash-selection loops are removed. `FengPackage::PlayScript` now delegates directly
+to recovered name selection for HUD/Controls callers. Native response commands
+call recovered object/hash selection, while the existing event observer follows
+the selected header. The unused native frontend script adapter and owner search
+are removed. Package membership/loading, formatted hashing, playback clocks,
+limited interpolation and event delivery still have native seams.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_script.py --mutation-checks
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_lookup.py --compose-scripts --mutation-checks
+# Explicit fallback when MSVC 7.1/wibo is absent: add --compiler clang-cl.
+```
+
+The selector/activation suite now passes **16,384 original/rebuilt comparisons**
+at x87 control words `0x027f`/`0x037f` and rejects ten mutations, adding a wrong
+hash-selector comparison to the preceding checkpoint's nine. Its finite floating
+and aliasing limits still apply.
+
+The full `--compose-scripts` suite passes **17,472 comparisons** across lookup,
+archive, locator and the four wrappers. It executes recovered object/name/hash
+search, both live lists, archive search, selectors and initialization. Wrapper
+activation fixtures use a single interpolation-1 track to check flag writes;
+the separate selector suite covers the arithmetic modes and aliases. Only
+formatted hashing `0x50b9c0` and the direct-walk visitor fixtures are controlled.
+Cases include empty/missing/duplicate scripts, null lookup results, signed time
+extremes and equality, mode/manager/list variations, noncanonical restart bytes,
+a dedicated unchanged-selection/`0x100` case, and a formatter that clears current
+selection. Hash/name/list/format/selector/initialization traces, guarded memory,
+normal-return SEH restoration, stack cleanup and preserved registers agree.
+Selector traces compare the defined restart byte; unused upper argument bits can
+differ with compiler code generation. Void-return EAX values are not compared.
+
+The mutation checks retain the ten lookup/locator challenges and additionally
+reject skipped script fallback, exclusive finish comparison, unsigned time
+comparison, omitted formatting on lookup miss, caching selection across
+formatting, skipping a null selector call and treating full-word restart as a
+boolean. Formatter call results/mutations are controlled evidence, not proof
+of the original formatting implementation or all caller reentrancy. Original
+`0x50b9c0` uses a 256-byte local buffer and calls `0x43fbc0`; the native formatter
+currently uses bounded host formatting and remains a distinct seam.
+
+**MSVC 7.1/wibo and byte matching remain outstanding.** These finite valid
+fixtures do not establish malformed/cyclic data behavior or complete GUI script
+playback. Reports remain ignored in `build/analysis/feng-script-lookup/` and
+`build/analysis/feng-lookup/script-composition.json`.
+
+Native and mod-enabled builds pass. Headless integration passes all 19 settings,
+all 10 Controls scenarios, slider pixel checks and scroller motion. HUD captures
+also pass four aspect ratios, all eleven skins and a 120-frame run after routing
+HUD name selection through recovered code. These are native integration checks,
+separate from original/rebuilt proof of event timing and interpolation.

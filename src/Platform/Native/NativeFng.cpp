@@ -3,6 +3,7 @@
 #include "NativeHud.h"
 #include "../../Speed/Indep/Src/Frontend/FEngColour.h"
 #include "../../Speed/Indep/Src/Frontend/FEngText.h"
+#include "../../Speed/Indep/Src/Frontend/FEngScript.h"
 #include "../../Speed/Indep/Src/Hud/HudAnimation.h"
 
 #include <algorithm>
@@ -464,23 +465,7 @@ void FengPackage::SetRotation(FengObject *object, float degrees) {
 }
 
 void FengPackage::PlayScript(FengObject *object, const char *name, bool restart) {
-    if (object) PlayScriptHash(object, FengHash(name), restart);
-}
-
-bool FengPackage::PlayScriptHash(FengObject *object, unsigned int hash, bool restart) {
-    if (!object) return false;
-    for (size_t i = 0; i < object->scripts.size(); ++i) {
-        if (object->scripts[i].hash != hash) continue;
-        if (object->currentScript54 != &object->scripts[i].header || restart) {
-            object->scripts[i].header.time10 = 0;
-            object->scriptRemainder = 0;
-        }
-        if (object->currentScript54 != &object->scripts[i].header) {
-            object->SetScript(&object->scripts[i].header);
-        }
-        return true;
-    }
-    return false;
+    FngSetObjectScript(object, name, restart);
 }
 
 void FengPackage::AdvanceScripts(float seconds) {

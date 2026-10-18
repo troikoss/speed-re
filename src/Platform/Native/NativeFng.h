@@ -137,7 +137,6 @@ public:
     static void GetSize(FengObject *object, float *x, float *y);
     static void SetState(FengObject *object, int key, const float *value);
     static void PlayScript(FengObject *object, const char *name, bool restart);
-    static bool PlayScriptHash(FengObject *object, unsigned int hash, bool restart);  // native hash adapter, recovered SetScript activation
     void AdvanceScripts(float seconds);
     // Native pointer seam, using the same composed transforms as the renderer.
     bool Contains(FengObject *object, float x, float y);

@@ -9,6 +9,7 @@
 #include "NativeControls.h"
 #include "NativeHud.h"
 #include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
+#include "../../Speed/Indep/Src/Frontend/FEngScript.h"
 #include "../../Speed/Indep/Src/Frontend/PauseOptions.h"
 #include "../../Speed/Indep/Libs/bWare/Compression.h"
 
@@ -201,18 +202,6 @@ NativeScreen *FindScreen(const char *name) {
     return 0;
 }
 
-NativeScreen *ScreenOfObject(FengObject *object) {
-    for (size_t i = 0; i < kScreenCount; ++i) {
-        NativeScreen *screen = screens[i];
-        if (!screen->shown) continue;
-        std::vector<FengObject *> &objects = screen->package->Objects();
-        for (size_t k = 0; k < objects.size(); ++k) {
-            if (objects[k] == object) return screen;
-        }
-    }
-    return 0;
-}
-
 std::string Localised(unsigned int hash) {
     return LookupNativeString(language, hash);  // '^' line breaks are laid out by NativeFont (0x51c110)
 }
@@ -281,26 +270,6 @@ void RemoveScripts(NativeScreen *screen) {
     }
 }
 
-// Native hash-selection/event adapter. Recovered SetScript handles track activation;
-// playback clocks and package-event delivery remain native.
-void PlayScript(NativeScreen *screen, FengObject *object, unsigned int hash, bool restart) {
-    if (!screen || !object) return;
-    for (size_t i = 0; i < object->scripts.size(); ++i) {
-        if (object->scripts[i].hash != hash) continue;
-        for (size_t k = 0; k < scripts.size(); ++k) {
-            if (scripts[k].object == object) {
-                if (!restart && scripts[k].script == &object->scripts[i]) return;
-                scripts.erase(scripts.begin() + k);
-                break;
-            }
-        }
-        FengPackage::PlayScriptHash(object, hash, restart);
-        RunningScript running = {screen, object, &object->scripts[i], 0.0f, 0, false};
-        scripts.push_back(running);
-        return;
-    }
-}
-
 // 0x504490: from the conditional at `index`, the command that closes it (or its else at depth 1).
 size_t SkipBlock(const std::vector<FengResponseCommand> &commands, size_t index) {
     size_t count = commands.size();
@@ -328,7 +297,7 @@ void RunResponse(NativeScreen *screen, const FengResponse &response, FengObject 
         unsigned int current = object && object->currentScript54 ? object->currentScript54->hash30 : 0;
         switch (command.type) {
         case 0:
-            PlayScript(screen, object, command.parameter, true);
+            FngSetObjectScriptHash(object, command.parameter, 1);
             break;
         case 1: {
             FengObject *target = screen->package->FindGuid(command.target);
@@ -602,10 +571,6 @@ void NativeFrontendSetFocus(const char *package, FengObject *object) {
     if (screen) screen->fePackage.SetFocus(&nativeFengQueue, object, 1);
 }
 
-void NativeFrontendPlayScript(FengObject *object, unsigned int hash, bool restart) {
-    PlayScript(ScreenOfObject(object), object, hash, restart);
-}
-
 std::string NativeFrontendString(unsigned int hash) { return Localised(hash); }
 
 // Static-record lookup, archive storage and queue dispatch remain native seams.
@@ -779,30 +744,6 @@ void FngShow(const char *from, const char *name, int) {
     }
     switchFrom = FindScreen(from);
     switchTo = target;
-}
-
-bool FngScriptActive(const char *package, unsigned int object, const char *script) {  // 0x537cc0
-    return FngScriptRunning(package, object, FengHash(script));
-}
-
-// 0x537d40: the object's current script is `script` and has not finished.
-bool FngScriptRunning(const char *package, unsigned int object, unsigned int script) {
-    NativeScreen *screen = FindScreen(package);
-    for (size_t i = 0; i < scripts.size(); ++i) {
-        if (scripts[i].screen == screen && scripts[i].object->hash10 == object && scripts[i].script->hash == script && !scripts[i].finished)
-            return true;
-    }
-    return false;
-}
-
-void FngSetScript(const char *package, unsigned int object, const char *script, int restart) {  // 0x537c00
-    FngSetScriptHash(package, object, FengHash(script), restart);
-}
-
-void FngSetScriptHash(const char *package, unsigned int objectHash, unsigned int script, int restart) {  // 0x537c60
-    NativeScreen *screen = FindScreen(package);
-    FengObject *object = screen ? screen->package->Find(objectHash) : 0;
-    PlayScript(screen, object, script, restart != 0);
 }
 
 // 0x55dda0 -> 0x55b5c0: straight to the package's FNG object.

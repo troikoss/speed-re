@@ -35,6 +35,11 @@
       "address": "0x505450",
       "size": 47,
       "sha256": "8c43e57b7bcd7ccde6bf7571a00a79334bbbd6f6e459eb0e2de11cd6b6014641"
+    },
+    "FngSetObjectScriptHash": {
+      "address": "0x51cfe0",
+      "size": 83,
+      "sha256": "1aa3fe4730e8d64520af24004a634da522286fa8e7475d7ce4c9d3d39164079e"
     }
   }
 }

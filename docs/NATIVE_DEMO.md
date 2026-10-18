@@ -297,7 +297,7 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
 - Deferred message storage `0x50da20` and input stop/start `0x52fbf0`/`0x52fba0`
   now call recovered code, including the original package-mask writes. Native
   input gates use scroller +0x2f; owner stopped state lives at +0x14c. Full input
-  dispatch and package lookup remain seams. See [bounded evidence](pc-pause-menu.md#scroller-deferred-messages-and-input-masks-2026-10-18).
+  dispatch and package membership remain seams. See [bounded evidence](pc-pause-menu.md#scroller-deferred-messages-and-input-masks-2026-10-18).
 - Icon construction `0x51f670`, insertion `0x543c10` and owner wrapper `0x50dab0`
   now call recovered code. Insertion binds typed images, preserves size/colour
   call order, appends original list links and requests first-icon focus; the
@@ -331,12 +331,18 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   preceding tween advancement. Native scroller construction remains a seam. Name selection `0x51cf70`,
   pointer assignment `0x5178b0` and track activation `0x517720` now use recovered
   code and arithmetic helpers; native loading supplies key nodes and event
-  delivery observes the selected header. Playback and package/hash wrappers
+  delivery observes the selected header. Playback clocks, event delivery and formatted hashing
   remain seams. See [activation evidence](pc-pause-menu.md#script-selection-and-track-activation-2026-10-18).
   Colour, lock/arrow-script policies and scrollbar geometry use recovered routines;
   LOCK/BUTTON_MASTER and all ScrollBar objects now bind the retail objects.
   ScrollBar setup calls recovered constructor `0x542ac0`; formatting remains a native seam. See [placement evidence](pc-pause-menu.md#scroller-placement-and-cubic-tween)
   and run `python tools/smoke_native_pause_scroller.py` for rendered motion checks.
+- Script hash selection `0x51cfe0`, package setters `0x537c00`/`0x537c60` and
+  running queries `0x537cc0`/`0x537d40` now execute recovered code. Predicates read
+  selected headers with signed inclusive time checks; native event-list queries
+  and hash-selection loops are removed. HUD/Controls name selection also calls
+  recovered code. Formatted hashing and playback/event delivery remain seams.
+  See [script wrapper evidence](pc-pause-menu.md#hash-selection-package-script-wrappers-and-running-queries-2026-10-18).
 - FEng image centre/size writes and rendered text height now call recovered coordinate
   and metric routines. String and script-track prefixes expose the original offsets;
   position writes update live state and matching script baselines. Low-level font lookup,

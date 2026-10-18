@@ -23,4 +23,6 @@ UG2_CHECK_SIZE(FEngQuaternion, 16);
 UG2_CHECK_SIZE(FEngInteger4, 16);
 UG2_CHECK_OFFSET(FEScriptTrack, value2C, 0x2c);
 UG2_CHECK_OFFSET(FEScriptTrack, value30, 0x30);
+void FngSetObjectScript(void *object, const char *name, unsigned char restart); // 0x51cf70
+void FngSetObjectScriptHash(void *object, unsigned int hash, unsigned char restart); // 0x51cfe0
 #endif

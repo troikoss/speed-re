@@ -22,7 +22,7 @@ OBJECT, SCRIPT, TRACKS, STATE, KEY, REF, NAME = [ARENA + x for x in (0x100, 0x30
 PRESERVED = (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP)
 PREFIXES = {'Resolve': '?Resolve@FEngReference@', 'Multiply': '?Multiply@FEngQuaternion@',
             'Subtract': '?Subtract@FEngInteger4@', 'InitializeScript': '?InitializeScript@HudVisibilityObject@',
-            'SetScript': '?SetScript@HudVisibilityObject@', 'FngSetObjectScript': '?FngSetObjectScript@', 'cihash': '_cihash'}
+            'SetScript': '?SetScript@HudVisibilityObject@', 'FngSetObjectScriptHash': '?FngSetObjectScriptHash@', 'FngSetObjectScript': '?FngSetObjectScript@', 'cihash': '_cihash'}
 
 
 def main():
@@ -157,6 +157,8 @@ def main():
             compare('SetScript', memory, [0 if trial % 5 == 0 else SCRIPT], OBJECT, 4, precision=precision)
             compare('FngSetObjectScript', memory, [0 if trial % 13 == 0 else OBJECT,
                     0 if alias_current or trial % 3 == 0 else NAME, (0, 1, 2, 128, 255)[trial % 5]], precision=precision)
+            compare('FngSetObjectScriptHash', memory, [0 if trial % 13 == 0 else OBJECT,
+                    (0xffffffff, 0x535, 0x12345678)[trial % 3], (0, 1, 2, 128, 255)[trial % 5]], precision=precision)
             compare('Resolve', memory, [], REF, result=True, precision=precision)
             out = (STATE, STATE + 16, STATE + 32)[trial % 3]
             compare('Multiply', memory, [out, STATE + 16], STATE, 8, True, precision)
@@ -169,6 +171,7 @@ def main():
     if args.mutation_checks:
         source = args.source.read_text()
         mutations = {
+            'wrong-hash-selector': ('script->hash30 == hash', 'script->hash30 != hash'),
             'keep-track-flag': ('track->flags3 &= 0x7f;', 'track->flags3 |= 0x80;'),
             'skip-mode-four': ('track->value2 == 3 || track->value2 == 4', 'track->value2 == 3'),
             'unsigned-state-offset': ('data2C + track->state7', 'data2C + (unsigned char)track->state7'),
