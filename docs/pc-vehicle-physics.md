@@ -792,3 +792,41 @@ The final composed run additionally records original finishing branch calls:
 812 synchronization, 396 bounded feedback and
 256 ratio-two curve calls. All three branches are exercised;
 none is replaced by a fixture.
+
+## Car update `0x6012b0` recovered
+
+`CarCollisionBody::Advance` (`0x5a9f10`) now calls the recovered car update
+`MoverModeOwner::Update` (`src/Speed/Indep/Src/Physics/CarUpdate.cpp`) in place of the
+native mover-only step. Order, from the original:
+
+1. contact state `0x5fc050` (car `+0x38` from body event count `+0x18`; state 1 drops
+   back to 0 after 0.1 s without events, timer at `+0x54c`);
+2. two-player gap `0x5f6740` (mode-1 races only; pair curve at race tuning `+0xa6c`
+   through `0x576770`/`0x576790` into `+0x468`);
+3. the PhysicsMover step through vtable `0x7a25e0` slot 4 (recovered `VehicleMover::Update`);
+4. gear change `0x5ebe00` (replay events 1/9, shift effect 10 via `0x61fb00` scaled by
+   upgrade level 4 from `0x5995e0`, +0.5 when selection `+0x38` is set);
+5. smoothing `0x5ecac0` (car `+0x4f8` towards `+0x330`, integrated into `+0x4e8`);
+6. below-ground check `0x5ecba0` unless context `+0x900` is set (requests a reset when
+   ground is found more than 0.25 above a touching car in mode 4);
+7. the reset branch when `+0x96c` is set (race entry `0x6009a0`, world handler
+   `0x409770`/`0x409960`, or placement `0x40f690`/`0x401b20`/`0x5e2da0` into `0x5fbed0`),
+   otherwise extension of a running reset window by 0.5 s (`0x4ae7b0`) when the body
+   was touched (`+0x13c`) in its last 0.5 s.
+
+Verification: `tools/verify_pc_car_update.py` compares all nine routines against the
+original under 53- and 64-bit x87 precision (4096 generated cases each, 36,864
+comparisons) with `_ftol` and the pair curve executed as original code and every
+unrecovered callee as a traced stub (`config/SPEED2_EXE_1_2/car-update.json`); all 10
+source mutations are rejected (`--mutation-checks`). The original reset path
+dereferences the participant unconditionally, so the fixture always provides one.
+Byte identity under MSVC 7.1 `/Ox` holds only for `0x4ae7b0`, `0x5995e0` and `0x5ecac0`;
+the others differ in x87 compare selection (retail uses `fcomp` where 7.1 emits
+`fucompp` for `==`) and block layout.
+
+Native seams: the PhysicsMover vtable slot is a native table installed after
+construction; the reset callees, ground test `0x5e7e80`, effect spawn `0x615cc0` and the
+replay slots trap (the demo leaves car `+0x554`/`+0x968` null). Headless `ug2sim` runs
+(forward 960 frames, reverse and `UG2_STEER=0.5` 600 frames) are byte-identical to the
+previous build: the recovered state does not yet feed back into the physics there.
+

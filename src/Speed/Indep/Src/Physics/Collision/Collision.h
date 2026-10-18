@@ -535,7 +535,6 @@ void DeleteOrphanTrackPolygons();
 
 // Platform seams: original routines reached from the collision code that are not part of
 // this recovery (car update 0x6012b0, effects/sound 0x59fb70.., force feedback 0x637c70).
-float UpdateCarForCollision(MoverModeOwner *car, float duration);
 void CollisionEffects(CollisionEvent *event, WheelVector *point, WheelVector *impulse, float speed);
 void CollisionForceFeedback(MoverModeOwner *car, WheelVector *localImpulse, float magnitude);
 void *bOMalloc(void *pool);

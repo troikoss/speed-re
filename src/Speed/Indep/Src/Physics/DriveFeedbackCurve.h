@@ -12,6 +12,7 @@ struct DriveFeedbackCurve {
     int count;
     void Evaluate(float *output, float input);
     float Lookup(float input);
+    DriveFeedbackCurve *Construct(DriveFeedbackPair *pairs, int count); // 0x576770 (thiscall form)
 };
 
 void __stdcall InterpolateDriveFeedback(float *output, float *next,

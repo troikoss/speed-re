@@ -50,6 +50,13 @@ extern EngineCurve wheelLateralFallbackCurve;
 extern float physicsValue89CF08;
 extern float physicsDivisor7A5470;
 
+// Original 0x576770 as called from 0x5f6740 (ecx is the curve).
+DriveFeedbackCurve *DriveFeedbackCurve::Construct(DriveFeedbackPair *pairs, int count) {
+    this->pairs = pairs;
+    this->count = count;
+    return this;
+}
+
 // Original 0x576770: pair-table curve constructor.
 void ConstructDriveFeedbackCurve(DriveFeedbackCurve *curve, DriveFeedbackPair *pairs, int count) {
     curve->pairs = pairs;

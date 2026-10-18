@@ -299,13 +299,22 @@ struct MoverRaceEntry {
     char unidentified0[0x10];
     int index10;
     int QueryFlag5EB420(); // 0x5eb420
+    void Reset6009A0(); // 0x6009a0, not recovered
+};
+
+// World object (0x890080) +0x118, used by the mode-3 reset in 0x6012b0.
+struct CarResetHandler {
+    void Remove409770(struct MoverModeOwner *car); // 0x409770, not recovered
+    void Restore409960(struct MoverModeOwner *car); // 0x409960, not recovered
 };
 
 // Car object +0x1c. Only fields used by mover routines are named.
 struct MoverOwnerObject {
     char unidentified0[0x10];
     short value10;
-    char unidentified12[0x1ce];
+    char unidentified12[2];
+    float value14;        // compared between the two players by 0x5f6740
+    char unidentified18[0x1c8];
     MoverOwnerLink *link1E0;
     bool IsRunning();
     void Reset5FC2A0(struct MoverModeOwner *car); // 0x5fc2a0, not recovered
@@ -413,7 +422,7 @@ class RaceParticipant {
 public:
     virtual void Slot00() = 0; virtual void Slot04() = 0; virtual void Slot08() = 0;
     virtual void Slot0C() = 0; virtual void Slot10() = 0; virtual void Slot14() = 0;
-    virtual void Slot18() = 0; virtual void Slot1C() = 0; virtual void Slot20() = 0;
+    virtual void Slot18() = 0; virtual int GetResetId1C() = 0; virtual void Slot20() = 0;
     virtual void Slot24() = 0; virtual void Slot28() = 0; virtual void Slot2C() = 0;
     virtual void Slot30() = 0; virtual void Slot34() = 0; virtual void Slot38() = 0;
     virtual void Slot3C() = 0; virtual void Slot40() = 0; virtual void Slot44() = 0;
@@ -422,6 +431,16 @@ public:
     virtual void Slot60() = 0; virtual void Slot64() = 0; virtual void Slot68() = 0;
     virtual void Slot6C() = 0; virtual void Slot70() = 0; virtual void Slot74() = 0;
     virtual int GetTuningLevel() = 0;
+    char unidentified4[8];
+    struct ParticipantRoute *routeC;
+    unsigned char flag10;
+    struct ResetPlacement *GetResetPlacement(); // 0x40f690, not recovered
+};
+
+// Returned by 0x40f690; +0x70 bit 1 reverses the reset heading in one mode.
+struct ResetPlacement {
+    char unidentified0[0x70];
+    unsigned int flags70;
 };
 
 struct MoverContext {
@@ -432,9 +451,28 @@ struct MoverContext {
 };
 
 // Object at car +0x968 read by the HUD gauge 0x4c68d0.
-struct CarReplayState {
-    char unidentified0[0x58];
+class CarReplayState {
+public:
+    virtual void Slot00(); virtual void Slot04(); virtual void Slot08(); virtual void Slot0C();
+    virtual void Slot10(); virtual void Slot14(); virtual void Slot18(); virtual void Slot1C();
+    virtual void Slot20(); virtual void Slot24(); virtual void Slot28(); virtual void Slot2C();
+    virtual void Slot30(); virtual void Slot34(); virtual void Slot38(); virtual void Slot3C();
+    virtual void Slot40(); virtual void Slot44();
+    virtual void RecordEvent48(int kind, int value, int extra); // kinds 1 (gear) and 9 (shift effect) from 0x5ebe00
+    char unidentified4[0x54];
     float rpm58;
+};
+
+// Car +0x554, used by effect emission 0x61fb00.
+struct CarEffectEmitters {
+    void Spawn(int kind, float intensity, int value, int high, WheelVector *first, WheelVector *second,
+               WheelVector *target); // 0x615cc0, not recovered
+};
+
+// Car +0x2c +0xc.
+struct ParticipantRoute {
+    float *GetDirection(float *output, int forward); // 0x401b20, not recovered
+    float QueryDistance(int id); // 0x5e2da0, not recovered
 };
 
 // The car object; its +0x40 region is DrivetrainAuxiliary.
@@ -474,21 +512,34 @@ struct MoverModeOwner {
     char unidentified44C[0x18];
     int stability464;     // stability control option (replay event type 2)
     float value468;
-    char unidentified46C[0x70];
+    char unidentified46C[0x64];
+    int gear4D0;          // last gear seen by 0x5ebe00
+    int value4D4;
+    char unidentified4D8[4];
     float value4DC;
     char unidentified4E0[4];
     float value4E4;
-    char unidentified4E8[0x28];
+    float value4E8[4];    // integrated by 0x5ecac0
+    float value4F8[4];    // smoothed towards car +0x330 by 0x5ecac0
+    char unidentified508[8];
     WheelVector previousPosition510;
     char unidentified51C[4];
     WheelVector previousVelocity520;
     char unidentified52C[4];
     WheelVector previousAngular530;
-    char unidentified53C[0x14];
+    char unidentified53C[0x10];
+    float contactTime54C; // 0x5fc050 state-1 timer start
     unsigned char effectsEnabled550;
-    char unidentified551[0x7b];
+    char unidentified551[3];
+    CarEffectEmitters *effects554;
+    char unidentified558[0x58];
+    int value5B0;
+    char unidentified5B4[0x18];
     int colliderPack5CC;
-    char unidentified5D0[0x388];
+    char unidentified5D0[0x330];
+    float direction900;   // reset direction used when 0x88f2be is set
+    float direction904;
+    char unidentified908[0x50];
     int forceFeedback958;
     unsigned char mask95C;
     char unidentified95D[0xb];
@@ -500,6 +551,8 @@ struct MoverModeOwner {
     float resetDuration978;
     char unidentified97C[0x1c];
     unsigned char effectsSuppressed998;
+    char unidentified999[0x3f];
+    int shiftTick9D8;     // clock at the last gear change, 0x5ebe00
     bool HasPendingShift(); // 0x5ecd70
     WheelVector *GetPosition(); // 0x401890
     WheelVector *GetVelocity(); // 0x4018a0
@@ -521,6 +574,15 @@ struct MoverModeOwner {
     float GetEventCurveValue();
     float GetDraftValue();
     bool HasWheelEffects();
+    float Update(float duration); // 0x6012b0
+    void UpdateContactState(); // 0x5fc050
+    void UpdateOpponentGap(); // 0x5f6740
+    void UpdateGear(int gear); // 0x5ebe00
+    void UpdateSmoothing(float duration); // 0x5ecac0
+    void CheckBelowGround(); // 0x5ecba0
+    void EmitEffect(int kind, float intensity, int value, WheelVector *target); // 0x61fb00
+    void Reset5FBED0(ResetPlacement *placement, ParticipantRoute *route, float speed, int flag, float direction,
+                     int unused0, int unused1, float distance); // 0x5fbed0, not recovered
     // Recovered prefixes only: remaining bodies of 0x5fbbe0/0x604740 are unresolved.
     void SnapshotFrameKinematics(float duration);
     void UpdateFrameAcceleration(float duration);
@@ -540,8 +602,25 @@ UG2_CHECK_OFFSET(MoverModeOwner, physicsInfo10, 0x10);
 UG2_CHECK_OFFSET(MoverModeOwner, effectsEnabled550, 0x550);
 UG2_CHECK_OFFSET(MoverModeOwner, colliderPack5CC, 0x5cc);
 UG2_CHECK_OFFSET(MoverModeOwner, effectsSuppressed998, 0x998);
+UG2_CHECK_OFFSET(MoverModeOwner, gear4D0, 0x4d0);
+UG2_CHECK_OFFSET(MoverModeOwner, value4E8, 0x4e8);
+UG2_CHECK_OFFSET(MoverModeOwner, value4F8, 0x4f8);
+UG2_CHECK_OFFSET(MoverModeOwner, contactTime54C, 0x54c);
+UG2_CHECK_OFFSET(MoverModeOwner, effects554, 0x554);
+UG2_CHECK_OFFSET(MoverModeOwner, value5B0, 0x5b0);
+UG2_CHECK_OFFSET(MoverModeOwner, direction900, 0x900);
+UG2_CHECK_OFFSET(MoverModeOwner, shiftTick9D8, 0x9d8);
 UG2_CHECK_OFFSET(MoverModeOwner, input30, 0x30);
 UG2_CHECK_OFFSET(MoverOwnerObject, link1E0, 0x1e0);
+UG2_CHECK_OFFSET(MoverOwnerObject, value14, 0x14);
+
+// PhysicsMover vtable 0x7a25e0 as dispatched by car update 0x6012b0: slot 4 is
+// the step (recovered VehicleMover::Update). Other slots are unidentified.
+class VehicleMoverSlots {
+public:
+    virtual void Slot00();
+    virtual float Step(float duration);
+};
 
 // PhysicsMover, 0x130 bytes, vtable 0x7a25e0; integrator subobject at +8.
 struct VehicleMover {

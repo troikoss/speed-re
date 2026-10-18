@@ -629,7 +629,7 @@ WheelVector *CarCollisionBody::GetShapeOffset() {
 // Original 0x5a9f10: one step of the car (its update 0x6012b0 runs the mover).
 void CarCollisionBody::Advance(float duration) {
     Snapshot(duration);
-    UpdateCarForCollision(car130, duration);
+    car130->Update(duration);
     RefreshBounds();
 }
 

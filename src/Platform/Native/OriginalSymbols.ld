@@ -892,3 +892,12 @@ carList890080 = 0x890080;
 cameraNearbyCarId7EB5C0 = 0x7eb5c0;
 cameraNearbyCar82A580 = 0x82a580;
 cameraNearbyGuard82A590 = 0x82a590;
+/* Car update 0x6012b0 and leaves. */
+carContactHold7A565C = 0x7a565c;
+carSmoothingStep7A5654 = 0x7a5654;
+carSmoothingRate7A5658 = 0x7a5658;
+carResetSpeedLimit8021CC = 0x8021cc;
+carResetExtension8021D0 = 0x8021d0;
+carGapScale88F2B0 = 0x88f2b0;
+carResetDirectionFlag88F2BE = 0x88f2be;
+carGapEnabled89E7F8 = 0x89e7f8;

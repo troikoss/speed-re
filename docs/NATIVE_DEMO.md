@@ -109,7 +109,8 @@ walls at 71 and 90 km/h, loses roughly half its speed, and its centre stays 1.2 
 in front of the wall plane.
 
 Scaffolding and seams (`src/Platform/Native/NativeCollision.cpp`): the car update `0x6012b0`
-is reduced to the mover step; collision effects after the impulse sums (sparks, sounds,
+is recovered ([evidence](pc-vehicle-physics.md#car-update-0x6012b0-recovered)); its reset
+callees trap and the mover step is reached through a native vtable seam; collision effects after the impulse sums (sparks, sounds,
 replay, force feedback), audio registration `0x483e20`/`0x483e40` and the game message
 `0x5e0360` are no-ops; the hull key `0x61c320` is computed by the loader for stock parts;
 slot pools are the recovered bWare pools ([slot pool evidence](pc-bware-slotpool.md)) over a
@@ -650,7 +651,8 @@ observations, not equivalence evidence.
   resolve the 42 degenerate simplex tie differences in `0x595040`.
 - Recover car-vs-car/world-object paths (`0x5b31f0`, `0x5ae000`, slot 0x8c),
   cylinders (`0x5a23d0`, `0x5a2780`), and collision effects/sounds (`0x5a9620`, `0x59fb70`).
-- Recover the enclosing car update `0x6012b0` and the original world-clock call site.
+- Recover the car-update reset path (`0x5fbed0`, `0x40f690`, `0x6009a0`) and the original
+  world-clock call site.
 - Recover camera shake/finalisation, the remaining car pre/post-update logic
   beyond the verified acceleration prefixes, remaining HUD inputs/features, and full
   FEng script playback/rendering. Additional HUD

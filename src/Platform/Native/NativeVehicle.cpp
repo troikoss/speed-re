@@ -186,6 +186,45 @@ unsigned int bGetTicker() {
 // Unrecovered original routines. The demo state never reaches them; if it does, stop.
 bool ReplayRecorder::QueryState5EFE70() { NativeTrap("replay recorder 0x5efe70"); return false; }
 void MoverOwnerObject::Reset5FC2A0(MoverModeOwner *) { NativeTrap("car race object reset 0x5fc2a0"); }
+// Unrecovered callees of car update 0x6012b0. The reset branch runs only once a reset is
+// requested (0x5ecba0 or 0x5ebf60); effect and replay calls need car +0x554/+0x968, which
+// the demo leaves null.
+void MoverRaceEntry::Reset6009A0() { NativeTrap("race entry reset 0x6009a0"); }
+void CarResetHandler::Remove409770(MoverModeOwner *) { NativeTrap("reset handler 0x409770"); }
+void CarResetHandler::Restore409960(MoverModeOwner *) { NativeTrap("reset handler 0x409960"); }
+ResetPlacement *RaceParticipant::GetResetPlacement() { NativeTrap("participant reset placement 0x40f690"); return 0; }
+float *ParticipantRoute::GetDirection(float *, int) { NativeTrap("participant route direction 0x401b20"); return 0; }
+float ParticipantRoute::QueryDistance(int) { NativeTrap("participant route distance 0x5e2da0"); return 0.0f; }
+void ReleaseResetId403DB0(int) { NativeTrap("reset id release 0x403db0"); }
+void MoverModeOwner::Reset5FBED0(ResetPlacement *, ParticipantRoute *, float, int, float, int, int, float) {
+    NativeTrap("car reset 0x5fbed0");
+}
+int WCollider::HasGround(WheelVector *) { NativeTrap("collider ground test 0x5e7e80"); return 0; }
+void CarEffectEmitters::Spawn(int, float, int, int, WheelVector *, WheelVector *, WheelVector *) {
+    NativeTrap("car effect spawn 0x615cc0");
+}
+void CarReplayState::Slot00() { NativeTrap("replay slot 0x00"); }
+void CarReplayState::Slot04() { NativeTrap("replay slot 0x04"); }
+void CarReplayState::Slot08() { NativeTrap("replay slot 0x08"); }
+void CarReplayState::Slot0C() { NativeTrap("replay slot 0x0c"); }
+void CarReplayState::Slot10() { NativeTrap("replay slot 0x10"); }
+void CarReplayState::Slot14() { NativeTrap("replay slot 0x14"); }
+void CarReplayState::Slot18() { NativeTrap("replay slot 0x18"); }
+void CarReplayState::Slot1C() { NativeTrap("replay slot 0x1c"); }
+void CarReplayState::Slot20() { NativeTrap("replay slot 0x20"); }
+void CarReplayState::Slot24() { NativeTrap("replay slot 0x24"); }
+void CarReplayState::Slot28() { NativeTrap("replay slot 0x28"); }
+void CarReplayState::Slot2C() { NativeTrap("replay slot 0x2c"); }
+void CarReplayState::Slot30() { NativeTrap("replay slot 0x30"); }
+void CarReplayState::Slot34() { NativeTrap("replay slot 0x34"); }
+void CarReplayState::Slot38() { NativeTrap("replay slot 0x38"); }
+void CarReplayState::Slot3C() { NativeTrap("replay slot 0x3c"); }
+void CarReplayState::Slot40() { NativeTrap("replay slot 0x40"); }
+void CarReplayState::Slot44() { NativeTrap("replay slot 0x44"); }
+void CarReplayState::RecordEvent48(int, int, int) { NativeTrap("replay event 0x48"); }
+// Native vtable seam for PhysicsMover 0x7a25e0: slot 4 runs the recovered step.
+void VehicleMoverSlots::Slot00() { NativeTrap("mover slot 0x00"); }
+float VehicleMoverSlots::Step(float duration) { return reinterpret_cast<VehicleMover *>(this)->Update(duration); }
 // Force-feedback device manager (*0x870760) methods are unrecovered DirectInput effects.
 // Natively the manager pointer is null, so recovered 0x406460 never reaches them.
 bool ForceFeedbackManager::HasDevice5BFD70(int) { NativeTrap("force feedback 0x5bfd70"); return false; }
@@ -494,6 +533,9 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     new (mover->integrator8) MoverIntegrator;
     owner->mover34 = mover;
     mover->Construct(&info->parameters10.record30, carInfo, controls, owner);
+    // Native vtable seam: install the slot interface car update 0x6012b0 dispatches through.
+    static VehicleMoverSlots moverSlots;
+    mover->vtable0 = *reinterpret_cast<void **>(&moverSlots);
     // Mover factory 0x5f46a0 marks the body as mover-driven and attaches it (0x5938c0).
     owner->collisionBody3C->hasMover5C = 1;
     owner->collisionBody3C->AttachMover();

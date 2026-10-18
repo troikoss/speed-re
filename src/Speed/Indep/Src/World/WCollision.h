@@ -182,6 +182,7 @@ struct WCollider {
     bool Ray(int mode, bool twoSided, float *from, float *to, float margin, float scale); // 0x5d39f0
     bool UpdateArea(float *minimum, float *maximum, WheelVector *velocity);
     float QueryGround(WheelVector *point, int *surface, WheelVector *normal, char *found);
+    int HasGround(WheelVector *point); // 0x5e7e80, not recovered
 };
 
 UG2_CHECK_OFFSET(WCollisionPack, section30, 0x30);

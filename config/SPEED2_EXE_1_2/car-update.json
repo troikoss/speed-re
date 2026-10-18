@@ -1,0 +1,50 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "Update": {
+      "address": "0x6012b0",
+      "size": 841,
+      "sha256": "83e9777db3eae842817fdeec9a4fc12bc4046b096e7b7cb15b3a23507f2d3fd5"
+    },
+    "UpdateContactState": {
+      "address": "0x5fc050",
+      "size": 134,
+      "sha256": "cd765a42cdaceabd5321e83fc2c7cdcc3b739b65c851988fd33fcd90ed04e489"
+    },
+    "UpdateOpponentGap": {
+      "address": "0x5f6740",
+      "size": 170,
+      "sha256": "438b131fdd3f4d7353a6c53e9f811d8b8f94321e0055b349baed0e4335a5df56"
+    },
+    "UpdateGear": {
+      "address": "0x5ebe00",
+      "size": 335,
+      "sha256": "954cf92cb43c378d10520aaf0637e2044f26734c1fe549366ba7396214d74740"
+    },
+    "UpdateSmoothing": {
+      "address": "0x5ecac0",
+      "size": 223,
+      "sha256": "90d0153bb2b543cbbfc835d2e6da10270ff0438e6f0c250f8101dce3434d2879"
+    },
+    "CheckBelowGround": {
+      "address": "0x5ecba0",
+      "size": 93,
+      "sha256": "48bfed1894cabfda416dba200c81b89c5d7efdfa1c47a1808525a285173ffd1d"
+    },
+    "EmitEffect": {
+      "address": "0x61fb00",
+      "size": 159,
+      "sha256": "328eced59c204e9f73e1b9539a37939f14908cd63a60ec4ea75ec458ec8f7d31"
+    },
+    "GetLevel": {
+      "address": "0x5995e0",
+      "size": 21,
+      "sha256": "d20ca2f60c8a5af98aacb5502dd285a2c3601e0451c55ddaf9ca6cc7f36d856d"
+    },
+    "TicksConstruct": {
+      "address": "0x4ae7b0",
+      "size": 32,
+      "sha256": "a696fac927052400e3a50b40236c5b596c7ccf6d3f6fd16b5ca4358c3c73cacc"
+    }
+  }
+}

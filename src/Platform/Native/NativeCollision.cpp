@@ -25,11 +25,6 @@ int bSPrintf(char *buffer, const char *format, ...) {
     return written;
 }
 
-// 0x6012b0 (car update): the PhysicsMover step (mover slot 4) is the part the demo runs;
-// the rest of the car update (state machine, AI/replay hooks) is not recovered.
-float UpdateCarForCollision(MoverModeOwner *car, float duration) {
-    return car->mover34->Update(duration);
-}
 
 // 0x61c320: hash of the CarTypeInfo model name followed by "_CV". The native vehicle
 // loader computes it for the stock part set (no body kit hulls).
