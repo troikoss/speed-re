@@ -8,7 +8,12 @@ struct FEngTextStorage {
     unsigned short *text0;
     unsigned int capacity4;
     FEngTextStorage *Construct(); // 0x51de80
+    void Grow(unsigned int request); // 0x51de90; compares request with text length.
+    unsigned short *GetBuffer(unsigned int request); // 0x51dee0
+    FEngTextStorage *Assign(const unsigned short *source); // 0x52d610
+    void Destruct(); // 0x50d390; does not clear the fields.
 };
+void FEngCopyText(unsigned short *destination, const unsigned short *source); // 0x511630
 struct FEngLeafObject {
     char unidentified0[0x5c];
     unsigned int value5C;

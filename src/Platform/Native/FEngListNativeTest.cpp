@@ -1,6 +1,7 @@
 // Asset-free projection/integration fixture. Its FNG bytes are synthetic test scaffolding.
 #include "NativeFng.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObject.h"
+#include "../../Speed/Indep/Src/Frontend/FEngObjectFactory.h"
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -77,7 +78,39 @@ static void Run(unsigned int wrap, bool explicitGuid) {
     assert(!(list->value5C & 0x62) && list->value70 == (wrap ? 0 : .75f));
     assert(object->hash10 == 0x12345678 && object->resource == -1 && object->parentGuid == 0);
 }
+static void RunString() {
+    std::vector<unsigned char> data, value;
+    Word(value, 2); Tag(data, 0x744f, value); value.clear(); // Ot
+    // Synthetic St payload retains non-ASCII code units in recovered storage.
+    const unsigned short text[] = {'A', 0x3a9, 0xd83d, 0xde00, 0};
+    for (unsigned int i = 0; i < sizeof(text) / sizeof(text[0]); ++i) {
+        value.push_back(text[i]); value.push_back(text[i] >> 8);
+    }
+    Tag(data, 0x7453, value);
+    data = Chunk(0x30203, Chunk(0xe76e4546, Chunk(0xcc6a624f,
+        Chunk(0xea624f46, Chunk(0x446a624f, data)))));
+    for (int repeat = 0; repeat < 3; ++repeat) {
+        FengPackage package; std::string error;
+        assert(package.Load(data.data(), data.size(), 0, &error));
+        FengObject *object = package.Objects()[0];
+        FEngTextStorage *storage = reinterpret_cast<FEngTextStorage *>(&object->text64);
+        assert(object->type18 == 2 && object->text == "A???");
+        assert(storage->capacity4 == 5 && !memcmp(storage->text0, text, sizeof(text)));
+        assert(storage->GetBuffer(5) == object->text64);
+        unsigned short *buffer = storage->text0;
+        FengPackage::SetText(object, "xy");
+        assert(storage->text0 == buffer && storage->capacity4 == 5);
+        assert(storage->text0[0] == 'x' && storage->text0[1] == 'y' && !storage->text0[2]);
+        FengPackage::SetText(object, "0123456789");
+        assert(storage->capacity4 == 11 && storage->text0[9] == '9' && !storage->text0[10]);
+        buffer = storage->text0;
+        FengPackage::SetText(object, "");
+        assert(object->text.empty() && storage->text0 == buffer && !*storage->text0 && storage->capacity4 == 11);
+        // Each package destructor releases this owned buffer.
+    }
+}
 int main() {
+    RunString();
     Run(0, false); Run(1, false); Run(0, true); Run(1, true);
-    puts("PASS native FNG type4 projection/offsets/Cc selection/navigation/ticking (no assets or display)");
+    puts("PASS native FNG owned UTF-16 storage and type4 projection/offsets/Cc selection/navigation/ticking (no assets or display)");
 }

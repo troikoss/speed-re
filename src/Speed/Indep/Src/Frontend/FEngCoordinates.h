@@ -5,12 +5,13 @@
 // String-specific extension; +0x64 is text64 rather than the group child pointer.
 struct FEStringObject : HudVisibilityObject {
     FEStringObject *Construct(); // 0x495630, normal return
-    char unidentified68[4];
+    unsigned int textCapacity68; // FEngTextStorage capacity at string+0x64+4.
     int justification6C;
     int leading70;
     unsigned int maxWidth74;
 };
 UG2_CHECK_OFFSET(FEStringObject, justification6C, 0x6c);
+UG2_CHECK_OFFSET(FEStringObject, textCapacity68, 0x68);
 UG2_CHECK_OFFSET(FEStringObject, leading70, 0x70);
 UG2_CHECK_SIZE(FEStringObject, 0x78);
 

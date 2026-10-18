@@ -306,13 +306,16 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
 - Selection label updates now call recovered `0x50da50`, using bound title
   +0x134 and description +0x138 objects. Named-string wrapper `0x4953c0`
   executes recovered hashing before typed string lookup. Native construction
-  binds `ICON_TITLE` and the original empty-name description; localized string storage remains a seam. See [label evidence](pc-pause-menu.md#bound-scroller-labels-and-named-string-lookup-2026-10-18).
+  binds `ICON_TITLE` and the original empty-name description; localization remains a seam. See [label evidence](pc-pause-menu.md#bound-scroller-labels-and-named-string-lookup-2026-10-18).
 - Language-hash setter `0x50c900` now calls recovered code for both menu labels
   and the GPS label requests. Hash +0x60, dirty writes and observer notification
   follow the original. A native observer at `*0x838478` supplies language lookup
-  and UTF-16 storage; string-manager internals remain a seam. The native loader
+  and byte conversion; UTF-16 ownership now uses recovered storage methods
+  `0x511630`/`0x51de90`/`0x51dee0`/`0x52d610`/`0x50d390`. String-manager
+  internals and complete string-object cleanup remain seams. The native loader
   preserves string SH hashes instead of overwriting +0x60 with a child count.
-  See [setter evidence](pc-pause-menu.md#language-hash-setter-and-observer-notification-2026-10-18).
+  See [setter evidence](pc-pause-menu.md#language-hash-setter-and-observer-notification-2026-10-18)
+  and [owned UTF-16 storage](pc-pause-menu.md#owned-utf-16-storage-in-native-strings).
 - Typed string/image lookup (`0x537a10`/`0x537a60`), generic wrapper `0x5379c0`,
   recursive object traversal and package-list fallback now execute recovered code.
   Native loading constructs root/child links; shown-screen membership and order,

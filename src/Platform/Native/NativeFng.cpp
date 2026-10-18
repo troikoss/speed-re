@@ -22,13 +22,25 @@ void NativeTrap(const char *what);
 unsigned int FEngNextObjectGuid = 1; // original 0x7f7cf8 initial value
 unsigned int FEngValue7F7CC4 = 0x518e20;
 
+// Native heap adapter for original 0x575620/0x575630 boundaries.
+void *FEngAllocateQueueNode(unsigned int size) { return malloc(size); }
+void FEngFreeQueueNode(void *pointer) { free(pointer); }
+void *FEngGridAllocateCells(unsigned int bytes) { return malloc(bytes); }
+void FEngGridFreeCells(void *cells) { free(cells); }
+
+FengObject::~FengObject() {
+    // Only UTF-16 storage currently has original ownership. State, scripts,
+    // responses and the larger wrapper still belong to native containers.
+    if (type18 == 2) reinterpret_cast<FEngTextStorage *>(&text64)->Destruct();
+}
+
 #define IMSTB_TRUETYPE_IMPLEMENTATION
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "third_party/imstb_truetype.h"
 
 namespace {
 
-// Localization and UTF-16 ownership remain native behind the original observer ABI.
+// Localization/byte conversion remain native behind the original observer ABI.
 class NativeStringObserver : public FEngStringObserver {
 public:
     const std::vector<unsigned char> *language;
@@ -301,12 +313,16 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                         case 0x4150: object->parentGuid = Rd32(pl); break;  // 'PA'
                                         case 0x4153: state.assign(pl, pl + len); break;     // 'SA'
                                         case 0x7453: {                                      // 'St' UTF-16
+                                            std::vector<unsigned short> text; // Bounded input conversion seam.
                                             for (unsigned int i = 0; i + 1 < len; i += 2) {
                                                 unsigned int c = Rd16(pl + i);
                                                 if (!c) break;
-                                                object->originalText.push_back((unsigned short)c);
+                                                text.push_back((unsigned short)c);
                                                 object->text += (char)(c < 256 ? c : '?');
                                             }
+                                            text.push_back(0);
+                                            if (object->type18 == 2)
+                                                reinterpret_cast<FEngTextStorage *>(&object->text64)->Assign(text.data());
                                             break;
                                         }
                                         case 0x6a53: object->justification6C = (int)Rd32(pl); break;  // 'Sj'
@@ -474,14 +490,8 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
         FengObject *object = objects_[i];
         if (object->type18 == 2) object->languageHash60 = object->font;
         else if (object->type18 != 4) object->childCount60 = (int)object->children.size();
-        if (object->type18 != 4) object->firstChild64 = object->children.empty() ? 0 : object->children[0];
-        if (object->type18 == 2) {
-            if (object->originalText.empty()) {
-                for (size_t k = 0; k < object->text.size(); ++k) object->originalText.push_back((unsigned char)object->text[k]);
-            }
-            object->originalText.push_back(0);
-            object->text64 = &object->originalText[0];
-        }
+        if (object->type18 != 4 && object->type18 != 2)
+            object->firstChild64 = object->children.empty() ? 0 : object->children[0];
         for (size_t j = 0; j < object->children.size(); ++j) {
             object->children[j]->next4 = j + 1 < object->children.size() ? object->children[j + 1] : 0;
             object->children[j]->previous8 = j ? object->children[j - 1] : 0;
@@ -691,10 +701,14 @@ void FengPackage::SetState(FengObject *object, int key, const float *value) {
 void FengPackage::SetText(FengObject *object, const char *text) {
     if (object) {
         object->text = text;
-        object->originalText.clear();
-        for (size_t i = 0; i < object->text.size(); ++i) object->originalText.push_back((unsigned char)object->text[i]);
-        object->originalText.push_back(0);
-        if (object->type18 == 2) object->text64 = &object->originalText[0];
+        if (object->type18 == 2) {
+            // Renderer/localization byte conversion is scaffolding; allocation,
+            // UTF-16 assignment and lifetime use the recovered storage methods.
+            std::vector<unsigned short> input;
+            for (size_t i = 0; i < object->text.size(); ++i) input.push_back((unsigned char)object->text[i]);
+            input.push_back(0);
+            reinterpret_cast<FEngTextStorage *>(&object->text64)->Assign(input.data());
+        }
     }
 }
 

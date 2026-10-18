@@ -1,0 +1,30 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "Copy": {
+      "address": "0x511630",
+      "size": 49,
+      "sha256": "77f600245990a363223f6688ff63a43bd5e5bf68a9ef07f716ec9034f8b75232"
+    },
+    "Grow": {
+      "address": "0x51de90",
+      "size": 75,
+      "sha256": "102b387aacdaef9f3e18fb15b39c45948b8d165d0bf730d12a2a222526ce77e3"
+    },
+    "GetBuffer": {
+      "address": "0x51dee0",
+      "size": 26,
+      "sha256": "265f4675367c5007e17db01d0370edd16ad26c107244334bb843622d010c3554"
+    },
+    "Assign": {
+      "address": "0x52d610",
+      "size": 62,
+      "sha256": "5e8211e4f98122d834f9d4d8c3fae056b00316ca4ba856fc3c9da7865ce17791"
+    },
+    "Destruct": {
+      "address": "0x50d390",
+      "size": 14,
+      "sha256": "bbc61b2de5a92c571f1672f007c6aeed5c78d901447c185d1e7741a71bda8d84"
+    }
+  }
+}

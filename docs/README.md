@@ -17,7 +17,7 @@
 - [Collision notifications](pc-collision-notifications.md): collision sound wrappers, game message post and profile readers.
 - [Track markers](pc-track-markers.md): position marker chunk, queries and the race-start grid used for the native spawn.
 - [Freeroam HUD](pc-hud-freeroam.md): turbo/NOS/heat, shift light, career text, GPS and notification scheduling, mask dispatch and bounded animation evidence.
-- [Pause menu](pc-pause-menu.md): `UI_Pause.fng` object, option lists and item handlers, with SEH-aware original/rebuilt verification; runs in the native demo on `Esc`.
+- [Pause menu](pc-pause-menu.md): `UI_Pause.fng` object, option lists and item handlers, with owned UTF-16 storage and SEH-aware original/rebuilt verification; runs in the native demo on `Esc`.
 - [In-game settings](pc-pause-options.md): recovered category screens and option handlers, bounded verification, and native list/widget seams.
 - [Controls](pc-controls.md): keyboard binding item recovery, native Controls page, and SDL gamepad/mouse UI routing.
 - [Racing](pc-racing.md): drift ranking, career reward/eligibility recovery, and bounded verification.

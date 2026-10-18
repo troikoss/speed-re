@@ -69,6 +69,7 @@ struct FengResponse {
 const FengResponse *FindFengResponse(const std::vector<FengResponse> &responses, unsigned int message);
 
 struct FengObject : FEStringObject {
+    ~FengObject();
     // Original prefix (HudVisibilityObject): guidC ('OP' +0), hash10 ('Oh'), type18 (1 image,
     // 2 string, 5 group), flags1C, texture24 (image resource hash), data2C (-> colour below),
     // script list scripts4C / currentScript54 (FEScript headers of `scripts`), child list.
@@ -83,7 +84,6 @@ struct FengObject : FEStringObject {
     float uv[4];             // 17..20 (images)
     // Strings
     std::string text;
-    std::vector<unsigned short> originalText;
     unsigned int font;       // 'SH': string label hash (0x534fc0 hands it to 0x4fe940), not a font
     unsigned int fontHash;   // resource hash of the string's .ffn font (object +0x24)
     // Set by FengPackage

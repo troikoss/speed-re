@@ -741,8 +741,9 @@ HUD and pause loading bind that receiver; initial SH hashes are preserved at
 +0x60 instead of being overwritten by native child counts. Localization, initial
 asset loading and allocation remain native seams, and the observer's other
 original methods/behavior have not been recovered. The interactive renderer
-still uses native text storage; this does not establish the original string
-manager implementation.
+used native text storage at this checkpoint. The later
+[owned UTF-16 storage checkpoint](#owned-utf-16-storage-in-native-strings) replaces
+that buffer ownership; full original string-manager behavior remains pending.
 
 The GPS updater `0x4c8410` also calls this address. Its former provisional helper
 `HudObjectTexture` incorrectly sent language hashes to the native image-texture
@@ -2862,3 +2863,68 @@ scenarios and slider fill/knob pixels, all 10 Controls scenarios, pause/scroller
 motion and settled centering, and modded HUD translation at 640x480, 1280x720,
 1680x720 and 2560x720. These check current demo behavior; full original factory
 ownership and reader composition are not established by the native wrapper.
+
+### Owned UTF-16 storage in native strings
+
+`FEngTextStorage.cpp` recovers five further UG2 PC v1.2 entries. The existing
+8-byte storage constructor at `0x51de80` remains in `FEngObjectConstructors.cpp`.
+String-object `+0x64` is its text pointer and `+0x68` is its capacity word.
+
+| Entry | Address | Full PE span | Observed behavior |
+| --- | --- | ---: | --- |
+| `FEngCopyText` | `0x511630` | 49 bytes | Forward UTF-16 copy; null destination is untouched, null source empties destination |
+| `Grow` | `0x51de90` | 75 bytes | Compare request to current text length; allocate `request*2+2`, copy, free old text, store new pointer |
+| `GetBuffer` | `0x51dee0` | 26 bytes | Call actual `Grow` only when request exceeds capacity; return fresh pointer |
+| `Assign` | `0x52d610` | 62 bytes | Null source is unchanged; otherwise compare length+1 to capacity, grow if needed, then copy |
+| `Destruct` | `0x50d390` | 14 bytes | Free nonnull text; leave both fields unchanged |
+
+The growth comparison is deliberately **length**, rather than capacity: direct
+`Grow` can replace a larger allocation with a smaller one. Capacity is written
+before allocation. The copy source is reloaded after the allocator returns; the
+old pointer is reloaded before free, and the new pointer is stored after free.
+Arithmetic remains unsigned 32-bit, including allocation-size wrap. No extra
+null/allocation guards or field resets have been added to recovered code.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_text_storage.py --compiler clang-cl --mutation-checks
+```
+
+The verifier checks the executable SHA-256 and full function spans in
+`config/SPEED2_EXE_1_2/feng-text-storage.json`. It executes original and rebuilt
+routines with actual recovered nested calls, controlling only allocation/free at
+`0x575620` and `0x575630`. **5,120 comparisons** pass, including null/empty and
+non-ASCII code units, identical/forward-overlapping copy buffers, capacity/length
+boundaries, wrapped size arguments, null allocation returns and heap callbacks
+that change pointer/capacity fields. It compares full fixture memory, ordered
+callee/heap arguments and memory snapshots, defined pointer returns, preserved
+registers and stack balance. **Nine semantic mutations** are rejected; build/link
+failures are not counted as semantic rejections. The heap fixture supplies mapped
+storage without unmapping freed blocks or enforcing requested allocation sizes;
+wrapped-size and alias cases establish instruction behavior in that fixture,
+not memory safety or a valid allocator contract. Reverse-overlapping nonterminating
+copies and exhaustive input/heap-failure coverage are not claimed. Generated
+reports and mutation logs stay under ignored `build/analysis/feng-text-storage/`.
+Clang behavioral verification passes; MSVC 7.1/wibo and byte matching remain pending.
+
+The native FNG loader now sends bounded `St` UTF-16 input through actual `Assign`;
+`FengPackage::SetText` converts renderer/localization bytes to a temporary UTF-16
+input and uses the same recovered method. The persistent `originalText` vector is
+removed. Native finalization no longer overwrites string `+0x64` with a child
+pointer. The wrapper's destructor calls recovered storage `Destruct` for type 2.
+Native heap adapters were moved from the pause screen to the FNG module so this
+ownership path also links into the asset-free parser fixture.
+
+This is storage integration, not complete string-object or reader recovery.
+Normal string destructor `0x4956a0`, property reader `0x534fc0`, label helpers,
+original localization, complete object/state/list ownership, reader iteration and
+SEH unwind are still separate work. The C++ wrapper, temporary bounded input,
+byte rendering projection and native observer are documented platform seams.
+The native synthetic package fixture checks retained non-ASCII UTF-16, pointer
+reuse for shorter/empty assignments, longer growth and repeated package teardown.
+
+Native and mod-enabled builds and all three asset-free CTests pass with this
+storage active. Headless retail-asset integration passes all 19 settings
+scenarios and slider fill/knob pixels, all 10 Controls scenarios, pause/scroller
+motion and settled centering, and modded HUD translation at 640x480, 1280x720,
+1680x720 and 2560x720. These establish current native integration behavior,
+separately from the bounded original/rebuilt storage comparisons above.
