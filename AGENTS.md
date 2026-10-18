@@ -17,6 +17,16 @@ Always decompile the original UG2 code; never author replacement game code yours
 - The main agent reviews the subagent's diff and runs the relevant verifiers itself before reporting results.
 - For broad code or file searches whose answer needs only the conclusion, use an explorer subagent: launch it with the Agent tool using `subagent_type: "Explore"`, `model: "haiku"`, and `effort: "high"`. Its brief must state the question and the search breadth. It is read-only and must not edit files.
 
+## Ghidra MCP
+
+The `ghidra-mcp` server (tools named `mcp__ghidra-mcp__*`) gives live access to the UG2 binary in a Ghidra project. Use it to read disassembly, decompilation, xrefs, and strings while recovering routines.
+
+- Start with `list_instances`, then `connect_instance` for the UG2 project, and `list_open_programs` to confirm the target. Pass the `program` argument explicitly when several programs are open.
+- Prefer read-only tools (`disassemble_function`, `disassemble_bytes`, `read_memory`, `get_functions`, `search_strings`, `list_strings`, `get_language_metadata`). Use `dry_run: true` before any mutating call.
+- Mutating tools (`rename_function`, `set_function_prototype`, `set_variables`, `set_variable_type`, `create_function`, `delete_function`, `clear_flow_and_repair`, `set_memory_block`, `save_program`, `exit_ghidra`, `import_file`) change the Ghidra project. Ask before using them. `clear_flow_and_repair` is not idempotent and can clear code.
+- `run_ghidra_script` requires `GHIDRA_MCP_ALLOW_SCRIPTS=1` on the server.
+- Ghidra names, types, and decompiler output are analysis aids, not evidence. Record only what the binary shows, cite the original address, and confirm matches with the `tools/verify_pc_*` verifiers. Ghidra project files (`speed-re.*`) are git-ignored; keep them out of commits.
+
 ## Project Structure & Module Organization
 
 - `src/Speed/Indep/Src/`: recovered physics, collision, gameplay, camera, HUD, and world routines.
