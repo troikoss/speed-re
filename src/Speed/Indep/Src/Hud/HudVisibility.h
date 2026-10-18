@@ -47,7 +47,6 @@ UG2_CHECK_SIZE(FEScriptTrack, 0x38);
 // Native FNG objects retain this prefix so recovered routines operate on it directly.
 struct HudVisibilityObject {
     FEScript *FindScriptByHash(unsigned int hash); // 0x5046b0
-    void Call516E90(int x, int y);
     void Call52BD70(int x, int y);
     void InitializeScript(); // 0x517720
     void SetScript(FEScript *script); // 0x5178b0

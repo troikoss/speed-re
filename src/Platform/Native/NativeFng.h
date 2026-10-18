@@ -12,6 +12,7 @@
 #include "../../Speed/Indep/Src/Frontend/FEngCoordinates.h"
 #include "../../Speed/Indep/Src/Frontend/FEngResponse.h"
 #include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
+#include "../../Speed/Indep/Src/Frontend/FEngList.h"
 
 #include <GL/gl.h>
 #include <string>
@@ -70,6 +71,7 @@ struct FengObject : FEStringObject {
     // Original prefix (HudVisibilityObject): guidC ('OP' +0), hash10 ('Oh'), type18 (1 image,
     // 2 string, 5 group), flags1C, texture24 (image resource hash), data2C (-> colour below),
     // script list scripts4C / currentScript54 (FEScript headers of `scripts`), child list.
+    unsigned char listStorage78[0x34]; // Native storage seam: type-4 prefix extends to 0xac.
     unsigned int parentGuid; // ObjD 'PA'
     int resource;            // ObjD 'OP' +0xc (index into the resource table)
     unsigned int colour[4];  // state block dwords 0..3: B, G, R, A (data2C points here)
@@ -92,6 +94,7 @@ struct FengObject : FEStringObject {
 
     std::vector<FengScript> scripts;
     std::vector<FengResponse> responses;
+    std::vector<FEListAxisEntry> listColumns, listRows; // Native ownership, original 12-byte records.
     float scriptRemainder;   // native frame-time fraction below currentScript54->time10
 
     bool Hidden() const { return (flags1C & 1) != 0; }
@@ -99,6 +102,7 @@ struct FengObject : FEStringObject {
 
 UG2_CHECK_OFFSET(FengObject, justification6C, 0x6c);
 UG2_CHECK_OFFSET(FengObject, leading70, 0x70);
+UG2_CHECK_OFFSET(FengObject, parentGuid, 0xac);
 typedef char FengObject_position_state_check[(UG2_OFFSETOF(FengObject, position) - UG2_OFFSETOF(FengObject, colour) == 0x1c) ? 1 : -1];
 typedef char FengObject_size_state_check[(UG2_OFFSETOF(FengObject, size) - UG2_OFFSETOF(FengObject, colour) == 0x38) ? 1 : -1];
 

@@ -5,6 +5,41 @@
       "address": "0x516e90",
       "size": 927,
       "sha256": "1f2832b8a9cfb49e567eb3d882554898898770de27bf70b7cfca8890be56d486"
+    },
+    "CalculateOffsets": {
+      "address": "0x504360",
+      "size": 75,
+      "sha256": "426ca817e77f76a51cff44b3c3f8535334aa03bdf2c952a43914d3775527135f"
+    },
+    "FinishMotion": {
+      "address": "0x5043b0",
+      "size": 66,
+      "sha256": "dd154da03373dafd9b3c94aad008ee968da49b56ed4e7b81979638f344134837"
+    },
+    "Tick": {
+      "address": "0x517230",
+      "size": 221,
+      "sha256": "166747abc1a4b50f03fe0527f4ffbda64166bd021906b2b96f9749ade311b819"
+    },
+    "SetColumn": {
+      "address": "0x504180",
+      "size": 45,
+      "sha256": "786d54a70534ea05bdba90035b4737881646d94f1a28d35b92aa81dd77ce165d"
+    },
+    "SetRow": {
+      "address": "0x5041b0",
+      "size": 45,
+      "sha256": "3afc714a049f3d207c8f9a2f9d23eb006fd43204bf6e66e3f32e78eedf98fd7e"
+    },
+    "AdvanceCell": {
+      "address": "0x504230",
+      "size": 57,
+      "sha256": "28049c5bf4ea6d66d48c3be8d1dfdc3198720cb111f610f875bfa79730f3f2c6"
+    },
+    "SetWrap": {
+      "address": "0x504270",
+      "size": 29,
+      "sha256": "c02a31b7cc9dd20efb785b45a225e70185a55404fb4cef79e9914e5855bbd509"
     }
   }
 }

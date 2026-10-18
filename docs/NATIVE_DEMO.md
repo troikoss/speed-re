@@ -356,8 +356,13 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   `0x51b000`/`0x52c750` now execute recovered code. Queued response masks are preserved.
   Native loading projects linked response prefixes and explicit Targ subscription rows.
   Operation consumer `0x5559c0` also executes recovered code. Package load/remove,
-  four package-operation enqueue boundaries and type 4/6 navigation mutators still
+  four package-operation enqueue boundaries and the type 6 navigation mutator still
   trap; parser ownership, owner callbacks and registry data remain native.
+  Type 4 navigation, offset setup, selection and motion now use recovered code
+  over a native 0xac-byte prefix/axis-vector projection. Its allocator, cells,
+  cell rendering and frame clock remain seams. Asset-free CTest `feng_list_native`
+  checks the actual native parser through navigation and settling.
+  See [list-state evidence](pc-pause-menu.md#list-setup-motion-and-native-projection-2026-10-18).
   See [message delivery evidence](pc-pause-menu.md#full-queued-message-delivery-2026-10-18).
   Native loading now selects/initializes Init as observed in the original readers. See [response evidence](pc-pause-menu.md#response-conditional-traversal-2026-10-18).
 - GUI formatted hashing `0x50b9c0`, buffer wrapper `0x50c960`, shared profiling

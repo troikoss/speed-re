@@ -559,7 +559,6 @@ public:
     void MessageDelivering(unsigned int, int, void *, FEPackage *, unsigned int) {}
 };
 static NativeQueueOwner nativeQueueOwner;
-void HudVisibilityObject::Call516E90(int, int) { NativeTrap("FEng type4 navigation 0x516e90"); }
 void HudVisibilityObject::Call52BD70(int, int) { NativeTrap("FEng type6 navigation 0x52bd70"); }
 
 // ---- IconScroller base seams --------------------------------------------------------------

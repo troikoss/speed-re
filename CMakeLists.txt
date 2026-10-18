@@ -82,3 +82,13 @@ target_link_options(ug2fengqueue_native_test PRIVATE -m32 -no-pie)
 if(BUILD_TESTING)
     add_test(NAME feng_queue_native COMMAND ug2fengqueue_native_test)
 endif()
+
+# Synthetic FNG parser/list integration; unused rendering sections are discarded.
+add_executable(ug2fenglist_native_test src/Platform/Native/FEngListNativeTest.cpp src/Platform/Native/NativeFng.cpp)
+target_compile_options(ug2fenglist_native_test PRIVATE ${UG2_ARCH_FLAGS} -O1 -g -ffunction-sections -fdata-sections
+    -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+target_link_libraries(ug2fenglist_native_test ug2recovered m)
+target_link_options(ug2fenglist_native_test PRIVATE ${UG2_LINK_FLAGS} -Wl,--gc-sections)
+if(BUILD_TESTING)
+    add_test(NAME feng_list_native COMMAND ug2fenglist_native_test)
+endif()

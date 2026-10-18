@@ -42,7 +42,7 @@ def main():
                   ['clang-cl','--target=i686-pc-windows-msvc','/GS-','/GR-','/w','/arch:IA32','/clang:-fno-strict-aliasing'])
         subprocess.run(compiler+['/nologo','/c','/O2','/Ob0','/Fo'+str(obj.relative_to(ROOT)),'/Isrc/Speed/Indep/Src/Frontend',os.path.relpath(source,ROOT)],cwd=ROOT,check=True)
         objects.append(obj)
-    externals={};imports={'ExecuteResponse':0x52c7c0,'Call516E90':0x516e90,'Call52BD70':0x52bd70,
+    externals={};imports={'ExecuteResponse':0x52c7c0,'Navigate':0x516e90,'Call52BD70':0x52bd70,
                           'FEngAllocateQueueNode':0x575620,'FEngFreeQueueNode':0x575630}
     for obj in objects:
         for s in read_object(obj)['symbols'].values():
@@ -198,7 +198,7 @@ def main():
             'skip-object-responses':('if (response) ExecuteResponse(response, object, package, mask);', 'if (false) ExecuteResponse(response, object, package, mask);'),
             'ignore-type4-handler':('object->type18 == 4 &&', 'object->type18 == 5 &&'),
             'ignore-type6-handler':('object->type18 == 6 &&', 'object->type18 == 7 &&'),
-            'wrong-type4-navigation':('Call516E90(1, 0)', 'Call516E90(0, 1)'),
+            'wrong-type4-navigation':('Navigate(1, 0)', 'Navigate(0, 1)'),
             'wrong-type6-navigation':('Call52BD70(1, 0)', 'Call52BD70(0, 1)'),
         }
         for name,(before,after) in mutations.items():

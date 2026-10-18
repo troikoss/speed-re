@@ -242,6 +242,7 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                             object->uv[2] = object->uv[3] = 1;
                             std::vector<unsigned char> state;
                             std::vector<std::vector<unsigned char> > scripts;
+                            int listColumn = -1, listRow = -1, listCell = -1;
                             size_t s = r + 8;
                             while (s + 8 <= end3) {
                                 unsigned int id4 = Rd32(data + s);
@@ -253,7 +254,18 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                         unsigned int len = Rd16(data + t + 2);
                                         const unsigned char *pl = data + t + 4;
                                         switch (tag) {
-                                        case 0x744f: object->type18 = (int)Rd32(pl); break;  // 'Ot'
+                                        case 0x744f:
+                                            object->type18 = (int)Rd32(pl); // 'Ot'
+                                            if (object->type18 == 4) {
+                                                // Prefix projection of 0x5349c0, not original allocation/ownership.
+                                                FEListObject *list = reinterpret_cast<FEListObject *>(object);
+                                                memset(reinterpret_cast<unsigned char *>(object) + 0x5c, 0, 0x50);
+                                                list->value5C = 4;
+                                                list->value80 = list->value84 = list->valueA4 = 1;
+                                                unsigned int bits = 0xbab60b61;
+                                                memcpy(&list->valueA8, &bits, 4);
+                                            }
+                                            break;
                                         case 0x684f: object->hash10 = Rd32(pl); break;       // 'Oh'
                                         case 0x504f:                                       // 'OP'
                                             object->guidC = Rd32(pl);
@@ -275,6 +287,50 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                         case 0x4853: object->font = Rd32(pl); break;                 // 'SH'
                                         case 0x6c53: object->leading70 = (int)Rd32(pl); break;         // 'Sl'
                                         case 0x7753: object->maxWidth74 = Rd32(pl); break;             // 'Sw'
+                                        case 0x644c: // Ld: observed 0x52b740 dimension records.
+                                            if (object->type18 == 4 && len >= 8) {
+                                                object->listColumns.resize(Rd32(pl));
+                                                object->listRows.resize(Rd32(pl + 4));
+                                                FEListObject *list = reinterpret_cast<FEListObject *>(object);
+                                                list->count60 = object->listColumns.size();
+                                                list->count64 = object->listRows.size();
+                                                list->SetColumn(0); list->SetRow(0);
+                                                listColumn = listRow = listCell = -1;
+                                            }
+                                            break;
+                                        case 0x6343: // Cc: 0x52b740 advances before every cell after the first.
+                                            if (object->type18 == 4 && ++listCell) reinterpret_cast<FEListObject *>(object)->AdvanceCell();
+                                            break;
+                                        case 0x634c: // Lc: column extent and unidentified value+8.
+                                            if (object->type18 == 4 && len >= 8 && ++listColumn < (int)object->listColumns.size()) {
+                                                object->listColumns[listColumn].value0 = RdF(pl);
+                                                object->listColumns[listColumn].value8 = RdF(pl + 4);
+                                            }
+                                            break;
+                                        case 0x724c: // Lr: row extent and unidentified value+8.
+                                            if (object->type18 == 4 && len >= 8 && ++listRow < (int)object->listRows.size()) {
+                                                object->listRows[listRow].value0 = RdF(pl);
+                                                object->listRows[listRow].value8 = RdF(pl + 4);
+                                            }
+                                            break;
+                                        case 0x734c: // Ls
+                                            if (object->type18 == 4 && len >= 8) {
+                                                FEListObject *list = reinterpret_cast<FEListObject *>(object);
+                                                list->value80 = RdF(pl); list->value84 = RdF(pl + 4);
+                                            }
+                                            break;
+                                        case 0x764c: // Lv
+                                            if (object->type18 == 4 && len >= 8) {
+                                                FEListObject *list = reinterpret_cast<FEListObject *>(object);
+                                                list->value68 = RdF(pl); list->value6C = RdF(pl + 4);
+                                            }
+                                            break;
+                                        case 0x774c: // Lw: 0x504270 clears flag4 when true.
+                                            if (object->type18 == 4 && len >= 4) {
+                                                FEListObject *list = reinterpret_cast<FEListObject *>(object);
+                                                list->SetWrap(Rd32(pl) != 0);
+                                            }
+                                            break;
                                         }
                                         t += 4 + len;
                                     }
@@ -284,6 +340,12 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                     scripts.push_back(std::vector<unsigned char>(data + s + 8, data + end4));
                                 }
                                 s = end4;
+                            }
+                            if (object->type18 == 4) {
+                                FEListObject *list = reinterpret_cast<FEListObject *>(object);
+                                list->value78 = object->listColumns.empty() ? 0 : &object->listColumns[0];
+                                list->value7C = object->listRows.empty() ? 0 : &object->listRows[0];
+                                list->CalculateOffsets(); // 0x5554a0 calls this before script initialization.
                             }
                             // Run the INIT script's tracks over the state block (0x541f60 at time 0).
                             for (size_t si = 0; si < scripts.size(); ++si) {
@@ -383,8 +445,8 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
     for (size_t i = 0; i < objects_.size(); ++i) {
         FengObject *object = objects_[i];
         if (object->type18 == 2) object->languageHash60 = object->font;
-        else object->childCount60 = (int)object->children.size();
-        object->firstChild64 = object->children.empty() ? 0 : object->children[0];
+        else if (object->type18 != 4) object->childCount60 = (int)object->children.size();
+        if (object->type18 != 4) object->firstChild64 = object->children.empty() ? 0 : object->children[0];
         if (object->type18 == 2) {
             if (object->originalText.empty()) {
                 for (size_t k = 0; k < object->text.size(); ++k) object->originalText.push_back((unsigned char)object->text[k]);
@@ -556,6 +618,8 @@ void FengPackage::AdvanceScripts(float seconds) {
         if (!cycling && milliseconds > script.duration) milliseconds = (float)script.duration + 1.0f;
         script.header.time10 = (int)milliseconds;
         object->scriptRemainder = milliseconds - (float)script.header.time10;
+        // Native clock adapter; 0x54ce60 ticks type4 after script state application.
+        if (object->type18 == 4) reinterpret_cast<FEListObject *>(object)->Tick(seconds * 1000.0f);
     }
 }
 

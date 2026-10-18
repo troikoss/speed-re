@@ -114,7 +114,7 @@ void FEListObject::Navigate(int x, int y) {
     double dy = value98 - value74;
     value9C = dx;
     valueA0 = dy;
-    double length = sqrt(dx * dx + dy * dy);
+    double length = sqrt(dy * dy + dx * dx);
     // Original x87 parity test also takes this branch for unordered length.
     if (!(length < 0.1f)) {
         double scale = 1.0f / length;

@@ -17,6 +17,13 @@ struct FEListObject {
     void *value90;
     volatile float value94, value98;
     float value9C, valueA0, valueA4, valueA8;
+    void SetColumn(unsigned int value); // 0x504180
+    void SetRow(unsigned int value); // 0x5041b0
+    void AdvanceCell(); // 0x504230
+    void SetWrap(unsigned char value); // 0x504270
+    void CalculateOffsets(); // 0x504360
+    void FinishMotion(); // 0x5043b0
+    void Tick(float milliseconds); // 0x517230
     void Navigate(int x, int y); // 0x516e90, thiscall
 };
 UG2_CHECK_SIZE(FEListAxisEntry, 0xc);

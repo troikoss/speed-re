@@ -20,8 +20,6 @@ void *FEngAllocateQueueNode(unsigned int size) { ++allocations; return malloc(si
 void FEngFreeQueueNode(void *pointer) { ++deallocations; free(pointer); }
 void FEngQueue::Call5362E0(FEPackage *) { abort(); }
 FEPackage *FEngQueue::Call555860(const char *, unsigned char, unsigned int) { abort(); }
-// Test-only projection bridge: the fixture below has a complete original type-4 prefix.
-void HudVisibilityObject::Call516E90(int x, int y) { reinterpret_cast<FEListObject *>(this)->Navigate(x, y); }
 void HudVisibilityObject::Call52BD70(int, int) { abort(); }
 void FEngQueue::ExecuteResponse(FEResponse *, HudVisibilityObject *object, FEPackage *package, unsigned int mask) {
     ++responseCalls; deliveredMask = mask; deliveredObject = object; deliveredPackage = package;

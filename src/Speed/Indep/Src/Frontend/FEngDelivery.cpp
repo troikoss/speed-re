@@ -1,13 +1,14 @@
 #include "FEngPackage.h"
 #include "FEngResponse.h"
+#include "FEngList.h"
 
 // Original 0x51b000 / 0x52c750: special object handlers precede response lookup.
 unsigned char __stdcall FEngHandleObject4(HudVisibilityObject *object, FEPackage *, unsigned int message) {
     switch (message) {
-    case 0x030471ac: object->Call516E90(1, 0); return 1;
-    case 0xe10814a6: object->Call516E90(0, 1); return 1;
-    case 0xe10c4af9: object->Call516E90(-1, 0); return 1;
-    case 0xfb814f13: object->Call516E90(0, -1); return 1;
+    case 0x030471ac: reinterpret_cast<FEListObject *>(object)->Navigate(1, 0); return 1;
+    case 0xe10814a6: reinterpret_cast<FEListObject *>(object)->Navigate(0, 1); return 1;
+    case 0xe10c4af9: reinterpret_cast<FEListObject *>(object)->Navigate(-1, 0); return 1;
+    case 0xfb814f13: reinterpret_cast<FEListObject *>(object)->Navigate(0, -1); return 1;
     }
     return 0;
 }

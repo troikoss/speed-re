@@ -2028,7 +2028,8 @@ vertical movement, direction normalization and early return before response
 execution. Native and mod-enabled builds pass, and the expanded CTest passes
 without a retail installation, display, SDL or OpenGL.
 
-**Retail integration remains pending.** Native `FengObject` extends the string
+**Retail integration was pending at this checkpoint; the following section
+supersedes that limitation.** Native `FengObject` extends the string
 prefix and uses later bytes for native metadata; calling the leaf on it would
 corrupt that metadata. The production type-4 navigation trap therefore remains.
 The original factory 0x534df0 allocates 0xac bytes and calls constructor 0x5349c0;
@@ -2040,3 +2041,94 @@ still need tracing before replacing the production trap. These reader/constructo
 observations are static evidence, not recovered implementations in this commit.
 Type-6 0x52bd70 calls 0x518f20 twice; that helper reshuffles 0x30-byte cells and
 invokes callbacks. Neither its body nor a native grid projection is recovered.
+
+## List setup, motion and native projection (2026-10-18)
+
+`FEngListState.cpp` adds seven original routines to the recovered type-4 list:
+
+| Routine | Address | Full span | Behavior |
+|---|---|---|---|
+| `SetColumn` / `SetRow` | 0x504180 / 0x5041b0 | 45 each | Unsigned clamp; empty axis selects zero |
+| `AdvanceCell` | 0x504230 | 57 | Advance columns, then rows, wrapping both |
+| `SetWrap` | 0x504270 | 29 | Low-byte truth clears clamp bit 4; false sets it |
+| `CalculateOffsets` | 0x504360 | 75 | Write entry +4 before accumulating entry +0, independently for each axis |
+| `FinishMotion` | 0x5043b0 | 66 | Snap to targets, clear motion flags and reset zero-index offsets |
+| `Tick` | 0x517230 | 221 | Bounded phase/reversal, directional motion, overshoot test and actual call to FinishMotion |
+
+Manifest `feng-list.json` fingerprints every complete span, including RET
+immediates. Reader 0x5554a0 calls 0x504360 after object records and before Init
+track application. Its cumulative sum stays in x87 precision despite writing a
+float at each entry +4. Tick likewise retains wide phase and position values;
+its vertical step alone has an observed float stack spill before adding the
+current vertical position. Dot-product overshoot uses the unrounded positions,
+then calls 0x5043b0 through the original boundary. Assembly operand order
+retains the vertical product before the horizontal product in sums (including
+the navigation length). Source preserves these
+arithmetic and call boundaries. A compiler-intrinsic spelling maps wide absolute
+value to the original FABS operation; no replacement motion algorithm is added.
+A phase just above 1 by less than a double ULP reverses at x87 precision 0x37f,
+but not at 0x27f; the verifier checks that distinction. The legacy MSVC spelling
+remains compilable but is unverified without that compiler/runtime.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_list_state.py --compiler clang-cl --mutation-checks
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_delivery.py --compiler clang-cl --mutation-checks
+ctest --test-dir build/native -R '^feng_(queue|list)_native$' --output-on-failure
+```
+
+The state verifier passes **69,632 original/rebuilt comparisons**. These include
+4,096 sequences of CalculateOffsets, Navigate and eight Tick calls, comparing
+state after every call, with actual FinishMotion execution and call tracing.
+There are **no controlled callees**. Cases cover empty/nonempty axes, arbitrary
+selection words, low-byte wrap arguments, finite random values, negative/zero/
+positive elapsed values, clamp boundaries and both x87 control words. Coverage
+gates hit both offset loops, selection/wrap branches, phase clamps/reversal,
+motion and the finishing call. All **23 mutations** are rejected by state or
+call-order mismatches; compilation failures do not count. The delivery verifier
+also passes its **32,768 comparisons / 22 mutations** with the typed Navigate
+call replacing the old external method name.
+
+All mapped final bytes, preserved registers and stack cleanup are checked.
+Ordered writes exclude only nonvolatile flags, selection indices and phase
++0xa4, which Clang can coalesce; their final bytes remain exact. Floating stores
+at the wrap/motion positions and offset arrays remain in the write comparison.
+The Clang state run uses extended evaluation and an 80-bit long-double type.
+This finite result does not prove arbitrary aliasing, malformed arrays, all
+floating values/rounding modes, unmasked exceptions, native frame orchestration
+or byte matching. MSVC 7.1/wibo remain unavailable. Reports stay ignored under
+`build/analysis/feng-list-state/`.
+
+The **production type-4 trap is removed**. The directional handler calls the
+recovered typed Navigate directly, retaining its original call boundary. Native
+`FengObject` reserves the full prefix through 0xac, with native metadata beginning
+at 0xac and a compile-time offset check. Constructor defaults and valid-file
+`Ld`/`Lc`/`Lr`/`Ls`/`Lv`/`Lw` records supply its observed fields and owned axis
+vectors. `Cc` records call recovered AdvanceCell after the first record; they
+must not leave selection at the constructor's zero. Recovered setters handle
+initial selection/wrapping, and CalculateOffsets runs before Init application.
+Group-link projection no longer overwrites the list counts at +0x60/+0x64.
+
+Native AdvanceScripts calls recovered Tick after script-state application,
+using its existing seconds-to-milliseconds clock adapter. The original 0x54ce60
+converts an integer elapsed argument; complete original frame traversal, clock
+rounding and lifecycle remain seams. The native current-script guard is retained.
+The original allocating constructor, dimension/cell ownership, cell payloads,
+cell rendering, malformed/inherited records and the type-6 grid remain
+unrecovered. The vectors/prefix projection are native scaffolding, not a claim
+that the original object reader/allocator is recovered.
+
+The queue CTest now calls the typed recovered Navigate directly, removing its
+former test-only navigation adapter. New **`feng_list_native`** uses the actual
+native FNG parser with synthetic dimensions, axis data, three `Cc` records and
+an empty-track Init script. It checks count preservation, +4 offsets, hash/GUID
+lookup through the list prefix, native metadata integrity, clamp/wrap movement
+and settling through AdvanceScripts/Tick. Unexercised localization/script trap
+interfaces abort if reached. Its unused rendering sections are discarded; it
+links neither SDL nor OpenGL and needs no assets or display. Both native CTests
+and native/mod-enabled builds pass.
+
+Headless retail integration passes all 19 settings scenarios, slider fill/knob
+pixels, all 10 Controls scenarios, scroller motion/settled centring and modded
+HUD checks at 640x480, 1280x720, 1680x720 and 2560x720. Those tests check current
+demo behavior; the synthetic fixture specifically covers nonempty type-4 lists.
+They do not establish original reader/cell-renderer/frame-manager recovery.
