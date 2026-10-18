@@ -327,6 +327,12 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   `0x495780` is separately recovered and verified. Complete original ownership and
   production virtual dispatch remain pending.
   See [string reader evidence](pc-pause-menu.md#complete-string-property-dispatch-and-member-label-helpers).
+- Native image/group/list teardown now invokes recovered `0x532660`/`0x534bf0`/
+  `0x534a50`, alongside string destruction. Original list storage/cell release
+  `0x516dc0`/`0x5042e0` and the three deleting wrappers are verified together with
+  base/pool/list cleanup. Native adapters detach borrowed children, axes, state
+  and vector-owned headers; original production ownership remains pending.
+  See [typed cleanup evidence](pc-pause-menu.md#image-group-and-type-4-list-cleanup).
 - Typed string/image lookup (`0x537a10`/`0x537a60`), generic wrapper `0x5379c0`,
   recursive object traversal and package-list fallback now execute recovered code.
   Native loading constructs root/child links; shown-screen membership and order,

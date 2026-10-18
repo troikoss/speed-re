@@ -3094,3 +3094,89 @@ fill/knob pixels, 10 Controls scenarios, scroller motion/settled centering, and
 HUD skin translation at 640x480, 1280x720, 1680x720 and 2560x720. Package resets,
 return/resume and reopening checks exercise production wrapper teardown; they do
 not establish original state/list ownership or exception unwinding.
+
+### Image, group and type-4 list cleanup
+
+`FEngTypedLifecycle.cpp` recovers eight further UG2 PC v1.2 entries. Full PE
+spans and the three original scalar-deleting vtable slots are fingerprinted in
+`config/SPEED2_EXE_1_2/feng-typed-lifecycle.json`.
+
+| Entry | Address | Full span | Original behavior |
+| --- | --- | ---: | --- |
+| Image normal destruction | `0x532660` | 11 bytes | Set image vtable `0x79ba0c`, tail-jump to actual base destruction |
+| Image scalar deleting wrapper | `0x534dd0` | 30 bytes | Actual normal cleanup, free object if `flags & 1`, return original pointer |
+| Group normal destruction | `0x534bf0` | 82 bytes | Set child-list `+0x5c` value0 to `0x79a9ec`, actual `ClearOwned`, then actual base destruction |
+| Group scalar deleting wrapper | `0x534bd0` | 30 bytes | Actual normal cleanup, optional low-bit object free, return original pointer |
+| List normal destruction | `0x534a50` | 79 bytes | Set list vtable `0x79bae4`, actual storage release, then actual base destruction |
+| List scalar deleting wrapper | `0x541d90` | 30 bytes | Actual normal cleanup, optional low-bit object free, return original pointer |
+| List storage release | `0x516dc0` | 78 bytes | If owned bit0 at `+0x5c`, clear it, release counted axes and reset their pointers/counts, then tail-jump to cell release |
+| List cell release | `0x5042e0` | 114 bytes | Scan unsigned32 `count64*count60` cells at stride `0x30`; free nonnull `+0x20` only for `+0x18 == 2`; free/reset cell array |
+
+Group normal destruction does **not** rewrite the object's own vtable before
+clearing children. Axis frees are selected by nonzero counts, including a null
+axis pointer, and reset pointer/count only after the free callback. Cell cleanup
+reloads the array after each owned-cell free before clearing `+0x20`, and reloads
+it again for the final array free. A zero count product performs no frees or
+writes, even with a nonnull array. The product wraps as unsigned 32-bit arithmetic.
+
+Preserve the original storage-order quirk: ordinary owned-axis release zeros
+both counts before calling cell release, so cell release sees product zero and
+leaves `+0x90` untouched. The implementation does not move cell release earlier
+or reset that pointer opportunistically. Direct cell release has its separately
+verified nonzero-product behavior. Original tail jumps are represented by source
+calls with the original helper boundaries; byte matching remains separate.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_typed_lifecycle.py --compiler clang-cl --mutation-checks
+```
+
+**16,384 comparisons** pass, 2,048 per entry. Actual base destruction, pool
+manager/class/slot release, concrete pool block/class destruction and scalar
+wrappers, queue clear/unlink and list-storage/cell helpers execute together.
+Free, destruction observer and synthetic child/script/response deleting slots
+are controlled interfaces; pool deleting slots execute actual recovered code.
+Cases include empty/nonempty owned lists, dirty fields and pool metadata,
+zero/nonzero/null axes, zero and wrapped-zero count products, finite cell scans,
+cell tags 0/1/2/3, null/non-null cell payloads, low/high deleting flags, last-state
+release and callbacks rebinding later pointers, counts, observer or list nodes.
+Full fixture memory and ordered helper/free/virtual arguments and snapshots,
+stack balance, preserved registers, scalar full-word returns and final original
+FS:[0] restoration are compared. **Sixteen semantic mutations** are rejected,
+including early cell cleanup, missing ownership/reset/free operations, cached
+cell bases, extra group-vtable writes and wrong deleting flags/returns. Build or
+link failures do not count as semantic rejection.
+
+This is finite normal-return behavior, not complete coverage, arbitrary aliasing,
+concurrency, SEH registration/unwind or callback inspection of exception frames.
+Controlled heaps retain mapped freed storage. Reports remain ignored under
+`build/analysis/feng-typed-lifecycle/`. Clang verification passes; MSVC 7.1/wibo
+and byte matching remain pending. Ghidra names/signatures/comments are updated;
+its repeated one-byte `create-function` body metadata issue is recorded locally,
+and full PE spans plus original execution remain authoritative.
+
+**Native type-1 images, type-5 groups and type-4 lists now run recovered normal
+cleanup**, alongside type-2 strings. The common native adapter detaches borrowed
+inline state and vector-backed script/response list prefixes. Groups detach the
+borrowed child-list prefix because the package's object vector owns the child
+wrappers. Lists clear the original owned-axis bit because native vectors own the
+axes. C++ members then release their own storage. These explicit ownership seams
+remain separate from recovered code; production allocation, original owned
+state/list nodes and general virtual dispatch still require recovery/integration.
+Other object types are not redirected to these cleanup bodies without evidence.
+
+The native owned-object fixture uses actual group cleanup to delete two image
+children through a private ABI bridge into actual image scalar destruction. It
+checks real cell-payload/array frees, counted axis release, the retained cell-array
+quirk and all three scalar wrappers' low-bit behavior. The parser fixture checks
+that list vectors and a group's child vector remain alive while base cleanup sees
+detached borrowed prefixes. All three native CTests pass. The image `If` property
+case is inline in outer reader `0x555140`; no independent image-reader function
+is claimed or invented by this checkpoint.
+
+Native and mod-enabled builds pass. With recovered typed cleanup active, all
+19 headless settings scenarios and slider fill/knob pixels, all 10 Controls
+scenarios, pause/scroller motion and settled centering, and HUD skins at 640x480,
+1280x720, 1680x720 and 2560x720 pass. These check production wrapper integration
+and package resets, separately from original/rebuilt cleanup evidence. Original
+production state/list allocation, outer reader/inheritance and SEH unwind remain
+pending.

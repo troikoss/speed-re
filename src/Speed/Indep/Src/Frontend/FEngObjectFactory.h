@@ -18,6 +18,8 @@ struct FEngLeafObject {
     char unidentified0[0x5c];
     unsigned int value5C;
     FEngLeafObject *ConstructImage(); // 0x532640, type1
+    void DestructImage(); // 0x532660
+    FEngLeafObject *DestroyImage(unsigned int flags); // 0x534dd0
     FEngLeafObject *ConstructType7(); // 0x52b0b0
     FEngLeafObject *ConstructType9(); // 0x534b90
     FEngLeafObject *ConstructType10(); // 0x534db0
@@ -26,6 +28,8 @@ struct FEngGroupObject {
     char unidentified0[0x5c];
     FEngQueueList children5C;
     FEngGroupObject *Construct(); // 0x52b080
+    void Destruct(); // 0x534bf0, normal return
+    FEngGroupObject *Destroy(unsigned int flags); // 0x534bd0
 };
 struct FEngType11Object {
     char unidentified0[0x5c];

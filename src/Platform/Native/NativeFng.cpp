@@ -33,7 +33,7 @@ void *FEngGridAllocateCells(unsigned int bytes) { return malloc(bytes); }
 void FEngGridFreeCells(void *cells) { free(cells); }
 
 FengObject::~FengObject() {
-    if (type18 == 2) {
+    if (type18 == 1 || type18 == 2 || type18 == 4 || type18 == 5) {
         // Native ownership adapter: the state is inline, and script/response
         // headers belong to vectors. Detach those borrowed prefixes before
         // original string/base cleanup; C++ members release their own storage.
@@ -43,7 +43,24 @@ FengObject::~FengObject() {
         scripts->count4 = responses->count4 = 0;
         scripts->first8 = responses->first8 = 0;
         scripts->valueC = responses->valueC = 0;
-        DestructString();
+        switch (type18) {
+        case 1: reinterpret_cast<FEngLeafObject *>(this)->DestructImage(); break;
+        case 2: DestructString(); break;
+        case 4: {
+            FEListObject *list = reinterpret_cast<FEListObject *>(this);
+            list->value5C &= ~1u; // Native vectors own the axes; no original storage ownership.
+            list->Destruct();
+            break;
+        }
+        case 5: {
+            FEngGroupObject *group = reinterpret_cast<FEngGroupObject *>(this);
+            // Package objects own the children; this list borrows their pointers.
+            group->children5C.count4 = 0;
+            group->children5C.first8 = group->children5C.valueC = 0;
+            group->Destruct();
+            break;
+        }
+        }
     }
 }
 

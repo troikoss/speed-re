@@ -158,8 +158,50 @@ static void RunString() {
     fengStringObserver838478 = 0;
     FEngObjectDestructionObserver = 0;
 }
+class TypedTeardownObserver : public FEngDestructionObserver {
+public:
+    unsigned int calls;
+    TypedTeardownObserver() : calls(0) {}
+    void ObjectDestroyed(HudVisibilityObject *value) {
+        FengObject *object = static_cast<FengObject *>(value);
+        assert(!object->data2C && !object->scripts4C && !object->responses3C);
+        if (object->type18 == 4) {
+            FEListObject *list = reinterpret_cast<FEListObject *>(object);
+            assert(!(list->value5C & 1));
+            assert(list->count60 == 3 && list->count64 == 2);
+            assert(list->value78 == object->listColumns.data() && list->value7C == object->listRows.data());
+            assert(object->scripts.size() == 1);
+        } else if (object->type18 == 5) {
+            FEngGroupObject *group = reinterpret_cast<FEngGroupObject *>(object);
+            assert(!group->children5C.count4 && !group->children5C.first8 && !group->children5C.valueC);
+            assert(object->children.size() == 1);
+        } else assert(object->type18 == 1);
+        ++calls;
+    }
+};
+static void RunHierarchy() {
+    std::vector<unsigned char> group, image, value;
+    Word(value, 5); Tag(group, 0x744f, value); value.clear();
+    Word(value, 1111); Word(value, 0); Word(value, 0); Word(value, 0xffff); Tag(group, 0x504f, value); value.clear();
+    Word(value, 1); Tag(image, 0x744f, value); value.clear();
+    Word(value, 2222); Word(value, 0); Word(value, 0); Word(value, 0xffff); Tag(image, 0x504f, value); value.clear();
+    Word(value, 1111); Tag(image, 0x4150, value);
+    group = Chunk(0xea624f46, Chunk(0x446a624f, group));
+    image = Chunk(0xea624f46, Chunk(0x446a624f, image));
+    group.insert(group.end(), image.begin(), image.end());
+    group = Chunk(0x30203, Chunk(0xe76e4546, Chunk(0xcc6a624f, group)));
+    FengPackage package; std::string error;
+    assert(package.Load(group.data(), group.size(), 0, &error));
+    assert(package.Objects().size() == 2);
+    assert(package.Objects()[0]->children.size() == 1 && package.Objects()[0]->firstChild64 == package.Objects()[1]);
+}
 int main() {
     RunString();
+    TypedTeardownObserver teardown;
+    FEngObjectDestructionObserver = &teardown;
     Run(0, false); Run(1, false); Run(0, true); Run(1, true);
+    RunHierarchy();
+    assert(teardown.calls == 6);
+    FEngObjectDestructionObserver = 0;
     puts("PASS native FNG owned UTF-16 storage and type4 projection/offsets/Cc selection/navigation/ticking (no assets or display)");
 }

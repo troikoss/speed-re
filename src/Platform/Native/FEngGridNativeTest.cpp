@@ -43,6 +43,9 @@ static void __thiscall DeleteFixtureNode(void *pointer, unsigned int flags) {
         injectedNode = 0;
     }
 }
+static void *__thiscall DeleteImage(void *pointer, unsigned int flags) {
+    return ((FEngLeafObject *)pointer)->DestroyImage(flags);
+}
 static void *__thiscall DeleteStateBlock(void *pointer, unsigned int flags) {
     return ((FEngStatePoolBlock *)pointer)->Destroy(flags);
 }
@@ -111,6 +114,7 @@ int main() {
     memcpy((void *)0x79b14c, "grid-low", 9);
     // Test-only native relocation of the two recovered virtual destructor slots.
     *(void **)0x79b13c = (void *)DeleteStateBlock;
+    *(void **)0x79ba0c = (void *)DeleteImage;
     *(void **)0x79b8dc = (void *)DeleteStateClass;
     assert(FngHash(0) == 0xffffffff && FngHash("a") == FngHash("A") && FngHash("\x80") == 95);
     assert(FEngGridWrapIndex(-6, 3) == 3 && FEngGridWrapIndex((int)0x80000000u, 3) == 5);
@@ -313,6 +317,49 @@ int main() {
         assert(string->DestroyString(deleteFlags[i]) == string);
         assert(freeCalls == before + 2 + (deleteFlags[i] & 1));
         if (!(deleteFlags[i] & 1)) free(string);
+    }
+    FEngGroupObject ownedGroup; ownedGroup.Construct();
+    FEngLeafObject *childA = (FEngLeafObject *)malloc(sizeof(FEngLeafObject));
+    FEngLeafObject *childB = (FEngLeafObject *)malloc(sizeof(FEngLeafObject));
+    childA->ConstructImage(); childB->ConstructImage();
+    HudVisibilityObject *a = (HudVisibilityObject *)childA, *b = (HudVisibilityObject *)childB;
+    a->next4 = b; a->previous8 = 0; b->next4 = 0; b->previous8 = a;
+    ownedGroup.children5C.first8 = (FEngQueueNode *)a; ownedGroup.children5C.valueC = (FEngQueueNode *)b;
+    ownedGroup.children5C.count4 = 2;
+    unsigned int beforeGroup = freeCalls;
+    ownedGroup.Destruct(); // Actual child deleting slots bridge into recovered image destruction.
+    assert(freeCalls == beforeGroup + 2 && !ownedGroup.children5C.count4 && !ownedGroup.children5C.first8);
+    FEListObject ownedList; ownedList.Construct();
+    ownedList.count60 = 3; ownedList.count64 = 2;
+    unsigned int *listCells = (unsigned int *)calloc(6, 0x30);
+    ownedList.value90 = listCells;
+    for (unsigned int i = 0; i < 6; ++i) {
+        listCells[i * 12 + 6] = i % 2 ? 1 : 2;
+        if (i == 0 || i == 2) listCells[i * 12 + 8] = (unsigned int)malloc(8);
+    }
+    unsigned int beforeCells = freeCalls;
+    ownedList.ReleaseCells();
+    assert(freeCalls == beforeCells + 3 && !ownedList.value90 && ownedList.count60 == 3 && ownedList.count64 == 2);
+    ownedList.value5C |= 1;
+    ownedList.value78 = (FEListAxisEntry *)malloc(3 * sizeof(FEListAxisEntry));
+    ownedList.value7C = (FEListAxisEntry *)malloc(2 * sizeof(FEListAxisEntry));
+    void *retainedCells = calloc(6, 0x30); ownedList.value90 = retainedCells;
+    unsigned int beforeAxes = freeCalls;
+    ownedList.ReleaseStorage();
+    assert(freeCalls == beforeAxes + 2 && !ownedList.count60 && !ownedList.count64);
+    assert(!ownedList.value78 && !ownedList.value7C && ownedList.value90 == retainedCells);
+    free(retainedCells); // Fixture cleanup: original ReleaseStorage leaves this pointer untouched.
+    ownedList.Destruct();
+    for (unsigned int i = 0; i < 4; ++i) {
+        FEngLeafObject *image = (FEngLeafObject *)malloc(sizeof(FEngLeafObject)); image->ConstructImage();
+        FEngGroupObject *group = (FEngGroupObject *)malloc(sizeof(FEngGroupObject)); group->Construct();
+        FEListObject *list = (FEListObject *)malloc(sizeof(FEListObject)); list->Construct();
+        unsigned int before = freeCalls;
+        assert(image->DestroyImage(deleteFlags[i]) == image);
+        assert(group->Destroy(deleteFlags[i]) == group);
+        assert(list->Destroy(deleteFlags[i]) == list);
+        assert(freeCalls == before + 3 * (deleteFlags[i] & 1));
+        if (!(deleteFlags[i] & 1)) { free(image); free(group); free(list); }
     }
     munmap(page, 4096);
     puts("PASS recovered grid storage/pool migration/cell writes/fill/navigation/callbacks/hash (no retail assets or display)");
