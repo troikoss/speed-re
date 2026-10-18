@@ -371,6 +371,10 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   defaults, playback clocks and full script copying remain adapters or pending
   recovery. Byte identity and exceptional unwind remain unverified.
   See [track ownership evidence](pc-pause-menu.md#script-track-ownership-key-pool-and-normal-script-teardown-2026-10-18).
+  Track assignment `0x54d350` is also recovered and exercised by the native
+  fixture: owned sources clone pooled keys; borrowed sources retain their direct
+  reference. Full script copying/reading has not yet been bound to it in the demo.
+  See [assignment evidence](pc-pause-menu.md#track-assignment-and-ownedborrowed-key-copying-2026-10-18).
 - Native image/group/list teardown now invokes recovered `0x532660`/`0x534bf0`/
   `0x534a50`, alongside string destruction. Original list storage/cell release
   `0x516dc0`/`0x5042e0` and the three deleting wrappers are verified together with

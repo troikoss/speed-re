@@ -3960,3 +3960,59 @@ motion, baseline HUD translation at four resolutions, all 11 skins at 1280x720
 and the scripted HUD capture. These are integration checks, separate from
 original-execution and byte-matching evidence. Ghidra labels/comments cover all
 fourteen entries; known method signatures and the pool global are annotated.
+
+## Track assignment and owned/borrowed key copying (2026-10-18)
+
+`FEScriptTrack::Assign` recovers the complete 337-byte routine at `0x54d350`,
+called by original script reader `0x5515e0` and script copy `0x551be0`. Its
+receiver is the 0x38-byte track and its sole stack argument is the source track;
+it has a void contract and pops four argument bytes. The script-copy caller is
+still pending recovery and production binding; this checkpoint supplies its
+verified dependency and adds native fixture coverage.
+
+Assignment first calls actual count-free reference clear `0x511d00`
+**unconditionally**, including self assignment. It copies bytes +0..+3, low
+24 bits at +4, state +7, inline key time +0x14 and four raw baseline DWORDs
++0x18..+0x24 in original order. Inline key vtable/links +8..+0x10 and reference
+padding are retained. There is no same-pointer guard or destructor/constructor
+pair substituted for the original call sequence.
+
+For an owned source (byte +0x2c zero), it traverses source head +0x30,
+acquires each node through actual pool `0x53e650`, performs the inline key
+constructor stores, copies time and all sixteen payload bytes, then performs
+inline count-free insertion at the destination cursor. It reloads source next
+only after allocation, copying and insertion. Source time/payload reads are
+also after allocation. It does not reset the destination reference flag on
+this path. Allocation failure is followed by the original unchecked payload
+write; the recovery adds no successful-failure behavior.
+
+For a borrowed source it retains the direct target +0x30, without calling
+`Resolve` or cloning its referents. A null target clears destination head,
+cursor and flag. A nonnull target conditionally calls clear a second time
+when the destination flag is zero, then installs the target and sets flag one;
+it does not copy the source cursor. Unconditional initial clear has no borrowed
+reference guard. Tests of nonzero destination flags use empty references;
+this does not establish valid behavior for assigning over arbitrary live
+borrowed references, overlapping tracks or cyclic reference chains.
+
+The expanded `verify_pc_feng_script_tracks.py --compiler clang-cl
+--mutation-checks` verifies all fifteen roots with 256 cases each, including
+256 direct assignment cases: **3,840 comparisons** and **32 rejected mutations**
+across the complete ownership suite. The original key pool, cleanup and virtual deletion
+execute; only heap boundaries are controlled. Source/destination field bits,
+full arena/global state, ordered calls and snapshots, preserved registers and
+stack cleanup are compared. Cases include independent owned clones, empty
+sources, direct/null borrowed targets, destructive self assignment, untouched
+inline links/padding and pool growth. One controlled heap callback changes the
+current source key's next/time/payload, testing fresh reads across acquisition.
+The mutation suite includes self-fastpath, missing initial clear, forced owned
+flag, copied inline links/source cursor, incorrect null handling, omitted key
+time/payload, reversed insertion and premature next/time caching.
+
+Native asset-free fixtures call the recovered assignment on parsed track data,
+check independent pooled keys and raw baselines, verify destructive self
+assignment and both borrowed-target branches, and release through actual track
+destruction. Native and mod-enabled builds and all three CTests pass. There
+is no production playback or rendered-layout change in this checkpoint.
+Byte matching, exceptional unwind, invalid-pointer behavior and complete script
+copy/reader recovery remain unproven. MSVC 7.1/wibo remains unavailable.

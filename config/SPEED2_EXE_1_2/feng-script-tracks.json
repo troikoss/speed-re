@@ -70,6 +70,11 @@
       "address": "0x535170",
       "size": 148,
       "sha256": "4ce05b77306b86d8ba1ad9578d96f6d1b201be57d7defdae9ef0b7cef16a7ec6"
+    },
+    "TrackAssign": {
+      "address": "0x54d350",
+      "size": 337,
+      "sha256": "76ef89ce2571a7fd340fade3f76f789876dd888526a62d6e9254e8587754b3c0"
     }
   }
 }

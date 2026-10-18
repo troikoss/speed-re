@@ -26,15 +26,15 @@ PREFIXES = dict(KeyConstruct='?FEngConstructScriptKey@', KeyDestroy='?Destroy@FE
     KeyRelease='?Release@FEngScriptKeyPool@', ReferenceRemove='?Remove@FEngReference@',
     ReferenceClear='?ClearOwned@FEngReference@', TrackConstruct='?FEngConstructScriptTrack@',
     TrackDestruct='?FEngDestructScriptTrack@', SetTracks='?SetTracks@FEScript@',
-    ScriptConstruct='?FEngConstructScript@', ScriptDestruct='?FEngDestructScript@',
+    ScriptConstruct='?FEngConstructScript@', ScriptDestruct='?FEngDestructScript@', TrackAssign='?Assign@FEScriptTrack@',
     KeyDestruct='?DestructMessage@FEngQueueNode@', ConstructArray='?FEngConstructArrayWithCleanup@',
     DestructArray='?FEngDestructArrayWithCleanup@', Remove='?Remove@FEngQueueList@',
     Insert='?Insert@FEngQueueList@', InsertAtCursor='?InsertAtCursor@FEngQueueList@',
     BaseDestroy='?DestroyBase@FEngQueueNode@', ClearOwned='?ClearOwned@FEngQueueList@')
 ARGS = dict.fromkeys(PREFIXES, 0)
-ARGS.update(KeyDestroy=1, KeyBlockDestroy=1, KeyRelease=1, ReferenceRemove=1, SetTracks=1,
+ARGS.update(KeyDestroy=1, KeyBlockDestroy=1, KeyRelease=1, ReferenceRemove=1, SetTracks=1, TrackAssign=1,
             ConstructArray=5, DestructArray=4, Remove=1, Insert=2, InsertAtCursor=1, BaseDestroy=1)
-ROOTS = tuple(PREFIXES)[:14]
+ROOTS = tuple(PREFIXES)[:15]
 PRESERVED = (xc.UC_X86_REG_EBX, xc.UC_X86_REG_ESI, xc.UC_X86_REG_EDI, xc.UC_X86_REG_EBP)
 
 
@@ -79,7 +79,7 @@ def main():
     entries = {n: next(a for s, a in linked['exports'].items() if s.startswith(p)) for n, p in PREFIXES.items()}
     original = {n: int(manifest['functions'][n]['address'], 16) for n in PREFIXES}
     key_callback = next(a for symbol, a in linked['exports'].items() if symbol.startswith('?FEngDestructScriptKey@'))
-    state, machines = {}, []; hits = dict.fromkeys(PREFIXES, 0)
+    state, machines = {}, []; hits = dict.fromkeys(PREFIXES, 0); rebindings = [0]
     def words(uc, a, count=1): return struct.unpack('<' + 'I' * count, uc.mem_read(a, count * 4))
     def put(uc, a, value): uc.mem_write(a, struct.pack('<I', value & 0xffffffff))
     def snapshot(uc): return bytes(uc.mem_read(ARENA, 0x18000)) + bytes(uc.mem_read(GLOBAL, 16))
@@ -119,6 +119,12 @@ def main():
             if address == 0x575620:
                 if mode & 1: put(uc, SCRIPT + 0x1c, 0x12345678)
                 if mode & 2: put(uc, GLOBAL + 8, SECOND)
+                if state['root'] == 'TrackAssign' and state['rebind']:
+                    if original_run: rebindings[0] += 1
+                    # Acquire's heap callback may alter the current source key.
+                    put(uc, BLOCK + 12 + 4 * 32 + 4, 0)
+                    put(uc, BLOCK + 12 + 4 * 32 + 12, 0x87654321)
+                    put(uc, BLOCK + 12 + 4 * 32 + 16, 0xdeadbeef)
                 result = NEW if argument == 0x2020 else FRESH
             else:
                 if mode & 1:
@@ -172,7 +178,7 @@ def main():
         for name in roots:
             this = BLOCK if name.startswith('KeyBlock') else GLOBAL if name in ('KeyAcquire', 'KeyRelease') else REFERENCE if name.startswith('Reference') else TRACK if name.startswith('Track') else nodes[0] if name.startswith('Key') else SCRIPT
             flags = (0, 1, 0x100, 0x101, 0xffffffff)[trial % 5]
-            argv = [flags] if name in ('KeyDestroy', 'KeyBlockDestroy') else [trial % 5] if name == 'SetTracks' else [0 if trial % 4 == 0 else nodes[0]] if name == 'ReferenceRemove' else [nodes[0] + (1 if trial % 7 == 0 else 0)] if name == 'KeyRelease' else []
+            argv = [flags] if name in ('KeyDestroy', 'KeyBlockDestroy') else [ARENA + 0x800] if name == 'TrackAssign' else [trial % 5] if name == 'SetTracks' else [0 if trial % 4 == 0 else nodes[0]] if name == 'ReferenceRemove' else [nodes[0] + (1 if trial % 7 == 0 else 0)] if name == 'KeyRelease' else []
             if name == 'KeyRelease' and trial % 11 == 0: argv = [BLOCK + 0x200c]
             if name == 'KeyRelease' and trial % 13 == 0: argv = [0]
             outputs = []
@@ -188,10 +194,39 @@ def main():
                     for i in range(1, 256):
                         node = BLOCK + 12 + i * 32
                         put(uc, node + 4, node + 32 if i < 255 else 0); put(uc, node + 8, node - 32 if i > 1 else 0)
+                if name == 'TrackAssign':
+                    source = ARENA + 0x800
+                    # Independent source keys; destination cleanup owns nodes 0/1.
+                    put(uc, BLOCK + 0x201c, 8)
+                    put(uc, BLOCK + 0x2010, 248)
+                    put(uc, BLOCK + 0x2014, BLOCK + 12 + 8 * 32)
+                    for i in range(8, 256):
+                        node = BLOCK + 12 + i * 32
+                        put(uc, node + 4, node + 32 if i < 255 else 0)
+                        put(uc, node + 8, node - 32 if i > 8 else 0)
+                    flag = (0, 1, 0x80, 0xff)[trial % 4]
+                    uc.mem_write(source + 0x2c, bytes([flag]))
+                    for i in (4, 5):
+                        node = nodes[i]
+                        put(uc, node + 4, nodes[5] if i == 4 else 0)
+                        put(uc, node + 8, nodes[4] if i == 5 else 0)
+                    put(uc, source + 0x30, (ARENA + 0x900 if flag else nodes[4]) if trial % 10 else 0)
+                    put(uc, source + 0x34, nodes[5])
+                    uc.mem_write(TRACK + 0x2c, b'\0')
+                    put(uc, TRACK + 0x30, nodes[0]); put(uc, TRACK + 0x34, nodes[1])
+                    if trial % 9 == 0:
+                        # Nonzero destination flag with empty reference: clear is
+                        # still called, and deep copy does not reset that flag.
+                        uc.mem_write(TRACK + 0x2c, b'\x80')
+                        put(uc, TRACK + 0x30, 0); put(uc, TRACK + 0x34, 0)
+                        put(uc, BLOCK + 0x2010, 0); put(uc, BLOCK + 0x2014, 0); put(uc, BLOCK + 0x2018, 0)
+                        put(uc, BLOCK + 0x201c, 256)
+                        put(uc, BLOCK + 4, 0); put(uc, GLOBAL + 4, 1); put(uc, GLOBAL + 12, BLOCK)
+                    if trial % 11 == 0: argv = [TRACK] # Destructive self assignment.
                 uc.mem_write(STACK, struct.pack('<' + 'I' * (len(argv) + 1), STOP, *argv))
                 for i, reg in enumerate(PRESERVED): uc.reg_write(reg, 0x12345000 + i)
                 uc.reg_write(xc.UC_X86_REG_ESP, STACK); uc.reg_write(xc.UC_X86_REG_ECX, this)
-                state.clear(); state.update(trace=[], mode=mode)
+                state.clear(); state.update(trace=[], mode=mode, root=name, rebind=trial % 7 == 0)
                 try: uc.emu_start((entries if rebuilt else original)[name], STOP, count=200000)
                 except UcError as error:
                     raise AssertionError(('state or call order mismatch' if rebuilt else 'original fixture fault', trial, name, mode, str(error))) from error
@@ -206,7 +241,7 @@ def main():
                 [x[:-1] for x in outputs[0][2]], [x[:-1] for x in outputs[1][2]])
             counts[name] += 1
     report = dict(compiler=args.compiler, comparisons=sum(counts.values()), cases=counts, actual_entry_hits=hits,
-                  byte_matching=False, exceptional_unwind_verified=False, controlled_boundaries=['0x575620 allocation', '0x575630 free'])
+                  heap_source_rebindings=rebindings[0], byte_matching=False, exceptional_unwind_verified=False, controlled_boundaries=['0x575620 allocation', '0x575630 free'])
     if args.mutation_checks:
         mutations = {
             'key-destroy-omit-base': ('((FEngKeyDeletingDestructor *)vtable0)[0](this, 0);', '/* omitted */'),
@@ -225,6 +260,19 @@ def main():
             'script-dtor-clear-count': ('    script->tracks20 = 0;', '    script->trackCount1C = 0;\n    script->tracks20 = 0;'),
             'script-dtor-skip-null-event-free': ('    FEngFreeQueueNode(script->events28);', '    if (script->events28) FEngFreeQueueNode(script->events28);'),
         }
+        mutations.update({
+            'assign-self-fastpath': ('    FEngReference *reference = (FEngReference *)unidentified28;', '    if (this == other) return;\n    FEngReference *reference = (FEngReference *)unidentified28;'),
+            'assign-no-initial-clear': ('    reference->ClearOwned();', '    /* omitted */'),
+            'assign-force-owned-flag': ('    FEngScriptKey *source = (FEngScriptKey *)other->value30;', '    reference->value4 = 0;\n    FEngScriptKey *source = (FEngScriptKey *)other->value30;'),
+            'assign-copy-inline-links': ('    key8.timeC = other->key8.timeC;', '    key8.next4 = other->key8.next4;\n    key8.timeC = other->key8.timeC;'),
+            'assign-null-keeps-flag': ('            reference->value4 = 0;', '            /* omitted */'),
+            'assign-copy-source-tail': ('            reference->value8 = target;', '            reference->valueC = *(void **)other->unidentified34;\n            reference->value8 = target;'),
+            'assign-omit-time': ('        key->timeC = source->timeC;', '        /* omitted */'),
+            'assign-omit-payload-tail': ('        ((unsigned int *)key->value10)[3] = ((const unsigned int *)source->value10)[3];', '        /* omitted */'),
+            'assign-cache-next-before-acquire': [('        FEngScriptKey *key = FEngScriptKeysPool.Acquire();', '        FEngScriptKey *cachedNext = source->next4;\n        FEngScriptKey *key = FEngScriptKeysPool.Acquire();'), ('        source = source->next4;', '        source = cachedNext;')],
+            'assign-cache-time-before-acquire': [('        FEngScriptKey *key = FEngScriptKeysPool.Acquire();', '        int cachedTime = source->timeC;\n        FEngScriptKey *key = FEngScriptKeysPool.Acquire();'), ('        key->timeC = source->timeC;', '        key->timeC = cachedTime;')],
+            'assign-reverse-list': ('        FEngScriptKey *cursor = (FEngScriptKey *)reference->valueC;', '        FEngScriptKey *cursor = 0;'),
+        })
         pool_mutations = {
             'pool-wrong-capacity': ('i < 256', 'i < 255'),
             'pool-wrong-size': ('FEngAllocateQueueNode(0x2020)', 'FEngAllocateQueueNode(0x2024)'),
@@ -241,9 +289,9 @@ def main():
                 for before, after in edits:
                     assert before in mutant_source, label; mutant_source = mutant_source.replace(before, after, 1)
                 mutant = BUILD / ('mutation-' + label + '.cpp'); mutant.write_text(mutant_source)
-                selected = 'KeyDestroy' if label.startswith('key-destroy-') else 'KeyConstruct' if label.startswith('key-constructor-') else 'ReferenceRemove' if label.startswith('reference-remove-') else 'ReferenceClear' if label.startswith('reference-') else 'TrackConstruct' if label.startswith('track-ctor-') else 'TrackDestruct' if label.startswith('track-') else 'SetTracks' if label.startswith('tracks-') else 'ScriptConstruct' if label.startswith('script-ctor-') else 'ScriptDestruct' if label.startswith('script-') else 'KeyBlockConstruct' if label == 'pool-wrong-capacity' else 'KeyRelease' if label.startswith('pool-release-') else 'KeyAcquire'
+                selected = 'TrackAssign' if label.startswith('assign-') else 'KeyDestroy' if label.startswith('key-destroy-') else 'KeyConstruct' if label.startswith('key-constructor-') else 'ReferenceRemove' if label.startswith('reference-remove-') else 'ReferenceClear' if label.startswith('reference-') else 'TrackConstruct' if label.startswith('track-ctor-') else 'TrackDestruct' if label.startswith('track-') else 'SetTracks' if label.startswith('tracks-') else 'ScriptConstruct' if label.startswith('script-ctor-') else 'ScriptDestruct' if label.startswith('script-') else 'KeyBlockConstruct' if label == 'pool-wrong-capacity' else 'KeyRelease' if label.startswith('pool-release-') else 'KeyAcquire'
                 run = subprocess.run([sys.executable, __file__, '--compiler', args.compiler,
-                                     '--pool-source' if owner == args.pool_source else '--source', str(mutant), '--cases', '64', '--roots', selected],
+                                     '--pool-source' if owner == args.pool_source else '--source', str(mutant), '--cases', '256' if label.startswith('assign-cache-') else '64', '--roots', selected],
                                      cwd=ROOT, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 (BUILD / ('mutation-' + label + '.log')).write_text(run.stdout)
                 assert run.returncode and 'state or call order mismatch' in run.stdout, (label, 'not a semantic rejection', run.stdout[-1500:])

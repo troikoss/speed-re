@@ -122,3 +122,63 @@ void __fastcall FEngDestructScript(void *memory) { // Original 0x535170, normal 
     script->events28 = 0;
     script->vtable0 = (void *)0x79a9e8;
 }
+
+void FEScriptTrack::Assign(const FEScriptTrack *other) { // Original 0x54d350
+    FEngReference *reference = (FEngReference *)unidentified28;
+    reference->ClearOwned();
+    value0 = other->value0;
+    value1 = other->value1;
+    value2 = other->value2;
+    flags3 = other->flags3;
+    unsigned int bits = *(unsigned int *)unidentified4;
+    *(unsigned int *)unidentified4 = bits ^ ((*(const unsigned int *)other->unidentified4 ^ bits) & 0xffffff);
+    state7 = other->state7;
+    key8.timeC = other->key8.timeC;
+    ((unsigned int *)base18)[0] = ((const unsigned int *)other->base18)[0];
+    ((unsigned int *)base18)[1] = ((const unsigned int *)other->base18)[1];
+    ((unsigned int *)base18)[2] = ((const unsigned int *)other->base18)[2];
+    ((unsigned int *)base18)[3] = ((const unsigned int *)other->base18)[3];
+    if (other->value2C) {
+        void *target = other->value30;
+        if (!target) {
+            reference->value8 = 0;
+            reference->valueC = 0;
+            reference->value4 = 0;
+        } else {
+            if (!reference->value4) reference->ClearOwned();
+            reference->value8 = target;
+            reference->value4 = 1;
+        }
+        return;
+    }
+    FEngScriptKey *source = (FEngScriptKey *)other->value30;
+    while (source) {
+        FEngScriptKey *key = FEngScriptKeysPool.Acquire();
+        if (key) {
+            key->next4 = (FEngScriptKey *)0xabadcafe;
+            key->previous8 = (FEngScriptKey *)0xabadcafe;
+            key->vtable0 = (void *)0x79aa34;
+        }
+        key->timeC = source->timeC;
+        ((unsigned int *)key->value10)[0] = ((const unsigned int *)source->value10)[0];
+        ((unsigned int *)key->value10)[1] = ((const unsigned int *)source->value10)[1];
+        ((unsigned int *)key->value10)[2] = ((const unsigned int *)source->value10)[2];
+        ((unsigned int *)key->value10)[3] = ((const unsigned int *)source->value10)[3];
+        FEngScriptKey *cursor = (FEngScriptKey *)reference->valueC;
+        if (cursor) {
+            FEngScriptKey *next = cursor->next4;
+            key->next4 = next;
+            if (next) next->previous8 = key;
+            key->previous8 = cursor;
+            cursor->next4 = key;
+        } else {
+            FEngScriptKey *first = (FEngScriptKey *)reference->value8;
+            key->next4 = first;
+            if (first) first->previous8 = key;
+            key->previous8 = 0;
+            reference->value8 = key;
+        }
+        if (reference->valueC == cursor) reference->valueC = key;
+        source = source->next4;
+    }
+}

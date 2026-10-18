@@ -485,8 +485,27 @@ static void RunTrackOwnership() {
         assert(first->timeC == 0 && last->timeC == 100);
         assert(*(unsigned int *)first->value10 == 0x55667788 && *(unsigned int *)last->value10 == 0xaabbccdd);
         assert(FEngScriptKeysPool.blocks0.count4 == 1);
+        FEScriptTrack clone;
+        FEngConstructScriptTrack(&clone);
+        clone.Assign(&track);
+        FEngScriptKey *clonedFirst = static_cast<FEngScriptKey *>(clone.value30);
+        assert(clonedFirst && clonedFirst != first && clonedFirst->next4 != last);
+        assert(clone.key8.timeC == track.key8.timeC && !memcmp(clone.base18, track.base18, 16));
+        assert(clonedFirst->timeC == first->timeC && !memcmp(clonedFirst->value10, first->value10, 16));
+        clone.Assign(&clone); // Original self assignment destroys its owned keys.
+        assert(!clone.value30 && !*reinterpret_cast<void **>(clone.unidentified34));
+        FEngDestructScriptTrack(&clone);
         FEScriptTrack borrowed = track;
         borrowed.value2C = 1; borrowed.value30 = track.unidentified28;
+        FEngConstructScriptTrack(&clone);
+        clone.Assign(&borrowed);
+        assert(clone.value2C == 1 && clone.value30 == track.unidentified28);
+        FEngDestructScriptTrack(&clone);
+        borrowed.value30 = 0;
+        FEngConstructScriptTrack(&clone);
+        clone.Assign(&borrowed);
+        assert(!clone.value2C && !clone.value30 && !*reinterpret_cast<void **>(clone.unidentified34));
+        FEngDestructScriptTrack(&clone);
         FEngDestructScriptTrack(&borrowed);
         assert(first->vtable0 == (void *)0x79aa34); // Borrowed cleanup leaves the owned list live.
         header.SetTracks(1); // Equal count still destroys old keys and reconstructs the array.
