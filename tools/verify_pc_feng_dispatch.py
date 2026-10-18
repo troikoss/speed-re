@@ -30,9 +30,15 @@ def main():
     parser.add_argument('--compiler', choices=('msvc','clang-cl'), default='msvc')
     parser.add_argument('--source', type=Path, default=ROOT/'src/Speed/Indep/Src/Frontend/FEngResponse.cpp')
     parser.add_argument('--state-source', type=Path, default=ROOT/'src/Speed/Indep/Src/Frontend/FEngQueueState.cpp')
+    parser.add_argument('--compose-queue', action='store_true', help='Execute recovered Post/input enqueue with allocation controlled')
     parser.add_argument('--mutation-checks', action='store_true')
     args = parser.parse_args()
     manifest = json.loads((ROOT/'config/SPEED2_EXE_1_2/feng-response.json').read_text())
+    if args.compose_queue:
+        extra = json.loads((ROOT/'config/SPEED2_EXE_1_2/feng-queue-nodes.json').read_text())
+        assert extra['executable_sha256'] == manifest['executable_sha256']
+        manifest['functions'].update(extra['functions'])
+        manifest['tables'].update(extra['tables'])
     raw = EXE.read_bytes()
     assert hashlib.sha256(raw).hexdigest() == manifest['executable_sha256']
     image = pefile.PE(data=raw).get_memory_mapped_image()
@@ -40,11 +46,12 @@ def main():
         offset = int(f['address'],16)-0x400000
         assert hashlib.sha256(image[offset:offset+f['size']]).hexdigest() == f['sha256']
     BUILD.mkdir(parents=True, exist_ok=True)
-    linked = link_response(args.compiler,args.source,args.state_source,BUILD)
+    linked = link_response(args.compiler,args.source,args.state_source,BUILD,
+                           ROOT/'src/Speed/Indep/Src/Frontend/FEngQueueNodes.cpp' if args.compose_queue else None)
     entries = {n:next(a for symbol,a in linked['exports'].items() if symbol.startswith(prefix)) for n,prefix in PREFIXES.items()}
     state, machines = {}, []
     def words(uc,address,count=1): return struct.unpack('<'+'I'*count,uc.mem_read(address,4*count))
-    boundaries = {a:(n,c) for n,(a,c) in BOUNDARIES.items()}
+    boundaries = {a:(n,c) for n,(a,c) in BOUNDARIES.items() if not (args.compose_queue and n in ('Post','Call51AF50'))}
     for rebuilt in (False,True):
         uc = Uc(UC_ARCH_X86,UC_MODE_32)
         uc.mem_map(0x400000,(len(image)+4095)&~4095);uc.mem_write(0x400000,image)
@@ -53,6 +60,17 @@ def main():
         for address,body in linked['blocks']: uc.mem_write(address,body)
         ranges = linked['ranges'] if rebuilt else [(int(f['address'],16),int(f['address'],16)+f['size']) for f in manifest['functions'].values()]
         def hook(uc,address,size,user,ranges=ranges):
+            if args.compose_queue and address == 0x575620:
+                sp = uc.reg_read(UC_X86_REG_ESP)
+                ret,size = words(uc,sp,2)
+                assert size == 32
+                result = ARENA+0x16000+state['allocated']*32
+                state['allocated'] += 1
+                assert result+32 < ARENA+0x1e000
+                state['trace'].append(('allocate',size))
+                uc.reg_write(UC_X86_REG_EAX,result);uc.reg_write(UC_X86_REG_ECX,0xcccccccc);uc.reg_write(UC_X86_REG_EDX,0xdddddddd)
+                uc.reg_write(UC_X86_REG_ESP,sp+4);uc.reg_write(UC_X86_REG_EIP,ret)
+                return
             if address not in boundaries:
                 assert any(a<=address<b for a,b in ranges),('unexpected execution',hex(address))
                 return
@@ -70,7 +88,8 @@ def main():
                 # The call boundary may change selection after assignment; the dispatcher resets its local script.
                 if state['mutation'] & 1: uc.mem_write(this+0x54,struct.pack('<I',SCRIPTS+0x80))
             if name=='SetFocus': uc.mem_write(this+0x8c,struct.pack('<I',arguments[1]))
-            if state['mutation'] & 2 and len(state['trace'])==1:
+            state['boundary_count'] += 1
+            if state['mutation'] & 2 and state['boundary_count']==1:
                 uc.mem_write(RESPONSE+0x10,bytes(4))  # cached count must survive
                 uc.mem_write(RESPONSE+0x14,struct.pack('<I',COMMANDS+0x800))
             if state['mutation'] & 4 and name=='FindObjectByGuid':
@@ -88,7 +107,7 @@ def main():
             uc.mem_write(ARENA,bytes(memory));uc.mem_write(STACK,struct.pack('<I',STOP)+struct.pack('<'+'I'*len(arguments),*arguments))
             uc.reg_write(UC_X86_REG_ESP,STACK);uc.reg_write(UC_X86_REG_ECX,this)
             for i,r in enumerate(PRESERVED): uc.reg_write(r,0x12345000+i)
-            state.clear();state.update(trace=[],writes=[],mutation=mutation,command=command)
+            state.clear();state.update(trace=[],writes=[],mutation=mutation,command=command,allocated=0,boundary_count=0)
             uc.emu_start(entries[name] if rebuilt else int(manifest['functions'][name]['address'],16),STOP,count=20000)
             assert uc.reg_read(UC_X86_REG_EIP)==STOP,(name,'did not terminate')
             assert uc.reg_read(UC_X86_REG_ESP)==STACK+4+4*len(arguments)
@@ -104,6 +123,9 @@ def main():
         put(OBJECT+0xc,1);put(OBJECT+0x4c,0 if trial%7==0 else SCRIPTS);put(OBJECT+0x54,SCRIPTS)
         for i in range(4): put(SCRIPTS+i*0x40+4,SCRIPTS+(i+1)*0x40 if i+1<trial%5 else 0);put(SCRIPTS+i*0x40+0x30,(1,2,1,0xffffffff)[i])
         put(PACKAGE+0xc,COMMANDS+0x900,trial%5);put(PACKAGE+0x1c,trial*31);put(PACKAGE+0x8c,OBJECT if trial%2 else 0)
+        if args.compose_queue:
+            put(QUEUE+0x4118,0,0,0);put(QUEUE+0x4128,0,0,0)
+            memory[QUEUE+0x5251-ARENA] = 0
         put(QUEUE+0x4148,trial%17);put(QUEUE+0x514c,trial%32)
         for i in range(32): put(QUEUE+0x5150+i*8,rng.randrange(5),(0,1,2,3,0xffffffff)[(trial+i)%5])
         key=(0,1,2,4,5,0xffffffff)[trial%6]
@@ -135,8 +157,8 @@ def main():
             put(QUEUE+0x5150,trial%5,3)
             compare('ExecuteResponse',memory,[RESPONSE,OBJECT,PACKAGE,0xff],QUEUE,mutation=4)
     report={'compiler':args.compiler,'comparisons':counts,'total':sum(counts.values()),'fingerprints':manifest,
-            'controlled_interfaces':list(BOUNDARIES),'checks':['guarded memory','ordered arena writes','call arguments/order','return/ABI'],
-            'limitations':['finite mapped state and acyclic script lists','external dispatcher callees controlled','MSVC and byte matching pending']}
+            'queue_composed':args.compose_queue,'controlled_interfaces':[n for n in BOUNDARIES if not (args.compose_queue and n in ('Post','Call51AF50'))]+(['allocation 0x575620'] if args.compose_queue else []),'checks':['guarded memory','ordered arena writes','call arguments/order','return/ABI'],
+            'limitations':['finite mapped state and acyclic script lists','external callees listed explicitly; observer disabled in queue composition','MSVC and byte matching pending']}
     if args.mutation_checks:
         sources = {'source':args.source, 'state-source':args.state_source}
         mutations = {
@@ -166,11 +188,12 @@ def main():
             path = BUILD/('mutation-'+name+'.cpp')
             path.write_text(source.replace(before,after))
             command = [os.sys.executable,str(Path(__file__).resolve()),'--compiler',args.compiler,'--source',str(args.source),'--state-source',str(args.state_source),'--'+which,str(path)]
+            if args.compose_queue: command.append('--compose-queue')
             result = subprocess.run(command,cwd=ROOT,capture_output=True,text=True)
             (BUILD/('mutation-'+name+'.log')).write_text(result.stdout+result.stderr)
             assert result.returncode != 0 and 'state or call order mismatch' in result.stderr,name
             report['rejected_mutations'].append(name)
-    (BUILD/'verification.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
+    (BUILD/('queue-composition.json' if args.compose_queue else 'verification.json')).write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
 
 
 if __name__=='__main__': main()

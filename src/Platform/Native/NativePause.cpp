@@ -157,7 +157,7 @@ NativeTextureCache *textures = 0;
 NativeFont font;
 std::vector<unsigned char> language;
 std::vector<RunningScript> scripts;
-std::vector<PendingMessage> messages;
+
 // FngShow / FngRemove run after the current delivery: the caller keeps using its object.
 NativeScreen *switchFrom = 0;
 NativeScreen *switchTo = 0;
@@ -259,8 +259,9 @@ bool LoadPlainPackage(const std::vector<unsigned char> &bundle, NativeScreen *sc
 }
 
 void Post(NativeScreen *screen, unsigned int message, FengObject *object, int target, FengObject *targetObject = 0) {
-    PendingMessage pending = {screen, message, object, target, targetObject};
-    messages.push_back(pending);
+    int originalTarget = target == kTargetGame ? -1 : target == kTargetPackage ? -3 :
+                         target == kTargetInput ? -5 : (int)(size_t)targetObject;
+    nativeFengQueue.Post(message, object, &screen->fePackage, originalTarget, 0xff);
 }
 
 void RemoveScripts(NativeScreen *screen) {
@@ -313,12 +314,25 @@ void ApplyDeferred() {
 void Pump() {
     for (int guard = 0; guard < 256; ++guard) {
         ApplyDeferred();
-        if (messages.empty()) break;
-        PendingMessage pending = messages.front();
-        messages.erase(messages.begin());
-        Process(pending);
+        FEngQueueNode *node = nativeFengQueue.messages4114.first8;
+        if (!node) break;
+        nativeFengQueue.messages4114.Remove(node);
+        NativeScreen *screen = 0;
+        for (size_t i = 0; i < kScreenCount; ++i)
+            if ((unsigned int)&screens[i]->fePackage == node->value14) { screen = screens[i]; break; }
+        int target = (int)node->value10;
+        if (target == -4) NativeTrap("FEng queue delivery target -4");
+        if (screen) {
+            int route = target == -1 ? kTargetGame : target == -3 ? kTargetPackage :
+                        target == -5 ? kTargetInput : kTargetObject;
+            PendingMessage pending = {screen, node->value18, (FengObject *)node->valueC, route,
+                                      route == kTargetObject ? (FengObject *)target : 0};
+            Process(pending);
+        }
+        free(node); // Native ownership seam; original virtual node destruction is not recovered.
     }
     ApplyDeferred();
+    if (nativeFengQueue.operations4124.first8) NativeTrap("FEng input operation delivery");
 }
 
 // 0x54d4b0: a pad message goes to the focus object when it responds to it, else to the
@@ -382,9 +396,13 @@ void CloseScreen(NativeScreen *screen) {
     screen->shown = false;
     RefreshNativePackageChain();
     RemoveScripts(screen);
-    for (size_t i = 0; i < messages.size();) {
-        if (messages[i].screen == screen) messages.erase(messages.begin() + i);
-        else ++i;
+    for (FEngQueueNode *node = nativeFengQueue.messages4114.first8; node;) {
+        FEngQueueNode *next = node->next4;
+        if (node->value14 == (unsigned int)&screen->fePackage) {
+            nativeFengQueue.messages4114.Remove(node);
+            free(node);
+        }
+        node = next;
     }
     if (dialog.parent == screen) CloseDialog();
 }
@@ -393,7 +411,11 @@ void CloseAll() {
     for (size_t i = 0; i < kScreenCount; ++i) CloseScreen(screens[i]);
     CloseDialog();
     scripts.clear();
-    messages.clear();
+    while (nativeFengQueue.messages4114.first8) {
+        FEngQueueNode *node = nativeFengQueue.messages4114.first8;
+        nativeFengQueue.messages4114.Remove(node);
+        free(node);
+    }
     switchFrom = switchTo = removeScreen = 0;
 }
 
@@ -530,21 +552,11 @@ FngRecord *FngFindRecord(unsigned int hash) {
     }
     return 0;
 }
-void FEngQueue::Post(unsigned int message, void *sender, FEPackage *package, int target, int) {
-    for (size_t i = 0; i < kScreenCount; ++i) {
-        if (&screens[i]->fePackage != package) continue;
-        if (target == -4) NativeTrap("FEngQueue::Post target -4");
-        int route = target == -1 ? kTargetGame : target == -3 ? kTargetPackage :
-                    target == -5 ? kTargetInput : kTargetObject;
-        ::Post(screens[i], message, static_cast<FengObject *>(sender), route,
-               route == kTargetObject ? reinterpret_cast<FengObject *>(target) : 0);
-        return;
-    }
-}
+// Native allocator/ownership seam for original allocation boundary 0x575620.
+void *FEngAllocateQueueNode(unsigned int size) { return malloc(size); }
 
 // Explicit unrecovered package operations: current demo response fixtures do not
 // exercise these commands. Keep their call boundaries, without invented behavior.
-void FEngQueue::Call51AF50(FEPackage *, int, unsigned int) { NativeTrap("FEngQueue 0x51af50"); }
 void FEngQueue::Call51AB20(const char *, FEPackage *) { NativeTrap("FEngQueue 0x51ab20"); }
 void FEngQueue::Call51AC10(const char *, FEPackage *, unsigned int) { NativeTrap("FEngQueue 0x51ac10"); }
 void FEngQueue::Call51ADB0(FEPackage *) { NativeTrap("FEngQueue 0x51adb0"); }

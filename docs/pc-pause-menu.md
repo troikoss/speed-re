@@ -1629,3 +1629,89 @@ ratios/11 skins/120-frame capture. The initial null-selection crash is resolved
 by loader initialization; recovered conditionals retain their original
 preconditions. These checks cover current demo scenarios, not the trapped
 package operations, complete queue delivery or all original scripts.
+
+
+## Message nodes and queue insertion (2026-10-18)
+
+`FEngQueueNodes.cpp` recovers message posting `0x51aa20` (206 bytes), input
+operation posting `0x51af50` (176) and list removal `0x505400` (75).
+`feng-queue-nodes.json` fingerprints these spans and the two original node-vtable
+slots at `0x79ab60`/`0x79ab64`. The observed 32-byte node has vptr +0, next +4,
+previous +8 and five payload words +0xc through +0x1c. The 16-byte list prefix
+has unknown +0, count +4, first +8 and insertion cursor +0xc. Queue message and
+operation lists are at +0x4114/+0x4124; observer pointer +0x10c and enable byte
++0x5251 are separate from the previously recovered focus/stack fields.
+
+Message allocation calls original boundary `0x575620` with size 32. The inline
+constructor stores link sentinels `0xabadcafe` and vptr `0x79ab60`. Payload writes
+occur in original order: package +0x14, message +0x18, sender +0xc, target +0x10,
+mask +0x1c. A nonzero observer byte triggers virtual slot +0x54 after payload
+construction and before list reads/insertion. The observer receives all five
+original arguments. The byte is read after allocation, and the insertion cursor
+is read after the observer returns; neither is cached before its callback.
+
+A non-null cursor inserts the node after that cursor, preserving its existing
+next node; a null cursor prepends to the first pointer. Neighbor links are
+written in the original order, the cursor is conditionally updated after
+linking and count increments last. This is not always a simple tail append.
+Input posting uses vptr `0x79ab64`, zeros payload +0xc/+0x10, stores package at
++0x1c, stores `package.inputMask1C & mask` at +0x18 and opcode 4/8 at +0x14.
+Only the enable argument's low byte selects that opcode. It inserts into the
+**separate operation list** and has no message-observer callback.
+
+Removal is null-safe. It updates matching list endpoints and both neighboring
+links, marks the removed node's links `0xabadcafe`, then decrements the wrapping
+count. Unknown prefix fields remain offset-named. This does not recover the
+list constructor, complete queue type, allocation runtime or node destruction.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_queue_nodes.py --mutation-checks
+# Explicit fallback when MSVC 7.1/wibo is absent:
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_queue_nodes.py --compiler clang-cl --mutation-checks
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_dispatch.py --compiler clang-cl --compose-queue --mutation-checks
+```
+
+Clang i686 passes **12,288 node comparisons**, 4,096 per routine, comparing
+exact ordered arena writes, guarded memory, allocation/observer calls, payload
+at callback entry, stack cleanup and preserved registers. Fixtures cover empty
+and nonempty mapped lists, middle/end cursors, null and interior removals,
+wrapping counts, noncanonical observer bytes, allocation callbacks enabling the
+observer, observer changes to cursor/first/count, enable-byte truncation and
+full-width mask filtering. Allocation and observer are controlled; node
+construction/insertion/removal execute actual recovered code. Eleven mutations
+are rejected: cursor cached before observer, observer before payload, skipped
+observer, word-wide enable, ignored package mask, wrong node vptr, omitted
+message/input count increments, omitted neighbor backlink, wrong sentinels and
+omitted remove decrement.
+
+`--compose-queue` also passes **12,800 dispatcher/state comparisons** and rejects
+all sixteen existing dispatcher mutations. It executes recovered Post and input
+posting directly, controlling allocation instead of those two call boundaries.
+Other dispatcher callees remain controlled, and the observer is disabled in
+this composition (covered separately by the node suite). Normal and composed
+reports are distinct; results remain ignored under `build/analysis/`.
+Allocation failure, arbitrary aliases/pointers/cycles, original virtual node
+destruction, MSVC 7.1/wibo and byte matching remain unverified. Finite ordered
+write tests do not establish complete queue or GUI equivalence.
+
+The native `std::vector<PendingMessage>` queue and native `FEngQueue::Post`
+implementation are removed. Both native producers and recovered callers now
+allocate/enqueue through recovered code. Native Pump and screen cancellation
+unlink through recovered Remove. A native delivery bridge translates node
+payloads to the existing screen/object handlers and frees nodes after delivery;
+it retains the current 256-message guard, routing and cancellation seams.
+The allocation boundary uses native `malloc`, and raw `free` replaces the
+unrecovered virtual node destruction. Original vptr values remain data tags in
+these nodes; native code does not invoke the mapped retail destructor table.
+Input **enqueueing** no longer traps, but pending input-operation **delivery**
+explicitly traps until its original consumer is recovered. Target -4 delivery
+and four other package-operation callees still trap. Full delivery `0x541fc0`,
+owner callbacks, observer delivery slot +0x58 and per-message mask propagation
+remain next targets; the delivery bridge is not a recovered implementation.
+
+
+Native and mod-enabled builds pass with recovered queue nodes. Headless
+integration passes all 19 settings and 10 Controls scenarios, slider fill/knob
+pixel assertions and scroller motion/settled centring. These exercise the native
+delivery bridge and current demo messages; they do not validate the trapped
+operation consumer, target -4, original destructors or complete delivery.

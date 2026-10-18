@@ -2,6 +2,7 @@
 #define UG2_FENG_PACKAGE_H
 
 #include "../Hud/HudVisibility.h"
+#include "FEngQueueNodes.h"
 
 struct FEPackage;
 struct FEngObjectVisitor;
@@ -19,11 +20,18 @@ struct FEngQueue {
     FEngPackageList packagesDC;
     char unidentifiedE8[4];
     FEngPackageList packagesEC;
-    char unidentifiedF8[0x4050];
+    char unidentifiedF8[0x14];
+    FEngQueueObserver *value10C;
+    char unidentified110[0x4004];
+    FEngQueueList messages4114;
+    FEngQueueList operations4124;
+    char unidentified4134[0x14];
     unsigned int value4148;
     char value414C[16][0x100];
     int value514C;
     FEngSavedFocus value5150[32];
+    char unidentified5250;
+    unsigned char value5251;
     void StoreFocus(unsigned int key, unsigned int value); // 0x50b300
     unsigned int LoadFocus(unsigned int key); // 0x50b360
     void ClearPackageStack(); // 0x50b390
@@ -38,6 +46,10 @@ struct FEngQueue {
     HudVisibilityObject *FindObject(unsigned int hash, const char *package); // 0x52c570
 };
 UG2_CHECK_OFFSET(FEngQueue, value1, 1);
+UG2_CHECK_OFFSET(FEngQueue, value10C, 0x10c);
+UG2_CHECK_OFFSET(FEngQueue, messages4114, 0x4114);
+UG2_CHECK_OFFSET(FEngQueue, operations4124, 0x4124);
+UG2_CHECK_OFFSET(FEngQueue, value5251, 0x5251);
 UG2_CHECK_OFFSET(FEngQueue, value4148, 0x4148);
 UG2_CHECK_OFFSET(FEngQueue, value414C, 0x414c);
 UG2_CHECK_OFFSET(FEngQueue, value514C, 0x514c);

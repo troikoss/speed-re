@@ -1,0 +1,27 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "Post": {
+      "address": "0x51aa20",
+      "size": 206,
+      "sha256": "cd9edace0f5900fadb9a276a07436a31f4b72ff305504e9c720b972a6d3c3e7d"
+    },
+    "Call51AF50": {
+      "address": "0x51af50",
+      "size": 176,
+      "sha256": "dd467b9237e6a20dac6901bfe48b78d7781a4652d53bf502ccfdaabf36372a9d"
+    },
+    "Remove": {
+      "address": "0x505400",
+      "size": 75,
+      "sha256": "415c9b16fb71606195c2d5dd6f27b0bb04ea45ea7d4574c5940b31373afbaddf"
+    }
+  },
+  "tables": {
+    "node-vtables": {
+      "address": "0x79ab60",
+      "size": 8,
+      "sha256": "cad311d598a3da741c6783b1419f4c43a0bc8a71161efd99a5e41af0aa94bd4e"
+    }
+  }
+}

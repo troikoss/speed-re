@@ -509,3 +509,29 @@ renamed from cross-title evidence alone.
     scroller motion and four-ratio/11-skin/120-frame mod HUD checks pass.
     Next targets: queue Post
     `0x51aa20`/delivery `0x541fc0`, input and package-operation callees.
+
+
+35. **Queue node checkpoint (2026-10-18).** `FEngQueueNodes.cpp` recovers
+    Post `0x51aa20`, input enqueue `0x51af50` and Remove `0x505400`. Header
+    exposes 32-byte node/list ABI, queue lists +0x4114/+0x4124, observer +0x10c
+    and byte +0x5251. Exact node/link write and observer ordering verified:
+    12,288 Clang comparisons, eleven mutations. Actual queue composition in
+    dispatcher passes 12,800 comparisons/sixteen mutations, controlling allocation
+    and remaining callees; observer disabled only in composition, separately
+    tested in node suite. Native message vector/Post substitute removed; all
+    producers use recovered enqueue, Pump/cancellation use recovered unlink.
+    Native malloc/free and delivery/cancellation/256-message guard remain seams;
+    original node vptrs are tags, virtual destruction not invoked natively.
+    Input enqueue no longer traps, but its unrecovered consumer does. Target -4
+    delivery and four remaining package operations still trap. Full delivery
+    `0x541fc0` decompile is local `/tmp/ug2-feng-delivery.json`, with node observer
+    slot +0x58, target routing, package +0x5c responses/+0x6c/+0x70 associations
+    and object delivery `0x5367e0`. Next trace input-operation consumer via
+    vtable `0x79ab64`, then delivery/destruction and original mask propagation.
+    Allocation failure, arbitrary aliases/pointers/cycles, MSVC and byte matching
+    remain unverified. Do not claim full queue or GUI recovery.
+    Native/mod builds and headless 19 settings/10 Controls, slider pixels and
+    scroller motion/settled centring pass. Vtable slots now identify message
+    deleting destructor `0x51aaf0` and operation destructor `0x51abe0`; bodies
+    remain unrecovered. Frame leads `0x5663b0` -> `0x5662c0` -> `0x558c00`
+    are saved under `/tmp/ug2-feng-frame*.json` for consumer tracing.

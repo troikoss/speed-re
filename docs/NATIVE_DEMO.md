@@ -352,8 +352,9 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   decoded 12-byte command records, including the original count boundary.
   Full response dispatch `0x52c7c0`, script lookup `0x5046b0`, focus cache
   `0x50b300`/`0x50b360` and stack reset `0x50b390` now execute recovered code.
-  Decoded-prefix construction, fixed native mask 0xff and queued delivery remain
-  seams. Target -4 and five package-operation callees are explicit traps.
+  Decoded-prefix construction, fixed native mask 0xff and delivery remain
+  seams. Target -4 delivery, input-operation delivery and four package-operation
+  callees are explicit traps.
   Native loading now selects/initializes Init as observed in the original readers. See [response evidence](pc-pause-menu.md#response-conditional-traversal-2026-10-18).
 - GUI formatted hashing `0x50b9c0`, buffer wrapper `0x50c960`, shared profiling
   wrapper `0x43fbc0` and elapsed accounting `0x43e5c0` now execute recovered code.
@@ -368,6 +369,11 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   bounded conversions, including custom vectors and fixed-point values; unsupported
   conversion-class paths remain unverified.
   See [core evidence and limits](pc-pause-menu.md#formatter-state-machine-recovery-2026-10-18).
+- Message/input enqueue `0x51aa20`/`0x51af50` and removal `0x505400` now use
+  recovered 32-byte nodes and separate linked lists. The native message vector
+  is removed. Native malloc/free, payload-to-screen delivery and cancellation
+  remain adapters; original delivery and virtual node destruction are pending.
+  See [queue evidence](pc-pause-menu.md#message-nodes-and-queue-insertion-2026-10-18).
 - FEng image centre/size writes and rendered text height now call recovered coordinate
   and metric routines. String and script-track prefixes expose the original offsets;
   position writes update live state and matching script baselines. Low-level font lookup,

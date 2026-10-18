@@ -14,9 +14,9 @@ BOUNDARIES = {
 }
 
 
-def link_response(compiler, source, state_source, build):
+def link_response(compiler, source, state_source, build, queue_source=None):
     objects = []
-    for path in (source, state_source):
+    for path in [source, state_source] + ([queue_source] if queue_source else []):
         obj = build / (path.stem + '.obj')
         command = ([str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe'] if compiler == 'msvc' else
                    ['clang-cl', '--target=i686-pc-windows-msvc', '/GS-', '/GR-', '/w', '/arch:IA32', '/clang:-fno-strict-aliasing'])
@@ -28,6 +28,9 @@ def link_response(compiler, source, state_source, build):
         for symbol in read_object(obj)['symbols'].values():
             if symbol['section'] == 0:
                 for name, (address, _) in BOUNDARIES.items():
+                    if queue_source and name in ('Post','Call51AF50'): continue
                     if symbol['name'].startswith('?' + name + '@'):
                         external[symbol['name']] = address
+                if queue_source and symbol['name'].startswith('?FEngAllocateQueueNode@'):
+                    external[symbol['name']] = 0x575620
     return link_objects(objects, external)
