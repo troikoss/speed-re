@@ -60,7 +60,7 @@ void *CreateOptions(void *data) { return CreatePauseOptionsFNGObject(data); }
 struct NativeScreen {
     NativeScreen(const char *packageName, ScreenFactory create, bool list)
         : name(packageName), factory(create), optionsList(list), package(0), loaded(false), shown(false),
-          scriptsPending(false), object(0) {
+          object(0) {
         memset(&fePackage, 0, sizeof(fePackage));
         memset(&record, 0, sizeof(record));
         memset(&node, 0, sizeof(node));
@@ -88,7 +88,6 @@ struct NativeScreen {
         }
         fePackage.focusObjects90 = focusObjects.empty() ? 0 : &focusObjects[0];
         fePackage.focusCount94 = focusObjects.size();
-        scriptsPending = true;
         return true;
     }
     void Deliver(unsigned int message, int value8, int valueC) {
@@ -112,7 +111,6 @@ struct NativeScreen {
     FengPackage *package;
     bool loaded;
     bool shown;
-    bool scriptsPending;   // shown since its scripts were last applied (see Pump)
     FEPackage fePackage;  // original prefix, native object loading remains a seam
     FngRecord record;      // static FNG selection survives package reloads
     FEngPackageNode node;
@@ -154,6 +152,7 @@ NativePauseRequest request = kPauseRequestNone;
 bool helpBarLoaded = false;
 const char *returnPackage = 0;
 float clockRemainder = 0.0f;
+float scriptClockRemainder = 0.0f;
 GameFlow8900D8 nativeFlow;
 PCHelpBarFNGObject nativeHelpBar;
 Replay8650B8 nativeReplay;
@@ -256,36 +255,37 @@ void Post(NativeScreen *screen, unsigned int message, FengObject *object, int ta
 void ShowScreen(NativeScreen *screen);
 void CloseScreen(NativeScreen *screen);
 
-void ApplyDeferred() {
+bool ApplyDeferred() {
+    bool applied = false;
     if (removeScreen) {
         NativeScreen *screen = removeScreen;
         removeScreen = 0;
         CloseScreen(screen);
+        applied = true;
     }
     if (switchFrom || switchTo) {
         NativeScreen *from = switchFrom, *to = switchTo;
         switchFrom = switchTo = 0;
         if (from) CloseScreen(from);
         if (to) ShowScreen(to);
+        applied = true;
     }
+    return applied;
+}
+
+void SyncAngles() {
+    for (size_t i = 0; i < kScreenCount; ++i)
+        if (screens[i]->shown) screens[i]->package->SyncAngles();
 }
 
 void Pump() {
-    // Native lifecycle bridge around the recovered message/operation consumers.
+    // Native input seam: SDL input and the native screen lifecycle run outside the frame, so
+    // zero-length frames of recovered 0x558c00 deliver their messages and operations. A screen
+    // shown meanwhile gets its opening scripts applied before it is drawn.
     ApplyDeferred();
-    nativeFengQueue.DeliverMessages();
-    ApplyDeferred();
-    nativeFengQueue.ConsumeOperations();
-    nativeFengQueue.DeliverMessages();
-    ApplyDeferred();
-    // Native ordering seam: a screen pushed while messages are delivered selects its opening
-    // scripts but would otherwise be drawn before the next frame's script phase, showing the
-    // loaded Init state for a frame. A zero-length script phase applies them first.
-    for (size_t i = 0; i < kScreenCount; ++i) {
-        if (!screens[i]->shown || !screens[i]->scriptsPending) continue;
-        screens[i]->scriptsPending = false;
-        screens[i]->package->AdvanceScripts(&screens[i]->fePackage, &nativeFengQueue, 0);
-    }
+    int frames = 0;
+    do nativeFengQueue.Update(0, 0); while (ApplyDeferred() && ++frames < 8);
+    SyncAngles();
 }
 
 // 0x54d4b0: a pad message goes to the focus object when it responds to it, else to the
@@ -518,6 +518,10 @@ FEPackage *FEngQueue::Call555860(const char *, unsigned char, unsigned int) {
 
 // Explicit unrecovered package operations: current demo response fixtures do not
 // exercise these commands. Keep their call boundaries, without invented behavior.
+// Queue input can be switched on by a target -6 message (0x541fc0). The native queues have no
+// pads (+0xd4 = 0), for which 0x54d4b0 returns at once, and the mouse flag (+2) stays clear.
+void FEngQueue::DispatchPad(FEPackage *) { if (padCountD4) NativeTrap("FEng pad dispatch 0x54d4b0"); }
+void FEngQueue::DispatchMouse(FEPackage *) { NativeTrap("FEng mouse dispatch 0x54e020"); }
 void FEngQueue::Call51AB20(const char *, FEPackage *) { NativeTrap("FEngQueue 0x51ab20"); }
 void FEngQueue::Call51AC10(const char *, FEPackage *, unsigned int) { NativeTrap("FEngQueue 0x51ac10"); }
 void FEngQueue::Call51ADB0(FEPackage *) { NativeTrap("FEngQueue 0x51adb0"); }
@@ -531,8 +535,8 @@ public:
     UNUSED_SLOT(Unidentified0C) UNUSED_SLOT(Unidentified10) UNUSED_SLOT(Unidentified14)
     UNUSED_SLOT(Unidentified20) UNUSED_SLOT(Unidentified24) UNUSED_SLOT(Unidentified28)
     UNUSED_SLOT(Unidentified2C) UNUSED_SLOT(Unidentified30) UNUSED_SLOT(Unidentified34)
-    UNUSED_SLOT(Unidentified38) UNUSED_SLOT(Unidentified3C) UNUSED_SLOT(Unidentified40)
-    UNUSED_SLOT(Unidentified44) UNUSED_SLOT(Unidentified48)
+    UNUSED_SLOT(Unidentified38) UNUSED_SLOT(Unidentified3C) 
+    UNUSED_SLOT(Unidentified48)
     UNUSED_SLOT(Unidentified50)
 #undef UNUSED_SLOT
     void GameMessage(unsigned int message, void *sender, unsigned int, FEPackage *package) {
@@ -548,6 +552,10 @@ public:
     void InputMessage(unsigned int, void *, unsigned int, FEPackage *) {}
     void MessagePosted(unsigned int, void *, FEPackage *, int, int) {}
     void MessageDelivering(unsigned int, int, void *, FEPackage *, unsigned int) {}
+    unsigned int ReadPad(unsigned char) { NativeTrap("FEng owner input read"); return 0; }
+    void ReadMouse(FEngMousePacket *) { NativeTrap("FEng owner input read"); }
+    void BeginFrame() {}
+    void EndFrame() {}
 };
 static NativeQueueOwner nativeQueueOwner;
 void HudVisibilityObject::Call52BD70(int, int) { NativeTrap("FEng type6 navigation 0x52bd70"); }
@@ -785,6 +793,9 @@ bool NativePause::Load(const char *gameDirectory, NativeTextureCache *cache, con
     fengManager8384C4 = &nativeFengManager;
     nativeFengManager.names10.next0 = nativeFengManager.names10.previous4 = &nativeFengManager.names10;
     nativeFengQueue.value10C = &nativeQueueOwner;
+    // Constructor 0x536230 sets +0. Queue input (+1) stays off: pad and pointer input reach
+    // the packages through the native bridge below instead of 0x54d4b0/0x54e020.
+    nativeFengQueue.scripts0 = 1;
     *(void **)0x79ab60 = (void *)&NativeDeleteMessage;
     *(void **)0x79ab64 = (void *)&NativeDeleteOperation; // Native vtable binding; recovered payload and destructor remain unchanged.
     fengValue8384D0 = 0; // Native demo uses the live package collections.
@@ -830,6 +841,7 @@ void NativePause::Open() {
     fengManager8384C4 = &nativeFengManager;
     nativeFengManager.names10.next0 = nativeFengManager.names10.previous4 = &nativeFengManager.names10;
     nativeFengQueue.value10C = &nativeQueueOwner;
+    nativeFengQueue.scripts0 = 1;
     *(void **)0x79ab60 = (void *)&NativeDeleteMessage;
     *(void **)0x79ab64 = (void *)&NativeDeleteOperation; // Native vtable binding; recovered payload and destructor remain unchanged.
     fengValue8384D0 = 0; // Native demo uses the live package collections.
@@ -905,12 +917,10 @@ void NativePause::Update(float seconds) {
     clockRemainder -= (float)ticks;
     if (clockRemainder < 0.0f) clockRemainder = 0.0f;
     realClock8651AC += ticks;
+    // Recovered frame manager 0x558c00 steps the shown packages' scripts and drains the queue.
+    nativeFengQueue.Update(NativeFengMilliseconds(seconds, &scriptClockRemainder), 0);
     for (size_t i = 0; i < kScreenCount; ++i) {
-        if (!screens[i]->shown) continue;
-        screens[i]->scriptsPending = false;
-        // Recovered 0x54ce60 fires script events through the queue and its observer.
-        screens[i]->package->AdvanceScripts(&screens[i]->fePackage, &nativeFengQueue, seconds);
-        if (screens[i] != &dialogScreen) Post(screens[i], kFrontendTick, 0, kTargetGame);  // 0x5663b0
+        if (screens[i]->shown && screens[i] != &dialogScreen) Post(screens[i], kFrontendTick, 0, kTargetGame);  // 0x5663b0
     }
     Pump();
     NativePauseOptionsUpdate();

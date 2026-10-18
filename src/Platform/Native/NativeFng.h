@@ -102,6 +102,10 @@ typedef char FengObject_size_state_check[(UG2_OFFSETOF(FengObject, size) - UG2_O
 
 class NativeFont;
 
+// Native frame clock seam for frame manager 0x558c00: caller 0x5662c0 truncates the
+// frame time to whole milliseconds; the demo carries the fraction to the next frame.
+int NativeFengMilliseconds(float seconds, float *remainder);
+
 class FengPackage {
 public:
     FengPackage();
@@ -137,8 +141,8 @@ public:
     static void GetSize(FengObject *object, float *x, float *y);
     static void SetState(FengObject *object, int key, const float *value);
     static void PlayScript(FengObject *object, const char *name, bool restart);
-    // Native frame seam around the script phase of 0x558c00; receiver supplies +0x14/+0x30/+0x34.
-    void AdvanceScripts(FEPackage *receiver, FEngQueue *queue, float seconds);
+    // Native render seam: draw angles follow the quaternions after frame manager 0x558c00 runs.
+    void SyncAngles();
     // Native pointer seam, using the same composed transforms as the renderer.
     bool Contains(FengObject *object, float x, float y);
     static void SetText(FengObject *object, const char *text);     // 0x537be0
@@ -154,7 +158,6 @@ private:
     void Gather(FengObject *object, const float *parent, float parentAlpha, std::vector<DrawItem> *items);
     std::vector<FengObject *> objects_;
     std::vector<FengObject *> roots_;
-    float clockRemainder_ = 0; // native sub-millisecond frame time carried between frames
     struct NativeAssociation {
         unsigned int message;
         std::vector<unsigned int> guids;

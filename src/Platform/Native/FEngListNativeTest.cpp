@@ -85,7 +85,8 @@ static void Run(unsigned int wrap, bool explicitGuid) {
     list->Navigate(1, 0);
     assert(list->value88 == (wrap ? 0u : 2u) && list->value94 == .75f && list->value9C == 1);
     static FEngQueue queue; FEPackage receiver = {}; receiver.value14 = 1;
-    package.AdvanceScripts(&receiver, &queue, .1f); // Recovered 0x54ce60 in 20 ms native steps.
+    receiver.queue30 = &queue; receiver.delta34 = 20;
+    for (int step = 0; step < 5; ++step) receiver.UpdateObject(package.FirstRoot(), 20); // 0x54ce60, as 0x558c00 steps it
     assert(!(list->value5C & 0x62) && list->value70 == (wrap ? 0 : .75f));
     assert(object->hash10 == 0x12345678 && object->resource == -1 && object->parentGuid == 0);
 }

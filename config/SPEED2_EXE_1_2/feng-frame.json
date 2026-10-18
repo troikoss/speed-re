@@ -1,0 +1,20 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "Update": {
+      "address": "0x558c00",
+      "size": 634,
+      "sha256": "62fe39b038283105c9dc674435010cb470bb4324fd8fd2a799f684df3fd8e9d4"
+    },
+    "PadLatch": {
+      "address": "0x504fa0",
+      "size": 75,
+      "sha256": "60633e956cd91bfe2b8582c932043efd8eea7ecc6b329cb03fcdc9dd08fe63ec"
+    },
+    "MouseLatch": {
+      "address": "0x50b0c0",
+      "size": 129,
+      "sha256": "51eef3f89f16844c26c63e89bee86bc1fc58bb07a7482b4bfc4e173d4eeea041"
+    }
+  }
+}

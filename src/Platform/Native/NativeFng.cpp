@@ -719,25 +719,14 @@ void FengPackage::PlayScript(FengObject *object, const char *name, bool restart)
     FngSetObjectScript(object, name, restart);
 }
 
-// Native frame seam: frame seconds become whole milliseconds (the fraction carries),
-// then the script phase of frame manager 0x558c00 with queue byte 0 set: steps of at
-// most 20 ms, each publishing mask 0x7f7c8c from queue +0x5250 and updating the root
-// objects through recovered 0x54ce60. Message delivery is left to the caller's pump
-// rather than interleaved per step.
-void FengPackage::AdvanceScripts(FEPackage *receiver, FEngQueue *queue, float seconds) {
-    clockRemainder_ += seconds * 1000.0f;
-    int remaining = (int)clockRemainder_;
-    clockRemainder_ -= (float)remaining;
-    do {
-        int step = remaining > 20 ? 20 : remaining;
-        fengFlagMask7F7C8C = queue->unidentified5250 ? 0 : 0xffffffffu;
-        receiver->queue30 = queue;
-        receiver->delta34 = step;
-        for (HudVisibilityObject *object = FirstRoot(); object; object = object->next4)
-            if (object->currentScript54) receiver->UpdateObject(object, step); // native guard: objects without scripts
-        remaining -= step;
-        queue->unidentified5250 = 0;
-    } while (remaining);
+int NativeFengMilliseconds(float seconds, float *remainder) {
+    *remainder += seconds * 1000.0f;
+    int milliseconds = (int)*remainder;
+    *remainder -= (float)milliseconds;
+    return milliseconds;
+}
+
+void FengPackage::SyncAngles() {
     for (size_t i = 0; i < objects_.size(); ++i) UpdateNativeAngle(objects_[i]);
 }
 

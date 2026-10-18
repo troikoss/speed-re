@@ -19,10 +19,37 @@ struct FEngMessageAssociation {
     unsigned int message0, capacity4, count8;
     HudVisibilityObject **objectsC;
 };
+// One pad of the queue's input array: buttons held this and the previous frame,
+// and per-button hold time in milliseconds.
+struct FEngPadState {
+    unsigned int previous0;
+    unsigned int current4;
+    unsigned int hold8[32];
+    void Latch(unsigned int buttons, int delta); // 0x504fa0
+};
+struct FEngMousePacket { short x0, y2, z4, buttons6; };
+struct FEngMouseState {
+    int x0, y4, z8;
+    unsigned short previousButtonsC, buttonsE;
+    int hold10[3];
+    char unidentified1C;
+    unsigned char moved1D;
+    void Latch(FEngMousePacket *packet, int delta); // 0x50b0c0
+};
 struct FEngQueue {
-    char unidentified0;
-    unsigned char value1;
-    char unidentified2[0xda];
+    unsigned char scripts0;   // nonzero: stepped frames with message and operation drains
+    unsigned char value1;     // nonzero: pad and mouse input are read each frame
+    unsigned char mouse2;     // nonzero: mouse input is read and dispatched
+    char unidentified3[5];
+    FEngPadState *pads8;
+    FEngMouseState mouseC;
+    int value2C;
+    int value30;
+    unsigned int consumed34;  // bits of value38 entries to subtract from the pad hold times
+    unsigned int value38[19];
+    char unidentified84[0x50];
+    unsigned int padCountD4;
+    char unidentifiedD8[4];
     FEngPackageList packagesDC;
     char unidentifiedE8[4];
     FEngPackageList packagesEC;
@@ -38,8 +65,11 @@ struct FEngQueue {
     char value414C[16][0x100];
     int value514C;
     FEngSavedFocus value5150[32];
-    char unidentified5250;
+    unsigned char value5250;  // nonzero clears mask 0x7f7c8c for the next script step
     unsigned char value5251;
+    void Update(int delta, int unlimited); // 0x558c00
+    void DispatchPad(FEPackage *package); // 0x54d4b0, not recovered
+    void DispatchMouse(FEPackage *package); // 0x54e020, not recovered
     void DeliverMessages(); // 0x541fc0
     void DeliverObject(HudVisibilityObject *object, FEPackage *package, unsigned int message, unsigned int mask); // 0x5367e0
     void ConsumeOperations(); // 0x5559c0
@@ -60,6 +90,16 @@ struct FEngQueue {
     FEPackage *FindByEncodedNameHash(unsigned int hash); // 0x50b240
 };
 UG2_CHECK_OFFSET(FEngQueue, value1, 1);
+UG2_CHECK_OFFSET(FEngQueue, pads8, 8);
+UG2_CHECK_OFFSET(FEngQueue, mouseC, 0xc);
+UG2_CHECK_OFFSET(FEngQueue, value2C, 0x2c);
+UG2_CHECK_OFFSET(FEngQueue, consumed34, 0x34);
+UG2_CHECK_OFFSET(FEngQueue, value38, 0x38);
+UG2_CHECK_OFFSET(FEngQueue, padCountD4, 0xd4);
+UG2_CHECK_OFFSET(FEngQueue, value5250, 0x5250);
+UG2_CHECK_SIZE(FEngPadState, 0x88);
+UG2_CHECK_OFFSET(FEngMouseState, hold10, 0x10);
+UG2_CHECK_OFFSET(FEngMouseState, moved1D, 0x1d);
 UG2_CHECK_OFFSET(FEngQueue, value10C, 0x10c);
 UG2_CHECK_OFFSET(FEngQueue, first104, 0x104);
 UG2_CHECK_OFFSET(FEngQueue, messages4114, 0x4114);

@@ -1,6 +1,6 @@
 # Native code replacement inventory
 
-Snapshot: 2026-10-18 (after commit `3007487`). Reference build: UG2 PC v1.2
+Snapshot: 2026-10-18 (after the FEng frame manager recovery). Reference build: UG2 PC v1.2
 `speed2.exe`.
 
 This is a planning document. It lists the native code in `src/Platform/Native`
@@ -28,7 +28,7 @@ still should come from recovered code.
 | --- | --- | --- | --- |
 | 1 | ~~Car update `0x6012b0` and world update `0x609ce0`~~ (done; many callees remain seams) | 3 | 5 |
 | 2 | ~~Wire in verified-but-unintegrated tuning routines~~ (already linked; reachable only once the tuning-table loader, item 8, exists) | 1 | 3 |
-| 3 | FEng messaging: frame manager `0x558c00`, delivery `0x541fc0`, dispatch `0x5367e0` | 3 | 4 |
+| 3 | ~~FEng messaging: frame manager `0x558c00`~~ (done; delivery `0x541fc0`/dispatch `0x5367e0` were already recovered; pad/mouse dispatch `0x54d4b0`/`0x54e020` remain) | 3 | 4 |
 | 4 | Car constructor `0x604260` and participant setup `0x6065b0` (replace `CreateNativeVehicle`) | 4 | 5 |
 | 5 | FEng package/object loader `0x5554a0`/`0x555860` | 4 | 4 |
 | 6 | Collision: GJK `0x5b3390`, impulse `0x5af0e0`, world objects, cylinders | 3–4 | 4 |
@@ -118,9 +118,9 @@ still should come from recovered code.
 
 | Native piece | Where | Replace with | Diff. | Imp. | Notes |
 | --- | --- | --- | --- | --- | --- |
-| `AdvanceScripts` frame seam (≤20 ms steps, no drains between steps) | `NativeFng.cpp:722` | Frame manager `0x558c00` | 3 | 4 | Script playback beneath it is already recovered. |
-| `Pump()` native delivery bridge and zero-length step for new screens | `NativePause.cpp:271` | Delivery `0x541fc0`, dispatch `0x5367e0`, operation drains | 3 | 4 | |
-| HUD posts to a discarded local queue | `NativeHud.cpp:510` | Register the HUD package with the frame manager | 2 | 3 | Follows from `0x558c00`. |
+| ~~`AdvanceScripts` frame seam~~ | — | Frame manager `0x558c00` (recovered, wired in) | — | — | Remaining: fraction-carrying ms clock (`NativeFengMilliseconds`), draw-angle sync. |
+| `Pump()`: input handled outside the frame, drained by zero-length `0x558c00` frames | `NativePause.cpp` `Pump` | Pad/mouse dispatch `0x54d4b0`/`0x54e020` with queue input +1 and pads +0xd4 | 4 | 3 | Replaces the native `Input()` bridge too. |
+| HUD on its own queue (events delivered to an ignoring observer) | `NativeHud.cpp` `Update` | One shared queue with the frontend packages | 2 | 2 | HUD now runs through `0x558c00`. |
 | Package loading/removal trap; native package chain and order | `NativePause.cpp:163`, `:513–524` | `0x555860`, `0x5362e0`, `0x51ab20`/`0x51ac10`/`0x51adb0`/`0x51b070` | 4 | 4 | |
 | Object/record/archive loading; parsed file order kept | `NativeFng.cpp:618`, `NativePause.cpp:197` | `0x5554a0` and its chunk walk | 4 | 4 | |
 | Position, size and UV setters | `NativeFng.cpp` `SetPosition`/`GetSize`/`SetState` | Original FEng setters | 2 | 2 | |

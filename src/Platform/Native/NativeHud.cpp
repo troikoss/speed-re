@@ -482,8 +482,8 @@ struct HudQueueOwner : FEngQueueObserver {
     UNUSED_SLOT(Unidentified0C) UNUSED_SLOT(Unidentified10) UNUSED_SLOT(Unidentified14)
     UNUSED_SLOT(Unidentified20) UNUSED_SLOT(Unidentified24) UNUSED_SLOT(Unidentified28)
     UNUSED_SLOT(Unidentified2C) UNUSED_SLOT(Unidentified30) UNUSED_SLOT(Unidentified34)
-    UNUSED_SLOT(Unidentified38) UNUSED_SLOT(Unidentified3C) UNUSED_SLOT(Unidentified40)
-    UNUSED_SLOT(Unidentified44) UNUSED_SLOT(Unidentified48)
+    UNUSED_SLOT(Unidentified38) UNUSED_SLOT(Unidentified3C) 
+    UNUSED_SLOT(Unidentified48)
     UNUSED_SLOT(Unidentified50)
 #undef UNUSED_SLOT
     void GameMessage(unsigned int, void *, unsigned int, FEPackage *) {}
@@ -491,10 +491,15 @@ struct HudQueueOwner : FEngQueueObserver {
     void RefillGrid(FEGridObject *, int, int) {}
     void MessagePosted(unsigned int, void *, FEPackage *, int, int) {}
     void MessageDelivering(unsigned int, int, void *, FEPackage *, unsigned int) {}
+    unsigned int ReadPad(unsigned char) { return 0; }
+    void ReadMouse(FEngMousePacket *) { }
+    void BeginFrame() {}
+    void EndFrame() {}
 };
 HudQueueOwner hudQueueOwner;
 FEngQueue hudFengQueue;
 FEPackage hudReceiver;
+float hudClockRemainder = 0.0f;
 }  // namespace
 
 void NativeHud::Update(NativeVehicle *vehicle, bool metric, float seconds) {
@@ -507,17 +512,16 @@ void NativeHud::Update(NativeVehicle *vehicle, bool metric, float seconds) {
     // Native option seam: the demo's metric choice is the profile option at 0x83aa1a.
     units83AA1A = metric ? 1 : 0;
     controller_.UpdateFeatures(reinterpret_cast<HudPlayerSlot *>(&nativePlayer.record), vehicle->owner); // 0x4ec5a0
-    // Native seam: the HUD package is not registered with a frame manager yet. Its script
-    // events post to a HUD-local queue whose observer ignores them, and the posts are
-    // discarded after each update; recovered 0x54ce60 still runs in mode 1.
+    // Recovered frame manager 0x558c00 steps the HUD package and delivers its script events.
+    // Native seam: the HUD has its own queue rather than the frontend's, and its observer
+    // ignores the events (the HUD's original consumers are not recovered).
     hudReceiver.value14 = 1;
+    hudReceiver.firstObject4C = package_.FirstRoot();
+    hudFengQueue.scripts0 = 1;
     hudFengQueue.value10C = &hudQueueOwner;
-    package_.AdvanceScripts(&hudReceiver, &hudFengQueue, seconds);
-    while (hudFengQueue.messages4114.first8) {
-        FEngQueueNode *node = hudFengQueue.messages4114.first8;
-        hudFengQueue.messages4114.Remove(node);
-        node->DestroyMessage(1);
-    }
+    hudFengQueue.packagesDC.first8 = &hudReceiver;
+    hudFengQueue.Update(NativeFengMilliseconds(seconds, &hudClockRemainder), 0);
+    package_.SyncAngles();
 }
 
 void NativeHud::SetCareerHudState(int balance, unsigned int regionHash) {

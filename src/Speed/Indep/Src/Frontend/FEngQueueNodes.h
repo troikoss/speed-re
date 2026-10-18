@@ -26,6 +26,7 @@ struct FEngQueueList {
     void ClearOwned(); // 0x511670; first removal calls Remove, later removals are inline.
 };
 // Observed owner slots from queue and grid callers; unidentified slots keep their offsets.
+struct FEngMousePacket;
 struct FEngQueueObserver {
     virtual void Unidentified00() = 0;
     virtual void Unidentified04() = 0;
@@ -43,13 +44,15 @@ struct FEngQueueObserver {
     virtual void Unidentified34() = 0;
     virtual void Unidentified38() = 0;
     virtual void Unidentified3C() = 0;
-    virtual void Unidentified40() = 0;
-    virtual void Unidentified44() = 0;
+    virtual unsigned int ReadPad(unsigned char pad) = 0;           // buttons held, from 0x558c00
+    virtual void ReadMouse(FEngMousePacket *packet) = 0;            // from 0x558c00
     virtual void Unidentified48() = 0;
     virtual void RefillGrid(FEGridObject *grid, int column, int row) = 0; // original grid callback
     virtual void Unidentified50() = 0;
     virtual void MessagePosted(unsigned int message, void *sender, FEPackage *package, int target, int mask) = 0;
     virtual void MessageDelivering(unsigned int message, int target, void *sender, FEPackage *package, unsigned int mask) = 0;
+    virtual void BeginFrame() = 0; // 0x558c00 entry when queue +0x5251 is set
+    virtual void EndFrame() = 0;   // 0x558c00 exit when queue +0x5251 is set
 };
 void *FEngAllocateQueueNode(unsigned int size); // original allocation boundary 0x575620
 void FEngFreeQueueNode(void *pointer); // original deallocation boundary 0x575630

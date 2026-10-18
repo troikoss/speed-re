@@ -4340,3 +4340,90 @@ frames are byte-identical; pause/options frames differ in icon glow phase and
 slider fill widths change from [0, 99, 206] to [0, 107, 214] px, consistent
 with original track evaluation replacing the native interpolator. No original
 game capture was compared, so visual equivalence is unverified.
+
+## FEng frame manager (2026-10-18)
+
+`FEngFrame.cpp` recovers frame manager **0x558c00** (`FEngQueue::Update(delta,
+unlimited)`, 634 bytes) and the input latches it calls: pad latch **0x504fa0**
+(75 bytes) and mouse latch **0x50b0c0** (129 bytes). Caller `0x5662c0` passes the
+frame time truncated to whole milliseconds and, as the second argument, whether
+the time may be applied in one step.
+
+Behaviour, in order:
+
+- With +0x5251 set, observer slot +0x5c runs first and slot +0x60 runs last.
+- Without byte +0, every package from +0xe4 (`packagesDC.first8`) gets +0x30/+0x34
+  and one update of all of its root objects by the whole time (`0x54ce60`). Nothing
+  is drained.
+- With +0 and +1 set, input is read first:
+  - Consumed bits +0x34 are cleared.
+  - With +2 set, the mouse packet is read through slot +0x44 and latched at +0xc.
+  - Each of the +0xd4 pads at +8 (0x88 bytes each) is latched from slot +0x40.
+    The original pushes `delta` before calling that slot, so it doubles as the
+    latch's second argument; the slot itself takes only the byte-sized pad index.
+  - Every package is offered to pad dispatch `0x54d4b0`, and to mouse dispatch
+    `0x54e020` when +2 is set.
+  - For each of the 19 bits set in +0x34, the matching +0x38 amount is subtracted,
+    saturating at 0, from that button's hold time on every pad. All 19 amounts
+    are then cleared.
+  - Finally +0x2c = +0x30.
+- With +0 set, the time is applied in steps of at most 20 ms (one step when
+  unlimited, using the argument's full dword). Each step:
+  - publishes mask 0x7f7c8c (0 when +0x5250 is set, else all ones);
+  - updates every package's root objects, reading the next package before
+    updating the current one;
+  - delivers messages (`0x541fc0`), consumes operations (`0x5559c0`), and
+    delivers again if messages were queued meanwhile;
+  - clears +0x5250.
+
+  A zero delta still runs one step.
+
+`verify_pc_feng_frame.py --mutation-checks` ran 6,144 comparisons: 2,048 each for
+the frame manager and the two latches. Covered paths were input, mouse
+dispatch, multi-step, the second drain and the unstepped path. Pad/mouse
+dispatch, delivery, operations, object update and the four observer slots were
+traced stubs; the stubs fed consumed bits, pad buttons, mouse packets and
+message-list heads from a sequence shared by both runs. 13 mutations were
+rejected:
+
+- step limit, unlimited flag, mask polarity
+- second drain, drain order
+- consumed clear and saturation
+- pad hold, mouse movement, mouse buttons
+- +0x2c copy, mouse-dispatch guard, end-frame slot
+
+Byte identity is not established. Pad dispatch `0x54d4b0` and mouse dispatch
+`0x54e020` (about 3 KB each) are not recovered.
+
+Native integration replaces `FengPackage::AdvanceScripts`:
+
+- **Pause/frontend:** `NativePause::Update` runs `nativeFengQueue.Update(ms, 0)`
+  over the native package chain.
+- **Pump:** `Pump()` now runs zero-length frames of the recovered routine, in
+  place of its hand-ordered deliver/consume/deliver bridge and its per-screen
+  zero-length script step. It repeats while the native lifecycle shows or closes
+  screens, at most 8 times.
+- **HUD:** the HUD package is stepped by the recovered routine on its own queue.
+  Its script events are now delivered to that queue's observer, which ignores
+  them, instead of being discarded unread.
+
+Native seams that remain:
+
+- The frame time keeps its sub-millisecond fraction (`NativeFengMilliseconds`).
+  The original truncates it.
+- Queue input (+1) starts off. SDL input reaches packages through the native
+  `Input()` bridge instead of `0x54d4b0`/`0x54e020`. A target -6 message can still
+  switch +1 on (`0x541fc0`). In that case the native pad-dispatch seam returns
+  when +0xd4 is 0, as the original does; with pads present it traps. Mouse
+  dispatch traps.
+- The HUD and the frontend use separate queues; the original has one queue.
+- Draw angles are re-synchronised from the quaternions after each frame.
+
+The old native guard that skipped root objects without a current script is
+gone, because the original has none. No null script was reached in the checked
+runs.
+
+Native and CTest builds pass. Pause frames at 20/260 (no keys, `RAALDL`, `DDA`,
+`RA`) and a 200-frame drive are byte-identical to the previous build. The
+smoke checks also pass: 19 settings, 10 Controls, scroller motion, and 12 mod
+scenarios.
