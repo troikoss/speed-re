@@ -4,6 +4,7 @@
 #include "../../Speed/Indep/Src/Frontend/FEngObject.h"
 #include "../../Speed/Indep/Src/Frontend/FEngGridReader.h"
 #include "../../Speed/Indep/Src/Frontend/FEngLifecycle.h"
+#include "../../Speed/Indep/Src/Frontend/FEngObjectFactory.h"
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -266,6 +267,26 @@ int main() {
     for (unsigned int i = 0; i < slots.size(); ++i) FEngObjectStateManager.ReleaseState(slots[i]);
     assert(!FEngObjectStateManager.classes0.count4 && !FEngObjectStateManager.classes0.first8 && !FEngObjectStateManager.classes0.valueC);
     assert(freeCalls == beforePoolSequence + 8);
+    FEngObjectStateSpec specs[] = {{1,64}, {2,80}, {4,64}, {5,64}, {6,64}, {7,64}, {9,64}, {10,64}, {11,64}};
+    FEngObjectFactoryContext factory = {};
+    factory.count30 = sizeof(specs) / sizeof(specs[0]); factory.specs34 = specs; factory.owner38 = &storageOwner;
+    const int types[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, -1};
+    std::vector<HudVisibilityObject *> factoryObjects;
+    for (unsigned int i = 0; i < sizeof(types) / sizeof(types[0]); ++i) {
+        unsigned int before = FEngNextObjectGuid;
+        HudVisibilityObject *object = factory.Create(types[i]);
+        if (!types[i]) { assert(!object && FEngNextObjectGuid == before); continue; }
+        assert(object && object->type18 == types[i] && object->guidC == before && FEngNextObjectGuid == before + 1);
+        unsigned int expectedSize = types[i] == 2 ? 80 : types[i] == 3 || types[i] == 8 || types[i] == -1 ? 0 : 64;
+        assert(*(unsigned int *)object->unidentified30 == expectedSize && !!object->data2C == !!expectedSize);
+        if (types[i] == 6) assert(((FEGridObject *)object)->owner5C == &storageOwner);
+        factoryObjects.push_back(object);
+    }
+    for (unsigned int i = 0; i < factoryObjects.size(); ++i) {
+        // Factory return-path fixture: derived-owned pointers are still empty.
+        factoryObjects[i]->DestructBase(); FEngFreeQueueNode(factoryObjects[i]);
+    }
+    assert(!FEngObjectStateManager.classes0.count4 && !FEngObjectStateManager.classes0.first8);
     munmap(page, 4096);
     puts("PASS recovered grid storage/pool migration/cell writes/fill/navigation/callbacks/hash (no retail assets or display)");
 }

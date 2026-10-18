@@ -1,0 +1,62 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "ConstructImage": {
+      "address": "0x532640",
+      "size": 32,
+      "sha256": "bc33850451e26dd2fece8c5aa91ea3444fa532292066d37609be56cf5f9d5f44"
+    },
+    "ConstructString": {
+      "address": "0x495630",
+      "size": 100,
+      "sha256": "75ec565eda54c6f7ea74b19bb5abdd3f244b4d2a1d6bad23f911a3880acb3707"
+    },
+    "ConstructList": {
+      "address": "0x5349c0",
+      "size": 130,
+      "sha256": "6efccfcaddb7e4d49f38dd1fdb5d8ba11d95869baff282287e895a850d79d5f0"
+    },
+    "ConstructGroup": {
+      "address": "0x52b080",
+      "size": 43,
+      "sha256": "1e91b5ecfc86dcf7ac93bfc56e158ff4acb89b76e6b92d924c59b872c5986ab5"
+    },
+    "ConstructType7": {
+      "address": "0x52b0b0",
+      "size": 32,
+      "sha256": "575aaf76a8fdad73495e83fd5b7fff48a75a16fea72af16b368b4e6e6ac5efbe"
+    },
+    "ConstructType9": {
+      "address": "0x534b90",
+      "size": 32,
+      "sha256": "d0c4f62fe25883878cf728d5d59757c884a3b52effd0dc2a2b7bdc58d9b78b66"
+    },
+    "ConstructType10": {
+      "address": "0x534db0",
+      "size": 32,
+      "sha256": "fbac526c1819d099703436f160da4d138ae91d3d575b01a8544259f6123a2283"
+    },
+    "ConstructType11": {
+      "address": "0x52b480",
+      "size": 25,
+      "sha256": "a628a084e557792791e2fe7d3428e654fe8f997832a3a3509ad65c2a0c247fc0"
+    },
+    "ConstructText": {
+      "address": "0x51de80",
+      "size": 16,
+      "sha256": "9d20fb9737545d0eeb198c79dc5d325beabd6d570a4058d3f1e7f4a887df0403"
+    },
+    "Create": {
+      "address": "0x534df0",
+      "size": 403,
+      "sha256": "b6a9747de70b1ca94f4bd138ef9cb2e12b520f4e6b9681458ee5c94f3cfc4d66"
+    }
+  },
+  "tables": {
+    "FactoryJumpTable": {
+      "address": "0x534f84",
+      "size": 48,
+      "sha256": "2b663530fba61498e0fe57ce063834678995dcfeae37b883715e554af5f29748"
+    }
+  }
+}

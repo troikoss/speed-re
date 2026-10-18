@@ -4,6 +4,7 @@
 
 // String-specific extension; +0x64 is text64 rather than the group child pointer.
 struct FEStringObject : HudVisibilityObject {
+    FEStringObject *Construct(); // 0x495630, normal return
     char unidentified68[4];
     int justification6C;
     int leading70;

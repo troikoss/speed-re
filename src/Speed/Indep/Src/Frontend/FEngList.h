@@ -17,6 +17,7 @@ struct FEListObject {
     void *value90;
     volatile float value94, value98;
     float value9C, valueA0, valueA4, valueA8;
+    FEListObject *Construct(); // 0x5349c0
     void SetColumn(unsigned int value); // 0x504180
     void SetRow(unsigned int value); // 0x5041b0
     void AdvanceCell(); // 0x504230

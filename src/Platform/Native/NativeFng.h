@@ -3,8 +3,8 @@
 
 // Platform scaffolding: reads UG2's FEng package (.fng) data and draws it with OpenGL. The chunk
 // layout follows the original loader (package reader 0x5554a0, object reader 0x555140, script
-// reader 0x5515e0, resource table 0x518380); the FEng object model and renderer themselves are not
-// recovered, so objects here are plain structs holding the observed per-object state block.
+// reader 0x5515e0, resource table 0x518380). Recovered constructors/operations execute on the
+// observed prefixes; full reader ownership, native wrappers/state and rendering remain seams.
 //
 // Coordinates are the 640x480 FEng screen with its origin at the screen centre, y down.
 #include "NativeScene.h"

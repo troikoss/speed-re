@@ -6,6 +6,7 @@
 #include "../../Speed/Indep/Src/Frontend/FEngScript.h"
 #include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObject.h"
+#include "../../Speed/Indep/Src/Frontend/FEngObjectFactory.h"
 #include "../../Speed/Indep/Src/Hud/HudAnimation.h"
 
 #include <algorithm>
@@ -43,6 +44,24 @@ NativeStringObserver nativeStringObserver;
 
 unsigned int Rd32(const unsigned char *p) { return p[0] | p[1] << 8 | p[2] << 16 | (unsigned int)p[3] << 24; }
 unsigned int Rd16(const unsigned char *p) { return p[0] | p[1] << 8; }
+// Native wrapper allocation needs the type before constructing its retail prefix.
+// Original factory allocation/state ownership and surrounding reader remain separate.
+unsigned int NativeConstructionType(const unsigned char *data, size_t start, size_t end) {
+    for (size_t chunk = start; chunk + 8 <= end;) {
+        size_t next = chunk + 8 + Rd32(data + chunk + 4);
+        if (next > end || next < chunk + 8) break;
+        if (Rd32(data + chunk) == 0x446a624f) {
+            for (size_t property = chunk + 8; property + 4 <= next;) {
+                unsigned int length = Rd16(data + property + 2);
+                if (property + 4 + length > next) break;
+                if (Rd16(data + property) == 0x744f && length >= 4) return Rd32(data + property + 4);
+                property += 4 + length;
+            }
+        }
+        chunk = next;
+    }
+    return 0;
+}
 float RdF(const unsigned char *p) {
     unsigned int v = Rd32(p);
     float f;
@@ -228,14 +247,23 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                             *(unsigned int *)(object->unidentified58 + 4) = 0;
                             object->childCount60 = 0;
                             object->firstChild64 = 0;
-                            object->ConstructBase();
+                            // Execute each recovered constructor once; native metadata
+                            // requires a larger C++ wrapper than the original allocation.
+                            switch (NativeConstructionType(data, r + 8, end3)) {
+                            case 1: reinterpret_cast<FEngLeafObject *>(object)->ConstructImage(); break;
+                            case 2: object->Construct(); break;
+                            case 4: reinterpret_cast<FEListObject *>(object)->Construct(); break;
+                            case 5: reinterpret_cast<FEngGroupObject *>(object)->Construct(); break;
+                            case 7: reinterpret_cast<FEngLeafObject *>(object)->ConstructType7(); break;
+                            case 9: reinterpret_cast<FEngLeafObject *>(object)->ConstructType9(); break;
+                            case 10: reinterpret_cast<FEngLeafObject *>(object)->ConstructType10(); break;
+                            case 11: reinterpret_cast<FEngType11Object *>(object)->Construct(); break;
+                            default: object->ConstructBase(); break; // Type6 needs a native 0xc8 prefix/owner binding.
+                            }
                             object->parentGuid = 0;
                             object->resource = -1;
                             object->data2C = reinterpret_cast<float *>(object->colour);
-                            object->justification6C = 0;
                             object->font = 0;
-                            object->leading70 = 0;
-                            object->maxWidth74 = 0;
                             object->fontHash = 0;
                             object->parent = 0;
                             object->imageMask = 0;
@@ -263,15 +291,6 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                         switch (tag) {
                                         case 0x744f:
                                             object->type18 = (int)Rd32(pl); // 'Ot'
-                                            if (object->type18 == 4) {
-                                                // Prefix projection of 0x5349c0, not original allocation/ownership.
-                                                FEListObject *list = reinterpret_cast<FEListObject *>(object);
-                                                memset(reinterpret_cast<unsigned char *>(object) + 0x5c, 0, 0x50);
-                                                list->value5C = 4;
-                                                list->value80 = list->value84 = list->valueA4 = 1;
-                                                unsigned int bits = 0xbab60b61;
-                                                memcpy(&list->valueA8, &bits, 4);
-                                            }
                                             break;
                                         case 0x684f: object->hash10 = Rd32(pl); break;       // 'Oh'
                                         case 0x504f:                                       // 'OP'

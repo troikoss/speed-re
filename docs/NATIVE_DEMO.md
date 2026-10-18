@@ -398,6 +398,11 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   distinguishes full-word class keys, and returns all storage through recovered
   release/cleanup. Fixed virtual slots are relocated only inside that test;
   production state/factory ownership binding remains pending.
+  All branches of object factory `0x534df0` and its remaining constructors are
+  recovered. Native image/string/list/group and types 7/9/10/11 now execute those
+  constructors once; the type-4 default memset/assignments are removed. Native
+  type selection, larger wrapper allocation and inline state remain documented
+  seams; production type-6 prefix/owner binding remains pending.
   Name hashing `0x505450` now executes recovered source; the native hash loop is
   removed. See [grid/hash evidence](pc-pause-menu.md#type-6-grid-navigation-and-original-name-hashing-2026-10-18).
   See [message delivery evidence](pc-pause-menu.md#full-queued-message-delivery-2026-10-18).

@@ -2772,3 +2772,93 @@ failure, inconsistent/full bitmap scans, arbitrary aliases, concurrency, callbac
 that inspect SEH frames, throwing callbacks and unwind are unverified. MSVC 7.1
 and byte matching remain pending; Clang is the stated verification compiler.
 Reports stay ignored under `build/analysis/feng-state-pool/`.
+
+## Full object factory and typed native construction (2026-10-18)
+
+`FEngObjectFactory.cpp` recovers the complete **0x534df0** factory (403 bytes),
+including every switch branch and actual constructor/state calls. The 12-entry
+jump table at **0x534f84** is fingerprinted with the code and executable in
+`config/SPEED2_EXE_1_2/feng-object-factory.json`. Its remaining constructors are
+recovered in `FEngObjectConstructors.cpp`:
+
+| Routine | Address | Reference span |
+|---|---|---|
+| image/type-1 constructor | 0x532640 | 32 bytes |
+| string/type-2 constructor | 0x495630 | 100 bytes, normal return |
+| list/type-4 constructor | 0x5349c0 | 130 bytes |
+| group/type-5 constructor | 0x52b080 | 43 bytes |
+| type-7 constructor | 0x52b0b0 | 32 bytes |
+| type-9 constructor | 0x534b90 | 32 bytes |
+| type-10 constructor | 0x534db0 | 32 bytes |
+| type-11 constructor | 0x52b480 | 25 bytes |
+| nested text-storage constructor | 0x51de80 | 16 bytes |
+
+Every derived constructor calls actual common construction. The string constructor
+sets its vtable/derived defaults, language hash 0xffffffff and actual nested
+text-storage initialization at +0x64/+0x68 before setting the remaining string
+properties/type. List construction sets all original fields through +0xa8,
+including the phase bits and unit defaults. Group construction creates the
+observed child-list header. Other leaf types retain offset-based tail fields;
+unknown type semantics are not inferred from their vtable identities. Type 11
+has only a 0x5c-byte footprint, with no invented +0x5c tail write.
+
+The factory returns null immediately for type 0. Types 1/2/4/5/6/7/9/10/11 allocate
+0x60/0x78/0xac/0x6c/0xc8/0x60/0x60/0x60/0x5c bytes and execute their respective
+constructors; all other types allocate a 0x5c-byte common object. Type 6 receives
+the current reader +0x38 owner at object +0x5c after construction. Common finalization
+writes the requested type and scans the current reader's +0x30/+0x34 specification
+table for its **first** matching full-word type. It calls the actual global state
+manager release even for the constructor's null data2C, clears data2C, acquires
+using the selected stride/key, then stores that key at +0x30 and the returned
+state at +0x2c. The selected key survives later allocator changes to the reader.
+No new allocation-failure policy is added; original nonzero-type null allocations
+can dereference null, including type 6's owner store.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_object_factory.py --compiler clang-cl --mutation-checks
+ctest --test-dir build/native -R '^feng_(queue|list|grid)_native$' --output-on-failure
+```
+
+Verification passes **22,528 comparisons**: 2,048 dirty-input cases for each of
+nine new constructor entries and 4,096 complete factory cases. It rejects
+**15 mutations**. Actual common/grid/typed/text-storage constructors and the
+state manager/pool allocation chain execute together, with allocation/free as
+the controlled interfaces. The factory's initial release uses the constructors'
+null state; nonnull release behavior is covered separately by pool/lifecycle
+verification and native teardown. Cases cover every factory branch, default and
+negative/high-bit types, absent/duplicate state specs, zero/nonzero/high-word keys,
+existing/full/empty state pools, GUID edges and allocator changes to specs, owner,
+counter, untouched fields and intermediate object-state pointers. Full metadata
+and globals, ordered helper/heap arguments/snapshots, full-word returns, preserved
+registers, stack balance and final FS:[0] restoration are compared. Heap-payload
+write hooks retain the pool's uninitialized-payload contract. Mutations catch
+allocation size, owner/type, first-match selection, omitted state calls, string
+sentinel/nested construction, list/group defaults and type-11 overrun changes.
+Compile/link failures do not count as semantic mutation rejections.
+
+**Recovered typed constructors are active in the native loader.** A bounded native
+prepass obtains the first `Ot` value before allocating the larger C++ wrapper,
+then calls image/string/list/group/type-7/9/10/11 construction exactly once. Their
+base call advances the GUID once. The old type-4 prefix memset/manual defaults
+and duplicate native string defaults are removed. Parsing still applies `Ot`/`OP`
+and later properties in file order; native ownership, larger wrapper allocation,
+state-array binding and surrounding reader iteration remain scaffolding. Missing,
+duplicate or malformed type-property behavior is not a recovered full-reader
+contract. Type 6 retains the existing generic native prefix path and explicit
+navigation trap until its 0xc8-byte prefix and owner/lifecycle binding are ready.
+
+The native factory component fixture separately invokes the actual recovered
+factory across all explicit and default branches, checks generated GUIDs, state
+keys/pointers and type-6 owner propagation, and returns state through recovered
+base cleanup before freeing raw fixture objects. Their derived-owned fields are
+still empty; this teardown does not establish all derived virtual destructors.
+All three native CTests and native/mod-enabled builds pass. Production factory
+allocation/state integration, complete reader/ownership and SEH unwind remain
+pending. Verification uses Clang; MSVC 7.1/wibo and byte matching are pending.
+Reports remain ignored under `build/analysis/feng-object-factory/`.
+
+With recovered typed constructors active, headless checks pass all 19 settings
+scenarios and slider fill/knob pixels, all 10 Controls scenarios, pause/scroller
+motion and settled centering, and modded HUD translation at 640x480, 1280x720,
+1680x720 and 2560x720. These check current demo behavior; full original factory
+ownership and reader composition are not established by the native wrapper.
