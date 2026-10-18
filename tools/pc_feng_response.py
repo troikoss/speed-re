@@ -33,4 +33,6 @@ def link_response(compiler, source, state_source, build, queue_source=None):
                         external[symbol['name']] = address
                 if queue_source and symbol['name'].startswith('?FEngAllocateQueueNode@'):
                     external[symbol['name']] = 0x575620
+                if queue_source and symbol['name'].startswith('?FEngFreeQueueNode@'):
+                    external[symbol['name']] = 0x575630
     return link_objects(objects, external)

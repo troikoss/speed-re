@@ -329,7 +329,7 @@ void Pump() {
                                       route == kTargetObject ? (FengObject *)target : 0};
             Process(pending);
         }
-        free(node); // Native ownership seam; original virtual node destruction is not recovered.
+        node->DestroyMessage(1); // Native bridge knows this is a message node.
     }
     ApplyDeferred();
     if (nativeFengQueue.operations4124.first8) NativeTrap("FEng input operation delivery");
@@ -400,7 +400,7 @@ void CloseScreen(NativeScreen *screen) {
         FEngQueueNode *next = node->next4;
         if (node->value14 == (unsigned int)&screen->fePackage) {
             nativeFengQueue.messages4114.Remove(node);
-            free(node);
+            node->DestroyMessage(1);
         }
         node = next;
     }
@@ -414,7 +414,7 @@ void CloseAll() {
     while (nativeFengQueue.messages4114.first8) {
         FEngQueueNode *node = nativeFengQueue.messages4114.first8;
         nativeFengQueue.messages4114.Remove(node);
-        free(node);
+        node->DestroyMessage(1);
     }
     switchFrom = switchTo = removeScreen = 0;
 }
@@ -554,6 +554,7 @@ FngRecord *FngFindRecord(unsigned int hash) {
 }
 // Native allocator/ownership seam for original allocation boundary 0x575620.
 void *FEngAllocateQueueNode(unsigned int size) { return malloc(size); }
+void FEngFreeQueueNode(void *pointer) { free(pointer); }
 
 // Explicit unrecovered package operations: current demo response fixtures do not
 // exercise these commands. Keep their call boundaries, without invented behavior.

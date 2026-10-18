@@ -535,3 +535,27 @@ renamed from cross-title evidence alone.
     deleting destructor `0x51aaf0` and operation destructor `0x51abe0`; bodies
     remain unrecovered. Frame leads `0x5663b0` -> `0x5662c0` -> `0x558c00`
     are saved under `/tmp/ug2-feng-frame*.json` for consumer tracing.
+
+
+36. **Node ownership checkpoint (2026-10-18).** Recovered deleting wrappers
+    `0x51aaf0`/`0x51abe0`, message base `0x51ab10`, operation thunk `0x51ac00`
+    and owned-payload base `0x505350` in `FEngQueueNodes.cpp`. Preserve helper
+    boundaries, intermediate/final vptrs, payload-only free and deleting flag
+    bit zero. Deallocation boundary `0x575630` is platform free. Expanded node
+    suite: 32,768 Clang comparisons/eight routines,17 mutations; normal-return
+    FS restoration checked, exception unwind/allocator internals unverified.
+    Native Pump/cancellation now call recovered DestroyMessage(1), not raw free;
+    dynamic vtable dispatch still bypassed by the native known-message bridge.
+    Original operation consumer is `0x5559c0`, reached from frame queue manager
+    `0x558c00`. Full local decompile `/tmp/ug2-feng-operation-consumer.json`:
+    inline unlink, flags1/2/4/8/0x10, package+0x3c parent/input-mask transfers,
+    target-4 notifications, package load/remove and virtual deletion. Preserve
+    all branches and inlined unlink boundaries when recovering it. Caller frame
+    drains messages, consumes operations, then drains any new messages again.
+    Input consumer/target-4 still trap natively. MSVC and byte matching pending.
+    Native/mod builds and headless 19 settings/10 Controls, slider pixels and
+    scroller motion pass; 12,800 queue-composed dispatcher comparisons also pass.
+    Local Ghidra listing issue report saved at
+    `/tmp/ghidra-rpc-issues-20261018-queue-ownership.md`; requested newly-created
+    destructor listings skipped entry bytes. Direct PE/Capstone decoding and
+    original execution supplied the evidence; no recovery work is blocked.

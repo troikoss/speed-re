@@ -3,6 +3,11 @@
 #include "../Hud/HudVisibility.h"
 struct FEPackage;
 struct FEngQueueNode {
+    void DestructMessage(); // 0x51ab10
+    void DestructOwnedPayload(); // 0x505350
+    void DestructOperation(); // 0x51ac00, thunk
+    FEngQueueNode *DestroyMessage(unsigned int flags); // 0x51aaf0
+    FEngQueueNode *DestroyOperation(unsigned int flags); // 0x51abe0
     void *vtable0;
     FEngQueueNode *next4;
     FEngQueueNode *previous8;
@@ -41,6 +46,7 @@ struct FEngQueueObserver {
     virtual void MessagePosted(unsigned int message, void *sender, FEPackage *package, int target, int mask) = 0;
 };
 void *FEngAllocateQueueNode(unsigned int size); // original allocation boundary 0x575620
+void FEngFreeQueueNode(void *pointer); // original deallocation boundary 0x575630
 UG2_CHECK_SIZE(FEngQueueNode, 0x20);
 UG2_CHECK_SIZE(FEngQueueList, 0x10);
 UG2_CHECK_OFFSET(FEngQueueNode, value1C, 0x1c);

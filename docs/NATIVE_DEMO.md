@@ -371,8 +371,9 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   See [core evidence and limits](pc-pause-menu.md#formatter-state-machine-recovery-2026-10-18).
 - Message/input enqueue `0x51aa20`/`0x51af50` and removal `0x505400` now use
   recovered 32-byte nodes and separate linked lists. The native message vector
-  is removed. Native malloc/free, payload-to-screen delivery and cancellation
-  remain adapters; original delivery and virtual node destruction are pending.
+  is removed. Message/operation destructor bodies and payload cleanup are recovered;
+  native delivery/cancellation call recovered message deletion. Native malloc/free,
+  payload-to-screen delivery and dynamic vtable dispatch remain adapters.
   See [queue evidence](pc-pause-menu.md#message-nodes-and-queue-insertion-2026-10-18).
 - FEng image centre/size writes and rendered text height now call recovered coordinate
   and metric routines. String and script-track prefixes expose the original offsets;

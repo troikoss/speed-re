@@ -1715,3 +1715,65 @@ integration passes all 19 settings and 10 Controls scenarios, slider fill/knob
 pixel assertions and scroller motion/settled centring. These exercise the native
 delivery bridge and current demo messages; they do not validate the trapped
 operation consumer, target -4, original destructors or complete delivery.
+
+
+## Queue node ownership (2026-10-18)
+
+`FEngQueueNodes.cpp` additionally recovers message deleting destructor
+`0x51aaf0` (30 bytes), operation deleting destructor `0x51abe0` (30), message
+base cleanup `0x51ab10` (7), operation tail thunk `0x51ac00` (5) and owned-payload
+base cleanup `0x505350` (81). Their fingerprints extend the existing node
+manifest. Original vtable slots `0x79ab60`/`0x79ab64` identify the two deleting
+entry points; decoding the original bytes resolves their exact helper calls.
+
+Message base cleanup only writes vptr `0x79a9e8`; it does not free sender +0xc
+or change links/payload. Operation base cleanup first writes vptr `0x79ab0c`,
+conditionally deallocates non-null payload +0xc through `0x575630`, then writes
+vptr `0x79a9e8`. The operation thunk retains its own boundary and tail-calls
+that base cleanup. Both deleting wrappers execute their respective base/helper
+before testing flag bit zero, optionally deallocate the node through the same
+boundary and return the original node pointer. Other flag bits alone do not
+free the node. Payload cleanup occurs even with a zero deleting flag; it does
+not clear the stored payload pointer.
+
+The expanded node verifier passes **32,768 Clang i686 comparisons**: 4,096 for
+each of eight routines. It executes the actual recovered destructor helpers,
+compares their call order, exact vptr/link/payload writes, guarded memory, free
+calls and callback-visible node bytes, return pointers, stack cleanup and
+preserved registers. Original owned-payload cleanup establishes an SEH frame;
+normal-return FS chain restoration is checked at every fixture. Exception
+unwind, throwing deallocation, invalid pointers, arbitrary aliases and actual
+allocator internals remain unverified. Deallocation is controlled, clobbers
+volatile registers and observes the node before returning. Flags include
+0/1/2/3/128/255/0x100/0x101/0xffffffff, and payloads include null/non-null.
+
+All **17 mutations** are rejected: the previous eleven plus truthy instead of
+bit-zero deleting flags, omitted message base cleanup, omitted owned-payload
+free, freeing a null payload, wrong intermediate operation vptr and wrong final
+vptr. The same `verify_pc_feng_queue_nodes.py --compiler clang-cl
+--mutation-checks` command runs these cases. Reports remain ignored under
+`build/analysis/feng-queue-nodes/`. MSVC 7.1/wibo and byte matching remain pending;
+normal-return source recovery does not establish original exception handling.
+
+Native delivery and screen-cancellation adapters now call recovered
+`DestroyMessage(1)` after unlinking instead of raw `free`. They know these are
+message nodes; original dynamic vtable dispatch is still not implemented by
+this bridge. The deallocation boundary uses native `free` as a platform adapter.
+Operation destruction is recovered/verified but has no native consumer yet;
+queued operation delivery still traps. Message delivery, cancellation policy,
+virtual dispatch, allocator behavior and the fixed native mask remain seams.
+
+Static consumer tracing now identifies **`0x5559c0`**, called by frame manager
+`0x558c00` after message delivery and before a second message-drain pass. It
+inlines operation unlinking, processes flags 1/2/4/8/0x10, updates package parent
+links +0x3c and input masks, posts target -4 notifications, and invokes virtual
+node destruction. This is a lead, not recovered or behaviorally verified code.
+Do not substitute only the currently queued 4/8 cases for the full routine.
+
+
+Native and mod-enabled builds pass. Headless integration passes all 19 settings
+and 10 Controls scenarios, slider fill/knob pixels and scroller motion/settled
+centring with recovered message destruction. The 12,800 composed-dispatch
+comparisons also pass after linking the expanded ownership component. These
+checks do not execute original exception unwind, dynamic virtual deletion or
+the pending input-operation consumer.

@@ -15,6 +15,31 @@
       "address": "0x505400",
       "size": 75,
       "sha256": "415c9b16fb71606195c2d5dd6f27b0bb04ea45ea7d4574c5940b31373afbaddf"
+    },
+    "DestroyMessage": {
+      "address": "0x51aaf0",
+      "size": 30,
+      "sha256": "69b40a613f33dbdb2c0cdb483e49d0b01147b79a7b39c92b49110d9042eafc63"
+    },
+    "DestroyOperation": {
+      "address": "0x51abe0",
+      "size": 30,
+      "sha256": "101415d6dfd38609ba3e6c800052b35b9f41ee53cf402e8e464704c27ce3bc41"
+    },
+    "DestructMessage": {
+      "address": "0x51ab10",
+      "size": 7,
+      "sha256": "a4a88772f9d9421c53fb3b68fa4e04fa352ea04246ac63d60d9a65b853183402"
+    },
+    "DestructOperation": {
+      "address": "0x51ac00",
+      "size": 5,
+      "sha256": "9c94e6da80c2467ae87409e78bbe9482303c1cba25eff94a50eda80ffe3382c4"
+    },
+    "DestructOwnedPayload": {
+      "address": "0x505350",
+      "size": 81,
+      "sha256": "bfb580b8a8309fd74616dd9d7baf2c50e44b0f9765a001e91e7013c16f04b202"
     }
   },
   "tables": {

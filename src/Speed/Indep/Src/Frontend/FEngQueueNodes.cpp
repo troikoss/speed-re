@@ -1,5 +1,30 @@
 #include "FEngPackage.h"
 
+// Original 0x51ab10: message nodes do not own the sender payload.
+void FEngQueueNode::DestructMessage() { vtable0 = (void *)0x79a9e8; }
+
+// Original 0x505350: normal-return body; retail compiler supplies SEH cleanup.
+void FEngQueueNode::DestructOwnedPayload() {
+    vtable0 = (void *)0x79ab0c;
+    if (valueC) FEngFreeQueueNode((void *)valueC);
+    vtable0 = (void *)0x79a9e8;
+}
+
+// Original 0x51ac00 tail thunk retains its distinct call boundary.
+void FEngQueueNode::DestructOperation() { DestructOwnedPayload(); }
+
+// Original 0x51aaf0 / 0x51abe0: flag bit zero controls node deallocation.
+FEngQueueNode *FEngQueueNode::DestroyMessage(unsigned int flags) {
+    DestructMessage();
+    if (flags & 1) FEngFreeQueueNode(this);
+    return this;
+}
+FEngQueueNode *FEngQueueNode::DestroyOperation(unsigned int flags) {
+    DestructOperation();
+    if (flags & 1) FEngFreeQueueNode(this);
+    return this;
+}
+
 // Original 0x505400: unlink before marking both links, then decrement the count.
 void FEngQueueList::Remove(FEngQueueNode *node) {
     if (node) {
