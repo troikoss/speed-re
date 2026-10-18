@@ -1,7 +1,10 @@
 #ifndef UG2_WHEEL_MATH_H
 #define UG2_WHEEL_MATH_H
 
-struct WheelVector { float x, y, z; };
+struct WheelVector {
+    float x, y, z;
+    WheelVector *Difference(WheelVector *output, WheelVector *other); // 0x401250 (thiscall): self - other
+};
 struct WheelMatrix { float elements[16]; };
 
 void WheelIdentity(WheelMatrix *output);

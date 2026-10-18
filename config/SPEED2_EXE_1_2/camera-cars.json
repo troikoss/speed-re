@@ -1,0 +1,30 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "FindNearbyCar": {
+      "address": "0x44ac10",
+      "size": 1059,
+      "sha256": "b8701205abead0599a89c3d1e10c21c56bacf10a34a1c7aaebac00c557314471"
+    },
+    "PushFromCars": {
+      "address": "0x44b040",
+      "size": 289,
+      "sha256": "8b83548dbb33a5ccb6cb08fa08c1cff97f519580360f6baef35750e334d875d0"
+    },
+    "Difference": {
+      "address": "0x401250",
+      "size": 37,
+      "sha256": "e339a9e3c7d79eae7b5fabc8d5dfaf23e4bda25912a61dbb84f8b6c10a077d66"
+    },
+    "WheelFrameAt": {
+      "address": "0x401340",
+      "size": 135,
+      "sha256": "56a6423a7557a876e31b13f02bbc8664d23274ae02597b3a00a8232a6237dc70"
+    },
+    "GetOrigin": {
+      "address": "0x441890",
+      "size": 4,
+      "sha256": "071446420e131004120ac73567fa906ee67b4bde7cc93d64e2c51edf3b6b7fed"
+    }
+  }
+}

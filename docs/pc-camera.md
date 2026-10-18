@@ -152,4 +152,45 @@ multiply are traced stubs. 22 mutations rejected. The verifier compiles with
 `-fno-math-errno`, matching the MSVC intrinsic `sqrt`. MSVC 7.1 and byte identity are
 not established; not yet called by native code.
 
-Next: other-car scan `0x44ac10` and push `0x44b040`, then integration into `0x453570`.
+## Other-car push (2026-10-18)
+
+`Camera/CameraPush.cpp` also recovers:
+
+- `0x44ac10` nearby car (thiscall: eye, racers only; `ret 8`). Sets guard bit 1 of
+  `0x82a590`, takes the mover's own car from vtable slot 0x44 and walks the world list
+  `*0x890080` (count +0x10, entries +0x1c, both reloaded every iteration). A car is
+  skipped when it is the own car, when racers only is set and car `+0x14` -> `+4` is not 3,
+  when byte `+0x550` is clear, or when bit `mover +0x10` of `+0x5b4` is clear. It must be
+  within 12 (`0x7870c8`, squared, compared unrounded) of the eye. With an own car and the
+  `0x571250` race query false, a relative speed above 15 (`0x7870c4`) whose direction meets
+  the direction to the car with cosine below 0.8 (`0x7870c0`) also needs the direction from
+  the own car's origin (`0x401250`, `0x441890`) to meet it with cosine 0.8 or more. The
+  rounded squared distance must be below the rounded squared body sphere (|second box
+  corner - centre| + 1.0), and the eye height must lie within the box corners transformed by
+  the car frame (`0x401340`, matrix `+0x90`, origin `+0x50`) widened by 0.5 (`0x787088`),
+  tested by clamping and comparing for equality. The car's id (short `+0xa`) goes to
+  `0x7eb5c0` (written only when it changes); its origin and squared radius go to the
+  static `0x82a580` (stored y, x, z, r²), which is returned; 0 when no car qualifies.
+- `0x44b040` other-car push (thiscall: view, car, racers only; `ret 0xc`). The eye of the
+  inverted view is lifted to sqrt(r² + 0.1 (`0x784358`) - horizontal distance²) above
+  each found car until `0x44ac10` finds none; the car origin's view-space x and depth are
+  stored as binary32, divided by the rounded depth through an unrounded reciprocal, and
+  the view is re-aimed at the origin (`0x444390`). `0x7eb5c0` becomes -1 when no car was
+  found.
+- `0x401250` vector difference (thiscall, returns the output), `0x401340` frame from the
+  rotation rows and a position row ending in 1 (cdecl) and `0x441890` car origin (+0x50).
+
+Verification: `tools/verify_pc_camera_cars.py --compiler clang-cl --mutation-checks`
+(manifest `config/SPEED2_EXE_1_2/camera-cars.json`): 12,288 comparisons (2,048 per
+search, push, frame and origin, 4,096 for the difference including aliasing) under 53- and
+64-bit precision over up to six cars around the eye with random activity, view masks,
+racer types, velocities, yaw/pitch frames and boxes; 533 searches found a car and 526
+pushes lifted at least once. The statics `0x82a580`, `0x82a590`, `0x7eb5c0` and the list
+pointer are compared after each run. Normalise, transform, velocity `0x4018a0`, inverse
+and re-aim run original code; the race query `0x571250` and D3DX multiply are traced stubs
+and slot 0x44 (`0x44ba70` in the drive camera) is a fixture getter of mover +0x2c. 22
+mutations rejected. Car data are finite, so signalling-NaN copies through `0x401340`
+(which copies some elements through the x87) are not exercised. MSVC 7.1 and byte identity
+are not established; not yet called by native code.
+
+Next: integration into `0x453570`.

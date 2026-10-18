@@ -26,6 +26,18 @@ struct CameraMoverBase {
     float NearRadius();                                                           // 0x445a60, drive camera slot 0x30
     bool PushFromFaces(WCollider *collider, float *from, float *point, float *offset); // 0x444190
     bool PushFromWorld(WheelMatrix *view, MoverModeOwner *car, float *focus);     // 0x444530
+    float *FindNearbyCar(float *eye, bool racersOnly);                            // 0x44ac10
+    void PushFromCars(WheelMatrix *view, MoverModeOwner *car, bool racersOnly);   // 0x44b040
 };
+
+// The world's car list at *0x890080 (count +0x10, entries +0x1c).
+struct CameraCarList {
+    char unidentified0[0x10];
+    int count10;
+    char unidentified14[8];
+    MoverModeOwner *cars1C[1];
+};
+
+void WheelFrameAt(WheelMatrix *output, WheelMatrix *rotation, WheelVector *position);    // 0x401340
 
 #endif

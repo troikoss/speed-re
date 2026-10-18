@@ -658,3 +658,8 @@ renamed from cross-title evidence alone.
     accessors `0x5ec250`/`0x5ec240`: 10,240 comparisons, 22 mutations. Next:
     `0x44ac10` (returns static `0x82a580` sphere of the first nearby car; skips the
     mover's own car from vtable slot 0x44 `0x44ba70`) and `0x44b040`, then integrate.
+47. **Camera other-car push (2026-10-18).** `Camera/CameraPush.cpp` recovers
+    `0x44ac10`, `0x44b040`, `0x401250` (now `WheelVector::Difference`), `0x401340` and
+    `0x441890`: 12,288 comparisons, 22 mutations (`verify_pc_camera_cars.py`). Next:
+    integrate both pushes into the `0x453570` tail (native mover needs a vtable with slots
+    0x30/0x44, a valid `*0x890080` car list and `CameraPlayer::Query5EB520`).
