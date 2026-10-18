@@ -103,8 +103,35 @@ Verification: `tools/verify_pc_collision_simplex.py` runs the original and the M
 rebuild of `0x595040`/`0x598130`/`0x598240` in Unicorn on 6,400 synthetic simplices. All
 non-degenerate cases agree within float rounding (about two thirds bit-identical); 42
 cases with duplicated or collinear vertices pick a different vertex at an exact tie
-because of x87 spill rounding. Nothing here is byte-matching; the rest is behaviour
-observed in the demo only. In the headless run with `UG2_STEER=-0.4` the Skyline hits
+(40 duplicate-vertex ties, where the two vertex indices name identical points, and 2
+collinear-midpoint cases; attributed to x87 spill rounding, not examined at instruction
+level). `tools/verify_pc_collision_gjk.py` runs the GJK distance `0x5b3390` (body
+`0x5b3390..0x5b3d20`) against its MSVC 7.1 rebuild on 8,000 cases (argument `2000`) (2,000 shape pairs of hull,
+polygon, box and point in all 15 type pairs and random poses, each cold-started, warm-started
+twice from the original's own simplex with nudged poses, and warm-started from random valid
+indices; both FPU control words): 0 failures, 4,520 bit-identical, largest return difference
+1e-7 relative. Every callee of the rebuild links to the original (support `0x5afba0`/`0x5a2060`/
+`0x5a2280`/`0x5a2360`, vertex dispatch `0x5aad20`, simplex `0x595040`/`0x598130`/`0x598240`,
+`0x43c9c0`, `0x43cf10`); the only probe seams are a constant for `bGetTicker` `0x43bdf0`, a reset
+of the `bRandom` seed, an SEH slot for the hull support, and a shim adapting the rebuild's cdecl
+`CollisionShapeVertex` call to the original thiscall-style `0x5aad20` (a calling-convention
+difference of the recovered source, not of behaviour). Cylinders (type 5) are unrecovered and
+never generated. The check found a real divergence, fixed in `CollisionWitness.cpp`: the
+loop compared the unrounded x87 result of `Distance` with the previous distance, whereas the
+original stores it as a float (`0x5b3c36`) and compares the reloaded value; the rebuild then
+cycled forever on tie-like inputs (6 of 395 early cases). `tools/verify_pc_collision_impulse.py`
+runs the contact impulse `0x5af0e0` against its rebuild on 3,000 scripted contacts (car, track
+polygon, wall polygon and world bodies; 1 to 4 loop iterations; early return, shares of 1, single
+and negative, unbreakable sentinel; sliding below, at and above the ramp speed; mode 4 arm
+flattening; resting clamp; both FPU control words) and compares the full call log (every
+virtual slot with its arguments by value) and the fake-world memory: 0 failures, 1,418
+bit-identical, largest log difference 8e-6 (vectors scaled by their largest component). The
+bodies are probe-only fake objects with x86 stub vtables; `0x594000` (ContactFrame), `0x5a9b10`
+(CreateEvent) and the event accumulate `0x5a9620` are hooked identically on both sides, so their
+semantics are not covered, and `0x5941c0` runs original-versus-rebuilt. The remaining
+impulse differences are codegen: MSVC reorders the three-term dot products and duplicates the
+loop head, so the sum order differs from the original at rounding level. Nothing here is
+byte-matching; the rest is behaviour observed in the demo only. In the headless run with `UG2_STEER=-0.4` the Skyline hits
 walls at 71 and 90 km/h, loses roughly half its speed, and its centre stays 1.2 to 2.3 m
 in front of the wall plane.
 

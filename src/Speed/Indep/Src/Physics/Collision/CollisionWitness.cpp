@@ -227,17 +227,17 @@ float CollisionWitness::ComputeDistance() {
         if (!addedA && !addedB) {
             break;
         }
-        float next = simplex->Distance(&direction);
-        squared = next;
-        if (next == 0.0f) {
+        // 0x5b3c36: the distance is stored as a float and the comparisons use the stored value.
+        squared = simplex->Distance(&direction);
+        if (squared == 0.0f) {
             return 0.0f;
         }
-        if (!(next < previous)) {
+        if (!(squared < previous)) {
             squared = previous;
             simplex->Assign(&saved);
             break;
         }
-        previous = next;
+        previous = squared;
         saved.Assign(simplex);
     }
     WheelNormalize(&simplex->normalA0, &simplex->normalA0);
