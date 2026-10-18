@@ -11,7 +11,6 @@
 class NativeControls : public HumanDriverInput {
 public:
     void UnknownSlot00();
-    void UnknownSlot04();
     void UnknownSlot08();
     void UnknownSlot0C();
     void UnknownSlot10();

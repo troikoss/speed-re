@@ -218,7 +218,7 @@ struct MoverAero {
 class MoverInput {
 public:
     virtual void UnknownSlot00() = 0;
-    virtual void UnknownSlot04() = 0;
+    virtual void Update(float duration) = 0; // slot 4, called by world update 0x609ce0 (human 0x41e2c0)
     virtual void UnknownSlot08() = 0;
     virtual void UnknownSlot0C() = 0;
     virtual void UnknownSlot10() = 0;
@@ -421,10 +421,12 @@ struct MoverCarInfo {
 class RaceParticipant {
 public:
     virtual void Slot00() = 0; virtual void Slot04() = 0; virtual void Slot08() = 0;
-    virtual void Slot0C() = 0; virtual void Slot10() = 0; virtual void Slot14() = 0;
+    virtual void Update0C(float duration) = 0; // per-frame driver update from 0x609ce0
+    virtual void Slot10() = 0; virtual void Slot14() = 0;
     virtual void Slot18() = 0; virtual int GetResetId1C() = 0; virtual void Slot20() = 0;
     virtual void Slot24() = 0; virtual void Slot28() = 0; virtual void Slot2C() = 0;
-    virtual void Slot30() = 0; virtual void Slot34() = 0; virtual void Slot38() = 0;
+    virtual void Slot30() = 0; virtual void Slot34() = 0;
+    virtual void NotifyContact38(struct MoverModeOwner *other, int value) = 0; // from 0x5f4960
     virtual void Slot3C() = 0; virtual void Slot40() = 0; virtual void Slot44() = 0;
     virtual void Slot48() = 0; virtual void Slot4C() = 0; virtual void Slot50() = 0;
     virtual void Slot54() = 0; virtual void Slot58() = 0; virtual void Slot5C() = 0;
@@ -536,7 +538,8 @@ struct MoverModeOwner {
     int value5B0;
     char unidentified5B4[0x18];
     int colliderPack5CC;
-    char unidentified5D0[0x330];
+    char unidentified5D0[0x32c];
+    float value8FC;       // published by world update 0x609ce0 at world +0xe0
     float direction900;   // reset direction used when 0x88f2be is set
     float direction904;
     char unidentified908[0x50];
@@ -546,13 +549,21 @@ struct MoverModeOwner {
     CarReplayState *replay968; // +0x58 is the replayed engine RPM
 
     int resetRequested96C;
-    char unidentified970[4];
+    int countdown970;     // decremented each world update 0x609ce0
     int resetTick974;
     float resetDuration978;
     char unidentified97C[0x1c];
     unsigned char effectsSuppressed998;
     char unidentified999[0x3f];
     int shiftTick9D8;     // clock at the last gear change, 0x5ebe00
+    float GetDraftSum(); // 0x5ebd80
+    void NotifyContact(MoverModeOwner *other); // 0x5f4960
+    void SwitchMover(int type); // 0x5f46a0, not recovered
+    float GetDraft5EBC20(MoverModeOwner *other); // 0x5ebc20, not recovered
+    void Update5F6CD0(); // 0x5f6cd0, not recovered
+    void Update5F5580(); // 0x5f5580, not recovered
+    void Update5F6350(); // 0x5f6350, not recovered
+    void UpdateEffects5F5730(float distance); // 0x5f5730, not recovered
     bool HasPendingShift(); // 0x5ecd70
     WheelVector *GetPosition(); // 0x401890
     WheelVector *GetVelocity(); // 0x4018a0
@@ -610,6 +621,8 @@ UG2_CHECK_OFFSET(MoverModeOwner, effects554, 0x554);
 UG2_CHECK_OFFSET(MoverModeOwner, value5B0, 0x5b0);
 UG2_CHECK_OFFSET(MoverModeOwner, direction900, 0x900);
 UG2_CHECK_OFFSET(MoverModeOwner, shiftTick9D8, 0x9d8);
+UG2_CHECK_OFFSET(MoverModeOwner, value8FC, 0x8fc);
+UG2_CHECK_OFFSET(MoverModeOwner, countdown970, 0x970);
 UG2_CHECK_OFFSET(MoverModeOwner, input30, 0x30);
 UG2_CHECK_OFFSET(MoverOwnerObject, link1E0, 0x1e0);
 UG2_CHECK_OFFSET(MoverOwnerObject, value14, 0x14);

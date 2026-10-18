@@ -52,7 +52,6 @@ extern "C" char *nfs_strncpy(char *dest, const char *src, int maxlen);
 const char *CollisionSectionName(int section);
 unsigned int CarCollisionHullKey(PhysicsInfo *info);
 unsigned int CarCollisionBaseHullKey(PhysicsInfo *info);
-void NotifyCarContact(MoverModeOwner *car, MoverModeOwner *other);
 int WorldObjectKind(CollisionBody *body);
 void MoverVelocitiesAt(MoverBody *body, WheelVector *velocity, WheelVector *angular, int a, int b);
 float MoverSlot68(MoverBody *body, int a, int b);
@@ -636,7 +635,7 @@ void CarCollisionBody::Advance(float duration) {
 // Original 0x593940.
 void CarCollisionBody::OnContact(CollisionBody *other) {
     MoverModeOwner *otherCar = (other && other->type11 == 0) ? static_cast<CarCollisionBody *>(other)->car130 : 0;
-    NotifyCarContact(car130, otherCar);
+    car130->NotifyContact(otherCar);
     AttachMover();
     active19 = 1;
 }

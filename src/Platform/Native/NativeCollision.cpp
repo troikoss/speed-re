@@ -37,16 +37,9 @@ unsigned int CarCollisionBaseHullKey(PhysicsInfo *) {
     return nativeCollisionHullKey;
 }
 
-// 0x5f4960: tell the driver (AI/player participant) about a contact, or switch a car that
-// has no physics mover to one. The demo car has neither case.
-void NotifyCarContact(MoverModeOwner *car, MoverModeOwner *) {
-    if (car->participant2C) {
-        NativeTrap("participant contact slot 0x38 (0x5f4960)");
-    }
-    if (car->moverType28 != 1 && car->moverType28 != 3) {
-        NativeTrap("mover switch 0x5f46a0");
-    }
-}
+// Mover switch 0x5f46a0 (from contact notification 0x5f4960); the demo car always has
+// a physics mover.
+void MoverModeOwner::SwitchMover(int) { NativeTrap("mover switch 0x5f46a0"); }
 
 // Effects of 0x5a9620 after the impulse sums (sparks 0x59fb70, debris 0x5dc4c0, collision
 // sounds 0x4814e0/0x4792d0, replay 0x56fb20, force feedback 0x5727b0): not recovered.

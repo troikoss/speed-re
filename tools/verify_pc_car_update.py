@@ -37,12 +37,14 @@ TARGETS = {'Update': ('?Update@MoverModeOwner@', 1, True, 0), 'UpdateContactStat
            'UpdateOpponentGap': ('?UpdateOpponentGap@', 0, False, 0), 'UpdateGear': ('?UpdateGear@', 1, False, 0),
            'UpdateSmoothing': ('?UpdateSmoothing@', 1, False, 0), 'CheckBelowGround': ('?CheckBelowGround@', 0, False, 0),
            'EmitEffect': ('?EmitEffect@', 4, False, 0), 'GetLevel': ('?GetLevel@PhysicsUpgradeSelection@', 1, False, 0xffffffff),
-           'TicksConstruct': ('?Construct@CarTicks@', 1, False, 0xffffffff)}
+           'TicksConstruct': ('?Construct@CarTicks@', 1, False, 0xffffffff),
+           'NotifyContact': ('?NotifyContact@MoverModeOwner@', 1, False, 0)}
 # Patched original-address stubs: address -> (kind, stack cleanup).
 STUB_CODE = {0x6009a0: ('void', 0), 0x409770: ('void', 4), 0x409960: ('void', 4), 0x40f690: ('placement', 0),
              0x401b20: ('direction', 8), 0x403db0: ('void-cdecl', 0), 0x5e2da0: ('float', 4), 0x5fbed0: ('void', 0x20),
-             0x5e72e0: ('ground', 0x10), 0x5e7e80: ('int', 4), 0x615cc0: ('void', 0x1c)}
-SLOT_STUBS = {'mover+4': (STUBS + 0x00, 'float', 4), 'replay+48': (STUBS + 0x40, 'void', 0xc), 'participant+1c': (STUBS + 0x80, 'int', 0)}
+             0x5e72e0: ('ground', 0x10), 0x5e7e80: ('int', 4), 0x615cc0: ('void', 0x1c), 0x5f46a0: ('void', 4)}
+SLOT_STUBS = {'mover+4': (STUBS + 0x00, 'float', 4), 'replay+48': (STUBS + 0x40, 'void', 0xc), 'participant+1c': (STUBS + 0x80, 'int', 0),
+              'participant+38': (STUBS + 0xc0, 'void', 8)}
 SHARED = {'?drivetrainClock@': 0x86518c, '?drivetrainClockScale@': 0x784268, '?hudZero7D7D3C@': 0x7d7d3c,
           '?hudOne784250@': 0x784250, '?carContactHold7A565C@': 0x7a565c, '?carSmoothingStep7A5654@': 0x7a5654,
           '?carSmoothingRate7A5658@': 0x7a5658, '?carResetSpeedLimit8021CC@': 0x8021cc,
@@ -55,12 +57,12 @@ SHARED = {'?drivetrainClock@': 0x86518c, '?drivetrainClockScale@': 0x784268, '?h
           '?Reset6009A0@MoverRaceEntry@': 0x6009a0, '?Remove409770@CarResetHandler@': 0x409770,
           '?Restore409960@CarResetHandler@': 0x409960, '?GetResetPlacement@RaceParticipant@': 0x40f690,
           '?GetDirection@ParticipantRoute@': 0x401b20, '?ReleaseResetId403DB0@': 0x403db0,
-          '?QueryDistance@ParticipantRoute@': 0x5e2da0, '?Reset5FBED0@MoverModeOwner@': 0x5fbed0,
+          '?QueryDistance@ParticipantRoute@': 0x5e2da0, '?Reset5FBED0@MoverModeOwner@': 0x5fbed0, '?SwitchMover@MoverModeOwner@': 0x5f46a0,
           '__ftol': 0x75bed4, '__ftol2': 0x75bed4, '__fltused': 0}
 INTERNAL = ('?UpdateContactState@', '?UpdateOpponentGap@', '?UpdateGear@', '?UpdateSmoothing@', '?CheckBelowGround@',
             '?EmitEffect@', '?GetLevel@', '?Construct@CarTicks@')
 ARG_BYTES = {STUBS + 0x00: 4, STUBS + 0x40: 0xc, 0x409770: 4, 0x409960: 4, 0x403db0: 4, 0x5e2da0: 4, 0x5fbed0: 0x20,
-             0x5e7e80: 4, 0x615cc0: 0x1c}
+             0x5e7e80: 4, 0x615cc0: 0x1c, 0x5f46a0: 4, STUBS + 0xc0: 8}
 RESULT_FLOAT, RESULT_INT, GROUND_FOUND = STUBS + 0x200, STUBS + 0x204, STUBS + 0x208
 
 
@@ -178,6 +180,7 @@ def main():
         put(memory, REPLAY, '<I', VT + 0x100); put(memory, VT + 0x100 + 0x48, '<I', SLOT_STUBS['replay+48'][0])
         # The original reset path dereferences the participant unconditionally.
         put(memory, PART, '<I', VT + 0x200); put(memory, VT + 0x200 + 0x1c, '<I', SLOT_STUBS['participant+1c'][0])
+        put(memory, VT + 0x200 + 0x38, '<I', SLOT_STUBS['participant+38'][0])
         put(memory, PART + 0xc, '<I', rng.choice((ROUTE, ROUTE, 0))); memory[PART + 0x10 - ARENA] = rng.choice((0, 0, 1))
         put(memory, DIR, '<ff', fl(), fl()); put(memory, EFFECTS + 0x70, '<I', rng.choice((0, 2, 3, 0xffffffff)))
         put(memory, CONTEXT + 4, '<i', rng.choice((0, 1, 1, 2, 3, 3, 4, 5))); memory[CONTEXT + 0x900 - ARENA] = rng.choice((0, 0, 1))
@@ -229,6 +232,9 @@ def main():
         target = rng.choice((0, ARENA + 0x2800))
         run('EmitEffect', memory, globals_, [rng.choice((0, 3, 4, 8, 9, 10, 1)), struct.pack('<f', fl()), value, target], precision, CAR)
         run('GetLevel', memory, globals_, [rng.randrange(10)], precision, PHYS + 0x2f0)
+        put(memory, CAR + 0x2c, '<I', rng.choice((PART, 0))); put(memory, CAR + 0x18, '<I', rng.choice((RACE, 0)))
+        result = run('NotifyContact', memory, globals_, [OTHER_CAR], precision, CAR)
+        note('contact-' + ','.join(t[0] for t in result[5]) if result[5] else 'contact-none')
         run('TicksConstruct', memory, globals_, [struct.pack('<f', fl())], precision, ARENA + 0x2900)
     report = dict(comparisons=counts, total=sum(counts.values()), paths=dict(sorted(paths.items())),
                   x87_precision=['53-bit', '64-bit'], shared_original_callees=['_ftol 0x75bed4', 'pair curve 0x576770/0x576790'],

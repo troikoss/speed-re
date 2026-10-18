@@ -45,6 +45,11 @@
       "address": "0x4ae7b0",
       "size": 32,
       "sha256": "a696fac927052400e3a50b40236c5b596c7ccf6d3f6fd16b5ca4358c3c73cacc"
+    },
+    "NotifyContact": {
+      "address": "0x5f4960",
+      "size": 65,
+      "sha256": "2d37a6a5a670ef4a27a70523a17fd2ca003a347957b7db49b768d5eb888895cd"
     }
   }
 }

@@ -26,7 +26,7 @@ still should come from recovered code.
 
 | # | Item | Diff. | Imp. |
 | --- | --- | --- | --- |
-| 1 | ~~Car update `0x6012b0`~~ (done) and world update `0x609ce0` (replace `StepNativeVehicle`) | 3 | 5 |
+| 1 | ~~Car update `0x6012b0` and world update `0x609ce0`~~ (done; many callees remain seams) | 3 | 5 |
 | 2 | ~~Wire in verified-but-unintegrated tuning routines~~ (already linked; reachable only once the tuning-table loader, item 8, exists) | 1 | 3 |
 | 3 | FEng messaging: frame manager `0x558c00`, delivery `0x541fc0`, dispatch `0x5367e0` | 3 | 4 |
 | 4 | Car constructor `0x604260` and participant setup `0x6065b0` (replace `CreateNativeVehicle`) | 4 | 5 |
@@ -41,9 +41,9 @@ still should come from recovered code.
 
 | Native piece | Where | Replace with | Diff. | Imp. | Notes |
 | --- | --- | --- | --- | --- | --- |
-| `StepNativeVehicle` composes body advance, collisions and post-update | `NativeVehicle.cpp:322` | World update `0x609ce0` (snapshot, `0x5f0f00`, `0x5ffa50`, post-update) | 3 | 5 | Runs every frame; the order is currently read, not recovered. |
+| ~~`StepNativeVehicle` composes body advance, collisions and post-update~~ | `WorldUpdate.cpp` | World update `0x609ce0` | 3 | 5 | Done 2026-10-18 ([vehicle physics](pc-vehicle-physics.md#world-update-0x609ce0-recovered)); about 20 per-frame callees are native no-op seams. |
 | ~~Car update reduced to the mover step~~ | `CarUpdate.cpp` | Car update `0x6012b0` | 4 | 5 | Done 2026-10-18 ([vehicle physics](pc-vehicle-physics.md#car-update-0x6012b0-recovered)); reset path callees `0x5fbed0`, `0x40f690`, `0x6009a0`, `0x409770`/`0x409960` and effect spawn `0x615cc0` trap. |
-| World clock advanced after the step | `NativeVehicle.cpp:325` | Clock call `0x57a0e0` at `0x5814ea` in game loop `0x5811c0` | 2 | 3 | Ordering fix once `0x609ce0` is in. |
+| ~~World clock advanced after the step~~ | `NativeVehicle.cpp` | Clock call `0x57a0e0` at `0x5814ea` | 2 | 3 | Now after the world update, as in game loop `0x5811c0`; the loop itself remains native. |
 | Main loop frame time, fixed 1/60 s for captures, clamp 0.05 s | `DemoMain.cpp:505` | Game loop `0x5811c0` timing | 4 | 3 | The loop body is mostly the platform; the timing decisions are original. |
 | Real-time clock `0x8651ac` in assumed 4 kHz units | `NativePause.cpp:900` | Original real-time clock producer | 2 | 2 | Only gates frontend input acceptance. |
 | Respawn after 150 airborne frames | `DemoMain.cpp:597` | Original reset/respawn flow (`0x5fc2a0` and caller) | 3 | 2 | Pure scaffold; exists because collision coverage is incomplete. |
@@ -81,7 +81,7 @@ still should come from recovered code.
 | GJK and impulse resolution not yet verified | — | Verify `0x5b3390`, `0x5af0e0`; resolve 42 simplex ties in `0x595040` | 3 | 4 | |
 | World-object promotion/break trap | `NativeCollision.cpp:101–107` | `0x5b31f0`, `0x5ae000` | 4 | 4 | Breakable props and barriers. |
 | Cylinder shapes trap | `NativeCollision.cpp:141` | `0x5a23d0`, `0x5a2780` | 3 | 3 | |
-| Contact notification to the participant traps | `NativeCollision.cpp:47` | `0x5f4960`, mover switch `0x5f46a0` | 3 | 3 | Needs participant objects. |
+| ~~Contact notification to the participant traps~~ | `CarUpdate.cpp` | `0x5f4960` | 3 | 3 | Recovered; the native participant scaffold's slot `0x38` is a no-op and mover switch `0x5f46a0` traps. |
 | Collision effects dropped (sparks, debris, sounds, replay, FF) | `NativeCollision.cpp:56–93` | `0x5a9620` tail, `0x59fb70`, `0x5dc4c0`, `0x4814e0`/`0x4792d0`, `0x56fb20` | 4 | 2 | Mostly presentation; sound needs an audio backend. |
 | Point velocity, energy and car-body slot trap | `NativeCollision.cpp:111–121` | `0x59bec0`, `0x59bfd0`, `0x5a08b0` | 2 | 3 | Small leaves; likely reached once more contact paths run. |
 | Serialisation traps | `NativeCollision.cpp:125–138` | `0x593cc0`, `0x593120`, `0x5a9e80`, `0x593d10` | 2 | 1 | Replay/save only. |

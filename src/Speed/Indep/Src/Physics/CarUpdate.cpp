@@ -155,6 +155,17 @@ void MoverModeOwner::EmitEffect(int kind, float intensity, int value, WheelVecto
                    target ? target : reinterpret_cast<WheelVector *>(base + 0x70));
 }
 
+// Original 0x5f4960: a contact goes to the driver, or switches a car without a
+// physics mover (+0x28 not 1 or 3) to type 1 with a race entry, else 3.
+void MoverModeOwner::NotifyContact(MoverModeOwner *other) {
+    if (participant2C) {
+        participant2C->NotifyContact38(other, 0);
+        return;
+    }
+    if (moverType28 == 1 || moverType28 == 3) return;
+    SwitchMover(raceEntry18 ? 1 : 3);
+}
+
 // Original 0x6012b0: the car's per-step update, reached from car body step 0x5a9f10.
 float MoverModeOwner::Update(float duration) {
     UpdateContactState();

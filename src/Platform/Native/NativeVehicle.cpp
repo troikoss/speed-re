@@ -11,6 +11,9 @@
 #include "../../Speed/Indep/Src/Physics/PhysicsUpgradeSource.h"
 #include "../../Speed/Indep/Src/World/WCollision.h"
 #include "../../Speed/Indep/Src/Camera/CameraPush.h"
+#include "../../Speed/Indep/Src/Physics/WorldUpdate.h"
+#include "../../Speed/Indep/Src/Hud/HudPlayerMasks.h"
+#include "../../Speed/Indep/Src/Frontend/PauseMenu.h"
 
 #include <math.h>
 #include <new>
@@ -109,7 +112,52 @@ int raceStatusScaffold[0x400];
 // Scaffolds for objects created by race setup (0x60a6d4 / 0x5ff537): a context without
 // an entry at +0xa0 (variations enabled) and a random source with a fixed seed.
 DrivetrainContext contextScaffold;
-DrivetrainRandom randomScaffold;
+// Scaffold world object (*0x890080). Recovered code views it as CarWorld (0x609ce0),
+// CollisionEventOwner, CameraCarList and DrivetrainRandom (+0xf8).
+CarWorld worldScaffold;
+DrivetrainRandom &randomScaffold = *reinterpret_cast<DrivetrainRandom *>(&worldScaffold);
+GameFlow8900D8 flowScaffold;
+}  // namespace
+extern GameFlow8900D8 *gameFlow8900D8;
+namespace {
+
+// Scaffold driver (car +0x2c) for the demo's human car: the per-frame driver update
+// (slot 0xc) and contact notification (slot 0x38) are not recovered and do nothing.
+class NativeParticipant : public RaceParticipant {
+public:
+    void Slot00() { NativeTrap("participant slot 0x00"); }
+    void Slot04() { NativeTrap("participant slot 0x04"); }
+    void Slot08() { NativeTrap("participant slot 0x08"); }
+    void Update0C(float) {}
+    void Slot10() { NativeTrap("participant slot 0x10"); }
+    void Slot14() { NativeTrap("participant slot 0x14"); }
+    void Slot18() { NativeTrap("participant slot 0x18"); }
+    int GetResetId1C() { NativeTrap("participant slot 0x1c"); return -1; }
+    void Slot20() { NativeTrap("participant slot 0x20"); }
+    void Slot24() { NativeTrap("participant slot 0x24"); }
+    void Slot28() { NativeTrap("participant slot 0x28"); }
+    void Slot2C() { NativeTrap("participant slot 0x2c"); }
+    void Slot30() { NativeTrap("participant slot 0x30"); }
+    void Slot34() { NativeTrap("participant slot 0x34"); }
+    void NotifyContact38(MoverModeOwner *, int) {}
+    void Slot3C() { NativeTrap("participant slot 0x3c"); }
+    void Slot40() { NativeTrap("participant slot 0x40"); }
+    void Slot44() { NativeTrap("participant slot 0x44"); }
+    void Slot48() { NativeTrap("participant slot 0x48"); }
+    void Slot4C() { NativeTrap("participant slot 0x4c"); }
+    void Slot50() { NativeTrap("participant slot 0x50"); }
+    void Slot54() { NativeTrap("participant slot 0x54"); }
+    void Slot58() { NativeTrap("participant slot 0x58"); }
+    void Slot5C() { NativeTrap("participant slot 0x5c"); }
+    void Slot60() { NativeTrap("participant slot 0x60"); }
+    void Slot64() { NativeTrap("participant slot 0x64"); }
+    void Slot68() { NativeTrap("participant slot 0x68"); }
+    void Slot6C() { NativeTrap("participant slot 0x6c"); }
+    void Slot70() { NativeTrap("participant slot 0x70"); }
+    void Slot74() { NativeTrap("participant slot 0x74"); }
+    int GetTuningLevel() { NativeTrap("participant tuning level"); return 0; }
+};
+NativeParticipant participantScaffold;
 
 }  // namespace
 
@@ -186,6 +234,34 @@ unsigned int bGetTicker() {
 // Unrecovered original routines. The demo state never reaches them; if it does, stop.
 bool ReplayRecorder::QueryState5EFE70() { NativeTrap("replay recorder 0x5efe70"); return false; }
 void MoverOwnerObject::Reset5FC2A0(MoverModeOwner *) { NativeTrap("car race object reset 0x5fc2a0"); }
+// Unrecovered callees of world update 0x609ce0. The per-frame ones are native no-ops, as
+// the demo never ran them before the world update was recovered; ones the demo state
+// cannot reach (single car, no race entry, no +0x118 subsystem) trap.
+void CarWorld::Prepare5FA770() {}
+void UpdateCars5FC0E0() {}
+void MoverModeOwner::Update5F6CD0() {}
+void WorldObject81CBC0::Update4268A0() {}
+void Update614820() {}
+void WorldSubsystem118::Update42F910(float) { NativeTrap("world subsystem update 0x42f910"); }
+float MoverModeOwner::GetDraft5EBC20(MoverModeOwner *) { NativeTrap("car draft 0x5ebc20"); return 0.0f; }
+void Update59E350() {}
+void MoverModeOwner::Update5F5580() {}
+void UpdateRace572E50(int, WheelVector *) { NativeTrap("race entry update 0x572e50"); }
+void MoverModeOwner::Update5F6350() {}
+void WorldObject8357E0::Update492E10(float) {}
+void MoverModeOwner::UpdateEffects5F5730(float) {}
+void Update605780() {}
+void Update5E0A00() {}
+void Update5E5430() {}
+void CarWorld::Sort43E650(int (*)(void *, void *)) {
+    if (list0.next != &list0) NativeTrap("world list sort 0x43e650");
+}
+int CompareWorldEntry5EA240(void *, void *) { NativeTrap("world list comparator 0x5ea240"); return 0; }
+void PlayerRecord::Update602650() {}
+void WorldObject827B88::Update43AF20(float) {}
+void Update638070() {}
+void WorldObject88EB00::Update5E86E0() {}
+void RaceStatus890118::Update6076D0() {}
 // Unrecovered callees of car update 0x6012b0. The reset branch runs only once a reset is
 // requested (0x5ecba0 or 0x5ebf60); effect and replay calls need car +0x554/+0x968, which
 // the demo leaves null.
@@ -270,7 +346,6 @@ void DraftTracker::Update(float, float) { NativeTrap("draft tracker 0x5fa540"); 
 // Controls scaffolding.
 
 void NativeControls::UnknownSlot00() { NativeTrap("controls slot 0x00"); }
-void NativeControls::UnknownSlot04() { NativeTrap("controls slot 0x04"); }
 void NativeControls::UnknownSlot08() { NativeTrap("controls slot 0x08"); }
 void NativeControls::UnknownSlot0C() { NativeTrap("controls slot 0x0c"); }
 void NativeControls::UnknownSlot10() { NativeTrap("controls slot 0x10"); }
@@ -444,6 +519,7 @@ bool InitialiseNativeRuntime(const char *gameDirectory, char *error, int errorSi
     drivetrainContext = &contextScaffold;
     randomScaffold.stateF8 = 0x12345678u;
     drivetrainRandom = &randomScaffold;
+    if (!gameFlow8900D8) gameFlow8900D8 = &flowScaffold;
     // The same world object (0x890080) holds the collision event lists at +0 and +8.
     CollisionEventOwner *events = reinterpret_cast<CollisionEventOwner *>(&randomScaffold);
     events->unidentified0.next = events->unidentified0.previous = &events->unidentified0;
@@ -499,6 +575,8 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     // only car is the player's, which the camera's other-car search skips as its own.
     CameraCarList *cars = reinterpret_cast<CameraCarList *>(&randomScaffold);
     cars->count10 = 1;
+    worldScaffold.count14 = 1;
+    worldScaffold.count18 = 1;
     cars->cars1C[0] = owner;
     owner->resetDuration978 = resetDurationDefault;
     DrivetrainAuxiliary *state = owner->State();
@@ -533,6 +611,7 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     new (mover->integrator8) MoverIntegrator;
     owner->mover34 = mover;
     mover->Construct(&info->parameters10.record30, carInfo, controls, owner);
+    owner->participant2C = &participantScaffold;
     // Native vtable seam: install the slot interface car update 0x6012b0 dispatches through.
     static VehicleMoverSlots moverSlots;
     mover->vtable0 = *reinterpret_cast<void **>(&moverSlots);
@@ -566,23 +645,19 @@ void SetNativeControls(NativeVehicle *vehicle, float throttle, float brake, floa
     controls->steering2C8 = steer;
 }
 
+extern CarWorld *carWorld890080;
+
 float StepNativeVehicle(NativeVehicle *vehicle, float duration) {
-    // World update order from 0x609ce0: advance every dynamic body (0x5f0f00; the car body's
-    // Advance runs the car update, i.e. the mover step) and then resolve collisions
-    // (0x5ffa50). Scaffold: the world clock (0x57a0e0) is advanced after the step so the
-    // mover keeps reading a zero frame duration as before.
-    vehicle->controls->Update(duration);
-    vehicle->owner->SnapshotFrameKinematics(duration);
+    // Game loop 0x5811c0 seam: the recovered world update 0x609ce0 (at 0x581407), then
+    // the world clock 0x57a0e0 (at 0x5814ea). The rest of the loop body is not recovered.
 #ifdef UG2_ENABLE_MODDING
     NativeModsBeforeStep(vehicle, duration);
     if (NativeModsFailed()) return 0.0f;
 #endif
-    AdvanceCollisionBodies(duration);
+    carWorld890080->Update(duration);
 #ifdef UG2_ENABLE_MODDING
     if (NativeModsFailed()) return 0.0f;
 #endif
-    UpdateCollisionWorld(collisionEventOwner890080, duration);
-    vehicle->owner->UpdateFrameAcceleration(duration);
     frameDuration865154 = duration;
     AdvanceWorldClock();
 #ifdef UG2_ENABLE_MODDING

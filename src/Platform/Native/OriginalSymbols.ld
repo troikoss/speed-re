@@ -901,3 +901,14 @@ carResetExtension8021D0 = 0x8021d0;
 carGapScale88F2B0 = 0x88f2b0;
 carResetDirectionFlag88F2BE = 0x88f2be;
 carGapEnabled89E7F8 = 0x89e7f8;
+/* World update 0x609ce0. */
+carWorld890080 = 0x890080;
+gameMode89008C = 0x89008c;
+replayActive89CF69 = 0x89cf69;
+worldNearDistance7A548C = 0x7a548c;
+worldEffectsDistance7A5490 = 0x7a5490;
+carDraftLimit7A55BC = 0x7a55bc;
+worldObject81CBC0 = 0x81cbc0;
+worldObject8357E0 = 0x8357e0;
+worldObject827B88 = 0x827b88;
+worldObject88EB00 = 0x88eb00;

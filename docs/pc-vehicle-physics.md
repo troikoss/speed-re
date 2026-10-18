@@ -830,3 +830,38 @@ replay slots trap (the demo leaves car `+0x554`/`+0x968` null). Headless `ug2sim
 (forward 960 frames, reverse and `UG2_STEER=0.5` 600 frames) are byte-identical to the
 previous build: the recovered state does not yet feed back into the physics there.
 
+## World update `0x609ce0` recovered
+
+`StepNativeVehicle` now calls the recovered world update `CarWorld::Update`
+(`src/Speed/Indep/Src/Physics/WorldUpdate.cpp`) on the world object at `*0x890080`, then
+the world clock `0x57a0e0`, the order of game loop `0x5811c0` (`0x581407`, `0x5814ea`).
+Its sequence: `0x5fa770`, `0x5fc0e0`, `0x5f6cd0` per car, `0x4268a0`, `0x614820`;
+publishing the first `+0x14` cars' positions at world `+0x80` (stride 0x10) and car
+`+0x8fc` at `+0xe0`, filling the remaining six slots with 9999999; a game-mode change
+(`0x89008c`) sets player `+0x230` to 2 or 4; subsystem `+0x118` (`0x42f910`); driver
+updates (draft sum `0x5ebd80` into car `+0x4dc`, participant slot `0xc`) over cars
+`[+0x14, +0x18)`, `[+0x18, +0x10)`, then `[0, +0x14)`; input slot 4 (human `0x41e2c0`) and the
+`+0x970` countdown; `0x5fbbe0`; `0x59e350`; body advance `0x5f0f00`; collisions `0x5ffa50`;
+`0x604740`; `0x5f5580` for cars within 100 of a published position (`0x5f1160`); race and
+`0x5f6350` updates unless game flow state is 5; `0x492e10`; effects `0x5f5730` within 150;
+`0x605780`, `0x5e0a00`, `0x5e5430`, list sort `0x43e650`/`0x5ea240`, player `0x602650`,
+`0x43af20`, `0x638070`, `0x5e86e0` and race status `0x6076d0`. Distance query `0x5f1160`,
+draft sum `0x5ebd80` and contact notification `0x5f4960` are recovered with it.
+
+Verification: `tools/verify_pc_world_update.py` (2048 cases per routine, 53/64-bit x87,
+6144 comparisons; 12 mutations rejected) runs `bDistance` as original code and stubs every
+other callee at its original address, so it checks composition and arguments only. The
+recovered `0x5f0f00`/`0x5ffa50` are cdecl free functions while the original passes the
+world in `ecx`; the verifier normalises their traces. `0x5fbbe0` and `0x604740` are
+reached through their recovered kinematics prefixes; the rest of both is not recovered.
+`0x5f4960` is covered by `verify_pc_car_update.py`. Byte identity is not established.
+
+Native seams (`NativeVehicle.cpp`): a 0x11c-byte world scaffold replaces the 0xfc-byte
+random source it used to be; a participant scaffold whose driver update and contact slot
+do nothing; a game-flow scaffold when the pause menu has not installed one. The per-frame
+unrecovered callees are no-ops (the demo never ran them before); `0x42f910`, `0x5ebc20`,
+`0x572e50`, the comparator and a non-empty list sort trap. The mod bridge's before-step
+hook now runs before the whole world update. Headless `ug2sim` runs (960 frames forward,
+reverse, `UG2_STEER=0.5` and `-0.4` with wall contacts) are byte-identical to the previous
+build, and the 12 native mod scenarios pass.
+

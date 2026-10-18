@@ -45,7 +45,8 @@ struct PlayerRecord {
     int value50;          // frame of the last restart request
     char unidentified54[4];
     int state58;
-    char unidentified5C[0x1d8];
+    char unidentified5C[0x1d4];
+    int value230;         // set to 2/4 by world update 0x609ce0 on a game-mode change
     int value234;
     CameraMover *camera238;
     char unidentified23C[0xd];
@@ -61,12 +62,14 @@ struct PlayerRecord {
     unsigned __int64 GetRaceMask();           // 0x5f33b0
     unsigned __int64 GetAmbientMask();        // 0x5f34c0
     bool QueryRestart();                      // 0x5fff50
+    void Update602650();                      // 0x602650, not recovered
 };
 UG2_CHECK_OFFSET(PlayerRecord, index10, 0x10);
 UG2_CHECK_OFFSET(PlayerRecord, mode28, 0x28);
 UG2_CHECK_OFFSET(PlayerRecord, jumpCamera24, 0x24);
 UG2_CHECK_OFFSET(PlayerRecord, value50, 0x50);
 UG2_CHECK_OFFSET(PlayerRecord, state58, 0x58);
+UG2_CHECK_OFFSET(PlayerRecord, value230, 0x230);
 UG2_CHECK_OFFSET(PlayerRecord, value234, 0x234);
 UG2_CHECK_OFFSET(PlayerRecord, camera238, 0x238);
 UG2_CHECK_OFFSET(PlayerRecord, flag24A, 0x24a);
@@ -83,6 +86,7 @@ struct RaceStatus890118 {
     int eventPlayerBF0;
     int Query5F85B0();    // 0x5f85b0
     void Reset5FCA90();   // 0x5fca90
+    void Update6076D0();  // 0x6076d0, not recovered
 };
 UG2_CHECK_OFFSET(RaceStatus890118, value24, 0x24);
 UG2_CHECK_OFFSET(RaceStatus890118, eventPlayerBF0, 0xbf0);

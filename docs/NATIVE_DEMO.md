@@ -651,8 +651,8 @@ observations, not equivalence evidence.
   resolve the 42 degenerate simplex tie differences in `0x595040`.
 - Recover car-vs-car/world-object paths (`0x5b31f0`, `0x5ae000`, slot 0x8c),
   cylinders (`0x5a23d0`, `0x5a2780`), and collision effects/sounds (`0x5a9620`, `0x59fb70`).
-- Recover the car-update reset path (`0x5fbed0`, `0x40f690`, `0x6009a0`) and the original
-  world-clock call site.
+- Recover the car-update reset path (`0x5fbed0`, `0x40f690`, `0x6009a0`) and the world-update
+  callees that are still no-op seams (`0x5f6cd0`, `0x5f5580`, `0x5f5730`, `0x602650`, `0x6076d0`, ...).
 - Recover camera shake/finalisation, the remaining car pre/post-update logic
   beyond the verified acceleration prefixes, remaining HUD inputs/features, and full
   FEng script playback/rendering. Additional HUD

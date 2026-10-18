@@ -1,0 +1,20 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "Update": {
+      "address": "0x609ce0",
+      "size": 1464,
+      "sha256": "03f87271129c773dc73242c78919ec6a7b606fa78be32a351e5cd3274a93382c"
+    },
+    "NearestPlayerDistance": {
+      "address": "0x5f1160",
+      "size": 316,
+      "sha256": "031566ed5c9dd375bd3920693fedb0b88cf4549b04a2d8036b5ea23def908435"
+    },
+    "GetDraftSum": {
+      "address": "0x5ebd80",
+      "size": 128,
+      "sha256": "22402f0f1b845af6bf56457e7c685916b45e8d68dc03fa68610032f2b561dbf3"
+    }
+  }
+}
