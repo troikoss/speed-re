@@ -19,6 +19,8 @@ static FEPackage *deliveredPackage;
 void *FEngAllocateQueueNode(unsigned int size) { ++allocations; return malloc(size); }
 void FEngFreeQueueNode(void *pointer) { ++deallocations; free(pointer); }
 void FEngQueue::Call5362E0(FEPackage *) { abort(); }
+// Test-local replacement for the recovered package loader 0x555860: linking it would pull the
+// package reader chain and its pools into this asset-free probe, which exercises queue dispatch only.
 FEPackage *FEngQueue::Call555860(const char *, unsigned char, unsigned int) { abort(); }
 void HudVisibilityObject::Call52BD70(int, int) { abort(); }
 void FEngQueue::ExecuteResponse(FEResponse *, HudVisibilityObject *object, FEPackage *package, unsigned int mask) {

@@ -1,6 +1,6 @@
 # Native code replacement inventory
 
-Snapshot: 2026-10-18 (after the car construction recovery). Reference build: UG2 PC v1.2
+Snapshot: 2026-10-19 (after the FEng package reader recovery). Reference build: UG2 PC v1.2
 `speed2.exe`.
 
 This is a planning document. It lists the native code in `src/Platform/Native`
@@ -30,7 +30,7 @@ still should come from recovered code.
 | 2 | ~~Wire in verified-but-unintegrated tuning routines~~ (already linked; reachable only once the tuning-table loader, item 8, exists) | 1 | 3 |
 | 3 | ~~FEng messaging: frame manager `0x558c00`~~ (done; delivery `0x541fc0`/dispatch `0x5367e0` were already recovered; pad/mouse dispatch `0x54d4b0`/`0x54e020` remain) | 3 | 4 |
 | 4 | ~~Car constructor `0x604260` and participant setup `0x6065b0` (replace `CreateNativeVehicle`)~~ (done; participant kind `0x5eba30`, mover factory `0x5f46a0` and ground placement `0x5f5010` remain seams) | 4 | 5 |
-| 5 | FEng package/object loader `0x5554a0`/`0x555860` | 4 | 4 |
+| 5 | ~~FEng package/object loader `0x5554a0`/`0x555860`~~ (recovered and verified; load driver `0x555800`/`0x555720` remains a seam and the native loader is not rewired) | 4 | 4 |
 | 6 | Collision: GJK `0x5b3390`, impulse `0x5af0e0`, world objects, cylinders | 3–4 | 4 |
 | 7 | Camera seams: pushes, shake, cockpit tests | 2–3 | 3 |
 | 8 | CarTypeInfo/tuning chunk loaders | 3 | 3 |
@@ -123,8 +123,8 @@ still should come from recovered code.
 | ~~`AdvanceScripts` frame seam~~ | — | Frame manager `0x558c00` (recovered, wired in) | — | — | Remaining: fraction-carrying ms clock (`NativeFengMilliseconds`), draw-angle sync. |
 | `Pump()`: input handled outside the frame, drained by zero-length `0x558c00` frames | `NativePause.cpp` `Pump` | Pad/mouse dispatch `0x54d4b0`/`0x54e020` with queue input +1 and pads +0xd4 | 4 | 3 | Replaces the native `Input()` bridge too. |
 | HUD on its own queue (events delivered to an ignoring observer) | `NativeHud.cpp` `Update` | One shared queue with the frontend packages | 2 | 2 | HUD now runs through `0x558c00`. |
-| Package loading/removal trap; native package chain and order | `NativePause.cpp:163`, `:513–524` | `0x555860`, `0x5362e0`, `0x51ab20`/`0x51ac10`/`0x51adb0`/`0x51b070` | 4 | 4 | |
-| Object/record/archive loading; parsed file order kept | `NativeFng.cpp:618`, `NativePause.cpp:197` | `0x5554a0` and its chunk walk | 4 | 4 | |
+| Package loading/removal trap; native package chain and order | `NativePause.cpp:163`, `:513–524` | `0x555800`/`0x555720` load driver, `0x5362e0`, `0x51ab20`/`0x51ac10`/`0x51adb0`/`0x51b070` | 4 | 4 | Load `0x555860` and level insert `0x518280` recovered 2026-10-19 ([pause menu](pc-pause-menu.md#feng-package-and-object-readers-2026-10-18)); the trap moved to `0x555800`. The driver still needs `0x52b4d0`, `0x5049a0`, `0x52b550`, `0x5182e0`, `0x518380`, `0x551580`, `0x5184e0`, `0x52b370`. |
+| Object/record/archive loading; parsed file order kept | `NativeFng.cpp:618`, `NativePause.cpp:197` | Wire in recovered `0x5554a0`/`0x555140` | 4 | 4 | Package reader `0x5554a0`, object reader `0x555140`, clones `0x554300`/`0x5548a0`, appends `0x517e90`/`0x495610` and visitor `0x517ee0` recovered 2026-10-19 (26,987 comparisons, 41 mutations rejected). `FengPackage::Load` still parses natively: its `FengObject` wrapper is larger than the original objects and object vtable calls cannot run natively. |
 | Position, size and UV setters | `NativeFng.cpp` `SetPosition`/`GetSize`/`SetState` | Original FEng setters | 2 | 2 | |
 | Bounded input for the script reader | `NativeFng.cpp:189` | None (keeps malformed data safe) | — | — | A permanent safety seam. |
 | No type registry producer (`queue3C = 0`) | `NativeFng.cpp:213` | Registry construction feeding context `+0x3c` | 2 | 1 | Retail scripts contain no `Ti` tags. |

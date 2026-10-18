@@ -511,8 +511,9 @@ static FEngQueueNode *__thiscall NativeDeleteOperation(FEngQueueNode *node, unsi
     return node->DestroyOperation(flags);
 }
 void FEngQueue::Call5362E0(FEPackage *) { NativeTrap("FEng package removal 0x5362e0"); }
-FEPackage *FEngQueue::Call555860(const char *, unsigned char, unsigned int) {
-    NativeTrap("FEng package loading 0x555860");
+// Package loading 0x555860 is recovered (FEngPackageReader.cpp); its driver 0x555800 -> 0x555720 is not.
+FEPackage *FEngQueue::Call555800(void *, int) {
+    NativeTrap("FEng package loading 0x555800");
     return 0;
 }
 
@@ -531,14 +532,16 @@ void FEngQueue::Call51B070(const char *) { NativeTrap("FEngQueue 0x51b070"); }
 class NativeQueueOwner : public FEngQueueObserver {
 public:
 #define UNUSED_SLOT(name) void name() { NativeTrap("FEng owner " #name); }
-    UNUSED_SLOT(Unidentified00) UNUSED_SLOT(Unidentified04) UNUSED_SLOT(Unidentified08)
-    UNUSED_SLOT(Unidentified0C) UNUSED_SLOT(Unidentified10) UNUSED_SLOT(Unidentified14)
+    UNUSED_SLOT(Unidentified04) UNUSED_SLOT(Unidentified08)
+    UNUSED_SLOT(Unidentified10) UNUSED_SLOT(Unidentified14)
     UNUSED_SLOT(Unidentified20) UNUSED_SLOT(Unidentified24) UNUSED_SLOT(Unidentified28)
     UNUSED_SLOT(Unidentified2C) UNUSED_SLOT(Unidentified30) UNUSED_SLOT(Unidentified34)
     UNUSED_SLOT(Unidentified38) UNUSED_SLOT(Unidentified3C) 
     UNUSED_SLOT(Unidentified48)
     UNUSED_SLOT(Unidentified50)
 #undef UNUSED_SLOT
+    void *LoadPackageData(const char *, void **, unsigned char *) { NativeTrap("FEng owner package data slot"); return 0; }
+    void PackageLoaded(FEPackage *) { NativeTrap("FEng owner package loaded slot"); }
     void GameMessage(unsigned int message, void *sender, unsigned int, FEPackage *package) {
         for (size_t i = 0; i < kScreenCount; ++i) {
             NativeScreen *screen = screens[i];

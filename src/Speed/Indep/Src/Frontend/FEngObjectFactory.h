@@ -30,6 +30,8 @@ struct FEngGroupObject {
     FEngGroupObject *Construct(); // 0x52b080
     void Destruct(); // 0x534bf0, normal return
     FEngGroupObject *Destroy(unsigned int flags); // 0x534bd0
+    FEngGroupObject *CloneConstruct(const FEngGroupObject *source, unsigned char copyChildren, unsigned int shallow); // 0x5548a0, unconstructed receiver, normal return
+    void AppendChild(HudVisibilityObject *child); // 0x517e90, tail insert into the list at +0x5c
 };
 struct FEngType11Object {
     char unidentified0[0x5c];

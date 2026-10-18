@@ -4427,3 +4427,205 @@ Native and CTest builds pass. Pause frames at 20/260 (no keys, `RAALDL`, `DDA`,
 `RA`) and a 200-frame drive are byte-identical to the previous build. The
 smoke checks also pass: 19 settings, 10 Controls, scroller motion, and 12 mod
 scenarios.
+
+## FEng package and object readers (2026-10-18)
+
+`FEngPackageReader.cpp` recovers the chain that turns an FNG package chunk stream
+into live objects, and the loader that calls it:
+
+| Address | Size | Routine |
+|---|---|---|
+| `0x5554a0` | 630 | `FEngPackageReader::Read` - package reader |
+| `0x555140` | 729 | `FEngPackageReader::ReadObject` - object chunk reader (AL only) |
+| `0x554300` | 709 | `HudVisibilityObject::CloneConstruct` - object copy construction |
+| `0x5548a0` | 196 | `FEngGroupObject::CloneConstruct` - group copy construction |
+| `0x517e90` | 75 | `FEngGroupObject::AppendChild` - tail insert into a group |
+| `0x495610` | 20 | `FEPackage::AppendObject` - tail insert into the package list at +0x44 |
+| `0x518280` | 95 | `FEngPackageList::InsertByLevel` - level-ordered package insert |
+| `0x555860` | 347 | `FEngQueue::Call555860` - package load by name |
+| `0x517ee0` | 66 | `FEngInitScriptVisitor::Visit` - the Init-script visitor `0x555860` uses |
+
+`0x517ee0` is not in the brief's list. It is the `Visit` slot of the temporary visitor
+(`0x79aaec`) that `0x555860` builds on its stack, so the rebuilt loader needs it.
+The visitor's deleting destructor `0x5047c0` is not recovered: the temporary is
+destroyed inline and the slot is never called.
+
+**Package reader `0x5554a0`.**
+- It scans the stream for chunk `0xcc6a624f`. When the walk reaches the end of
+  the chunks it tests the id at the end address once more, so a package chunk
+  placed directly after the stream is still found. Without one it returns false.
+- Inside it, a `Butn` chunk (`0x6e747542`) stores the focus-object count at reader +0x48, frees
+  `package+0x90`, and allocates `count * 4` bytes when the count is nonzero
+  (`package+0x94 = count`).
+- The first `0xea624f46` chunk starts the object lists. Every chunk after it is
+  read as an object list whatever its id.
+- Each list clears reader +0xc (object) and +0x14 (parent group), then walks its
+  children: the object chunk (`0x446a624f`) goes to the object reader and a failure returns
+  false, `MsgR` goes to the response reader with package mode 0, and `Scrp` goes
+  to the script reader.
+- The finished object then gets its type setup (type 4 `0x504360`, type 6
+  `0x504c40`). Script chain hashes at +0x18 are replaced by the first script with
+  that hash (null if none). The Init script (hash `0x1744b3`) becomes the current
+  script at +0x54 and is initialised with `0x517720`, and its time is cleared.
+  When reader byte +8 is clear, every track of the Init script is applied at
+  time 0 (`0x541f60`). The object is appended to the parent group when one was
+  set, otherwise to the package.
+
+**Object reader `0x555140`.**
+- It dispatches the 16-bit property tags `OP` (header, plus inheritance), `PA` (parent
+  group lookup, cached at reader +0x10), `SA` (state words), `Oh`, `On` (name,
+  only when reader byte +9 is set) and `Ot` (object creation by the factory
+  `0x534df0`).
+- Other properties go by the object type: `If` for types 1/9/10, and the string,
+  list and grid readers for types 2/4/6.
+- `OP` with flag 0x100000 resolves the inherited object with `0x5186c0` and sets
+  reader byte +0x18. It then clones the source (virtual slot +4 with argument 1, or
+  `0x5548a0` for a group), copies identity, flags, resource and texture, deletes
+  the object built so far, rewrites the clone's script chain pointers back to
+  hashes, and stores the clone as the object. If the source cannot be resolved,
+  the half-built object is deleted and the routine returns 0.
+- Flag 0x10000000 stores the object in the focus array at `package+0x90`.
+
+**Clone constructors.** `0x554300` takes a new GUID and copies type, flags, the two
+resource words, texture and name. It rebuilds responses (`0x54bdf0`, `0x52ae00`,
+`0x52ad80` per command) and scripts (`0x54beb0`, `0x551be0`) through their pools. It
+allocates a fresh zeroed state block of the source's size, selects the copy of the
+source's current script by hash (initialising it), and relinks script chain
+pointers by hash. `0x5548a0` runs it first, switches the vtable to the group's and
+clones the children through virtual slot +4 only when its second argument is set.
+
+**Package loader `0x555860`.** It looks the name up in the cached list (+0xec), and on a
+miss retries with the text after the last `/` or `\`. When the name has no
+separator that scan leaves its start one byte before the name, as in the original.
+A hit marks the package reused (+0x15), runs the Init visitor over its objects and
+unlinks it from the cached list. A miss asks observer slot 0 for the data, builds
+the package with `0x555800` and frees the block when the loader reports one. Either
+way the package gets the level (+0x18), the input mask in all four mask words, the
+queue's byte +0 (+0x14), is announced through observer slot 0xc (when there is an
+observer) and is inserted into the active list (+0xdc) by level.
+
+Header changes that keep offsets: `FEngPackageList` now has all four list words
+(`value0`, `count4`, `first8`, `lastC`; the queue's former `unidentifiedE8` word
+is its `lastC`), `FEPackage` names `previous8` and `value15`, and observer slots
+0 and 0xc are typed (`LoadPackageData`, `PackageLoaded`).
+
+Original null dereferences are kept. A package object without an Init script makes both
+the visitor and the package reader store through a null pointer at +0x10; the
+stores are `volatile` so an optimising compiler does not drop the null test of
+the selection loop that precedes them.
+
+Verifier: `tools/verify_pc_feng_package_reader.py`, with fingerprints in
+`config/SPEED2_EXE_1_2/feng-package-reader.json`.
+
+```sh
+build/venv/bin/python tools/verify_pc_feng_package_reader.py --compiler clang-cl --mutation-checks
+```
+
+Result (3000 generated cases for each of the nine routines, seed `0x5554a0`, clang-cl):
+
+| Routine | Comparisons |
+|---|---|
+| `0x5554a0` package reader | 2987 (plus 13 identical faults, see below) |
+| `0x555140` object reader | 3000 |
+| `0x554300` object clone | 3000 |
+| `0x5548a0` group clone | 3000 |
+| `0x517e90` group append | 3000 |
+| `0x495610` package append | 3000 |
+| `0x518280` level insert | 3000 |
+| `0x555860` package load | 3000 |
+| `0x517ee0` Init visitor | 3000 |
+| Total | 26987 |
+
+41 semantic mutations of the recovered source were rejected (150 cases per routine
+each): package reader (`Butn` count store, allocation size and free; response
+mode; object-failure propagation; Init hash; track gate; parent-group append;
+type setup; chain relink; list reset), object reader (parent cache, flag merge,
+resource test, focus index, group clone argument, failure delete, state count,
+name gate, script-hash rewrite), clone (GUID step, state zeroing, flags,
+response message, current-script selection, chain advance), group clone (child
+gate, vtable, count), appends (child count, cursor), level insert (comparison),
+loader (free flag, reuse flag, level, announce, unlink, separator, start
+adjustment) and the visitor (dirty flags, Init hash). One of them
+(`read-response-mode`) is rejected by a fault in the rebuilt code rather than a
+state difference.
+
+The original and the rebuilt routine run on the same randomized arena. Every other
+callee is real original code in both runs: the string, list, grid, script,
+response and inheritance readers, the object factory and constructors, the
+state manager, the response and script pools (each case starts with empty
+pools, so each builds its blocks), name hashing, script initialisation and track
+application, the visitors and `FindObjectByGuid`, `FindByName` and the list
+removal. For every callee entry the ordered trace records the name, `this`,
+stack arguments (stack-resident temporaries are normalised) and a digest of
+the arena and heap. The returned value (AL for the byte and bool routines),
+EBX/ESI/EDI/EBP, the stack cleanup, FS:[0], the whole arena, the heap, the
+writable image data and the null page are compared at the end. The fingerprints
+of 24 callee bodies are checked against the existing manifests.
+
+Paths covered, from the generators and the original run's trace: a missing
+package chunk, a package chunk found only by the end-of-chunks id check, zero
+to three object lists with chunks after the first list read as lists, empty
+and filler chunks, `Butn` with zero and nonzero counts, object reader failure
+(unresolvable inheritance), types 4/6/other (`0x504360`, `0x504c40`), group
+and package append, script chain hashes (match, no match, null), an Init
+script present or absent (the absent case stores at null+0x10), reader byte +8
+set and clear, inherited objects of the leaf and group kinds, a parent-group
+lookup that hits the cache, finds an object in the package, or finds nothing,
+a cached package found by the full name, the basename or the unterminated
+scan, a miss that loads (loader data null or not, driver result null or not,
+free flag set or clear, observer absent for hits), levels above and below
+127, and insertion at the head, middle and tail of the active list.
+
+Controlled interfaces: the heap `0x575620`/`0x575630` (a deterministic bump
+allocator that fills new blocks with `0xcd`), the unrecovered package driver
+`0x555800` (a fixture returns a prepared package), and observer slots 0 and
+0xc at queue +0x10c. Any other observer slot is a trap.
+
+Limitations:
+- The cases are finite generated values; complete coverage is not established.
+  Thirteen package-reader cases (nine unmapped reads, four non-terminating)
+  fault inside original callees on both sides at the same point with the same
+  trace; they are counted separately.
+- The Init-absent null store is run with a zero page mapped in both runs. On
+  hardware the original faults there.
+- SEH frames of `0x555140`, `0x554300`, `0x5548a0` and `0x555860` are not
+  recovered; the sources are normal-return bodies. Unwinding is not covered.
+  The temporary visitor is destroyed inline, as in the original.
+- The scripts in the generated streams use the `Sn`, `Sh`, `Sf`, `Sc`, `Sl`,
+  `EV`, `SI`, `FI` and `Tt` tags. `Ti`, `Tb`, `Kd`, string command types and
+  non-trivial track key lists are not generated. Track types that evaluate
+  keys (step, evaluate) are applied only to default tracks.
+- The upper three bytes of the stack slot the original passes as the track
+  index to `0x541f60`, and the full dword the clone routines pass as their
+  shallow flag (the generated flag is 0 or 1), are not compared.
+- Object vtable slots 0 (deleting destructor) and 1 (clone) are the retail
+  slots; natively the vtable word is an opaque token, so these paths cannot run
+  in the native build.
+- Byte identity with MSVC 7.1 is not established. `0x517e90` and `0x518280`
+  assemble to identical bytes, `0x495610` and `0x517ee0` match instruction for
+  instruction before relocation, and the others differ in layout and size. The
+  verifier also passes with MSVC 7.1 (`--compiler msvc`, 800 cases per routine).
+- `0x555800` and the driver `0x555720` it calls are not recovered.
+
+Native integration:
+- `FEngQueue::Call555860` is now the recovered routine. The native demo binds
+  the unrecovered `FEngQueue::Call555800` to a trap
+  (`FEng package loading 0x555800`), and its observer implements the two typed
+  slots as traps, so behaviour is unchanged: package loading still traps.
+- The native loader `FengPackage::Load` in `NativeFng.cpp` is not rewired. It
+  builds a larger native `FengObject` wrapper (extra native members after the
+  original prefix) and reads FNG data with its own parser, so the recovered
+  reader, which allocates and clones plain original objects, cannot replace it
+  in this checkpoint.
+- The asset-free `ug2fengqueue_native_test` keeps a test-local
+  `Call555860` stub, because linking the recovered loader would pull the
+  reader chain and pools into a probe that only exercises queue dispatch.
+
+Regression checks: the 44 other FEng verifiers were run again after the header
+changes (`FEngPackage.h`, `FEngQueueNodes.h`, `FEngObjectFactory.h`,
+`HudVisibility.h`). 24 pass with their default compiler and the other 20
+pass with `--compiler clang-cl`; their MSVC 7.1 default does not compile
+sources that use `__thiscall` typedefs or weak destructor symbols. The
+`queue_nodes` verifier also fails under its MSVC default on the unchanged
+tree. The native build, `ctest -R '^feng_'` and the pause-scroller smoke
+check pass.

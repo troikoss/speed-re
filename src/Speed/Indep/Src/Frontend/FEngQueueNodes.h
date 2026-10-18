@@ -28,10 +28,12 @@ struct FEngQueueList {
 // Observed owner slots from queue and grid callers; unidentified slots keep their offsets.
 struct FEngMousePacket;
 struct FEngQueueObserver {
-    virtual void Unidentified00() = 0;
+    // Slot 0, from the package loader 0x555860: returns the data pointer for 0x555800 and reports the
+    // block to free (when *freeBlock is nonzero) through the two out parameters.
+    virtual void *LoadPackageData(const char *name, void **block, unsigned char *freeBlock) = 0;
     virtual void Unidentified04() = 0;
     virtual void Unidentified08() = 0;
-    virtual void Unidentified0C() = 0;
+    virtual void PackageLoaded(FEPackage *package) = 0; // slot 0xc, called by 0x555860 before the level-ordered insert
     virtual void Unidentified10() = 0;
     virtual void Unidentified14() = 0;
     virtual void GameMessage(unsigned int message, void *sender, unsigned int mask, FEPackage *package) = 0;

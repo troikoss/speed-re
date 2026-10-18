@@ -74,12 +74,14 @@ public:
     FEGridOwner *next;
     Owner() : next(0) {}
 #define UNUSED_SLOT(name) void name() { abort(); }
-    UNUSED_SLOT(Unidentified00) UNUSED_SLOT(Unidentified04) UNUSED_SLOT(Unidentified08) UNUSED_SLOT(Unidentified0C)
+    UNUSED_SLOT(Unidentified04) UNUSED_SLOT(Unidentified08)
     UNUSED_SLOT(Unidentified10) UNUSED_SLOT(Unidentified14) UNUSED_SLOT(Unidentified20)
     UNUSED_SLOT(Unidentified24) UNUSED_SLOT(Unidentified28) UNUSED_SLOT(Unidentified2C) UNUSED_SLOT(Unidentified30)
     UNUSED_SLOT(Unidentified34) UNUSED_SLOT(Unidentified38) UNUSED_SLOT(Unidentified3C) 
     UNUSED_SLOT(Unidentified48) UNUSED_SLOT(Unidentified50)
 #undef UNUSED_SLOT
+    void *LoadPackageData(const char *, void **, unsigned char *) { abort(); return 0; }
+    void PackageLoaded(FEPackage *) { abort(); }
     void InputMessage(unsigned int, void *, unsigned int, FEPackage *) { abort(); }
     void MessagePosted(unsigned int, void *, FEPackage *, int, int) { abort(); }
     void MessageDelivering(unsigned int, int, void *, FEPackage *, unsigned int) { abort(); }

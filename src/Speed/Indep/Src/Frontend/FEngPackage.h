@@ -11,9 +11,12 @@ struct FEResponse;
 struct FEngInheritanceRecord { unsigned int key0, packageHash4, guid8; };
 struct FEngSavedFocus { unsigned int key0, value4; };
 struct FEngPackageList {
-    char unidentified0[8];
+    unsigned int value0;
+    unsigned int count4;
     FEPackage *first8;
+    FEPackage *lastC;
     FEPackage *FindByName(const char *name, FEPackage *first); // 0x519e50
+    void InsertByLevel(FEPackage *package); // 0x518280, after the last package whose +0x18 level is not greater
 };
 struct FEngMessageAssociation {
     unsigned int message0, capacity4, count8;
@@ -51,9 +54,8 @@ struct FEngQueue {
     unsigned int padCountD4;
     char unidentifiedD8[4];
     FEngPackageList packagesDC;
-    char unidentifiedE8[4];
     FEngPackageList packagesEC;
-    char unidentifiedF8[0xc];
+    char unidentifiedFC[8];
     FEPackage *first104; // Separate package chain used by 0x50b240.
     char unidentified108[4];
     FEngQueueObserver *value10C;
@@ -74,7 +76,8 @@ struct FEngQueue {
     void DeliverObject(HudVisibilityObject *object, FEPackage *package, unsigned int message, unsigned int mask); // 0x5367e0
     void ConsumeOperations(); // 0x5559c0
     void Call5362E0(FEPackage *package);
-    FEPackage *Call555860(const char *name, unsigned char level, unsigned int mask);
+    FEPackage *Call555860(const char *name, unsigned char level, unsigned int mask); // 0x555860
+    FEPackage *Call555800(void *data, int value); // 0x555800 -> 0x555720 package load driver, not recovered
     void StoreFocus(unsigned int key, unsigned int value); // 0x50b300
     unsigned int LoadFocus(unsigned int key); // 0x50b360
     void ClearPackageStack(); // 0x50b390
@@ -114,17 +117,22 @@ UG2_CHECK_SIZE(FEngSavedFocus, 8);
 UG2_CHECK_OFFSET(FEngQueue, packagesDC, 0xdc);
 UG2_CHECK_OFFSET(FEngQueue, packagesEC, 0xec);
 UG2_CHECK_OFFSET(FEngPackageList, first8, 8);
+UG2_CHECK_OFFSET(FEngPackageList, lastC, 0xc);
+UG2_CHECK_SIZE(FEngPackageList, 0x10);
+UG2_CHECK_OFFSET(FEngQueue, packagesEC, 0xec);
+UG2_CHECK_OFFSET(FEngQueue, unidentifiedFC, 0xfc);
 
 // Observed FEPackage prefix; unidentified fields retain their original offsets.
 struct FEPackage {
     char unidentified0[4];
     FEPackage *next4;
-    char unidentified8[4];
+    FEPackage *previous8;
     const char *nameC;
     unsigned int nameHash10;
     unsigned char value14;   // nonzero: script updates fire events and maintain dirty flags (0x54ce60)
-    char unidentified15[3];
-    int value18;
+    unsigned char value15;   // set by 0x555860 when a cached package is reused
+    char unidentified16[2];
+    int value18;             // load level; 0x518280 orders the active list by it
     unsigned int inputMask1C;
     unsigned int inputMask20;
     unsigned int inputMask24;
@@ -160,9 +168,12 @@ struct FEPackage {
     void FireScriptEvents(FEngQueue *queue, HudVisibilityObject *object, FEScript *script, int from, int to); // 0x534c70
     void UpdateObject(HudVisibilityObject *object, int delta); // 0x54ce60
     void UpdateChildren(HudVisibilityObject *group, int delta); // 0x504910
+    void AppendObject(HudVisibilityObject *object); // 0x495610, tail insert into the list at +0x44
 };
 UG2_CHECK_SIZE(FEngInheritanceRecord, 12);
+UG2_CHECK_OFFSET(FEPackage, previous8, 8);
 UG2_CHECK_OFFSET(FEPackage, value14, 0x14);
+UG2_CHECK_OFFSET(FEPackage, value15, 0x15);
 UG2_CHECK_OFFSET(FEPackage, queue30, 0x30);
 UG2_CHECK_OFFSET(FEPackage, delta34, 0x34);
 UG2_CHECK_OFFSET(FEPackage, value38, 0x38);
