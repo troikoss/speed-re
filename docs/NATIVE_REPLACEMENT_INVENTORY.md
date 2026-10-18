@@ -93,7 +93,7 @@ still should come from recovered code.
 
 | Native piece | Where | Replace with | Diff. | Imp. | Notes |
 | --- | --- | --- | --- | --- | --- |
-| World collision pushes for chase types | `docs/NATIVE_DEMO.md` seam list | `0x444530`, `0x44b040` | 3 | 3 | Camera clips through walls without them. |
+| ~~World collision pushes for chase types~~ | `DriveCamera.cpp` update tail | `0x444530`, `0x44b040` | 3 | 3 | Done 2026-10-18 ([camera](pc-camera.md)); vtable slots and car list remain scaffold. |
 | Camera shake | same | `0x452ed0`, `0x572a50` | 2 | 2 | |
 | Camera finalisation | same | `0x447280` | 2 | 2 | |
 | Cockpit blocked tests | same | `0x445fc0`, `0x5d39f0` | 2 | 2 | |

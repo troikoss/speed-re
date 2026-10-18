@@ -663,3 +663,11 @@ renamed from cross-title evidence alone.
     `0x441890`: 12,288 comparisons, 22 mutations (`verify_pc_camera_cars.py`). Next:
     integrate both pushes into the `0x453570` tail (native mover needs a vtable with slots
     0x30/0x44, a valid `*0x890080` car list and `CameraPlayer::Query5EB520`).
+48. **Camera pushes integrated (2026-10-18).** `0x453570` tail now builds the view with
+    `0x5ba9a0` and runs `0x444530`/`0x44b040` for chase types; slot 0x44 `0x44ba70` and
+    player query `0x5eb520` recovered. Native seams: vtable slots 0x30/0x44 in `DemoMain.cpp`,
+    player car in the `*0x890080` list, GL eye/target/up read back from the matrix. The
+    camera-push verifier now reads ST(0) (was physical FP0). Verified: camera-push 12,288/23
+    mutations, camera-cars 12,288, ctest 3/3, pause/orbit/cockpit/scripted smoke runs;
+    `UG2_STEER=1 --camera 3` shows a wall push at frames 375-403. Next camera seams: shake
+    `0x452ed0`/`0x572a50`, finalisation `0x447280`, cockpit tests `0x445fc0`.

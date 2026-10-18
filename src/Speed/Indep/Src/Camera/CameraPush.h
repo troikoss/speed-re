@@ -8,9 +8,9 @@
 struct MoverModeOwner;
 struct WCollider;
 
-// The player object the drive camera passes to 0x5eb520 (layout not recovered).
+// The player object at camera mover +0x20 (layout not recovered).
 struct CameraPlayer {
-    bool Query5EB520();  // 0x5eb520
+    bool Query5EB520();  // 0x5eb520: byte +0x2b is clear
 };
 
 // Camera mover prefix read by the pushes; the drive camera mover (DriveCamera.h) starts with it.

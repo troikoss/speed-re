@@ -193,4 +193,31 @@ mutations rejected. Car data are finite, so signalling-NaN copies through `0x401
 (which copies some elements through the x87) are not exercised. MSVC 7.1 and byte identity
 are not established; not yet called by native code.
 
-Next: integration into `0x453570`.
+## Drive camera integration (2026-10-18)
+
+The recovered update tail (`DriveCamera.cpp`, `0x453570`) now builds the view matrix with
+`0x5ba9a0` from the zoomed eye, target and up, and for the chase types (setting types 0, 1
+and 5) calls `PushFromWorld(matrix, car, 0)` then `PushFromCars(matrix, car, 1)`, as the
+original does at `0x453bc8`/`0x453bdd`. Also recovered: drive camera slot 0x44 `0x44ba70`
+(mover +0x2c) and the player query `0x5eb520` (player byte +0x2b clear), now executed as
+original code in `verify_pc_camera_push.py` (12,288 comparisons, 23 mutations). That
+verifier previously compared physical register 0 instead of ST(0) for slot 0x30's return;
+it now reads ST(0) through TOP.
+
+Platform seams:
+
+- `DemoMain.cpp` supplies the mover's vtable with native thiscall entries for slot 0x30
+  (`0x445a60`) and 0x44 (`0x44ba70`); the original table `0x787f28` holds x86 addresses.
+  The mover's view is 1 (player one) and its player pointer stays 0 as the base constructor
+  `0x44ab90` leaves it, so the push depth is 0.7.
+- `NativeVehicle.cpp` lists the player's car in the world car list (`*0x890080` +0x10/+0x1c);
+  the search skips it as the mover's own car, so no other-car lift occurs in the demo.
+- Shake `0x572a50`/`0x452ed0` and finalisation `0x447280` are not run; the GL path reads the
+  eye (inverse translation), forward (column 2) and up (minus column 1) back from the matrix
+  and keeps the unpushed look distance for its target.
+
+Native observation (plausibility, not equivalence): the camera's collider query finds the
+world pack and 3 to 6 faces around the eye in the scripted Skyline drive. No push occurs there
+(the eye never comes within 0.7 of a face). With `UG2_STEER=1 --camera 3` the far camera pushes
+off a wall for frames 375 to 403 (up to 0.68 m sideways); before integration that frame showed
+the camera inside the wall. `UG2_DEBUG_CAMERA=1` prints the pushed offsets.

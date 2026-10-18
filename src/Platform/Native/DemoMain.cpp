@@ -10,6 +10,7 @@
 #include "NativeModBridge.h"
 #endif
 #include "../../Speed/Indep/Src/Camera/DriveCamera.h"
+#include "../../Speed/Indep/Src/Camera/CameraPush.h"
 
 #include <SDL2/SDL.h>
 #include "NativeUiInput.h"
@@ -24,6 +25,16 @@ extern float engineValueScale;
 extern int drivetrainClock;
 
 namespace {
+
+// Platform seam: the drive camera vtable 0x787f28 holds original code addresses, so the slots
+// the recovered pushes dispatch are native thiscall entries (0x30 = 0x445a60, 0x44 = 0x44ba70).
+float __thiscall DriveCameraSlot30(CameraMoverBase *mover) { return mover->NearRadius(); }
+MoverModeOwner *__thiscall DriveCameraSlot44(CameraMoverBase *mover) {
+    return reinterpret_cast<DriveCameraMover *>(mover)->GetCar();
+}
+void *driveCameraSlots[0x50 / 4];
+// The player's view passed to the mover base constructor (Player +0x18); eView 1 is player one.
+const int kPlayerView = 1;
 
 struct Camera {
     float position[3];
@@ -433,13 +444,16 @@ int main(int argc, char **argv) {
     Camera camera = {{-8.0f, 0.0f, 3.0f}, {0.0f, 0.0f, 0.5f}};
     InitialiseDriveCameraStatics();
     DriveCameraMover driveCamera;
+    driveCameraSlots[0x30 / 4] = reinterpret_cast<void *>(DriveCameraSlot30);
+    driveCameraSlots[0x44 / 4] = reinterpret_cast<void *>(DriveCameraSlot44);
+    driveCamera.vtable0 = driveCameraSlots;
     DriveCameraView cameraView;
     memset(&cameraView, 0, sizeof(cameraView));
     bool lookBack = false;
     if (cameraOption < 0 || cameraOption > 4) cameraOption = 3;
     if (havePause) pause.SetViewSettings(metric, cameraOption);
     // Player::SetCameraState (0x5f1fd0) builds the mover for the car with the option's type.
-    driveCamera.Construct(vehicle.owner, &vehicle.cameraSettings, 1, DriveCameraTypeForOption(cameraOption),
+    driveCamera.Construct(kPlayerView, vehicle.owner, &vehicle.cameraSettings, 1, DriveCameraTypeForOption(cameraOption),
                           false, false, false);
     float steer = 0.0f;
     Uint64 previous = SDL_GetPerformanceCounter();
@@ -488,7 +502,7 @@ int main(int argc, char **argv) {
                     running = false;
                 } else {
                     driveCamera.Destroy();
-                    driveCamera.Construct(vehicle.owner, &vehicle.cameraSettings, 1,
+                    driveCamera.Construct(kPlayerView, vehicle.owner, &vehicle.cameraSettings, 1,
                                           DriveCameraTypeForOption(cameraOption), false, lookBack, false);
                     if (haveHud) hud.Configure(&vehicle, hudSkin);
                 }
@@ -556,7 +570,7 @@ int main(int argc, char **argv) {
                     running = false;
                 } else {
                     driveCamera.Destroy();
-                    driveCamera.Construct(vehicle.owner, &vehicle.cameraSettings, 1,
+                    driveCamera.Construct(kPlayerView, vehicle.owner, &vehicle.cameraSettings, 1,
                                           DriveCameraTypeForOption(cameraOption), false, lookBack, false);
                     if (haveHud) hud.Configure(&vehicle, hudSkin);
                 }
@@ -615,7 +629,7 @@ int main(int argc, char **argv) {
                 CreateNativeVehicle(&vehicle, game, car, lastGood[0], lastGood[1], lastGood[2], lastGood[3], error,
                                     sizeof(error));
                 driveCamera.Destroy();
-                driveCamera.Construct(vehicle.owner, &vehicle.cameraSettings, 1,
+                driveCamera.Construct(kPlayerView, vehicle.owner, &vehicle.cameraSettings, 1,
                                       DriveCameraTypeForOption(cameraOption), false, lookBack, false);
                 if (haveHud) hud.Configure(&vehicle, hudSkin);
                 airborneFrames = 0;
@@ -661,8 +675,25 @@ int main(int argc, char **argv) {
             camera.target[2] = m[14] + 0.6f;
             up[0] = 0.0f; up[1] = 0.0f; up[2] = 1.0f;
         } else {
-            memcpy(camera.position, cameraView.eye, sizeof(camera.position));
-            memcpy(camera.target, cameraView.target, sizeof(camera.target));
+            // Platform seam: the GL path takes eye/target/up, read back from the view matrix the
+            // recovered update leaves for Camera finalisation 0x447280 (columns right, -up,
+            // forward; row 3 the translation). The target keeps the unpushed look distance.
+            const float *v = cameraView.matrix.elements;
+            float look[3] = {cameraView.target[0] - cameraView.eye[0], cameraView.target[1] - cameraView.eye[1],
+                             cameraView.target[2] - cameraView.eye[2]};
+            float distance = sqrtf(look[0] * look[0] + look[1] * look[1] + look[2] * look[2]);
+            if (!(distance > 1e-3f)) distance = 1.0f;
+            for (int i = 0; i < 3; ++i) {
+                camera.position[i] = -(v[12] * v[i * 4] + v[13] * v[i * 4 + 1] + v[14] * v[i * 4 + 2]);
+                camera.target[i] = camera.position[i] + v[i * 4 + 2] * distance;
+                up[i] = -v[i * 4 + 1];
+            }
+            if (getenv("UG2_DEBUG_CAMERA")) {
+                float dx = camera.position[0] - cameraView.eye[0], dy = camera.position[1] - cameraView.eye[1];
+                float dz = camera.position[2] - cameraView.eye[2];
+                if (dx * dx + dy * dy + dz * dz > 1e-4f)
+                    fprintf(stderr, "cam f%d pushed %.3f %.3f %.3f\n", frame, dx, dy, dz);
+            }
         }
 
         CameraProjection projection = NativeProjection(cameraView.fov, cameraView.nearPlane, width, height);

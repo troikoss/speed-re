@@ -263,8 +263,13 @@ mask application `0x4c6690` and recursive FEng show/hide `0x50ca50`/`0x50ca00`;
 native free drive supplies mask bit 0. Its native pool setup and OpenGL
 RGB/stencil mask rendering remain platform seams; see [minimap evidence](pc-hud-minimap.md).
 
-Not recovered, left as seams: world collision pushes for the chase types (`0x444530`, `0x44b040`),
-camera shake (`0x452ed0`, `0x572a50`), Camera object finalisation (`0x447280`), the cockpit blocked
+The update tail builds the view matrix with recovered look-at `0x5ba9a0` and, for the chase
+types, runs the recovered world and other-car pushes `0x444530`/`0x44b040`
+([camera recovery](pc-camera.md#drive-camera-integration-2026-10-18)). Platform seams for them:
+the mover's vtable slots 0x30/0x44, the world car list holding only the player's car, and the
+GL path reading eye/target/up back from the matrix.
+
+Not recovered, left as seams: camera shake (`0x452ed0`, `0x572a50`), Camera object finalisation (`0x447280`), the cockpit blocked
 tests (`0x445fc0`, `0x5d39f0`), the chase heading follower (`0x445c20`, only read by a subclass), the
 replay RPM source and HUDINDEX option.
 
@@ -646,7 +651,7 @@ observations, not equivalence evidence.
 - Recover car-vs-car/world-object paths (`0x5b31f0`, `0x5ae000`, slot 0x8c),
   cylinders (`0x5a23d0`, `0x5a2780`), and collision effects/sounds (`0x5a9620`, `0x59fb70`).
 - Recover the enclosing car update `0x6012b0` and the original world-clock call site.
-- Recover camera collision pushes/shake, the remaining car pre/post-update logic
+- Recover camera shake/finalisation, the remaining car pre/post-update logic
   beyond the verified acceleration prefixes, remaining HUD inputs/features, and full
   FEng script playback/rendering. Additional HUD
   source recovery requires separate verification and integration evidence.

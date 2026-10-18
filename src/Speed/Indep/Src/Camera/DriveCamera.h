@@ -5,15 +5,16 @@
 // (0x5f1fd0), constructor 0x451660, vtable 0x787f28, Update 0x453570.
 //
 // Layouts are partial and offset-based; UG2_CHECK_* pin what was observed in the original.
-// Platform seams (not recovered, named where they are used): the world collision pushes
-// 0x444530/0x44b040, camera shake 0x452ed0/0x572a50, Camera object finalisation 0x447280, the
-// cockpit blocked test 0x445fc0/0x5d39f0. The car +0x80 acceleration producer is
+// Platform seams (not recovered, named where they are used): camera shake 0x452ed0/0x572a50,
+// Camera object finalisation 0x447280, the cockpit blocked test 0x445fc0/0x5d39f0. The world
+// and other-car pushes 0x444530/0x44b040 are recovered in CameraPush.cpp. The car +0x80 acceleration producer is
 // recovered as the guarded prefix of 0x604740 (Physics/CarFrameKinematics.cpp).
 
 #include "../Physics/Ug2Layout.h"
 #include "../Physics/WheelMath.h"
 
 struct MoverModeOwner;
+struct CameraPlayer;
 
 // Cubic Hermite follower channel, 0x30 bytes. Original 0x5749e0 advances it; every UG2 camera
 // spring is a set of these. A target change (state 2) restarts the curve from the current value
@@ -136,9 +137,11 @@ struct CameraPairCurve {
     float Lookup(float input);
 };
 
-// Observed output of the original drive camera, handed to the platform renderer. In the original
-// these are fields of the Camera object (view +0x40) written through 0x447280.
+// Output of the drive camera handed to the platform renderer. `matrix` is the view matrix the
+// original passes to Camera finalisation 0x447280 (after the pushes); eye/target/up are the
+// points it was built from. The other fields are Camera object fields in the original.
 struct DriveCameraView {
+    WheelMatrix matrix;
     float eye[3];
     float target[3];
     float up[3];
@@ -178,12 +181,17 @@ int DriveCameraTypeForOption(int option);
 // Original static initialisers 0x77be00 (0x82a4e0 curve) and 0x77be70/0x77be80/0x77be60.
 void InitialiseDriveCameraStatics();
 
-// The mover, 0x60 bytes in the original. Slots the original dispatches through its vtable
-// (0x24, 0x44) are direct calls here: slot 0x24 is `xor al, al` for this class.
+// The mover, 0x60 bytes in the original (vtable 0x787f28). Slot 0x24 is `xor al, al` for this
+// class and is a direct call here; the recovered pushes dispatch slots 0x30 (0x445a60) and 0x44
+// (0x44ba70) through `vtable0`, which the platform supplies.
 class DriveCameraMover {
 public:
-    void *vtable0;
-    char base4[0x28];                    // camera mover base 0x44ab90 (view, Camera, player)
+    void **vtable0;
+    char base4[0xc];                     // camera mover base 0x44ab90 (+0xc mode, +0x18/+0x1c Camera)
+    int view10;                          // the player's view, base constructor argument
+    char base14[0xc];
+    CameraPlayer *player20;              // zeroed by the base constructor
+    char base24[8];
     MoverModeOwner *car2C;
     int unknown30;
     CameraCubicChannel *fov34;
@@ -205,12 +213,14 @@ public:
     // Constructor 0x451660 reduced to the state the update consumes. `type` is a DriveCameraType.
     // `disableSwing` is the original's fifth argument (swing50 = !disableSwing) and `noDefaults`
     // the seventh (+0x53).
-    void Construct(MoverModeOwner *car, const CameraSettingsTable *settings, int viewState,
+    void Construct(int view, MoverModeOwner *car, const CameraSettingsTable *settings, int viewState,
                    int type, bool disableSwing, bool lookBack, bool noDefaults);
     void Destroy();
     // Slot 0x20 (0x445b10) and slot 0x14 (0x445a30).
     void SetType(int type);
     void SetLookBack(bool lookBack);
+    // Slot 0x44 (0x44ba70).
+    MoverModeOwner *GetCar();
     // Slot 0x04 (0x453570). `step` is the global frame time 0x865154, `clock` the tick 0x86518c.
     void Update(float step, int clock, DriveCameraView *view);
 
@@ -223,5 +233,9 @@ public:
     const CameraSettingsTable *settings;     // platform: CarTypeInfo +0x720 of the car
     int viewState;                           // global 0x8707dc
 };
+UG2_CHECK_OFFSET(DriveCameraMover, view10, 0x10);
+UG2_CHECK_OFFSET(DriveCameraMover, player20, 0x20);
+UG2_CHECK_OFFSET(DriveCameraMover, car2C, 0x2c);
+UG2_CHECK_OFFSET(DriveCameraMover, lookBack51, 0x51);
 
 #endif

@@ -78,6 +78,11 @@ float *MoverModeOwner::GetOrigin() {
     return reinterpret_cast<float *>(reinterpret_cast<char *>(this) + 0x50);
 }
 
+// Original 0x5eb520.
+bool CameraPlayer::Query5EB520() {
+    return reinterpret_cast<char *>(this)[0x2b] == 0;
+}
+
 // Original 0x445a60 (drive camera vtable slot 0x30): face push depth.
 float CameraMoverBase::NearRadius() {
     if (lookBack51 && player20 && player20->Query5EB520()) return cameraLookBackRadius787094;

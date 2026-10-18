@@ -25,6 +25,11 @@
       "address": "0x5ec240",
       "size": 9,
       "sha256": "0bc9a4b89d030c48230b2dfd6977e2203c71a1f33e8d22a881fafefb06dbf7e7"
+    },
+    "PlayerQuery": {
+      "address": "0x5eb520",
+      "size": 11,
+      "sha256": "66f741d33a59556a93088cab0d59f58144863f438dc7438ce3800a6272e5db66"
     }
   }
 }

@@ -1,6 +1,8 @@
 #include "DriveCamera.h"
 #include "../Physics/VehicleMover.h"
 #include "../Physics/Engine.h"
+#include "CameraMatrix.h"
+#include "CameraPush.h"
 
 extern "C" double __cdecl sqrt(double);
 #pragma intrinsic(sqrt)
@@ -505,8 +507,11 @@ void DriveCameraMover::SetLookBack(bool lookBack) {
 // original also seeds the followers from the previous Camera state (0x444910, 0x444980,
 // 0x444a70) and snaps when that is far from the new targets; with a fresh Camera the pose pass
 // below with snap set produces the same starting state.
-void DriveCameraMover::Construct(MoverModeOwner *car, const CameraSettingsTable *table, int state,
+void DriveCameraMover::Construct(int view, MoverModeOwner *car, const CameraSettingsTable *table, int state,
                                  int type, bool disableSwing, bool lookBack, bool noDefaults) {
+    // Base constructor 0x44ab90 fields read by the pushes (vtable identity left to the caller).
+    view10 = view;
+    player20 = 0;
     car2C = car;
     settings = table;
     viewState = state;
@@ -555,6 +560,11 @@ void DriveCameraMover::Destroy() {
     fov34 = 0;
     eye38 = target3C = heading40 = up44 = 0;
     averager5C = 0;
+}
+
+// Original 0x44ba70 (vtable slot 0x44).
+MoverModeOwner *DriveCameraMover::GetCar() {
+    return car2C;
 }
 
 // Original 0x453570 (vtable slot 0x04).
@@ -643,4 +653,14 @@ void DriveCameraMover::Update(float step, int clock, DriveCameraView *view) {
     view->up[0] = up[0];
     view->up[1] = up[1];
     view->up[2] = up[2];
+    WheelMatrix matrix;
+    CameraLookAt(&matrix, &eye, &target, reinterpret_cast<WheelVector *>(up));
+    // Shake 0x572a50 (view +0x10) and 0x452ed0 (table 0x7ebe90/0x7ebea8) run here; not recovered.
+    if (chase) {
+        CameraMoverBase *base = reinterpret_cast<CameraMoverBase *>(this);
+        base->PushFromWorld(&matrix, car2C, 0);
+        base->PushFromCars(&matrix, car2C, true);
+    }
+    // Finalisation 0x447280(Camera, &matrix, 0x865154) stores it; the platform reads it instead.
+    view->matrix = matrix;
 }

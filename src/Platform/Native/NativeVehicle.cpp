@@ -10,6 +10,7 @@
 #include "../../Speed/Indep/Src/Physics/VehicleAllocation.h"
 #include "../../Speed/Indep/Src/Physics/PhysicsUpgradeSource.h"
 #include "../../Speed/Indep/Src/World/WCollision.h"
+#include "../../Speed/Indep/Src/Camera/CameraPush.h"
 
 #include <math.h>
 #include <new>
@@ -455,6 +456,11 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     // Car object defaults from its constructor 0x604260 that the mover reads.
     owner->gear434 = 1;
     owner->effectsEnabled550 = 1;
+    // Scaffold: the world object (0x890080) lists the race's cars at +0x10/+0x1c; the demo's
+    // only car is the player's, which the camera's other-car search skips as its own.
+    CameraCarList *cars = reinterpret_cast<CameraCarList *>(&randomScaffold);
+    cars->count10 = 1;
+    cars->cars1C[0] = owner;
     owner->resetDuration978 = resetDurationDefault;
     DrivetrainAuxiliary *state = owner->State();
     state->record0 = &info->parameters10.record30;

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Compare the camera mover pushes: drive camera slot 0x30 0x445a60, face push 0x444190,
-world push 0x444530 and the car body accessors 0x5ec250/0x5ec240, under 53- and 64-bit
+world push 0x444530, the player query 0x5eb520 and the car body accessors 0x5ec250/0x5ec240, under 53- and 64-bit
 x87 precision.
 
 The collider ray 0x5d39f0, face test 0x5d35b0, scale-add 0x43d0c0, transform 0x441000,
 distance 0x43ce10, rigid inverse 0x5baf90 and re-aim 0x444390 execute original code in
-both runs (verified separately). Traced stubs: the player query 0x5eb520, the collider
+both runs (verified separately). Traced stubs: the collider
 constructor 0x5e0b40 (which installs the fixture's face area), area query 0x5e6fa0,
 destructor 0x5e0bf0 and the D3DX multiply 0x63cedb."""
 
@@ -32,14 +32,21 @@ ARENA, ARENA_SIZE, STACK, STOP = 0x2000000, 0x3000, 0x2010000, 0x2100000
 PRESERVED = (xc.UC_X86_REG_EBX, xc.UC_X86_REG_ESI, xc.UC_X86_REG_EDI, xc.UC_X86_REG_EBP)
 TARGETS = {'NearRadius': ('?NearRadius@CameraMoverBase@', 0, 0, 0), 'PushFromFaces': ('?PushFromFaces@CameraMoverBase@', 4, 16, 0xff),
            'PushFromWorld': ('?PushFromWorld@CameraMoverBase@', 3, 12, 0xff), 'GetBodyBox': ('?GetBodyBox@MoverModeOwner@', 2, 8, 0),
-           'GetBodyCentre': ('?GetBodyCentre@MoverModeOwner@', 0, 0, 0xffffffff)}
-D3DX, PLAYER_QUERY, CONSTRUCT, QUERY, DESTRUCT = 0x63cedb, 0x5eb520, 0x5e0b40, 0x5e6fa0, 0x5e0bf0
+           'GetBodyCentre': ('?GetBodyCentre@MoverModeOwner@', 0, 0, 0xffffffff),
+           'PlayerQuery': ('?Query5EB520@CameraPlayer@', 0, 0, 0xff)}
+D3DX, CONSTRUCT, QUERY, DESTRUCT = 0x63cedb, 0x5e0b40, 0x5e6fa0, 0x5e0bf0
 SHARED = {'?Ray@WCollider@': 0x5d39f0, '?ContainsPoint@WCollisionFace@': 0x5d35b0, '?WheelScaleAdd@': 0x43d0c0,
           '?WheelTransform@': 0x441000, '?bDistance@': 0x43ce10, '?CameraInvertRigid@': 0x5baf90, '?CameraReaim@': 0x444390,
-          '?Query5EB520@CameraPlayer@': PLAYER_QUERY, '?Construct@WCollider@': CONSTRUCT, '?QueryArea@WCollider@': QUERY,
+          '?Construct@WCollider@': CONSTRUCT, '?QueryArea@WCollider@': QUERY,
           '?Destruct@WCollider@': DESTRUCT, '?fengZero7D7D3C@': 0x7d7d3c, '?fengOne784250@': 0x784250, '?fengHalf784260@': 0x784260,
           '?cameraNearRadius787090@': 0x787090, '?cameraLookBackRadius787094@': 0x787094, '?cameraCarMargin78708C@': 0x78708c,
-          '?cameraFaceDepth78709C@': 0x78709c, '?cameraRayMargin7870A0@': 0x7870a0, '?surfaceCameraSkip800EED@': 0x800eed, '__fltused': 0}
+          '?cameraFaceDepth78709C@': 0x78709c, '?cameraRayMargin7870A0@': 0x7870a0, '?surfaceCameraSkip800EED@': 0x800eed, '__fltused': 0,
+          # Externals of the other-car push in the same file (verified by verify_pc_camera_cars.py).
+          '?WheelNormalize@': 0x43cf10, '?GetVelocity@MoverModeOwner@': 0x4018a0, '?Query571250@Object865480@': 0x571250,
+          '?object865480@': 0x865480, '?cameraCarHalf787088@': 0x787088, '?cameraCarSpeed7870C4@': 0x7870c4,
+          '?cameraCarRange7870C8@': 0x7870c8, '?cameraCarHeading7870C0@': 0x7870c0, '?cameraLiftMargin784358@': 0x784358,
+          '?carList890080@': 0x890080, '?cameraNearbyCarId7EB5C0@': 0x7eb5c0, '?cameraNearbyCar82A580@': 0x82a580,
+          '?cameraNearbyGuard82A590@': 0x82a590}
 MOVER, VTABLE, PLAYER, COLLIDER, FACES, CAR, BODY, VIEW, FROM, POINT, OUT, FOCUS = (ARENA + x for x in (
     0x100, 0x180, 0x200, 0x400, 0x800, 0x1000, 0x2000, 0x2200, 0x2300, 0x2310, 0x2320, 0x2340))
 FACE_COUNT = 8
@@ -123,8 +130,8 @@ def main():
         assert len(match) == 1, ('unexpected external', s['name']); externals[s['name']] = match[0]
     linked = link_objects([obj], externals)
     entries = {n: next(a for s, a in linked['exports'].items() if s.startswith(p)) for n, (p, _, _, _) in TARGETS.items()}
-    # Slot 0x30 (0x445a60) is reached through the fixture vtable in both runs.
-    original_ranges = [(int(f['address'], 16), int(f['address'], 16) + f['size']) for n, f in manifest['functions'].items() if n != 'NearRadius']
+    # Slot 0x30 (0x445a60, with its player query 0x5eb520) is reached through the fixture vtable in both runs.
+    original_ranges = [(int(f['address'], 16), int(f['address'], 16) + f['size']) for n, f in manifest['functions'].items() if n not in ('NearRadius', 'PlayerQuery')]
     machines, traces, fixture = [], [[], []], {}
 
     def collider_state(uc, this):
@@ -149,8 +156,6 @@ def main():
                 trace.append(('d3dx', bytes(uc.mem_read(left, 64)), bytes(uc.mem_read(right, 64))))
                 uc.mem_write(out, struct.pack('<16f', *[f32(sum(l[i * 4 + k] * r[k * 4 + j] for k in range(4))) for i in range(4) for j in range(4)]))
                 uc.reg_write(xc.UC_X86_REG_EAX, out); cleanup = 12
-            elif address == PLAYER_QUERY:
-                trace.append(('player', this)); uc.reg_write(xc.UC_X86_REG_EAX, fixture['player']); cleanup = 0
             elif address == CONSTRUCT:
                 # The fixture's face area stands in for the collider the query would fill.
                 state = bytearray(0x314)
@@ -165,7 +170,7 @@ def main():
                 trace.append(('destruct', collider_state(uc, this))); cleanup = 0
             uc.reg_write(xc.UC_X86_REG_ESP, esp + 4 + cleanup); uc.reg_write(xc.UC_X86_REG_EIP, ret)
         uc.hook_add(UC_HOOK_BLOCK, block)
-        for address in (D3DX, PLAYER_QUERY, CONSTRUCT, QUERY, DESTRUCT): uc.hook_add(UC_HOOK_CODE, stub, begin=address, end=address)
+        for address in (D3DX, CONSTRUCT, QUERY, DESTRUCT): uc.hook_add(UC_HOOK_CODE, stub, begin=address, end=address)
         machines.append(uc)
     rng = random.Random(0x444530); counts = dict.fromkeys(TARGETS, 0); paths = {}
 
@@ -186,7 +191,8 @@ def main():
             assert uc.reg_read(xc.UC_X86_REG_EIP) == STOP
             st0 = None
             if name == 'NearRadius':
-                st0 = uc.reg_read(xc.UC_X86_REG_FP0)
+                top = (uc.reg_read(xc.UC_X86_REG_FPSW) >> 11) & 7  # ST(0) is physical register TOP
+                st0 = uc.reg_read(xc.UC_X86_REG_FP0 + top)
             outputs.append((uc.reg_read(xc.UC_X86_REG_EAX) & mask, uc.reg_read(xc.UC_X86_REG_ESP), tuple(uc.reg_read(r) for r in PRESERVED),
                             uc.reg_read(xc.UC_X86_REG_FPCW), st0, list(traces[rebuilt]), bytes(uc.mem_read(ARENA, ARENA_SIZE))))
         assert outputs[0][1] == STACK + 4 + cleanup and outputs[0][3] == precision, ('original contract', name)
@@ -221,8 +227,9 @@ def main():
         struct.pack_into('<20I', memory, VTABLE - ARENA, *vtable); struct.pack_into('<I', memory, MOVER - ARENA, VTABLE)
         memory[MOVER + 0x51 - ARENA] = rng.choice((0, 1, 2))
         struct.pack_into('<I', memory, MOVER + 0x20 - ARENA, rng.choice((PLAYER, PLAYER, 0)))
-        fixture['player'] = rng.choice((0, 1, 0x100, 0x12345601))
+        memory[PLAYER + 0x2b - ARENA] = rng.choice((0, 0, 1, 0x80))
         result = run('NearRadius', memory, [], precision, MOVER); note('radius')
+        run('PlayerQuery', memory, [], precision, PLAYER)
         # Face area around the focus/camera region.
         centre = [rng.uniform(-3, 3) for _ in range(3)]
         faces = rng.randrange(0, FACE_COUNT + 1)
@@ -261,7 +268,7 @@ def main():
         if result[6][VIEW - ARENA + 0x30:VIEW - ARENA + 0x40] != bytes(memory[VIEW - ARENA + 0x30:VIEW - ARENA + 0x40]): note('world-view-moved')
     report = dict(compiler=args.compiler, comparisons=counts, total=sum(counts.values()), paths=dict(sorted(paths.items())),
                   x87_precision=['53-bit', '64-bit'], shared_original_callees=sorted(SHARED),
-                  traced_stubs=['player query 0x5eb520', 'collider constructor 0x5e0b40 (installs the fixture face area)',
+                  traced_stubs=['collider constructor 0x5e0b40 (installs the fixture face area)',
                                 'area query 0x5e6fa0', 'collider destructor 0x5e0bf0', 'D3DX multiply 0x63cedb'],
                   limitations=['finite generated values; exhaustive float coverage not established',
                                'collider construction/query/destruction stubbed; their bodies are verified separately',
@@ -289,6 +296,7 @@ def main():
             'world-sphere-centre-z': ('eye[2] = (float)(sqrt(reach * reach - (storedX2 + storedY2)) + focus[2]);', 'eye[2] = (float)(sqrt(reach * reach - (storedX2 + storedY2)) + eye[2]);'),
             'world-rounded-reach': ('        double reach = sqrt(', '        float reach = (float)sqrt('),
             'world-target-eye': ('CameraReaim(view, reinterpret_cast<WheelVector *>(eye), reinterpret_cast<WheelVector *>(focus), projected);', 'CameraReaim(view, reinterpret_cast<WheelVector *>(eye), &middle, projected);'),
+            'player-query-inverted': ('return reinterpret_cast<char *>(this)[0x2b] == 0;', 'return reinterpret_cast<char *>(this)[0x2b] != 0;'),
             'box-swap': ('    float *a = reinterpret_cast<float *>(body + 0xe0);', '    float *a = reinterpret_cast<float *>(body + 0xf0);'),
         }
         rejected = []
