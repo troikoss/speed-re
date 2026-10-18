@@ -4222,7 +4222,7 @@ initializes at `0x53623c`. Tags, in dispatch order:
 
 `UG2_DIR=... build/venv/bin/python tools/verify_pc_feng_script_reader.py
 --compiler clang-cl --mutation-checks` passes 4,096 generated streams covering
-all fifteen tags plus unknown tags, and rejects 22 mutations. Lookup leaves and
+all fourteen tags plus unknown tags, and rejects 22 mutations. Lookup leaves and
 `0x511d70` execute original code in both runs; pools, name/track/event storage,
 assignment, heap and CRT iterators are traced controlled boundaries with
 coherent constructed-track fixtures. Streams avoid the original's unchecked
