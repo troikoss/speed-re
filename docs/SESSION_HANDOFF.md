@@ -652,3 +652,9 @@ renamed from cross-title evidence alone.
     collider ray `0x5d39f0`: 32,768 comparisons, 21 mutations. Next: face push
     `0x444190` (slot 0x30 = `0x445a60`), `0x444530`, `0x44ac10`, `0x44b040`, then
     integrate into `0x453570`.
+
+46. **Camera face/world pushes (2026-10-18).** `Camera/CameraPush.cpp` recovers
+    slot 0x30 `0x445a60`, face push `0x444190`, world push `0x444530` and car body
+    accessors `0x5ec250`/`0x5ec240`: 10,240 comparisons, 22 mutations. Next:
+    `0x44ac10` (returns static `0x82a580` sphere of the first nearby car; skips the
+    mover's own car from vtable slot 0x44 `0x44ba70`) and `0x44b040`, then integrate.

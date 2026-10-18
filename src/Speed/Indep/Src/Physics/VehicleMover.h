@@ -504,6 +504,8 @@ struct MoverModeOwner {
     WheelVector *GetPosition(); // 0x401890
     WheelVector *GetVelocity(); // 0x4018a0
     int GetWheelState(int wheel); // 0x5ed470
+    void GetBodyBox(float *first, float *second); // 0x5ec250
+    float *GetBodyCentre(); // 0x5ec240
     struct WCollider *Collider() { return reinterpret_cast<struct WCollider *>(reinterpret_cast<char *>(this) + 0x5c4); }
     DrivetrainAuxiliary *State() {
         return reinterpret_cast<DrivetrainAuxiliary *>(unidentified40);

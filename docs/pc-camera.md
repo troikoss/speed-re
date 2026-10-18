@@ -115,5 +115,41 @@ and set-length `0x43cf90` run original code. A nearest hit exactly equal to the 
 length was not constructed. MSVC 7.1 and byte identity are not established; not yet called
 by native code.
 
-Next: face push `0x444190` (mover slot 0x30 `0x445a60`), world push `0x444530`,
-other-car push `0x44ac10`/`0x44b040` and integration into `0x453570`.
+## Face and world pushes (2026-10-18)
+
+`Camera/CameraPush.cpp` recovers, on the camera mover prefix `CameraMoverBase`:
+
+- `0x445a60`, drive camera vtable slot 0x30: push depth 3.0 (`0x787094`) while looking
+  back with a player whose `0x5eb520` query is true, else 0.7 (`0x787090`).
+- Face push `0x444190` (thiscall: collider, from, point, offset): without a pack it
+  returns 0 and leaves `offset` untouched; otherwise it casts the two-sided mode-1 ray
+  from `from` to `point` (margin 0.7 `0x7870a0`, scale 1), then up to three passes add to
+  the movement the mean of the normals of faces containing the moved point within the
+  push depth (slot 0x30 for faces with flag 2, else 0.7 `0x78709c`), each weighted by
+  depth minus the face distance; surfaces whose byte at `0x800eed + 0x98 * surface` is set
+  are skipped. `offset` receives the movement with w = 0; the ray's hit is returned.
+- World push `0x444530` (thiscall: view, car, focus override): focus = override, else the
+  car body centre (`+0x3c` body `+0x110`) through the car matrix (`+0x90`) plus the origin
+  (`+0x50`), else the origin. A local collider (constructed with `0x5e0b40`, the car
+  collider's barrier groups copied) queries the area around the eye/focus midpoint with
+  radius (distance + 1) / 2. The eye is pushed by `0x444190`, then raised onto the car
+  body's bounding sphere (|`0x5ec250` second corner - `0x5ec240` centre| + 1.0
+  `0x78708c`) above the focus when inside it, and the view is re-aimed at the focus with
+  its projected view-space x/y (`0x444390`).
+- Car accessors `0x5ec250` (body +0xe0 and +0xf0 corners) and `0x5ec240` (body +0x110).
+
+`0x444390` is called as thiscall with an unused `this`; the stdcall rebuild is
+ABI-equivalent for the callee.
+
+Verification: `tools/verify_pc_camera_push.py --compiler clang-cl --mutation-checks`
+(manifest `config/SPEED2_EXE_1_2/camera-push.json`): 10,240 comparisons (2,048 per
+routine) under 53- and 64-bit precision; face pushes over up to eight faces around the
+probe (754 ray hits, 1,529 moved results, NaN/infinite normals), world pushes with and
+without focus override, body and car (609 ray hits). The collider ray, face test,
+scale-add, transform, distance, inverse and re-aim run original code; the player query,
+collider constructor (installing the fixture face area), area query, destructor and D3DX
+multiply are traced stubs. 22 mutations rejected. The verifier compiles with
+`-fno-math-errno`, matching the MSVC intrinsic `sqrt`. MSVC 7.1 and byte identity are
+not established; not yet called by native code.
+
+Next: other-car scan `0x44ac10` and push `0x44b040`, then integration into `0x453570`.

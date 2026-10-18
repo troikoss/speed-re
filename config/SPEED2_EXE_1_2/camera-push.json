@@ -1,0 +1,30 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "NearRadius": {
+      "address": "0x445a60",
+      "size": 37,
+      "sha256": "aa26fac080788f98d87bca82e1be7aaa15c43054886cec197fadee10fdc82106"
+    },
+    "PushFromFaces": {
+      "address": "0x444190",
+      "size": 498,
+      "sha256": "9f89bdf28759636225edcca78886a9b047ae4ec40ef5431816293240d53a41ee"
+    },
+    "PushFromWorld": {
+      "address": "0x444530",
+      "size": 984,
+      "sha256": "64e2bbfd33a7dcc02b82eb4faf6937b17df4c4d3035ca70a7f499c866b073e6e"
+    },
+    "GetBodyBox": {
+      "address": "0x5ec250",
+      "size": 70,
+      "sha256": "526fc6d3497df65a96357c43c654d258c671238c77185a46aa7d58cd7ac043da"
+    },
+    "GetBodyCentre": {
+      "address": "0x5ec240",
+      "size": 9,
+      "sha256": "0bc9a4b89d030c48230b2dfd6977e2203c71a1f33e8d22a881fafefb06dbf7e7"
+    }
+  }
+}
