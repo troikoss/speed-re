@@ -1,0 +1,57 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "ConstructBlock": {
+      "address": "0x517310",
+      "size": 123,
+      "sha256": "fb65dfefb78371e7730f28176194fce4f27659933fd06bc69fe0b437ecfb6365"
+    },
+    "AcquireSlot": {
+      "address": "0x504400",
+      "size": 135,
+      "sha256": "abdeb65eb3742e4550e3efcddfcd1f363e058c736c6da7af9d89381ae7858753"
+    },
+    "AcquireBlock": {
+      "address": "0x517400",
+      "size": 157,
+      "sha256": "da2b2f65463164fbb0dff5934fcd8737181b4a2545b3bb38f9ad246f4aa3165a"
+    },
+    "AcquireState": {
+      "address": "0x52ace0",
+      "size": 145,
+      "sha256": "f703035dba9ddbc7adcb7805a6f143dd4d34abbb3efc2c90ba8dfc1fa2d7b7ea"
+    },
+    "DestructBlock": {
+      "address": "0x5173b0",
+      "size": 77,
+      "sha256": "f4831ab4e51c456c2a7432e30ad11edb78494d0e5ca26f3d9efc777567c17133"
+    },
+    "DestroyBlock": {
+      "address": "0x517390",
+      "size": 30,
+      "sha256": "6691187cd1d72a1716b70e9683297a2996f2772f5bd849cfb680dc00dc849f52"
+    },
+    "DestructClass": {
+      "address": "0x534ac0",
+      "size": 73,
+      "sha256": "ce3075f3014e85d2fed1e10957e520233285b535d5e7213ec900f7aab23f1ab1"
+    },
+    "DestroyClass": {
+      "address": "0x534aa0",
+      "size": 30,
+      "sha256": "90e2fe12a41d55befefa8427713ef44df0ac3c00b25be2360f475a56c4b34625"
+    }
+  },
+  "tables": {
+    "BlockVtable": {
+      "address": "0x79b13c",
+      "size": 4,
+      "sha256": "554bba3b7359d507368a801f6894343c0d1687b4932ab9ecfb239902c6f2af43"
+    },
+    "ClassVtable": {
+      "address": "0x79b8dc",
+      "size": 4,
+      "sha256": "1e7770d4cceac18a314a20cb24dc0bb73b544f9217b85d34d957055db46782d3"
+    }
+  }
+}

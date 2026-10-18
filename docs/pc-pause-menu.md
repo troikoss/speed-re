@@ -2680,3 +2680,95 @@ activate production grid dispatch or claim native pooled-state allocation.
 Arbitrary aliases, invalid/nonmember releases, unbounded callback reconfiguration,
 concurrency and byte matching remain unverified. Clang is the stated verifier;
 MSVC 7.1/wibo are absent. Reports stay ignored under `build/analysis/feng-lifecycle/`.
+
+## State-pool allocation and concrete virtual destruction (2026-10-18)
+
+`FEngStatePool.cpp` recovers eight more UG2 v1.2 routines, paired with the release
+chain above. Constructors and destructors remain normal-return reconstructions;
+original compiler SEH registration/unwind frames are not synthesized.
+
+| Routine | Address | Reference span |
+|---|---|---|
+| `FEngStatePoolBlock::Construct` | 0x517310 | 123 bytes |
+| `FEngStatePoolBlock::AcquireSlot` | 0x504400 | 135 bytes, including both return paths |
+| `FEngStatePoolClass::Acquire` | 0x517400 | 157 bytes |
+| `FEngStatePoolManager::AcquireState` | 0x52ace0 | 145 bytes |
+| `FEngStatePoolBlock::Destruct` | 0x5173b0 | 77 bytes |
+| `FEngStatePoolBlock::Destroy` | 0x517390 | 30 bytes |
+| `FEngStatePoolClass::Destruct` | 0x534ac0 | 73 bytes |
+| `FEngStatePoolClass::Destroy` | 0x534aa0 | 30 bytes |
+
+`config/SPEED2_EXE_1_2/feng-state-pool.json` fingerprints the spans and first
+virtual slots at 0x79b13c/0x79b8dc. Verification imports the lifecycle/Remove
+fingerprints too. Missing Ghidra definitions were annotated; the existing
+one-byte-body metadata issue also affects some new definitions, so full-span
+PE bytes and original execution remain the verification authority.
+
+Block construction writes link sentinels, low-16 stride, vtable 0x79b13c, used
+count zero and null data pointer, allocates `stride * 32` bytes through 0x575620,
+stores the returned pointer and clears the bitmap **after** allocation. It does
+not initialize slot payloads. Claiming a slot returns null only when usedE equals
+32; it skips bitmap bytes equal to 0xff, finds the first clear bit, increments
+the 16-bit used count, sets that bit and returns `data14 + strideC * slot` with
+32-bit arithmetic. No popcount reconciliation, bounds fix or metadata repair is
+invented for inconsistent counters/bitmaps.
+
+Class acquire searches the first block whose used count is not 32. If necessary,
+it allocates a 0x18-byte block, calls the actual constructor with the current
+low-16 class stride, inserts the new block at the current list head and calls
+actual `AcquireSlot`. Manager acquire returns null for key zero, otherwise searches
+full DWORD class keys. Missing keys allocate a 0x20-byte class with an empty block
+list and the observed vtable words, insert it using current post-allocation head
+and count fields, then call actual class acquire. Keys with different upper words
+can therefore be separate classes with the same low-16 block stride.
+
+Block destruction unconditionally frees data14, including null, and sets its
+final node vtable. Class destruction resets the embedded list vtable, calls actual
+`ClearOwned` on all blocks and finishes with the node vtable; it does not first
+rewrite its own vtable to the derived token. Both deleting wrappers call their
+normal destructor, free the object only for flag bit zero, and return the original
+object-pointer value. Concrete block/class virtual deletion now executes recovered
+bodies rather than controlled deleting-destructor mocks in this verifier.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_state_pool.py --compiler clang-cl --mutation-checks
+ctest --test-dir build/native -R '^feng_(queue|list|grid)_native$' --output-on-failure
+```
+
+The verifier passes **33,088 comparisons** and rejects **17 semantic mutations**:
+4,096 cases per new entry point, 256 extra standalone constructor/destructor
+edge cases and 64 acquire/release sequences. Compile/link failures do not count
+as mutation rejections. It exercises all eight entry points, actual release/clear/Remove
+callees and acquire-then-release sequences. It relocates only the two virtual
+slots in rebuilt emulation to the matching rebuilt deleting wrappers; the original
+machine retains its retail slots. Virtual calls execute actual corresponding
+bodies on both sides. Only allocation/free at 0x575620/0x575630 are controlled.
+Recorded helper identities, allocator arguments/snapshots, full-word returns,
+metadata/global bytes, stack cleanup, preserved registers and final FS:[0]
+restoration are compared. Heap-payload write hooks separately establish that
+allocation/release bodies do not add payload initialization.
+
+Cases include dirty block/class storage, all bitmap positions and full bytes,
+full-count equality versus 16-bit counter edges, class misses/hits, empty and
+full block lists, head-versus-later block selection, high-word class keys, strides
+through 0xffff, zero-stride standalone construction, null-data destruction and
+full-word deleting flags. Allocator callbacks change class stride/list heads and
+block metadata, exposing snapshot/reload and post-allocation bitmap-clear order.
+Selected standalone class destructors start with an unrelated vtable word to
+check the absence of an invented initial rewrite.
+
+The native fixture relocates the two virtual slots in its existing private
+fixed-address test page to ABI adapters that call the recovered deleting wrappers.
+It allocates 40 unique 64-byte slots (two blocks), creates a distinct 0x10040-key
+class with the same low-16 stride, releases a slot through recovered object/base
+cleanup, then releases the rest. Eight allocated class/block/data objects are
+freed through the recovered paths and the manager ends empty. These are test-only
+virtual relocations, not production dispatch changes. Native/mod-enabled builds,
+all three native CTests and headless scroller motion/centering checks pass.
+
+Production state ownership and object factory binding remain pending. Existing
+native FNG objects still use their documented native-owned state. Allocation
+failure, inconsistent/full bitmap scans, arbitrary aliases, concurrency, callbacks
+that inspect SEH frames, throwing callbacks and unwind are unverified. MSVC 7.1
+and byte matching remain pending; Clang is the stated verification compiler.
+Reports stay ignored under `build/analysis/feng-state-pool/`.

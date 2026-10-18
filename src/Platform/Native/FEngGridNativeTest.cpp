@@ -40,6 +40,12 @@ static void __thiscall DeleteFixtureNode(void *pointer, unsigned int flags) {
         injectedNode = 0;
     }
 }
+static void *__thiscall DeleteStateBlock(void *pointer, unsigned int flags) {
+    return ((FEngStatePoolBlock *)pointer)->Destroy(flags);
+}
+static void *__thiscall DeleteStateClass(void *pointer, unsigned int flags) {
+    return ((FEngStatePoolClass *)pointer)->Destroy(flags);
+}
 class CleanupObserver : public FEngDestructionObserver {
 public:
     unsigned int calls;
@@ -100,6 +106,9 @@ int main() {
     assert(page == (void *)0x79b000);
     memcpy((void *)0x79b140, "grid-high", 10);
     memcpy((void *)0x79b14c, "grid-low", 9);
+    // Test-only native relocation of the two recovered virtual destructor slots.
+    *(void **)0x79b13c = (void *)DeleteStateBlock;
+    *(void **)0x79b8dc = (void *)DeleteStateClass;
     assert(FngHash(0) == 0xffffffff && FngHash("a") == FngHash("A") && FngHash("\x80") == 95);
     assert(FEngGridWrapIndex(-6, 3) == 3 && FEngGridWrapIndex((int)0x80000000u, 3) == 5);
     Owner owner, replacement;
@@ -234,6 +243,29 @@ int main() {
     owned.ClearOwned();
     assert(!owned.count4 && !owned.first8 && !owned.valueC && deletedNodes.size() == 3);
     assert(deletedNodes[0] == &first && deletedNodes[1] == &injected && deletedNodes[2] == &last);
+    const unsigned int beforePoolSequence = freeCalls;
+    assert(!FEngObjectStateManager.AcquireState(0));
+    std::vector<void *> slots;
+    for (unsigned int i = 0; i < 40; ++i) {
+        void *slot = FEngObjectStateManager.AcquireState(64); assert(slot);
+        for (unsigned int j = 0; j < slots.size(); ++j) assert(slot != slots[j]);
+        slots.push_back(slot);
+    }
+    assert(FEngObjectStateManager.classes0.count4 == 1);
+    FEngStatePoolClass *poolClass = (FEngStatePoolClass *)FEngObjectStateManager.classes0.first8;
+    assert(poolClass->blocksC.count4 == 2);
+    void *otherKey = FEngObjectStateManager.AcquireState(0x10040);
+    assert(otherKey && FEngObjectStateManager.classes0.count4 == 2);
+    FEngStatePoolClass *otherClass = (FEngStatePoolClass *)FEngObjectStateManager.classes0.first8;
+    assert(otherClass->stride1C == 0x10040 && ((FEngStatePoolBlock *)otherClass->blocksC.first8)->strideC == 64);
+    FEngObjectStateManager.ReleaseState(otherKey);
+    FEGridObject pooledObject; memset(&pooledObject, 0xa5, sizeof(pooledObject));
+    pooledObject.Construct();
+    ((HudVisibilityObject *)&pooledObject)->data2C = (float *)slots.back(); slots.pop_back();
+    pooledObject.Destruct(); // Actual base cleanup releases the allocated state slot.
+    for (unsigned int i = 0; i < slots.size(); ++i) FEngObjectStateManager.ReleaseState(slots[i]);
+    assert(!FEngObjectStateManager.classes0.count4 && !FEngObjectStateManager.classes0.first8 && !FEngObjectStateManager.classes0.valueC);
+    assert(freeCalls == beforePoolSequence + 8);
     munmap(page, 4096);
     puts("PASS recovered grid storage/pool migration/cell writes/fill/navigation/callbacks/hash (no retail assets or display)");
 }

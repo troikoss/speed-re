@@ -9,6 +9,10 @@ struct FEngStatePoolBlock {
     unsigned short usedE;
     unsigned char bitmap10[4];
     unsigned char *data14;
+    FEngStatePoolBlock *Construct(unsigned short stride); // 0x517310, normal return
+    void *AcquireSlot(); // 0x504400
+    void Destruct(); // 0x5173b0, normal return
+    FEngStatePoolBlock *Destroy(unsigned int flags); // 0x517390
 };
 struct FEngStatePoolClass {
     void *vtable0;
@@ -16,10 +20,14 @@ struct FEngStatePoolClass {
     FEngStatePoolClass *previous8;
     FEngQueueList blocksC;
     unsigned int stride1C;
+    void *Acquire(); // 0x517400, normal return
+    void Destruct(); // 0x534ac0, normal return
+    FEngStatePoolClass *Destroy(unsigned int flags); // 0x534aa0
     unsigned char ReleaseSlot(void *pointer); // 0x5174a0, AL only
 };
 struct FEngStatePoolManager {
     FEngQueueList classes0;
+    void *AcquireState(unsigned int stride); // 0x52ace0
     void ReleaseState(void *pointer); // 0x517520; nonnull pointer must belong to a class.
 };
 struct FEngDestructionObserver {

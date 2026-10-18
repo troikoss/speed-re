@@ -391,8 +391,13 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   does not activate production type-6 navigation or supply cell text population.
   Normal-return grid/base cleanup, pooled-state release and owned-list clearing
   are recovered and compose in the synthetic native probe. Production cleanup
-  still uses native ownership: original virtual destructors, state allocation,
-  factory binding and SEH unwind remain pending. See [lifecycle evidence](pc-pause-menu.md#normal-return-grid-and-object-cleanup-2026-10-18).
+  still uses native ownership: remaining virtual destructors, native state/factory
+  integration and SEH unwind remain pending. See [lifecycle evidence](pc-pause-menu.md#normal-return-grid-and-object-cleanup-2026-10-18).
+  State-pool acquisition and concrete block/class virtual destruction are also
+  recovered. A synthetic native round trip allocates 40 slots across two blocks,
+  distinguishes full-word class keys, and returns all storage through recovered
+  release/cleanup. Fixed virtual slots are relocated only inside that test;
+  production state/factory ownership binding remains pending.
   Name hashing `0x505450` now executes recovered source; the native hash loop is
   removed. See [grid/hash evidence](pc-pause-menu.md#type-6-grid-navigation-and-original-name-hashing-2026-10-18).
   See [message delivery evidence](pc-pause-menu.md#full-queued-message-delivery-2026-10-18).
