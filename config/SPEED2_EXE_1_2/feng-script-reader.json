@@ -1,0 +1,29 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "Read": {
+      "address": "0x5515e0",
+      "size": 1521,
+      "sha256": "c6c9c6e1e3bb4b9dc3f071f303fe2b4202805f65c19b49d20a11aae7f15c6734"
+    }
+  },
+  "executed_dependencies": [
+    "feng-response.json:FindScriptByHash",
+    "feng-script-tracks.json:ScriptConstruct",
+    "feng-track-lookup.json:FindTrack",
+    "feng-track-lookup.json:FindDescriptor",
+    "feng-track-lookup.json:GetProperty"
+  ],
+  "controlled_boundaries": {
+    "HeaderAcquire": "0x54beb0",
+    "KeyAcquire": "0x53e650",
+    "SetName": "0x518730",
+    "SetTracks": "0x535210",
+    "TrackAssign": "0x54d350",
+    "ResizeEvents": "0x519a10",
+    "Allocate": "0x575620",
+    "Free": "0x575630",
+    "ConstructArray": "0x75c461",
+    "DestructArray": "0x75c401"
+  }
+}

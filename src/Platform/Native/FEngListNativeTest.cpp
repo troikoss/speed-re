@@ -56,7 +56,7 @@ static void Run(unsigned int wrap, bool explicitGuid) {
     Word(value, wrap); Tag(data, 0x774c, value); value.clear(); // Lw
     for (int i = 0; i < 3; ++i) { Word(value, i); Tag(data, 0x6343, value); value.clear(); } // Cc
     std::vector<unsigned char> objectData = Chunk(0x446a624f, data), script;
-    Word(value, 0x1744b3); Word(value, 1000); Tag(script, 0x6853, value); value.clear(); // Init, no tracks.
+    Word(value, 0x1744b3); Word(value, 1000); Word(value, 0); Word(value, 0); Tag(script, 0x6853, value); value.clear(); // Init, no tracks.
     script = Chunk(0x70726353, script);
     objectData.insert(objectData.end(), script.begin(), script.end());
     data = Chunk(0x30203, Chunk(0xe76e4546, Chunk(0xcc6a624f, Chunk(0xea624f46, objectData))));
@@ -129,7 +129,7 @@ static void RunString() {
     Tag(data, 0x7453, value); value.clear();
     Word(value, 6); Tag(data, 0x6253, value); // Sb reallocates despite capacity9 > request6.
     std::vector<unsigned char> objectData = Chunk(0x446a624f, data), script, response;
-    value.clear(); Word(value, 0x1744b3); Word(value, 1000); Tag(script, 0x6853, value);
+    value.clear(); Word(value, 0x1744b3); Word(value, 1000); Word(value, 0); Word(value, 0); Tag(script, 0x6853, value);
     script = Chunk(0x70726353, script); objectData.insert(objectData.end(), script.begin(), script.end());
     value.clear(); Word(value, 0x1234); Tag(response, 0x694d, value);
     value.clear(); Word(value, 2); Tag(response, 0x434d, value); // MC owns a constructed array.
@@ -384,13 +384,13 @@ static void RunScriptStorage() {
     std::vector<unsigned char> object, value, first, second;
     Word(value, 1); Tag(object, 0x744f, value);
     const char firstName[] = "retainedScript", secondName[] = "other";
-    value.assign(firstName, firstName + strlen(firstName)); Tag(first, 0x6e53, value);
-    value.clear(); Word(value, 0x12345678); Word(value, 300); Tag(first, 0x6853, value);
+    value.assign(firstName, firstName + strlen(firstName) + 1); Tag(first, 0x6e53, value); // 0x518730 reads a C string
+    value.clear(); Word(value, 0x12345678); Word(value, 300); Word(value, 0); Word(value, 0); Tag(first, 0x6853, value);
     value.clear();
     for (unsigned int i = 0; i < 2; ++i) { Word(value, i + 1); Word(value, 0xffffffff); Word(value, i + 1); }
     Tag(first, 0x5645, value);
     value.clear(); Word(value, 0x11112222); Word(value, 0xffffffff); Word(value, 17); Tag(first, 0x5645, value);
-    value.assign(secondName, secondName + strlen(secondName)); Tag(second, 0x6e53, value);
+    value.assign(secondName, secondName + strlen(secondName) + 1); Tag(second, 0x6e53, value); // 0x518730 reads a C string
     value.clear();
     for (unsigned int i = 0; i < 2; ++i) { Word(value, 10 + i); Word(value, 42); Word(value, 30 + i); }
     Tag(second, 0x5645, value);
@@ -457,7 +457,7 @@ static void RunTrackOwnership() {
     {
         std::vector<unsigned char> data, value, script;
         Word(value, 1); Tag(data, 0x744f, value);
-        value.clear(); Word(value, 0x2468); Word(value, 100); Tag(script, 0x6853, value);
+        value.clear(); Word(value, 0x2468); Word(value, 100); Word(value, 0); Word(value, 1); Tag(script, 0x6853, value); // 16-byte Sh, one track
         value.clear(); value.push_back(4); value.push_back(12); value.push_back(1); value.push_back(0);
         Word(value, 2400); Tag(script, 0x4946, value);
         value.clear();

@@ -390,6 +390,12 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   verified (12,288 comparisons, six mutations); the registry at manager +0x4134 is
   typed but its producer is unrecovered. Retail scripts contain no Ti tags.
   See [Ti lookup evidence](pc-pause-menu.md#script-reader-ti-lookups-2026-10-18).
+- Every `Scrp` chunk is read by recovered `0x5515e0`, which creates, fills and
+  links the original headers, tracks and keys; the native tag parser and header
+  binding are removed. Seams: bounded input (incomplete tags, short EV, streams
+  without Sn/Sh), a null type-registry queue, and native playback metadata
+  mirrored from the original tracks. 4,096 streams, 22 mutations.
+  See [reader evidence](pc-pause-menu.md#complete-script-reader-and-native-integration-2026-10-18).
   See [script pool evidence](pc-pause-menu.md#script-header-pool-and-native-stable-ownership-2026-10-18).
 - Native image/group/list teardown now invokes recovered `0x532660`/`0x534bf0`/
   `0x534a50`, alongside string destruction. Original list storage/cell release

@@ -4188,3 +4188,53 @@ head and one-based indexing. A quarter of track cases substitute controlled
 key-table values to expose the signed compare; negative counts are covered only
 with an in-arena match. Cycles, invalid pointers, MSVC 7.1 and byte identity
 remain unverified. Native integration follows with reader `0x5515e0`.
+
+## Complete script reader and native integration (2026-10-18)
+
+`FEngScriptReader.cpp` recovers `0x5515e0` (1,521 bytes, thiscall
+`Read(data, size)`, `RET 8`, AL = 1). The context prefix shares `objectC` +0xc
+and `value18` +0x18 with the response reader and adds name retention +0xa and
+the `FEngQueue` pointer +0x3c, whose +0x4134 registry the queue constructor
+initializes at `0x53623c`. Tags, in dispatch order:
+
+- `Sf`/`Ta`/`Tt`/`Ti` test only the current script; `Ta`/`Tt` then write the
+  current track unchecked. `FI`, `EV`, `Tb`, `Sc`, `Kd`, `Sl` and `To` check
+  nothing. `SI` selects through `0x5046b0` and clears the track.
+- `FI` advances the track index, copies four bytes, merges the 24-bit duration
+  into dword +4 and stores the cumulative state byte before adding value size/4.
+- `EV` resizes (`0x519a10`) to `len/12` and copies in a do-while loop, so a
+  short record would overrun. `Tb` stores time +0x14, then size/4 base words.
+- `Kd` resets borrowed (+0x2c) references, then always processes one key even
+  if the record is shorter than its stride. The first key is inline at +8
+  (time +0x14, value +0x18); later keys come from pool `0x53e650`, are given
+  their sentinel links and vtable inline, and are appended after the tail.
+- `Sn` constructs a pool header inline and calls `0x518730` only when +0xa is
+  set; `Sh` (16 bytes in every retail script) only creates a header when none
+  is current, pre-zeroing seven fields before calling `0x511d70`. Both reset
+  the index/state counters only when they create; the track pointer survives.
+- `Ti` is described in [Ti lookups](#script-reader-ti-lookups-2026-10-18): a
+  found track becomes current; otherwise a count+1 table is built, copying
+  tracks whose signed state byte precedes property offset/4 and inserting
+  one with interpolation 1, flags 0 and the script length as duration.
+- After the stream, a clear +0x18 appends the final script after object +0x50
+  and increments +0x48; the Init hash `0x1744b3` then sets +0x54 without a null
+  check.
+
+`UG2_DIR=... build/venv/bin/python tools/verify_pc_feng_script_reader.py
+--compiler clang-cl --mutation-checks` passes 4,096 generated streams covering
+all fifteen tags plus unknown tags, and rejects 22 mutations. Lookup leaves and
+`0x511d70` execute original code in both runs; pools, name/track/event storage,
+assignment, heap and CRT iterators are traced controlled boundaries with
+coherent constructed-track fixtures. Streams avoid the original's unchecked
+null-script/track, short-EV and missing-descriptor faults, so `SI`'s track reset
+is not observable. SEH registration, MSVC 7.1 and byte identity are unverified.
+
+`NativeFng.cpp` now calls the reader for every `Scrp` chunk, replacing the
+native tag parser and native header/track/key binding and linking. Native seams:
+streams are cut before an incomplete tag or short `EV`; a stream without
+`Sn`/`Sh` is skipped; `queue3C` is null because no registry producer is
+recovered (retail has no `Ti`). Native playback metadata is derived from the
+reader-built tracks, assuming the retail pairing of one `Kd` per `FI`. Package
+fixtures now use the original 16-byte `Sh` and NUL-terminated `Sn`. Native and
+asset-free CTests, 19 settings, 10 Controls and scroller motion pass, and
+HUD, pause and options captures are byte-identical to the previous build.

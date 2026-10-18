@@ -48,6 +48,7 @@ struct FengScript {
     std::vector<FengTrack> tracks;
     std::vector<std::vector<FengScriptKey *> > originalKeys; // Native index of recovered owned pool nodes.
     FengScript();
+    explicit FengScript(FEScript *header); // Adopt a reader-created pool header.
     ~FengScript();
     FengScript(FengScript &&other) noexcept;
     FengScript &operator=(FengScript &&other) noexcept;

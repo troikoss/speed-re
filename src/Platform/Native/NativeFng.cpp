@@ -9,6 +9,7 @@
 #include "../../Speed/Indep/Src/Frontend/FEngResponseReader.h"
 #include "../../Speed/Indep/Src/Frontend/FEngListReader.h"
 #include "../../Speed/Indep/Src/Frontend/FEngScript.h"
+#include "../../Speed/Indep/Src/Frontend/FEngScriptReader.h"
 #include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObject.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObjectFactory.h"
@@ -183,6 +184,67 @@ void ReadResponses(const unsigned char *data, size_t size, std::vector<FengRespo
     }
 }
 
+// Native bounded input seam for 0x5515e0, which has no bounds checks: a stream is cut
+// before its first incomplete tag or short EV (whose do-while copy would overrun), and
+// a stream without Sn/Sh is skipped (the original dereferences a null script).
+static size_t BoundedScriptSize(const unsigned char *data, size_t size, bool *creates) {
+    size_t t = 0;
+    *creates = false;
+    while (t + 4 <= size) {
+        unsigned int tag = Rd16(data + t), len = Rd16(data + t + 2);
+        if (len > size - t - 4 || (tag == 0x5645 && len < 12)) break;
+        if (tag == 0x6e53 || tag == 0x6853) *creates = true;
+        t += 4 + len;
+    }
+    return t;
+}
+
+// Native playback metadata derived from a reader-built original track. Retail streams
+// pair every FI with one Kd, so the inline key at +8 (time +0x14, value +0x18) is the
+// first key and the owned +0x30 list holds the rest.
+static FengTrack NativeTrackMetadata(FEScriptTrack *track, std::vector<FengScriptKey *> *keys) {
+    FengTrack native;
+    native.type = track->value0;
+    native.size = track->value1;
+    native.interpolation = track->value2;
+    native.flags3 = track->flags3;
+    native.cycle = track->flags3 & 0x7f;
+    native.state7 = track->state7;
+    native.offset = track->state7;
+    native.duration = (int)(*(unsigned int *)track->unidentified4 & 0xffffff);
+    unsigned int bytes = native.size < 16 ? native.size : 16;
+    const unsigned char *base = reinterpret_cast<const unsigned char *>(track->base18);
+    native.baseline.assign(base, base + bytes);
+    native.keys.push_back(std::make_pair(track->key8.timeC, native.baseline));
+    for (FengScriptKey *key = static_cast<FengScriptKey *>(track->value30); key; key = key->next4) {
+        keys->push_back(key);
+        native.keys.push_back(std::make_pair(key->timeC, std::vector<unsigned char>(key->value10, key->value10 + bytes)));
+    }
+    return native;
+}
+
+static FengScript *ReadNativeScript(FengObject *object, const unsigned char *data, size_t size, bool retainNames) {
+    bool creates;
+    size_t bounded = BoundedScriptSize(data, size, &creates);
+    if (!creates) return 0;
+    BindNativeFengVtables();
+    FEngScriptReader reader = {};
+    reader.objectC = object;
+    reader.value0A = retainNames ? 1 : 0;
+    reader.value18 = 0;
+    reader.queue3C = 0; // Native seam: no type-registry producer; retail scripts contain no Ti.
+    reader.Read(reinterpret_cast<const unsigned short *>(data), (unsigned int)bounded);
+    FEScript *header = reinterpret_cast<FEScript *>(reinterpret_cast<FEngQueueList *>((unsigned char *)object + 0x44)->valueC);
+    for (size_t i = 0; i < object->scripts.size(); ++i)
+        if (object->scripts[i].original == header) return &object->scripts[i];
+    object->scripts.emplace_back(header);
+    FengScript &script = object->scripts.back();
+    script.originalKeys.resize(header->trackCount1C);
+    for (int k = 0; k < header->trackCount1C; ++k)
+        script.tracks.push_back(NativeTrackMetadata(static_cast<FEScriptTrack *>(header->tracks20) + k, &script.originalKeys[k]));
+    return &script;
+}
+
 // Retained retail tracks use the -1 key as a baseline, and later keys as
 // offsets (0x52bdc0). This bounded platform adapter supports message tracks
 // of types 4/6, interpolation 1 with cycle 0/1, and constant tracks at time zero.
@@ -340,6 +402,7 @@ FengScript::FengScript() : original(0) {
     FEngConstructScript(original);
     original->time10 = 0; // Native reader binding; original construction leaves it untouched.
 }
+FengScript::FengScript(FEScript *header) : original(header) {}
 FengScript::~FengScript() { if (original) original->Destroy(1); }
 FengScript::FengScript(FengScript &&other) noexcept
     : original(other.original), tracks(std::move(other.tracks)), originalKeys(std::move(other.originalKeys)) {
@@ -591,72 +654,14 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                 FEListObject *list = reinterpret_cast<FEListObject *>(object);
                                 list->CalculateOffsets(); // 0x5554a0 calls this before script initialization.
                             }
-                            // Run the INIT script's tracks over the state block (0x541f60 at time 0).
+                            // Recovered reader 0x5515e0 builds and links each script; native
+                            // playback metadata mirrors the original tracks. The Init script's
+                            // tracks are applied over the state block (0x541f60 at time 0).
                             for (size_t si = 0; si < scripts.size(); ++si) {
-                                const std::vector<unsigned char> &sc = scripts[si];
-                                object->scripts.emplace_back();
-                                FengScript &script = object->scripts.back();
-                                std::vector<FengTrack> &tracks = script.tracks;
-                                int nextState = 0;  // 0x5515e0: FI advances by value size / 4
-                                size_t t = 0;
-                                while (t + 4 <= sc.size()) {
-                                    unsigned int tag = Rd16(&sc[t]);
-                                    unsigned int len = Rd16(&sc[t + 2]);
-                                    const unsigned char *pl = &sc[t + 4];
-                                    if (len > sc.size() - t - 4) break;
-                                    if (tag == 0x6e53 && retainNames) { // Sn; original script reader uses byte +0xa.
-                                        std::string bounded;
-                                        for (unsigned int i = 0; i < len && pl[i]; ++i) bounded += (char)pl[i];
-                                        script.Header().SetName(bounded.c_str());
-                                    } else if (tag == 0x6853) {
-                                        if (len >= 4) script.Header().hash30 = Rd32(pl);
-                                        if (len >= 8) script.Header().lengthC = (int)Rd32(pl + 4);
-                                    } else if (tag == 0x4946) {            // 'FI'
-                                        FengTrack track;
-                                        track.type = pl[0];
-                                        track.size = pl[1];
-                                        track.interpolation = pl[2];
-                                        track.cycle = pl[3] & 0x7f;
-                                        track.flags3 = pl[3];
-                                        track.state7 = (signed char)nextState;
-                                        track.duration = (int)(Rd32(pl + 4) & 0xffffff);
-                                        track.offset = (signed char)nextState;
-                                        nextState += track.size >> 2;
-                                        tracks.push_back(track);
-                                    } else if (tag == 0x6f54 && !tracks.empty()) {  // 'To'
-                                        tracks.back().offset = (signed char)pl[0];
-                                        tracks.back().state7 = (signed char)pl[0];
-                                    } else if (tag == 0x6254 && !tracks.empty()) {  // 'Tb': inline base, after time dword
-                                        FengTrack &track = tracks.back();
-                                        if (len >= 4 + track.size) track.baseline.assign(pl + 4, pl + 4 + track.size);
-                                    } else if (tag == 0x6154 && !tracks.empty()) {  // 'Ta'
-                                        tracks.back().flags3 = pl[0];
-                                        tracks.back().cycle = pl[0] & 0x7f;
-                                    } else if (tag == 0x7454 && !tracks.empty()) {  // 'Tt'
-                                        tracks.back().interpolation = pl[0];
-                                    } else if (tag == 0x5645) {  // EV replaces, rather than appends, event storage.
-                                        FEngScriptEventStorage *events = reinterpret_cast<FEngScriptEventStorage *>(&script.Header().eventCount24);
-                                        events->Resize((int)(len / 12));
-                                        for (unsigned int k = 0; k < len / 12; ++k) {
-                                            events->data4[k].message = Rd32(pl + k * 12);
-                                            events->data4[k].target = Rd32(pl + k * 12 + 4);
-                                            events->data4[k].time = (int)Rd32(pl + k * 12 + 8);
-                                        }
-                                    } else if (tag == 0x644b && !tracks.empty()) {  // 'Kd'
-                                        FengTrack &track = tracks.back();
-                                        unsigned int stride = track.size + 4;
-                                        for (unsigned int k = 0; k + stride <= len; k += stride) {
-                                            int time = (int)Rd32(pl + k);
-                                            if (track.keys.empty()) track.baseline.assign(pl + k + 4, pl + k + stride);
-                                            track.keys.push_back(std::make_pair(
-                                                time, std::vector<unsigned char>(pl + k + 4, pl + k + stride)));
-                                        }
-                                    }
-                                    t += 4 + len;
-                                }
-                                if (script.Header().hash30 == kInitScript) {
-                                    for (size_t k = 0; k < tracks.size(); ++k)
-                                        ApplyTrack(tracks[k], state.empty() ? 0 : &state[0], (int)state.size(), 0);
+                                FengScript *script = ReadNativeScript(object, &scripts[si][0], scripts[si].size(), retainNames);
+                                if (script && script->Header().hash30 == kInitScript) {
+                                    for (size_t k = 0; k < script->tracks.size(); ++k)
+                                        ApplyTrack(script->tracks[k], state.empty() ? 0 : &state[0], (int)state.size(), 0);
                                 }
                             }
                             if (!state.empty()) ReadState(object, &state[0], (int)state.size());
@@ -705,48 +710,8 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
             object->children[j]->next4 = j + 1 < object->children.size() ? object->children[j + 1] : 0;
             object->children[j]->previous8 = j ? object->children[j - 1] : 0;
         }
-        // Native loader seam: original FEScript headers of the loaded scripts, linked in file order.
-        for (size_t j = 0; j < object->scripts.size(); ++j) {
-            FengScript &script = object->scripts[j];
-            script.Header().SetTracks(script.tracks.size());
-            script.originalKeys.resize(script.tracks.size());
-            for (size_t k = 0; k < script.tracks.size(); ++k) {
-                const FengTrack &native = script.tracks[k];
-                FEScriptTrack &track = static_cast<FEScriptTrack *>(script.Header().tracks20)[k];
-                // Native reader binding of known input data; remaining parser is a seam.
-                memset(track.base18, 0, sizeof(track.base18));
-                track.key8.timeC = native.keys.empty() ? 0 : native.keys[0].first;
-                track.value0 = native.type;
-                track.value1 = native.size;
-                track.value2 = native.interpolation;
-                track.flags3 = native.flags3;
-                *(unsigned int *)track.unidentified4 = (unsigned int)native.duration & 0xffffff;
-                track.state7 = native.state7;
-                // 0x5515e0 puts the first Kd key inline at track+8; later keys form the delta list.
-                std::vector<FengScriptKey *> &keys = script.originalKeys[k];
-                keys.resize(native.keys.empty() ? 0 : native.keys.size() - 1);
-                for (size_t n = 0; n < keys.size(); ++n) {
-                    keys[n] = FEngScriptKeysPool.Acquire();
-                    FEngConstructScriptKey(keys[n]);
-                    keys[n]->timeC = native.keys[n + 1].first;
-                    memset(keys[n]->value10, 0, sizeof(keys[n]->value10));
-                    memcpy(keys[n]->value10, &native.keys[n + 1].second[0], native.size < 16 ? native.size : 16);
-                }
-                for (size_t n = 0; n < keys.size(); ++n) {
-                    keys[n]->next4 = n + 1 < keys.size() ? keys[n + 1] : 0;
-                    keys[n]->previous8 = n ? keys[n - 1] : 0;
-                }
-                track.value30 = keys.empty() ? 0 : keys[0];
-                *(FengScriptKey **)track.unidentified34 = keys.empty() ? 0 : keys.back();
-                if (!native.baseline.empty()) memcpy(track.base18, &native.baseline[0], native.size < 16 ? native.size : 16);
-            }
-            FEScript &header = script.Header();
-            header.previous8 = j ? &object->scripts[j - 1].Header() : 0;
-            header.next4 = j + 1 < object->scripts.size() ? &object->scripts[j + 1].Header() : 0;
-        }
-        object->scripts4C = object->scripts.empty() ? 0 : &object->scripts[0].Header();
-        // Native loader seam: original script reader 0x5515e0 selects Init;
-        // package reader 0x5554a0 selects it again, initializes tracks and resets time.
+        // Reader 0x5515e0 already selected Init; native package-reader seam for
+        // 0x5554a0 selects it again, initializes tracks and resets time.
         object->currentScript54 = object->FindScriptByHash(kInitScript);
         if (object->currentScript54) {
             object->InitializeScript();

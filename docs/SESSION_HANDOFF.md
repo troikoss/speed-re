@@ -593,3 +593,12 @@ renamed from cross-title evidence alone.
     (or Sn/Tb/Ta/Tt/Sf/Sl/SI) tags in 56,804 scripts. Retail install for tools:
     `UG2_DIR="/home/dq/Games/Need for Speed Underground 2"`. Next: complete
     reader `0x5515e0` replacing the native Scrp parse in `NativeFng.cpp`.
+
+39. **Complete script reader (2026-10-18).** `FEngScriptReader.cpp` recovers
+    `0x5515e0`; `NativeFng.cpp` calls it per Scrp chunk and derives native
+    playback metadata from the original tracks (native parse and header
+    binding removed). Verifier: 4,096 streams, 22 mutations (clang-cl).
+    Captures byte-identical; CTests, 19 settings, 10 Controls, scroller pass.
+    Smoke scripts need `--game "$UG2_DIR"`. Next: native playback/interpolation
+    (`ApplyTrack`/`AdvanceScripts`) against original script update, then
+    message delivery `0x541fc0` and object dispatch `0x5367e0`.
