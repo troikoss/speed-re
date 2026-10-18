@@ -920,6 +920,17 @@ worldObjectCreate86AF90 = 0x86af90;
 worldObjectChildName7A1EEC = 0x7a1eec;
 worldObject827B88 = 0x827b88;
 worldObject88EB00 = 0x88eb00;
+/* World-object chain (CollisionWorldObject.cpp). */
+worldObjectPool86B374 = 0x86b374;
+worldObjectBitmap86AD78 = 0x86ad78;
+worldObjectUpdate8900F8 = 0x8900f8;
+worldObjectRandomState7F3940 = 0x7f3940;
+worldObjectBlocks86B4C0 = 0x86b4c0;
+worldObjectZero7D7D3C = 0x7d7d3c;
+worldObjectSettle7844F4 = 0x7844f4;
+worldObjectSpeedLimit7859D0 = 0x7859d0;
+worldObjectRandomScale78D864 = 0x78d864;
+worldObjectRandomRange786D84 = 0x786d84;
 participantRecords89E810 = 0x89e810;
 participantCount89E814 = 0x89e814;
 raceValue89E7B8 = 0x89e7b8;

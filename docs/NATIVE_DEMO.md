@@ -144,26 +144,38 @@ byte-matching; the rest is behaviour observed in the demo only. In the headless 
 walls at 71 and 90 km/h, loses roughly half its speed, and its centre stays 1.2 to 2.3 m
 in front of the wall plane.
 
-World-object chain (2026-10-19, `CollisionWorldObject.cpp`): `PromoteWorldObject` `0x5b31f0`
-(calls the seam `0x5b1390` with the body, then destroys it through vtable slot 0 with argument 1),
-`BreakWorldObject` `0x5ae000` (one child body per descriptor entry: name `"_CHILDx"` at `0x7a1eec`
-with the digit `'1'+i`, hashed by `0x43db80` (= `HudNameHash`) from the seed of `0x611000`,
-created through the function pointer `0x86af90`, attached, activated, stored in the output
-array; the world object is then destroyed through slot 0), the child activation `0x5adf90` and
-the placement seed accessor `0x611000` are recovered. `tools/verify_pc_collision_world_object.py`
-runs the originals and the MSVC 7.1 rebuild on 9,400 random world objects (0 to 9 children, negative
-counts, ids around the 16-bit truncation, empty and populated registration lists, all branches of
-the stamp rule, null promotion argument) and compares the full seam call log, EAX, callee-saved
-registers, ESP and 32 KB of fake-world memory: 0 failures, 130 of 130 instructions reached,
-10 of 10 mutants rejected (`--mutation-checks`). The seams are replaced by identical `ret` stubs on both
-sides, so their behaviour is not covered, and `0x43db80` runs as the original on both sides.
-Not recovered, trapped in `NativeCollision.cpp`: `0x5b1390` (promotion body, 428 bytes; calls
-`0x43cd10`, `0x4012b0`, `0x5e0b40`, `0x5e68d0`, `0x5e7e70`, `0x592a10`, `0x5a8b70`),
-`0x5adb20` (child attach, 551 bytes), `0x5add50` (child update; calls `0x5e6fa0`, `0x5a9de0`,
-`0x5e68d0`) and `0x48bc50` (child registration). The pointer at `0x86af90` keeps the value in
-the mapped original image; no native replacement exists. Descriptor (`+0x148`), count (`+0x8c`),
-entries (`+0x90`), placement (`+0x480`) and child fields `+0x4fc/+0x505/+0x506/+0x15c` stay
-offset-based. The demo stops with a trap message at the first of these seams a world object reaches.
+World-object chain (2026-10-19, `CollisionWorldObject.cpp`, complete except its leaf seams):
+`PromoteWorldObject` `0x5b31f0` (promotes through `0x5b1390`, then destroys the body through vtable
+slot 0 with argument 1), the promotion body `0x5b1390` (pool test `0x43cd10`; matrix copy of the
+entry's transform at `+0x30`; creation through the pointer `0x86af90`; for a body of kind 0 -- virtual
+slot `0x8c` -- a local collider `0x5e0b40`/`0x5e68d0`/`0x5e7e70`/`0x5e0bf0` finds the ground below, the new body's
+shape bounds `0x592a10` give the lowering `ground - ((min.z + descriptor[0xb8]) * normal.z + z) + 0.05`,
+stored at `+0x168` and added to the height when positive; the entry number `0x5a8b70` goes to `+0x164`
+and its bit into the bitmap `0x86ad78`), `BreakWorldObject` `0x5ae000` (one child per descriptor entry,
+name `"_CHILDx"`, hash `0x43db80` = `HudNameHash`), the child attach `0x5adb20` (transform without translation
+as orientation, mover pose `0x59b9b0`, placement `0x40f010` with the lowered transform, `+0x70/+0xb0/+0xc0/+0x6c`,
+slot 4 of the object at `+0x130`, bounds refresh `0x5a9de0`, transform copied into both node lists),
+the child update `0x5add50` (area query `0x5e6fa0` with radius + 0.05 x speed, at most 6.0, else pack update `0x5e68d0`),
+the activation `0x5adf90`, the registration `0x48bc50` (xorshift seed, state switch, list front or back; the float RNG
+`0x487360` and the CRT `_ftol`), the placement leaves `0x40f010`/`0x6147e0`, the numbering `0x5a8b70` with its
+list helper `0x502fd0`, the shape bounds `0x592a10` and the seed accessor `0x611000` are recovered.
+`tools/verify_pc_collision_world_object.py` runs the originals and the MSVC 7.1 rebuild on 3,000 random worlds
+per routine (41,175 compared runs, 225 identical faults: the null promotion argument), as real machine code
+from the entry points down (Break -> create -> attach -> activate -> update/register; Promote -> promotion body -> attach),
+and compares the seam call log (pointer arguments to stack data by content), EAX where it is a result, ESP,
+callee-saved registers, the SEH chain head at `fs:[0]`, and 44 KB of fake-world memory plus the world object, RNG state and bitmap:
+0 failures, 694 of 696 instructions reached (the two others, the `FADD 2^32` after `AND 0x7fffffff` in `0x487360` and `0x48bc50`, are dead
+code), 36 of 36 mutants rejected (`--mutation-checks`). The matrix copy `0x4012b0`, the transform `0x43c9c0`, `HudNameHash` and `_ftol` run as the
+original bytes on both sides (verified elsewhere; the rebuild's `__ftol2` is bound to `_ftol`). Seams hooked identically on both
+sides, so not covered: `0x43cd10`, `0x5e0b40`/`0x5e0bf0`, `0x5e68d0` (the stub stores the scripted pack at collider `+8`),
+`0x5e6fa0`, `0x5e7e70` (scripted height on the x87 stack, normal and found flag), `0x59b9b0`, `0x5a9de0`, the creation function,
+and the body's virtual slots 0, 8, 0xc, 0x8c and the `+0x130` slot 4. Differences believed to be codegen only: the
+original has an SEH frame around the collider and 16-byte stack alignment; MSVC picks other x87 sequences (e.g. `FUCOMPP` in
+`0x48bc50`); `0x5adb20` moves the y and z of the optional vectors through the x87 stack, which quietens signalling NaNs (the random vectors contain none).
+Descriptor (`+0x148`), count (`+0x8c`), entries (`+0x90`), placement (`+0x480`), the collider at `+0x16c`, `+0x164`/`+0x168` and child
+fields `+0x4f4/+0x4fc/+0x505/+0x506/+0x15c` stay offset-based. Still a trap in `NativeCollision.cpp`: the world-object kind in virtual slot
+`0x8c` (`WorldObjectKind`), so the demo stops there for a world object it promotes; the pointer at `0x86af90` keeps the value in
+the mapped original image and no native replacement exists.
 
 Scaffolding and seams (`src/Platform/Native/NativeCollision.cpp`): the car update `0x6012b0`
 is recovered ([evidence](pc-vehicle-physics.md#car-update-0x6012b0-recovered)); its reset

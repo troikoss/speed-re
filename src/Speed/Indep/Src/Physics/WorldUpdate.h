@@ -40,7 +40,23 @@ UG2_CHECK_OFFSET(CarWorld, value118, 0x118);
 
 // Objects with unrecovered per-frame updates.
 struct WorldObject81CBC0 { void Update4268A0(); }; // 0x4268a0
-struct WorldObject8357E0 { void Update492E10(float duration); }; // 0x492e10
+// The world object at 0x8357e0: +8 is the sentinel of a list of registration nodes (see
+// CollisionWorldObject.cpp), +0x50 their count.
+struct WorldRegistrationNode;
+struct WorldRegistrationLink {
+    WorldRegistrationNode *next;
+    WorldRegistrationNode *previous;
+};
+struct WorldObject8357E0 {
+    char unidentified0[8];
+    WorldRegistrationLink list8;
+    char unidentified10[0x40];
+    int count50;
+    void Update492E10(float duration); // 0x492e10
+    void Register48BC50(WorldRegistrationNode *node); // 0x48bc50
+};
+UG2_CHECK_OFFSET(WorldObject8357E0, list8, 0x8);
+UG2_CHECK_OFFSET(WorldObject8357E0, count50, 0x50);
 struct WorldObject827B88 { void Update43AF20(float duration); }; // 0x43af20
 struct WorldObject88EB00 { void Update5E86E0(); }; // 0x5e86e0
 
