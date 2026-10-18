@@ -633,3 +633,11 @@ renamed from cross-title evidence alone.
     minimap pools `0x4ec950`, region/career/notification/GPS producers,
     mirror `0x5f1e10`, race reset `0x5fc2a0`. Rendering (`0x536a50` path, NOS
     stencil, minimap blend mode 5) remains a translation seam.
+
+43. **Camera view-matrix helpers (2026-10-18).** User asked to recover the camera
+    (world collision pushes first). `Camera/CameraMatrix.cpp` recovers look-at
+    `0x5ba9a0`, rigid inverse `0x5baf90`, re-aim `0x444390`: 12,288 comparisons,
+    12 mutations (clang-cl); D3DX `0x63cedb` is a traced stub. Not integrated.
+    Next: `0x5e6fa0` (+ `0x43d220`/`0x43d2f0`/`0x43d470`/`0x43d090`), `0x444190`
+    (+ `0x5d39f0`, `0x5d35b0`), then `0x444530`, `0x44ac10`, `0x44b040` and the
+    `0x453570` tail (view matrix to renderer). See `docs/pc-camera.md`.
