@@ -312,7 +312,7 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   follow the original. A native observer at `*0x838478` supplies language lookup
   and byte conversion; UTF-16 ownership now uses recovered storage methods
   `0x511630`/`0x51de90`/`0x51dee0`/`0x52d610`/`0x50d390`. String-manager
-  internals and complete string-object cleanup remain seams. The native loader
+  internals and complete string ownership remain seams. The native loader
   preserves string SH hashes instead of overwriting +0x60 with a child count.
   See [setter evidence](pc-pause-menu.md#language-hash-setter-and-observer-notification-2026-10-18)
   and [owned UTF-16 storage](pc-pause-menu.md#owned-utf-16-storage-in-native-strings).
@@ -320,8 +320,12 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   calling recovered member label setters `0x4fe940`/`0x519f40`, actual hash and
   UTF-16 storage methods. Native parsing disables optional `SL` retention and
   retains bounds, terminated input and renderer byte projections as seams.
-  Observer binding uses relocated native storage; string-object destruction,
-  original localization and surrounding reader ownership remain pending.
+  Observer binding uses relocated native storage; original localization and
+  surrounding reader ownership remain pending. String teardown now calls recovered
+  normal destruction `0x4956a0` and base cleanup after a native adapter detaches
+  borrowed inline state and vector-backed list prefixes; scalar deleting wrapper
+  `0x495780` is separately recovered and verified. Complete original ownership and
+  production virtual dispatch remain pending.
   See [string reader evidence](pc-pause-menu.md#complete-string-property-dispatch-and-member-label-helpers).
 - Typed string/image lookup (`0x537a10`/`0x537a60`), generic wrapper `0x5379c0`,
   recursive object traversal and package-list fallback now execute recovered code.

@@ -5,6 +5,7 @@
 #include "../../Speed/Indep/Src/Frontend/FEngGridReader.h"
 #include "../../Speed/Indep/Src/Frontend/FEngLifecycle.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObjectFactory.h"
+#include "../../Speed/Indep/Src/Frontend/FEngText.h"
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -20,6 +21,7 @@ unsigned int FEngNextObjectGuid = 1;
 unsigned int FEngValue7F7CC4 = 0x518e20;
 FEngStatePoolManager FEngObjectStateManager = {};
 FEngDestructionObserver *FEngObjectDestructionObserver = 0;
+FEngStringObserver *fengStringObserver838478 = 0;
 void *FEngGridAllocateCells(unsigned int bytes) { allocationBytes = bytes; return malloc(bytes); }
 void FEngGridFreeCells(void *cells) { ++freeCalls; free(cells); }
 void *FEngAllocateQueueNode(unsigned int bytes) { return malloc(bytes); }
@@ -287,6 +289,31 @@ int main() {
         factoryObjects[i]->DestructBase(); FEngFreeQueueNode(factoryObjects[i]);
     }
     assert(!FEngObjectStateManager.classes0.count4 && !FEngObjectStateManager.classes0.first8);
+    FEStringObject pooledString; memset(&pooledString, 0xa5, sizeof(pooledString));
+    pooledString.Construct();
+    pooledString.SetLabelBytes("owned-label");
+    unsigned short lifecycleText[] = {'a', 0x3a9, 0};
+    reinterpret_cast<FEngTextStorage *>(&pooledString.text64)->Assign(lifecycleText);
+    unsigned short *ownedText = pooledString.text64;
+    unsigned int ownedLabel = *(unsigned int *)(pooledString.unidentified58 + 4);
+    pooledString.data2C = (float *)FEngObjectStateManager.AcquireState(64);
+    *(void **)pooledString.unidentified14 = malloc(8);
+    unsigned int beforeString = freeCalls;
+    pooledString.DestructString();
+    assert(freeCalls == beforeString + 6); // label, text, state data/block/class, +14.
+    assert(!FEngObjectStateManager.classes0.count4 && !FEngObjectStateManager.classes0.first8);
+    assert(*(unsigned int *)pooledString.unidentified0 == 0x79a9e8);
+    assert(pooledString.text64 == ownedText && *(unsigned int *)(pooledString.unidentified58 + 4) == ownedLabel);
+    const unsigned int deleteFlags[] = {0, 1, 0x100, 0x101};
+    for (unsigned int i = 0; i < 4; ++i) {
+        FEStringObject *string = (FEStringObject *)malloc(sizeof(FEStringObject));
+        string->Construct(); string->SetLabelBytes("delete-label");
+        reinterpret_cast<FEngTextStorage *>(&string->text64)->Assign(lifecycleText);
+        unsigned int before = freeCalls;
+        assert(string->DestroyString(deleteFlags[i]) == string);
+        assert(freeCalls == before + 2 + (deleteFlags[i] & 1));
+        if (!(deleteFlags[i] & 1)) free(string);
+    }
     munmap(page, 4096);
     puts("PASS recovered grid storage/pool migration/cell writes/fill/navigation/callbacks/hash (no retail assets or display)");
 }

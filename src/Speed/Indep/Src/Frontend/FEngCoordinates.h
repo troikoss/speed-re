@@ -7,6 +7,8 @@ struct FEStringObject : HudVisibilityObject {
     FEStringObject *Construct(); // 0x495630, normal return
     void SetLabelHash(unsigned int hash); // 0x4fe940
     void SetLabelBytes(const char *source); // 0x519f40; owns label pointer at +0x5c.
+    void DestructString(); // 0x4956a0, normal return; original compiler supplies SEH unwind.
+    FEStringObject *DestroyString(unsigned int flags); // 0x495780, scalar deleting destructor.
     unsigned int textCapacity68; // FEngTextStorage capacity at string+0x64+4.
     int justification6C;
     int leading70;

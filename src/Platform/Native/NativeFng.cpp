@@ -23,6 +23,8 @@ void NativeTrap(const char *what);
 unsigned int FEngNextObjectGuid = 1; // original 0x7f7cf8 initial value
 unsigned int FEngValue7F7CC4 = 0x518e20;
 FEngStringObserver *fengStringObserver838478 = 0; // Relocated native storage for original 0x838478.
+FEngStatePoolManager FEngObjectStateManager = {}; // Original 0x863770; native strings still bind inline state.
+FEngDestructionObserver *FEngObjectDestructionObserver = 0; // Original 0x838474.
 
 // Native heap adapter for original 0x575620/0x575630 boundaries.
 void *FEngAllocateQueueNode(unsigned int size) { return malloc(size); }
@@ -31,9 +33,18 @@ void *FEngGridAllocateCells(unsigned int bytes) { return malloc(bytes); }
 void FEngGridFreeCells(void *cells) { free(cells); }
 
 FengObject::~FengObject() {
-    // Only UTF-16 storage currently has original ownership. State, scripts,
-    // responses and the larger wrapper still belong to native containers.
-    if (type18 == 2) reinterpret_cast<FEngTextStorage *>(&text64)->Destruct();
+    if (type18 == 2) {
+        // Native ownership adapter: the state is inline, and script/response
+        // headers belong to vectors. Detach those borrowed prefixes before
+        // original string/base cleanup; C++ members release their own storage.
+        data2C = 0;
+        FEngQueueList *scripts = reinterpret_cast<FEngQueueList *>((unsigned char *)this + 0x44);
+        FEngQueueList *responses = reinterpret_cast<FEngQueueList *>((unsigned char *)this + 0x34);
+        scripts->count4 = responses->count4 = 0;
+        scripts->first8 = responses->first8 = 0;
+        scripts->valueC = responses->valueC = 0;
+        DestructString();
+    }
 }
 
 #define IMSTB_TRUETYPE_IMPLEMENTATION

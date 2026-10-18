@@ -89,6 +89,18 @@ public:
         ++calls;
     }
 };
+class StringTeardownObserver : public FEngDestructionObserver {
+public:
+    unsigned int calls;
+    StringTeardownObserver() : calls(0) {}
+    void ObjectDestroyed(HudVisibilityObject *value) {
+        FengObject *object = static_cast<FengObject *>(value);
+        assert(*(unsigned int *)object->unidentified0 == 0x79b8e0);
+        assert(!object->data2C && !object->scripts4C && !object->responses3C);
+        assert(object->scripts.size() == 1 && object->responses.size() == 1);
+        ++calls;
+    }
+};
 static void RunString() {
     std::vector<unsigned char> data, value;
     Word(value, 2); Tag(data, 0x744f, value); value.clear(); // Ot
@@ -108,8 +120,14 @@ static void RunString() {
     }
     Tag(data, 0x7453, value); value.clear();
     Word(value, 6); Tag(data, 0x6253, value); // Sb reallocates despite capacity9 > request6.
-    data = Chunk(0x30203, Chunk(0xe76e4546, Chunk(0xcc6a624f,
-        Chunk(0xea624f46, Chunk(0x446a624f, data)))));
+    std::vector<unsigned char> objectData = Chunk(0x446a624f, data), script, response;
+    value.clear(); Word(value, 0x1744b3); Word(value, 1000); Tag(script, 0x6853, value);
+    script = Chunk(0x70726353, script); objectData.insert(objectData.end(), script.begin(), script.end());
+    value.clear(); Word(value, 0x1234); Tag(response, 0x694d, value);
+    response = Chunk(0x5267734d, response); objectData.insert(objectData.end(), response.begin(), response.end());
+    data = Chunk(0x30203, Chunk(0xe76e4546, Chunk(0xcc6a624f, Chunk(0xea624f46, objectData))));
+    StringTeardownObserver teardown;
+    FEngObjectDestructionObserver = &teardown;
     StringObserver observer;
     fengStringObserver838478 = &observer;
     for (int repeat = 0; repeat < 3; ++repeat) {
@@ -118,6 +136,8 @@ static void RunString() {
         FengObject *object = package.Objects()[0];
         FEngTextStorage *storage = reinterpret_cast<FEngTextStorage *>(&object->text64);
         assert(object->type18 == 2 && object->text == "A???");
+        assert(object->data2C == reinterpret_cast<float *>(object->colour));
+        assert(object->scripts4C && object->responses3C && object->scripts.size() == 1 && object->responses.size() == 1);
         assert(storage->capacity4 == 6 && !memcmp(storage->text0, text, sizeof(text)));
         assert(storage->GetBuffer(6) == object->text64);
         assert(object->languageHash60 == 0x12345678 && object->font == 0x12345678);
@@ -134,8 +154,9 @@ static void RunString() {
         assert(object->text.empty() && storage->text0 == buffer && !*storage->text0 && storage->capacity4 == 11);
         // Each package destructor releases this owned buffer.
     }
-    assert(observer.calls == 6);
+    assert(observer.calls == 6 && teardown.calls == 3);
     fengStringObserver838478 = 0;
+    FEngObjectDestructionObserver = 0;
 }
 int main() {
     RunString();

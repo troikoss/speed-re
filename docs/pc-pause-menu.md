@@ -2993,8 +2993,9 @@ manual `SH`/`Sj`/`Sl`/`St`/`Sw` field writes are removed; `Sb` now reaches origi
 growth instead of being ignored. The native adapter leaves reader byte `+9` zero,
 so optional `SL` allocation is disabled. Both gate states are verified against
 UG2, but recovery of how the original surrounding reader initializes that byte
-remains pending. Full byte-label lifetime integration awaits the normal string
-object destructor and complete object ownership. Existing recovered UTF-16
+remains pending. At this checkpoint, full byte-label lifetime integration awaited the normal
+string object destructor and complete object ownership; the following lifecycle
+checkpoint recovers the normal destructor and its deleting wrapper. Existing recovered UTF-16
 teardown remains active.
 
 The adapter retains native property bounds and temporary terminated `St` input;
@@ -3021,3 +3022,75 @@ HUD skins at 640x480, 1280x720, 1680x720 and 2560x720. A settings capture was
 visually inspected; the review PNG remains ignored at
 `build/analysis/feng-string-reader/settings.png`. These are native integration
 checks, separately from the original/rebuilt execution evidence above.
+
+### String-object normal and scalar deleting destruction
+
+`FEngStringLifecycle.cpp` recovers the normal-return body of string destructor
+`0x4956a0` (99-byte full span) and scalar deleting wrapper `0x495780` (30 bytes).
+The original first string-vtable slot at `0x78f53c` points to `0x495780`; that
+4-byte slot and both complete function spans are fingerprinted in
+`config/SPEED2_EXE_1_2/feng-string-lifecycle.json`.
+
+Normal destruction writes string vtable token `0x78f53c`, unconditionally frees
+the owned byte label at `+0x5c`, calls actual UTF-16 storage `Destruct` on `+0x64`,
+then calls actual base destruction. Label/text pointer fields retain their bits.
+The wrapper always performs this cleanup, frees the object only when `flags & 1`,
+and returns the original object pointer even when freed. High flag bits do not
+select deletion. The original normal destructor's SEH registration/unwind is
+not reconstructed by the source body.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_string_lifecycle.py --compiler clang-cl --mutation-checks
+```
+
+**8,192 comparisons** pass: 4,096 per new entry. Actual recovered text/base
+cleanup, manager/class/slot release, concrete block/class destructors and deleting
+wrappers, list clear and unlink run together. Only free `0x575630`, destruction
+observer slot 0 and synthetic script/response-node deleting slots are controlled.
+The concrete state-pool deleting slots execute actual code, with only rebuilt
+slot targets relocated in the verification fixture. Cases include null/non-null
+label/text/state/`+0x14` pointers, zero/one/multiple list nodes, dirty pool metadata,
+last-used-slot deletion, absent/present observers, inserted/rebound list nodes,
+free/observer changes to subsequent pointers and binding, and flags 0/1/2/3,
+`0x100`/`0x101`/`0x80000000`/`0xffffffff`. Full fixture memory, ordered helper/free/
+virtual arguments and snapshots, preserved registers, stack balance and full-word
+wrapper returns are compared. Final original FS:[0] restoration is checked on
+every normal return. **Ten semantic mutations** are rejected for omitted or
+conditional label free, text/base omissions, vtable changes, cached text storage,
+field clearing, wrong deletion flag, omitted object free and wrong return pointer.
+Build/link failures do not count as semantic rejection.
+
+This is bounded normal-return evidence: exception paths, callback inspection of
+SEH frames, arbitrary aliases, concurrency and complete coverage are not proved.
+Controlled heaps retain mapped freed storage. Actual script/response-node
+destructors are still separate from their controlled deleting-slot interfaces.
+Clang behavioral verification passes; MSVC 7.1/wibo and byte matching remain
+pending. Reports and mutation logs stay in ignored
+`build/analysis/feng-string-lifecycle/`.
+
+**Native type-2 wrapper teardown now calls recovered string and base destruction**
+instead of calling only text-storage cleanup. Its inline state and vector-owned
+script/response headers are borrowed by the retail prefix: the explicit native
+ownership adapter detaches `data2C`, list counts, heads and tails before calling
+`DestructString`. C++ containers then release their own storage. Original label,
+UTF-16 and any original-owned `+0x14` cleanup remain in recovered code. The native
+state-manager and destruction-observer symbols have separate native storage;
+production strings do not yet allocate original state or owned list nodes.
+Complete factory/reader/state/list ownership and production vtable dispatch are
+still pending, and this adapter is not the original ownership model.
+
+The native owned-object fixture constructs a string with actual byte-label and
+UTF-16 methods, acquires actual pooled state, supplies owned `+0x14` storage and
+observes all six frees (label, text, state data/block/class, `+0x14`) through the
+actual cleanup chain. It also checks retained pointer bits, final base vtable,
+and scalar wrapper low-bit behavior. A separate native FNG package fixture has
+both a script and response backed by vectors. Its destruction observer verifies
+that original base cleanup sees detached borrowed prefixes while both C++ vectors
+are still alive, across three package lifetimes. All three native CTests pass.
+
+Native and mod-enabled builds pass. With original normal string/base teardown
+active, all affected headless checks pass: 19 settings scenarios and slider
+fill/knob pixels, 10 Controls scenarios, scroller motion/settled centering, and
+HUD skin translation at 640x480, 1280x720, 1680x720 and 2560x720. Package resets,
+return/resume and reopening checks exercise production wrapper teardown; they do
+not establish original state/list ownership or exception unwinding.

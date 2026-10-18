@@ -1,0 +1,22 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "DestructString": {
+      "address": "0x4956a0",
+      "size": 99,
+      "sha256": "fc08f2c955a9a73f194f7b026d3f119e3bb85ec60a262b83eed511a2be211bcc"
+    },
+    "DestroyString": {
+      "address": "0x495780",
+      "size": 30,
+      "sha256": "a5585b60d9db976fcbc427220353fca4ad246a9d220d8fc8c51b0b745d3fa4ce"
+    }
+  },
+  "tables": {
+    "StringDeletingSlot": {
+      "address": "0x78f53c",
+      "size": 4,
+      "sha256": "58c4fc38183b5e6fdb6fa4790c767b4402306cafe8f4b20fc9fd0deb19fb0e86"
+    }
+  }
+}
