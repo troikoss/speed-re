@@ -331,27 +331,31 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   preceding tween advancement. Native scroller construction remains a seam. Name selection `0x51cf70`,
   pointer assignment `0x5178b0` and track activation `0x517720` now use recovered
   code and arithmetic helpers; native loading supplies key nodes and event
-  delivery observes the selected header. Playback clocks, event delivery and the formatter core
+  delivery observes the selected header. Playback clocks and event delivery
   remain seams. See [activation evidence](pc-pause-menu.md#script-selection-and-track-activation-2026-10-18).
   Colour, lock/arrow-script policies and scrollbar geometry use recovered routines;
   LOCK/BUTTON_MASTER and all ScrollBar objects now bind the retail objects.
-  ScrollBar setup calls recovered constructor `0x542ac0`; formatting remains a native seam. See [placement evidence](pc-pause-menu.md#scroller-placement-and-cubic-tween)
+  ScrollBar setup calls recovered constructor `0x542ac0`. See [placement evidence](pc-pause-menu.md#scroller-placement-and-cubic-tween)
   and run `python tools/smoke_native_pause_scroller.py` for rendered motion checks.
 - Script hash selection `0x51cfe0`, package setters `0x537c00`/`0x537c60` and
   running queries `0x537cc0`/`0x537d40` now execute recovered code. Predicates read
   selected headers with signed inclusive time checks; native event-list queries
   and hash-selection loops are removed. HUD/Controls name selection also calls
-  recovered code. The formatter core and playback/event delivery remain seams.
+  recovered code. Playback/event delivery remain seams.
   See [script wrapper evidence](pc-pause-menu.md#hash-selection-package-script-wrappers-and-running-queries-2026-10-18).
 - GUI formatted hashing `0x50b9c0`, buffer wrapper `0x50c960`, shared profiling
   wrapper `0x43fbc0` and elapsed accounting `0x43e5c0` now execute recovered code.
   The buffer wrapper ignores capacity as the original does. Native SDL counter
-  access/calibration and host formatting behind core `0x43e950` remain seams.
+  access/calibration remain platform seams.
   See [formatting evidence](pc-pause-menu.md#gui-formatting-wrappers-and-profiling-2026-10-18).
-- Formatter output helper `0x43cb40` now handles native formatted output using
-  recovered memory/count and ring-index ordering. Host conversion/parsing and
-  allocation remain native; full formatter core `0x43e950` is still pending.
-  See [sink evidence and parser probes](pc-pause-menu.md#formatter-output-helper-and-parser-investigation-2026-10-18).
+- Formatter core `0x43e950`, output helper `0x43cb40`, pointer validator
+  `0x43bd60` and recursive vector wrapper `0x4400d0` now execute recovered code.
+  The native host parser and temporary allocation are removed. Linux page-permission
+  probes and SDL clock/calibration remain adapters; parser/string/locale data still
+  bind the mapped reference image. Finite original/rebuilt verification covers
+  bounded conversions, including custom vectors and fixed-point values; unsupported
+  conversion-class paths remain unverified.
+  See [core evidence and limits](pc-pause-menu.md#formatter-state-machine-recovery-2026-10-18).
 - FEng image centre/size writes and rendered text height now call recovered coordinate
   and metric routines. String and script-track prefixes expose the original offsets;
   position writes update live state and matching script baselines. Low-level font lookup,

@@ -413,3 +413,27 @@ renamed from cross-title evidence alone.
     for the `%.0z` edge case and packed table `0x786cf0`.
     Do not treat the probe as recovered-source verification. Pointer validator's
     IsBadReadPtr/IsBadWritePtr semantics and full state machine remain next.
+
+
+31. **Formatter core checkpoint (2026-10-18).** `FormattingCore.cpp` recovers
+    core `0x43e950`, validator `0x43bd60` and recursive `bSFormat` `0x4400d0`.
+    Native host parser/allocation removed; packed table, locale and string data
+    still bind the reference image. Linux permission probes and SDL clock are
+    documented platform adapters. Clang i686 passes 6,534 comparisons across
+    memory/count-only/ring at both x87 precision settings, including recursive
+    vectors, fixed-point, special floats and selected `%n` aliases; eight
+    mutations rejected. Only Win32 pointer probes and clock imports are
+    controlled; CRT conversion/shift helpers reference-execute where emitted.
+    Unsupported conversion-class paths retain unset/prior size and are excluded;
+    arbitrary overflow/aliasing, FP flags, MSVC and byte matching remain open.
+    See `pc-pause-menu.md` for exact evidence, commands and platform seams.
+    Native/mod builds and headless 19 settings/10 Controls, slider pixels,
+    scroller motion and mod HUD four-ratio/11-skin/120-frame checks pass.
+    Next GUI targets remain response execution `0x52c7c0`, playback/update and
+    lifecycle dependencies; do not infer them from the now-recovered formatter.
+    Bounded next lead: original conditional skip helper `0x504490` spans 105
+    bytes through `0x5044f8`, takes response layout count +0x10/commands +0x14,
+    and returns with `ret 4`. Native `SkipBlock` currently uses `index < count-1`
+    where the original loop tests `index < count` after reading/incrementing.
+    Preserve the reference boundary (including its possible extra record read)
+    when recovering it; source/decompile resemblance is not verification.

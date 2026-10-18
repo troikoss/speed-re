@@ -853,3 +853,18 @@ bFormatCount82851C = 0x82851c;
 bFormatRingIndex828514 = 0x828514;
 bFormatRing828178 = 0x828178;
 bFormatValue828150 = 0x828150;
+
+/* Recovered formatter parser table and mutable locale/string slots (UG2 PC v1.2). */
+bFormatParserTable786CF0 = 0x786cf0;
+bFormatNegativeInf7EB3D8 = 0x7eb3d8;
+bFormatPositiveInf7EB3DC = 0x7eb3dc;
+bFormatNaN7EB3E0 = 0x7eb3e0;
+bFormatNull7EB3E8 = 0x7eb3e8;
+bFormatBadPointer7EB3EC = 0x7eb3ec;
+bFormatDecimal7EB3F0 = 0x7eb3f0;
+bFormatSeparator7EB3F1 = 0x7eb3f1;
+bFormatGrouping7EB3F2 = 0x7eb3f2;
+bFormatBadVector786DF4 = 0x786df4;
+bFormatVector2786E0C = 0x786e0c;
+bFormatVector3786E1C = 0x786e1c;
+bFormatInvalidVector786E30 = 0x786e30;

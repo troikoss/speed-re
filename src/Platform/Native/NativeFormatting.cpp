@@ -1,10 +1,7 @@
-// Native clock/import and host formatter adapters. The original core 0x43e950 is pending.
+// Native clock and page-permission imports for recovered bWare formatting.
 #include "../../Speed/Indep/Libs/bWare/Formatting.h"
 #include <SDL.h>
-#include <stdarg.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 int __stdcall bFormatQueryCounter(BFormatCounter *counter) {
     static bool initialized = false;
@@ -17,20 +14,31 @@ int __stdcall bFormatQueryCounter(BFormatCounter *counter) {
     return 1;
 }
 
-int bFormatCore(BFormatContext *context, const char *format, const void *rawArguments) {
-    // The recovered wrapper supplies a memory sink (value4 == 0), without a capacity.
-    va_list arguments;
-    static_assert(sizeof(arguments) == sizeof(rawArguments), "native formatter requires i386 va_list");
-    memcpy(&arguments, &rawArguments, sizeof(arguments));
-    if (context->value4) bFormatValue828150 = (unsigned char)context->value8;
-    char *temporary = 0;
-    int result = vasprintf(&temporary, format, arguments);
-    va_end(arguments);
-    if (result >= 0) {
-        unsigned int count = 0;
-        bFormatWrite(context, temporary, (unsigned int)result, &count);
-        if (context->destination0) *context->destination0 = 0;
-        free(temporary);
+namespace {
+// Linux page-permission adapter for the original one-byte Win32 probes.
+int BadPointer(const void *pointer, unsigned int size, bool write) {
+    if (!size) return 0;
+    unsigned long long address = (unsigned long)pointer;
+    FILE *maps = fopen("/proc/self/maps", "r");
+    if (!maps) return 1;
+    char line[512], permissions[5];
+    unsigned long long first, last;
+    int bad = 1;
+    while (fgets(line, sizeof(line), maps)) {
+        if (sscanf(line, "%llx-%llx %4s", &first, &last, permissions) != 3) continue;
+        if (address >= first && address + size <= last) {
+            bad = permissions[write ? 1 : 0] != (write ? 'w' : 'r');
+            break;
+        }
     }
-    return result;
+    fclose(maps);
+    return bad;
+}
+}
+
+int __stdcall bFormatBadReadPointer(const void *pointer, unsigned int size) {
+    return BadPointer(pointer, size, false);
+}
+int __stdcall bFormatBadWritePointer(const void *pointer, unsigned int size) {
+    return BadPointer(pointer, size, true);
 }

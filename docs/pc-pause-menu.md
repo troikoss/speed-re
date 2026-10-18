@@ -1316,3 +1316,94 @@ Native and mod-enabled builds pass. Headless checks pass all 19 settings and
 with settled centring after routing host output through the recovered helper.
 These are current-demo integration checks, separate from full original parser
 or ring-consumer verification.
+
+
+## Formatter state machine recovery (2026-10-18)
+
+`Libs/bWare/FormattingCore.cpp` recovers the original core `0x43e950`, pointer
+validator `0x43bd60` and recursive variadic wrapper `0x4400d0`. The manifest
+`config/SPEED2_EXE_1_2/bware-format-core.json` fingerprints the 3,210-byte core
+span through `0x43f5d9` (including internal gaps), the 42/24-byte helpers and
+91-byte packed parser table. This supersedes the host-parser seam and pending
+recovery statements in the preceding checkpoint. No SDK implementation is used.
+
+The state machine interleaves literal output, flags/width/precision parsing,
+conversion and padding. The low table nibble classifies characters, while the
+high nibble selects transitions. Assembly tracing resolves reachable alternate
+prefix blocks that the initial decompilation omitted. Integer bases 2/8/10/16,
+short signed/unsigned loads, pointer formatting, signs, alternate prefixes and
+locale grouping retain original ordering. Floating conversions retain x87
+intermediates, double-precision `0.1` constants, default precision three,
+three-digit scientific exponents and the original special-value strings.
+`%g`/`%G` use the observed scientific path. Signed 16.16 `%z` keeps the unusual
+`>= 0x7fffffff` sign threshold and the `%.0z` rounding output `1/` for `0x18000`.
+
+`%s` probes one byte through the validator; it then reads one byte beyond the
+precision-limited output, including a read at precision zero. `%n` stores a
+32-bit count even with length flags and can change later parsing/output when
+aliased to context mode, format bytes or locale bytes. The validator accepts a
+successful read probe immediately, otherwise accepts a successful write probe;
+both imports receive length one.
+
+`%v2`/`%v3` cache the dimension before pointer validation, promote float components
+to double, and recurse through `bSFormat` -> `bVFormat` -> the core. The original
+literal forms are `[%*.*f,%*.*f]` and `[%*.*f,%*.*f,%*.*f]`. Recursive bytes plus
+the NUL pass through the sink with a separate ignored count, followed by pointer
+and conditional ring-index rewind. Vector payload therefore does **not** add to
+the outer return count. Failed vector validation consumes its argument but
+leaves the dimension character to print literally. Invalid dimensions consume
+no argument. These quirks are preserved, not normalized to standard `printf`.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_format_core.py --mutation-checks
+# Explicit fallback when MSVC 7.1/wibo is absent:
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_format_core.py --compiler clang-cl --mutation-checks
+```
+
+Clang i686 passes **6,534 original/rebuilt comparisons**: 1,089 deterministic
+fixtures, each in memory/count-only/ring output at x87 control words `0x027f`
+and `0x037f`. Fixtures include 768 seeded bounded random conversions, integer
+edges, short loads, fixed-point rounding, recursive vectors, invalid/null
+pointers, raw signaling/quiet NaNs, infinities, scientific carry, mutable
+locale grouping and selected `%n` aliases. Snapshots compare guarded arena
+memory, output/ring/index, return count, locale and profiling globals, stack
+cleanup, preserved registers, x87 control word and empty stack. Ordered traces
+compare sink payload calls, exact selected string reads, short-circuit pointer
+imports and recursive clock calls. All recovered engine formatter callees
+execute directly; only `IsBadReadPtr`, `IsBadWritePtr` and
+`QueryPerformanceCounter` are controlled. Reference compiler-runtime float
+conversion and signed-shift helpers execute where the rebuilt compiler emits
+them; this is not recovery of those CRT helpers.
+
+Eight mutations are rejected: wrong float default precision, omitted alternate
+flag, adding vector bytes to the outer count, consuming invalid-vector suffix,
+changing pointer-probe AND to OR, omitting the extra string read, omitted octal
+prefix and skipped zero-precision fixed-point rounding. Reports and mutation
+logs remain ignored under `build/analysis/bware-format-core/`.
+
+The native demo now links the recovered parser directly, removing the host
+`vasprintf` parser and temporary allocation. `NativeFormatting.cpp` only supplies
+clock/calibration and Linux permission adapters for the two Win32 probes. The
+latter inspect `/proc/self/maps` for the requested read/write permission. They
+do not establish identical Win32 guard-page or mapping-race behavior. Original
+parser table, string literals/pointer slots and locale bytes remain reference
+image data bindings in `OriginalSymbols.ld`; standalone ownership of those data
+is pending. Playback clocks, script command execution and event delivery remain
+separate GUI recovery targets.
+
+**Limits:** these are finite behavioral comparisons, not byte matching. MSVC 7.1
+and wibo are unavailable. Arbitrary width/precision overflow, buffer overflow,
+malformed inputs, arbitrary aliasing and FP exception flags are not established.
+Table-classified conversions `B`, `C`, `S`, `t`, `w`, `y` reach unset/prior local
+state in the reference; the source retains an unset/prior size and these paths
+are excluded from equivalence claims. Existing composed lookup verification
+still controls the core boundary; this new verifier separately executes the
+actual core and its recursive engine dependencies.
+
+
+Native and mod-enabled builds pass with the recovered core. Headless integration
+passes all 19 settings scenarios, all 10 Controls scenarios, slider fill/knob
+pixel assertions and scroller motion/settled centring. Mod HUD checks pass all
+four aspect ratios, all 11 skins and the 120-frame capture. These establish
+current demo integration separately from the bounded original/rebuilt core
+comparisons above.
