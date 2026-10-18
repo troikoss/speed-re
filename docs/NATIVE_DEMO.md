@@ -348,6 +348,10 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   The buffer wrapper ignores capacity as the original does. Native SDL counter
   access/calibration and host formatting behind core `0x43e950` remain seams.
   See [formatting evidence](pc-pause-menu.md#gui-formatting-wrappers-and-profiling-2026-10-18).
+- Formatter output helper `0x43cb40` now handles native formatted output using
+  recovered memory/count and ring-index ordering. Host conversion/parsing and
+  allocation remain native; full formatter core `0x43e950` is still pending.
+  See [sink evidence and parser probes](pc-pause-menu.md#formatter-output-helper-and-parser-investigation-2026-10-18).
 - FEng image centre/size writes and rendered text height now call recovered coordinate
   and metric routines. String and script-track prefixes expose the original offsets;
   position writes update live state and matching script baselines. Low-level font lookup,

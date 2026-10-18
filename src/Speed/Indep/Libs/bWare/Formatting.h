@@ -18,10 +18,15 @@ extern unsigned int bFormatShift8284E4;
 extern float bFormatScale828028;
 extern float bFormatTime828518;
 extern unsigned int bFormatCount82851C;
+extern unsigned int bFormatRingIndex828514;
+extern unsigned char bFormatRing828178[128];
+extern unsigned char bFormatValue828150;
 
 int __stdcall bFormatQueryCounter(BFormatCounter *counter); // platform import at IAT 0x78311c
 int bFormatCore(BFormatContext *context, const char *format, const void *arguments); // 0x43e950, remaining boundary
 double bFormatElapsed(int start); // 0x43e5c0
 int bVFormat(char *buffer, const char *format, const void *arguments); // 0x43fbc0
+void bFormatWrite(BFormatContext *context, const char *source, unsigned int length,
+                  unsigned int *count); // 0x43cb40
 
 #endif

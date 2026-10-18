@@ -1226,3 +1226,93 @@ motion/settled-centre checks after restoring original capacity forwarding and
 adding profiling. These checks cover the current demo's format usage; they do
 not validate the unrecovered core's complete conversion language or failure
 behavior.
+
+## Formatter output helper and parser investigation (2026-10-18)
+
+`Libs/bWare/FormattingSink.cpp` recovers `0x43cb40` (130 bytes), fingerprinted
+in `config/SPEED2_EXE_1_2/bware-format-sink.json`. The helper copies an explicit
+byte count, including embedded NULs; it neither scans nor terminates a string.
+For entry mode zero it adds the entire length to the caller's 32-bit count
+**before** checking the destination. A null destination still counts bytes.
+A non-null destination copies forward byte by byte, reloading/incrementing the
+context pointer after each store. This is not `memmove` behavior for overlapping
+source/destination buffers.
+
+For entry mode nonzero and length nonzero, it caches ring index `0x828514`,
+then reloads context mode for each byte. Nonzero mode writes to the 128-byte
+ring `0x828178` and masks the local index with `0x7f`; mode zero redirects later
+bytes to the memory destination if present. Each byte increments the caller's
+count after its output operation. The cached ring index is written back only
+at the end. A count aliased to the mode or global index, or a context within the
+ring, makes this ordering observable. Zero-length ring output leaves the index
+untouched. Unknown context fields keep their offset-based names.
+
+The native host formatter now allocates its temporary output with `vasprintf`,
+then calls the recovered helper for output/count/pointer handling and performs
+the observed final NUL write. Entry ring metadata uses the low byte of context
++8. Native allocation and the host parser remain scaffolding. In particular,
+host parsing and conversion side effects can precede the output copy, whereas
+the original parser interleaves conversion and output. This integration does
+not establish original `%n` aliasing, custom conversions, debug delivery or
+error handling. Current GUI callers use the memory-sink path.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_format_sink.py --mutation-checks
+# Explicit fallback when MSVC 7.1/wibo is absent:
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_format_sink.py --compiler clang-cl --mutation-checks
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/probe_pc_format_core.py
+```
+
+Clang i686 verification passes **4,096 original/rebuilt comparisons**, with no
+controlled callees. It compares guarded memory, ring contents/index, exact ordered
+writes, stack cleanup and preserved registers. Eleven fixture families cover
+memory/ring/count-only output, forward/reverse overlaps, count aliased to the
+destination word or mode word in both paths, count aliased to the ring index,
+a context within the ring and source aliased to the count. Lengths include
+0/1/2/127/128/129/255/300; ring indices include wrap boundaries and counts wrap
+modulo 32 bits. The Clang fallback explicitly disables strict alias optimization,
+consistent with the native build and legacy compiler assumptions.
+
+Six mutations are rejected: omitting count changes for null output, wrong ring
+mask, publishing the ring index each byte, omitting mode reload, delaying the
+full memory count update until after copying and advancing the destination
+before storing the byte. **MSVC 7.1/wibo and byte matching remain outstanding.**
+Finite mapped pointers/lengths and selected aliases do not prove arbitrary
+malformed inputs or the complete formatter. Reports remain ignored under
+`build/analysis/bware-format-sink/`.
+
+`probe_pc_format_core.py` is **original-only investigation**, not a rebuilt
+implementation or equivalence test. Its 35 cases at each x87 control word
+`0x027f`/`0x037f` complete against core `0x43e950`, controlling pointer validation
+`0x43bd60` alone. The validator itself calls `IsBadReadPtr(pointer, 1)` and, on a
+bad read, `IsBadWritePtr(pointer, 1)`; those import semantics remain to be ported.
+The probe records return count, output, `%n` storage and validation calls.
+Observed leads for full parser recovery include:
+
+| Input | Original output |
+| --- | --- |
+| `%b`, 10 | `1010` |
+| `%p`, `0x1234abcd` | `1234ABCD` |
+| `%z`, `0x18000` | `1.50` |
+| `%.0z`, `0x18000` | `1/` (preserve this observed edge case) |
+| `%f`, 1.25 | `1.250` |
+| `%e`, 0.125 | `1.250e-001` |
+| `%g`, 123.5 | `1.235e+002` |
+| `%q` | `q` |
+| `trailing%` | `trailing` |
+
+Null/bad strings use `(null)`/`(badptr)`. The reference non-finite strings are
+`1.#INF `, `-1.#INF` and `1.#QNAN`. The packed 91-byte table at `0x786cf0`
+combines low-nibble character classes (ASCII 32–122) with high-nibble state
+transitions for nine classes and eight states. The core body spans
+`0x43e950`–`0x43f5d9`; a shorter guessed end would incorrectly classify its
+loop tail as a dependency. Static tracing also identifies `%v2`/`%v3`
+formatting through `0x4400d0`; vector conversions are not executed by this probe.
+These observations guide the pending state-machine
+recovery and do not justify replacing it with the host formatter.
+
+Native and mod-enabled builds pass. Headless checks pass all 19 settings and
+10 Controls scenarios, slider fill/knob pixel assertions, and scroller motion
+with settled centring after routing host output through the recovered helper.
+These are current-demo integration checks, separate from full original parser
+or ring-consumer verification.

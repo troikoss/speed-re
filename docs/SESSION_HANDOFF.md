@@ -397,3 +397,19 @@ renamed from cross-title evidence alone.
     behavior, legacy compiler and byte matching remain unresolved. Next leads:
     formatter state machine `0x43e950` and sink helper `0x43cb40`, then native
     response execution/playback. See `pc-pause-menu.md` for evidence and limits.
+
+30. **Formatter sink checkpoint (2026-10-18).** `FormattingSink.cpp` recovers
+    `0x43cb40` (130 bytes) with entry-mode-dependent count order, forward copying,
+    per-byte ring/memory mode reload and cached ring-index publication. 4,096
+    Clang i686 comparisons check exact ordered writes and selected aliases;
+    six mutations are rejected. Native/mod builds, all headless 19 settings/10
+    Controls, slider pixels and motion checks pass. Native host formatting now emits temporary
+    output through the recovered helper; parser/allocation and conversion/output
+    interleaving remain seams. Full core `0x43e950` spans through `0x43f5d9`.
+    `probe_pc_format_core.py` records 70 original-only cases (35 at each x87
+    precision), controlling only pointer validation `0x43bd60`. The probe observes
+    `%b`, `%z`, default three-place floats and three-digit scientific
+    exponents; static tracing identifies `%v2`/`%v3` separately. See evidence
+    for the `%.0z` edge case and packed table `0x786cf0`.
+    Do not treat the probe as recovered-source verification. Pointer validator's
+    IsBadReadPtr/IsBadWritePtr semantics and full state machine remain next.

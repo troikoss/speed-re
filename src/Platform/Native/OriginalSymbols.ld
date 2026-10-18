@@ -848,3 +848,8 @@ bFormatShift8284E4 = 0x8284e4;
 bFormatScale828028 = 0x828028;
 bFormatTime828518 = 0x828518;
 bFormatCount82851C = 0x82851c;
+
+/* Original formatter output ring and category byte. */
+bFormatRingIndex828514 = 0x828514;
+bFormatRing828178 = 0x828178;
+bFormatValue828150 = 0x828150;

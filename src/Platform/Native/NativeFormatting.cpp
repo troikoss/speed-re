@@ -3,6 +3,7 @@
 #include <SDL.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 int __stdcall bFormatQueryCounter(BFormatCounter *counter) {
@@ -21,9 +22,15 @@ int bFormatCore(BFormatContext *context, const char *format, const void *rawArgu
     va_list arguments;
     static_assert(sizeof(arguments) == sizeof(rawArguments), "native formatter requires i386 va_list");
     memcpy(&arguments, &rawArguments, sizeof(arguments));
-    int result = context->destination0 ? vsprintf(context->destination0, format, arguments)
-                                       : vsnprintf(0, 0, format, arguments);
+    if (context->value4) bFormatValue828150 = (unsigned char)context->value8;
+    char *temporary = 0;
+    int result = vasprintf(&temporary, format, arguments);
     va_end(arguments);
-    if (context->destination0 && result >= 0) context->destination0 += result;
+    if (result >= 0) {
+        unsigned int count = 0;
+        bFormatWrite(context, temporary, (unsigned int)result, &count);
+        if (context->destination0) *context->destination0 = 0;
+        free(temporary);
+    }
     return result;
 }
