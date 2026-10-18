@@ -1,4 +1,5 @@
 #include "NativeHud.h"
+#include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
 #ifdef UG2_ENABLE_MODDING
 #include "NativeModBridge.h"
 #endif
@@ -474,6 +475,28 @@ void NativeHud::Configure(NativeVehicle *vehicle, int skinIndex) {
 
 }
 
+namespace {
+struct HudQueueOwner : FEngQueueObserver {
+#define UNUSED_SLOT(name) void name() {}
+    UNUSED_SLOT(Unidentified00) UNUSED_SLOT(Unidentified04) UNUSED_SLOT(Unidentified08)
+    UNUSED_SLOT(Unidentified0C) UNUSED_SLOT(Unidentified10) UNUSED_SLOT(Unidentified14)
+    UNUSED_SLOT(Unidentified20) UNUSED_SLOT(Unidentified24) UNUSED_SLOT(Unidentified28)
+    UNUSED_SLOT(Unidentified2C) UNUSED_SLOT(Unidentified30) UNUSED_SLOT(Unidentified34)
+    UNUSED_SLOT(Unidentified38) UNUSED_SLOT(Unidentified3C) UNUSED_SLOT(Unidentified40)
+    UNUSED_SLOT(Unidentified44) UNUSED_SLOT(Unidentified48)
+    UNUSED_SLOT(Unidentified50)
+#undef UNUSED_SLOT
+    void GameMessage(unsigned int, void *, unsigned int, FEPackage *) {}
+    void InputMessage(unsigned int, void *, unsigned int, FEPackage *) {}
+    void RefillGrid(FEGridObject *, int, int) {}
+    void MessagePosted(unsigned int, void *, FEPackage *, int, int) {}
+    void MessageDelivering(unsigned int, int, void *, FEPackage *, unsigned int) {}
+};
+HudQueueOwner hudQueueOwner;
+FEngQueue hudFengQueue;
+FEPackage hudReceiver;
+}  // namespace
+
 void NativeHud::Update(NativeVehicle *vehicle, bool metric, float seconds) {
     if (!loaded_) return;
     // Recovered 0x600090 produces the masks; 0x4ca090 applies the transitions. The original
@@ -484,7 +507,17 @@ void NativeHud::Update(NativeVehicle *vehicle, bool metric, float seconds) {
     // Native option seam: the demo's metric choice is the profile option at 0x83aa1a.
     units83AA1A = metric ? 1 : 0;
     controller_.UpdateFeatures(reinterpret_cast<HudPlayerSlot *>(&nativePlayer.record), vehicle->owner); // 0x4ec5a0
-    package_.AdvanceScripts(seconds);
+    // Native seam: the HUD package is not registered with a frame manager yet. Its script
+    // events post to a HUD-local queue whose observer ignores them, and the posts are
+    // discarded after each update; recovered 0x54ce60 still runs in mode 1.
+    hudReceiver.value14 = 1;
+    hudFengQueue.value10C = &hudQueueOwner;
+    package_.AdvanceScripts(&hudReceiver, &hudFengQueue, seconds);
+    while (hudFengQueue.messages4114.first8) {
+        FEngQueueNode *node = hudFengQueue.messages4114.first8;
+        hudFengQueue.messages4114.Remove(node);
+        node->DestroyMessage(1);
+    }
 }
 
 void NativeHud::SetCareerHudState(int balance, unsigned int regionHash) {
@@ -508,7 +541,7 @@ bool HudPackageScriptActive(void *package, unsigned int hash, const char *name) 
     FengObject *object = static_cast<FengPackage *>(package)->Find(hash);
     if (!object || !object->currentScript54) return false;
     const FEScript &script = *object->currentScript54;
-    return script.hash30 == FengHash(name) && (float)script.time10 + object->scriptRemainder <= script.lengthC;
+    return script.hash30 == FengHash(name) && script.time10 <= script.lengthC;
 }
 void HudPackageScript(void *package, unsigned int hash, const char *name, int restart) {
     FengPackage::PlayScript(static_cast<FengPackage *>(package)->Find(hash), name, restart != 0);

@@ -836,6 +836,7 @@ fengValue8384D0 = 0x8384d0;
 /* Original FEng coordinate tolerance and script state-key table. */
 fengEpsilon7992EC = 0x7992ec;
 fengZero7D7D3C = 0x7d7d3c;
+fengFlagMask7F7C8C = 0x7f7c8c;
 fengSlerpLimit79B158 = 0x79b158;
 fengAngleUnit784240 = 0x784240;
 fengOne784250 = 0x784250;

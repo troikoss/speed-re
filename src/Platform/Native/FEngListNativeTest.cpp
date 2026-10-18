@@ -1,3 +1,4 @@
+#include <sys/mman.h>
 // Asset-free projection/integration fixture. Its FNG bytes are synthetic test scaffolding.
 #include "NativeFng.h"
 #include "../../Speed/Indep/Src/Frontend/FEngInheritance.h"
@@ -83,7 +84,8 @@ static void Run(unsigned int wrap, bool explicitGuid) {
     assert(list->value78[2].value8 == 12 && list->value7C[1].value8 == 21);
     list->Navigate(1, 0);
     assert(list->value88 == (wrap ? 0u : 2u) && list->value94 == .75f && list->value9C == 1);
-    package.AdvanceScripts(.1f); // Native milliseconds adapter following parsed Init.
+    static FEngQueue queue; FEPackage receiver = {}; receiver.value14 = 1;
+    package.AdvanceScripts(&receiver, &queue, .1f); // Recovered 0x54ce60 in 20 ms native steps.
     assert(!(list->value5C & 0x62) && list->value70 == (wrap ? 0 : .75f));
     assert(object->hash10 == 0x12345678 && object->resource == -1 && object->parentGuid == 0);
 }
@@ -627,7 +629,22 @@ static void RunInheritance() {
     child.guidC = reinterpret_cast<unsigned int>(&first);
     assert(context.Resolve(7, &object, reinterpret_cast<FEPackage **>(&records[0].guid8)) && object == &child);
 }
+// Asset-free fixture pages publishing the retail values the recovered script
+// update reads (bit patterns copied from the reference executable's data).
+static void MapRetailConstants() {
+    const unsigned int pages[] = {0x784000, 0x7d7000, 0x7f7000};
+    for (unsigned int i = 0; i < 3; ++i) {
+        void *page = mmap((void *)pages[i], 4096, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+        assert(page == (void *)pages[i]);
+    }
+    { FengResponse binder; } // binding maps 0x79a000/0x79b000; the latter holds the slerp limit
+    const unsigned int values[][2] = {{0x784240, 0x38c90fdb}, {0x784250, 0x3f800000}, {0x784260, 0x3f000000},
+                                      {0x7845a0, 0x3727c5ac}, {0x7d7d3c, 0}, {0x79b158, 0x3f7fbe77}, {0x7f7c8c, 0xffffffff}};
+    for (unsigned int i = 0; i < 7; ++i) *(unsigned int *)values[i][0] = values[i][1];
+}
+
 int main() {
+    MapRetailConstants();
     RunString();
     TypedTeardownObserver teardown;
     FEngObjectDestructionObserver = &teardown;

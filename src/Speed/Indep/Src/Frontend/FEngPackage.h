@@ -82,13 +82,16 @@ struct FEPackage {
     char unidentified8[4];
     const char *nameC;
     unsigned int nameHash10;
-    char unidentified14[4];
+    unsigned char value14;   // nonzero: script updates fire events and maintain dirty flags (0x54ce60)
+    char unidentified15[3];
     int value18;
     unsigned int inputMask1C;
     unsigned int inputMask20;
     unsigned int inputMask24;
     unsigned int inputMask28;
-    char unidentified2C[0xc];
+    char unidentified2C[4];
+    FEngQueue *queue30;      // event delivery target of 0x534c70
+    int delta34;             // script clock advance in milliseconds (0x54ce60)
     const unsigned char *value38; // 0x50b240 hashes bytes at this pointer +2.
     FEPackage *parent3C;
     char unidentified40[0xc];
@@ -113,8 +116,15 @@ struct FEPackage {
     HudVisibilityObject *FindObject(unsigned int hash); // 0x517f80
     HudVisibilityObject *FindObjectByGuid(unsigned int guid); // 0x517fe0
     FEngInheritanceRecord *FindInheritance(unsigned int key); // 0x504960
+    void ApplyScript(HudVisibilityObject *object, FEScript *script); // 0x541db0
+    void FireScriptEvents(FEngQueue *queue, HudVisibilityObject *object, FEScript *script, int from, int to); // 0x534c70
+    void UpdateObject(HudVisibilityObject *object, int delta); // 0x54ce60
+    void UpdateChildren(HudVisibilityObject *group, int delta); // 0x504910
 };
 UG2_CHECK_SIZE(FEngInheritanceRecord, 12);
+UG2_CHECK_OFFSET(FEPackage, value14, 0x14);
+UG2_CHECK_OFFSET(FEPackage, queue30, 0x30);
+UG2_CHECK_OFFSET(FEPackage, delta34, 0x34);
 UG2_CHECK_OFFSET(FEPackage, value38, 0x38);
 UG2_CHECK_OFFSET(FEPackage, inheritanceCount84, 0x84);
 UG2_CHECK_OFFSET(FEPackage, inheritance88, 0x88);

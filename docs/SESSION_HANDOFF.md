@@ -610,3 +610,12 @@ renamed from cross-title evidence alone.
     `0x541db0`, events `0x534c70`, update `0x54ce60` (+ type ticks `0x504910`,
     `0x517230`, `0x504dc0`), then replace native `AdvanceScripts`/`ApplyTrack`.
     Global mask `0x7f7c8c` is read by the update/apply flag writes.
+
+41. **Original script playback integrated (2026-10-18).** `FEngObjectUpdate.cpp`
+    recovers `0x54ce60`, `0x541db0`, `0x534c70`, `0x504910`, `0x504dc0`
+    (13,297 comparisons, 21 mutations). `AdvanceScripts(receiver, queue, s)`
+    runs them in ≤20 ms steps; native `ApplyTrack` and pause event scheduler
+    removed; `Sc` hashes resolved as in `0x5554a0`. HUD uses a discarded local
+    queue (seam). Slider fill widths changed to [0,107,214]. Next (user order):
+    messaging — frame manager `0x558c00`, delivery/dispatch around `0x541fc0`/
+    `0x5367e0`, registering HUD with the queue; then the package/object loader.

@@ -396,6 +396,12 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   without Sn/Sh), a null type-registry queue, and native playback metadata
   mirrored from the original tracks. 4,096 streams, 22 mutations.
   See [reader evidence](pc-pause-menu.md#complete-script-reader-and-native-integration-2026-10-18).
+- Script playback is original: per-object update `0x54ce60`, apply `0x541db0`,
+  events `0x534c70` and the evaluators/interpolators beneath them. The native
+  frame seam converts seconds to whole milliseconds in ≤20 ms steps; the HUD
+  posts events to a discarded local queue. Native `ApplyTrack` and the pause
+  event scheduler are removed.
+  See [playback evidence](pc-pause-menu.md#original-script-playback-in-the-native-demo-2026-10-18).
   See [script pool evidence](pc-pause-menu.md#script-header-pool-and-native-stable-ownership-2026-10-18).
 - Native image/group/list teardown now invokes recovered `0x532660`/`0x534bf0`/
   `0x534a50`, alongside string destruction. Original list storage/cell release

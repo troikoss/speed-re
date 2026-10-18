@@ -79,6 +79,7 @@ struct NativeScreen {
         if (!package->Load(&data[0], data.size(), 0, error)) return false;
         fePackage.nameC = name;
         fePackage.nameHash10 = FengHash(name);
+        fePackage.value14 = 1; // 0x555860 copies queue byte 0, which constructor 0x536230 sets to 1.
         fePackage.firstObject4C = package->FirstRoot();
         package->BindMessageData(&fePackage);
         const std::vector<FengObject *> &objects = package->Objects();
@@ -118,14 +119,6 @@ struct NativeScreen {
     void *object;          // FNG object created by the package's FNGINIT factory
 };
 
-struct RunningScript {
-    NativeScreen *screen;
-    FengObject *object;
-    const FEScript *script;
-    float milliseconds;
-    size_t nextEvent;
-    bool finished;
-};
 
 
 // The in-game dialog 0x558790 is not recovered. Button order, labels and result messages follow
@@ -150,7 +143,6 @@ NativeDialog dialog;
 NativeTextureCache *textures = 0;
 NativeFont font;
 std::vector<unsigned char> language;
-std::vector<RunningScript> scripts;
 
 // FngShow / FngRemove run after the current delivery: the caller keeps using its object.
 NativeScreen *switchFrom = 0;
@@ -258,12 +250,6 @@ void Post(NativeScreen *screen, unsigned int message, FengObject *object, int ta
     nativeFengQueue.Post(message, object, &screen->fePackage, originalTarget, 0xff);
 }
 
-void RemoveScripts(NativeScreen *screen) {
-    for (size_t i = 0; i < scripts.size();) {
-        if (scripts[i].screen == screen) scripts.erase(scripts.begin() + i);
-        else ++i;
-    }
-}
 
 void ShowScreen(NativeScreen *screen);
 void CloseScreen(NativeScreen *screen);
@@ -352,7 +338,6 @@ void CloseScreen(NativeScreen *screen) {
     screen->DestroyObject();
     screen->shown = false;
     RefreshNativePackageChain();
-    RemoveScripts(screen);
     for (FEngQueueNode *node = nativeFengQueue.messages4114.first8; node;) {
         FEngQueueNode *next = node->next4;
         if (node->value14 == (unsigned int)&screen->fePackage) {
@@ -367,7 +352,6 @@ void CloseScreen(NativeScreen *screen) {
 void CloseAll() {
     for (size_t i = 0; i < kScreenCount; ++i) CloseScreen(screens[i]);
     CloseDialog();
-    scripts.clear();
     while (nativeFengQueue.messages4114.first8) {
         FEngQueueNode *node = nativeFengQueue.messages4114.first8;
         nativeFengQueue.messages4114.Remove(node);
@@ -900,35 +884,6 @@ void NativePause::Pointer(float x, float y, bool click, bool drag) {
     }
 }
 
-// Native event delivery seam: observe the script header selected by recovered code.
-// Retain completed cursors until selection changes, so a finished script is not replayed.
-void SynchronizeNativeScriptEvents() {
-    for (size_t n = 0; n < kScreenCount; ++n) {
-        NativeScreen *screen = screens[n];
-        if (!screen->shown) continue;
-        const std::vector<FengObject *> &objects = screen->package->Objects();
-        for (size_t j = 0; j < objects.size(); ++j) {
-            FengObject *object = objects[j];
-            size_t found = scripts.size();
-            for (size_t k = 0; k < scripts.size(); ++k)
-                if (scripts[k].object == object) { found = k; break; }
-            if (found < scripts.size() && scripts[found].script != object->currentScript54) {
-                scripts.erase(scripts.begin() + found);
-                found = scripts.size();
-            }
-            if (!object->currentScript54) continue;
-            if (found == scripts.size()) {
-                RunningScript running = {screen, object, object->currentScript54,
-                                         (float)object->currentScript54->time10, 0, false};
-                scripts.push_back(running);
-            } else if (!object->currentScript54->time10 && scripts[found].milliseconds > 0.0f) {
-                scripts[found].milliseconds = 0.0f;
-                scripts[found].nextEvent = 0;
-                scripts[found].finished = false;
-            }
-        }
-    }
-}
 
 void NativePause::Update(float seconds) {
     frontendDelta865198 = seconds;
@@ -940,24 +895,10 @@ void NativePause::Update(float seconds) {
     clockRemainder -= (float)ticks;
     if (clockRemainder < 0.0f) clockRemainder = 0.0f;
     realClock8651AC += ticks;
-    SynchronizeNativeScriptEvents();
-    for (size_t i = 0; i < scripts.size(); ++i) {
-        RunningScript &running = scripts[i];
-        if (running.finished) continue;
-        running.milliseconds += seconds * 1000.0f;
-        const FengEvent *events = static_cast<const FengEvent *>(running.script->events28);
-        const unsigned int eventCount = (unsigned int)running.script->eventCount24;
-        while (running.nextEvent < eventCount && events[running.nextEvent].time <= running.milliseconds) {
-            if (events[running.nextEvent].target == 0xffffffff)
-                Post(running.screen, events[running.nextEvent].message, 0, kTargetGame);
-            ++running.nextEvent;
-        }
-        if (running.nextEvent >= eventCount && running.milliseconds >= running.script->lengthC)
-            running.finished = true;
-    }
     for (size_t i = 0; i < kScreenCount; ++i) {
         if (!screens[i]->shown) continue;
-        screens[i]->package->AdvanceScripts(seconds);
+        // Recovered 0x54ce60 fires script events through the queue and its observer.
+        screens[i]->package->AdvanceScripts(&screens[i]->fePackage, &nativeFengQueue, seconds);
         if (screens[i] != &dialogScreen) Post(screens[i], kFrontendTick, 0, kTargetGame);  // 0x5663b0
     }
     Pump();

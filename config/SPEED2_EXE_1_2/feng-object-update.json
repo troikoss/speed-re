@@ -1,0 +1,42 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "UpdateObject": {
+      "address": "0x54ce60",
+      "size": 790,
+      "sha256": "72041b0a5ca6fdf2a5a669fb588a957dafcaa341816f79862be11e14d3cf5951"
+    },
+    "ApplyScript": {
+      "address": "0x541db0",
+      "size": 417,
+      "sha256": "d5d46d21188342ff81be2acb081d1377eea55439b476dda1a99169fcb2e42532"
+    },
+    "FireScriptEvents": {
+      "address": "0x534c70",
+      "size": 319,
+      "sha256": "a1f8944c06fa14380d17b67e199acd49624bc938aa812a29510cee111a71f4be"
+    },
+    "UpdateChildren": {
+      "address": "0x504910",
+      "size": 60,
+      "sha256": "f77ad438077dd5c1aeefd8ef963a54898311c9e96742d7b1cfce98ba3f257b2f"
+    },
+    "Type6Tick": {
+      "address": "0x504dc0",
+      "size": 125,
+      "sha256": "94169e060dd710abfd89353a58cd5a820d4361cdc57c778ef73362d81314c2b3"
+    }
+  },
+  "data": {
+    "TypeTickTable": {
+      "address": "0x54d178",
+      "size": 16,
+      "sha256": "8c08ff7c93b7824159c5b76ed6aef3f9715ef1fba198c18151a9b000704cb1b9"
+    },
+    "FlagMask": {
+      "address": "0x7f7c8c",
+      "size": 4,
+      "value": "0xffffffff"
+    }
+  }
+}

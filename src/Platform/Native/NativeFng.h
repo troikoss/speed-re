@@ -29,13 +29,6 @@ unsigned int FengHash(const char *text);
 void BindNativeStringObserver(const std::vector<unsigned char> *language);
 
 // Platform ownership of the retail script data. Arithmetic primitives are recovered.
-struct FengTrack {
-    int type, size, interpolation, cycle, duration, offset;
-    signed char state7;
-    unsigned char flags3;
-    std::vector<unsigned char> baseline;
-    std::vector<std::pair<int, std::vector<unsigned char> > > keys;
-};
 // Script event ('EV' records of 12 bytes): message hash, target and time in milliseconds.
 // Target 0xffffffff is read as the owning package (EXIT_COMPLETE in UI_Pause.fng).
 typedef FEScriptEvent FengEvent;
@@ -45,8 +38,6 @@ struct FengScript {
     FEScript *original; // Recovered pooled header; native owner transfers only this pointer.
     FEScript &Header() { return *original; }
     const FEScript &Header() const { return *original; }
-    std::vector<FengTrack> tracks;
-    std::vector<std::vector<FengScriptKey *> > originalKeys; // Native index of recovered owned pool nodes.
     FengScript();
     explicit FengScript(FEScript *header); // Adopt a reader-created pool header.
     ~FengScript();
@@ -99,7 +90,6 @@ struct FengObject : FEStringObject {
     std::vector<FengScript> scripts;
     std::vector<FengResponse> responses;
     std::vector<void *> ownedAllocations; // Native heap owner for list data and optional retained names.
-    float scriptRemainder;   // native frame-time fraction below currentScript54->time10
 
     bool Hidden() const { return (flags1C & 1) != 0; }
 };
@@ -147,7 +137,8 @@ public:
     static void GetSize(FengObject *object, float *x, float *y);
     static void SetState(FengObject *object, int key, const float *value);
     static void PlayScript(FengObject *object, const char *name, bool restart);
-    void AdvanceScripts(float seconds);
+    // Native frame seam around the script phase of 0x558c00; receiver supplies +0x14/+0x30/+0x34.
+    void AdvanceScripts(FEPackage *receiver, FEngQueue *queue, float seconds);
     // Native pointer seam, using the same composed transforms as the renderer.
     bool Contains(FengObject *object, float x, float y);
     static void SetText(FengObject *object, const char *text);     // 0x537be0
@@ -163,6 +154,7 @@ private:
     void Gather(FengObject *object, const float *parent, float parentAlpha, std::vector<DrawItem> *items);
     std::vector<FengObject *> objects_;
     std::vector<FengObject *> roots_;
+    float clockRemainder_ = 0; // native sub-millisecond frame time carried between frames
     struct NativeAssociation {
         unsigned int message;
         std::vector<unsigned int> guids;

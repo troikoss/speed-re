@@ -23,7 +23,7 @@ file(GLOB UG2_RECOVERED_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Compression.cpp)
 include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/src/Platform/Native/include)
 add_library(ug2recovered STATIC ${UG2_RECOVERED_SOURCES})
-target_compile_options(ug2recovered PRIVATE ${UG2_ARCH_FLAGS} -O1 -g -w
+target_compile_options(ug2recovered PRIVATE ${UG2_ARCH_FLAGS} -O1 -g -w -ffunction-sections -fdata-sections
     -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
 
 add_library(ug2native STATIC

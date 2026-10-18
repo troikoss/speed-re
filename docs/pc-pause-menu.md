@@ -4280,3 +4280,60 @@ conversion reproduce the original's spills and `__ftol2` under Clang; MSVC 7.1
 and byte identity are unverified. `0x535570` (rebase a track to a value, used
 by `0x4abaf0`) is not recovered. Native playback still uses `ApplyTrack`;
 `0x541db0`, events `0x534c70` and update `0x54ce60` are next.
+
+## Original script playback in the native demo (2026-10-18)
+
+`FEngObjectUpdate.cpp` recovers the playback layer above the evaluators. All
+are `FEPackage` methods; package +0x14 is the playback mode (loader `0x555860`
+copies queue byte 0, which constructor `0x536230` sets to 1), +0x30 the event
+queue and +0x34 the step in milliseconds.
+
+- `0x54ce60` UpdateObject(object, delta): advances the current script by +0x34
+  (clamped at 0). At or past the length, mode 0 does nothing; otherwise a
+  chained script (+0x18) applies, fires the tail window, becomes current
+  (`0x517720`) and receives the overflow; else flags +0x14 & 3 select once
+  (time = length + 1), loop (modulo, re-initialize) or ping-pong (modulo 2×).
+  Before the end, mode 1 fires events per elapsed window, splitting wrapped
+  windows. Tracks are applied unless a finished once-script is unchanged and
+  flag 0x400000 is clear; then type ticks run with the call's delta: list
+  `0x517230`, group children `0x504910` (recursing and OR-ing 0x3c00000 into
+  each child), type 6 `0x504dc0` (callback +0xbc, phase +0xa4 reflected at 0/1
+  by rate +0xa8), type 7 counter +0x5c (mode only). Flag writes use mask
+  `0x7f7c8c` (retail 0xffffffff; the frame manager stores 0 while queue byte
+  +0x5250 is set).
+- `0x541db0` ApplyScript: the state-offset-0 track first, then all tracks
+  (count byte +0x1c) only while state dword 3 is nonzero; mode routes through
+  `0x5354f0` and maintains flags 0x800000/0x1000000/0x2000000.
+- `0x534c70` FireScriptEvents: events with from <= time < to (unsigned), the
+  window extended by one at the script length; target -1 calls the observer's
+  game-message slot directly, -4/-5/-6/0 post to the queue, other targets are
+  GUID objects; message `0x1b3909aa` focuses its target instead.
+
+`verify_pc_feng_object_update.py --compiler clang-cl --mutation-checks`: 13,297
+comparisons (generated objects, chained scripts, groups, both mask values) with
+evaluators, posts, focus, GUID lookup, initialization, list tick, observer and
+callback as traced controlled boundaries; 21 mutations rejected.
+
+Native integration: `FengPackage::AdvanceScripts(receiver, queue, seconds)`
+converts frame time to whole milliseconds (carrying the fraction) and runs the
+script phase of frame manager `0x558c00`: steps of at most 20 ms, each
+publishing the flag mask from queue +0x5250, assigning +0x30/+0x34 and updating
+the root objects; message delivery stays with the caller's pump instead of
+running between steps. The native interpolator `ApplyTrack`, the per-track
+metadata copies and the pause screens' native event scheduler are removed;
+events now fire through recovered code for all targets. The loader applies Init
+tracks with `0x541f60` after resolving `Sc` hashes to scripts as `0x5554a0` does
+(`0x555631`). Native seams: objects without a current script are skipped, the
+HUD package (not yet registered with a frame manager) posts to a HUD-local queue
+whose observer ignores messages and whose posts are discarded each frame, and
+the render angle is recomputed from the state quaternion. Retail HUD packages
+use event targets -1/-4/GUID (8 events); in-game packages 121 GUID, 23 -4 and
+88 -1. The asset-free list test publishes the retail constant bit patterns it
+now reads; `ug2recovered` is compiled with per-function sections so the test can
+discard unrelated recovered code.
+
+Native/CTest builds, 19 settings, 10 Controls and scroller motion pass. HUD
+frames are byte-identical; pause/options frames differ in icon glow phase and
+slider fill widths change from [0, 99, 206] to [0, 107, 214] px, consistent
+with original track evaluation replacing the native interpolator. No original
+game capture was compared, so visual equivalence is unverified.

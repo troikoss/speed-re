@@ -10,6 +10,7 @@
 #include "../../Speed/Indep/Src/Frontend/FEngListReader.h"
 #include "../../Speed/Indep/Src/Frontend/FEngScript.h"
 #include "../../Speed/Indep/Src/Frontend/FEngScriptReader.h"
+#include "../../Speed/Indep/Src/Frontend/FEngTrackEvaluate.h"
 #include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObject.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObjectFactory.h"
@@ -26,6 +27,7 @@ void NativeTrap(const char *what);
 
 // Native storage for recovered original data. Vtable/default callback words
 // retain retail address tokens; verified response virtual slots have native bindings.
+extern unsigned int fengFlagMask7F7C8C;
 unsigned int FEngNextObjectGuid = 1; // original 0x7f7cf8 initial value
 unsigned int FEngValue7F7CC4 = 0x518e20;
 FEngStringObserver *fengStringObserver838478 = 0; // Relocated native storage for original 0x838478.
@@ -199,30 +201,6 @@ static size_t BoundedScriptSize(const unsigned char *data, size_t size, bool *cr
     return t;
 }
 
-// Native playback metadata derived from a reader-built original track. Retail streams
-// pair every FI with one Kd, so the inline key at +8 (time +0x14, value +0x18) is the
-// first key and the owned +0x30 list holds the rest.
-static FengTrack NativeTrackMetadata(FEScriptTrack *track, std::vector<FengScriptKey *> *keys) {
-    FengTrack native;
-    native.type = track->value0;
-    native.size = track->value1;
-    native.interpolation = track->value2;
-    native.flags3 = track->flags3;
-    native.cycle = track->flags3 & 0x7f;
-    native.state7 = track->state7;
-    native.offset = track->state7;
-    native.duration = (int)(*(unsigned int *)track->unidentified4 & 0xffffff);
-    unsigned int bytes = native.size < 16 ? native.size : 16;
-    const unsigned char *base = reinterpret_cast<const unsigned char *>(track->base18);
-    native.baseline.assign(base, base + bytes);
-    native.keys.push_back(std::make_pair(track->key8.timeC, native.baseline));
-    for (FengScriptKey *key = static_cast<FengScriptKey *>(track->value30); key; key = key->next4) {
-        keys->push_back(key);
-        native.keys.push_back(std::make_pair(key->timeC, std::vector<unsigned char>(key->value10, key->value10 + bytes)));
-    }
-    return native;
-}
-
 static FengScript *ReadNativeScript(FengObject *object, const unsigned char *data, size_t size, bool retainNames) {
     bool creates;
     size_t bounded = BoundedScriptSize(data, size, &creates);
@@ -238,60 +216,12 @@ static FengScript *ReadNativeScript(FengObject *object, const unsigned char *dat
     for (size_t i = 0; i < object->scripts.size(); ++i)
         if (object->scripts[i].original == header) return &object->scripts[i];
     object->scripts.emplace_back(header);
-    FengScript &script = object->scripts.back();
-    script.originalKeys.resize(header->trackCount1C);
-    for (int k = 0; k < header->trackCount1C; ++k)
-        script.tracks.push_back(NativeTrackMetadata(static_cast<FEScriptTrack *>(header->tracks20) + k, &script.originalKeys[k]));
-    return &script;
+    return &object->scripts.back();
 }
 
-// Retained retail tracks use the -1 key as a baseline, and later keys as
-// offsets (0x52bdc0). This bounded platform adapter supports message tracks
-// of types 4/6, interpolation 1 with cycle 0/1, and constant tracks at time zero.
-// Other animation forms remain explicit seams.
-void ApplyTrack(const FengTrack &track, unsigned char *state, int stateBytes, int time) {
-    if (track.keys.empty() || track.offset < 0 || track.offset * 4 + track.size > stateBytes) return;
-    unsigned char *out = state + track.offset * 4;
-    const unsigned char *base = track.baseline.empty() ? &track.keys[0].second[0] : &track.baseline[0];
-    if (track.keys.size() == 1) { memcpy(out, base, track.size); return; }
-    if (track.interpolation != 1 || track.cycle > 1 || (track.type != 4 && track.type != 6)) {
-        // The loader can still use a constant first key for unrecovered tracks.
-        if (time == 0) { memcpy(out, base, track.size); return; }
-        fprintf(stderr, "FEng track type=%d interpolation=%d cycle=%d duration=%d offset=%d time=%d\n", track.type, track.interpolation, track.cycle, track.duration, track.offset, time);
-        NativeTrap("FEng message track interpolation/cycle");
-    }
-    // 0x52bdc0: cycle 1 joins the last key to the first over the remaining duration.
-    if (track.cycle == 1 && track.duration > 0) time %= track.duration;
-    size_t upper = 1;
-    while (upper + 1 < track.keys.size() && track.keys[upper].first < time) ++upper;
-    size_t lower = upper > 1 ? upper - 1 : upper;
-    float fraction = 1.0f;
-    if (track.cycle == 1) {
-        int lowerTime, upperTime;
-        if (time > track.keys[upper].first) {
-            lower = upper; upper = 1;
-            lowerTime = track.keys[lower].first;
-            upperTime = track.duration + track.keys[upper].first;
-        } else if (upper == 1 && time < track.keys[upper].first) {
-            lower = track.keys.size() - 1;
-            lowerTime = track.keys[lower].first - track.duration;
-            upperTime = track.keys[upper].first;
-        } else {
-            lowerTime = track.keys[lower].first;
-            upperTime = track.keys[upper].first;
-        }
-        fraction = upperTime > lowerTime ? (float)(time - lowerTime) / (upperTime - lowerTime) : 0;
-    } else if (track.keys[upper].first > time) {
-        if (upper == 1) fraction = 0.0f;
-        else fraction = (float)(time - track.keys[lower].first) /
-                        (float)(track.keys[upper].first - track.keys[lower].first);
-    }
-    const unsigned char *a = &track.keys[lower].second[0], *b = &track.keys[upper].second[0];
-    if (track.type == 4)
-        HudLerpVector3(reinterpret_cast<const float *>(a), reinterpret_cast<const float *>(b), fraction,
-                       reinterpret_cast<const float *>(base), reinterpret_cast<float *>(out));
-    else HudLerpColour(reinterpret_cast<const int *>(a), reinterpret_cast<const int *>(b), fraction,
-                       reinterpret_cast<const int *>(base), reinterpret_cast<int *>(out));
+// Native render seam: the z rotation angle derived from the state quaternion.
+void UpdateNativeAngle(FengObject *object) {
+    object->angle = 2.0f * atan2f(object->rotation[2], object->rotation[3]) * 180.0f / 3.14159265f;
 }
 
 void ReadState(FengObject *object, const unsigned char *state, int size) {
@@ -304,7 +234,7 @@ void ReadState(FengObject *object, const unsigned char *state, int size) {
     }
     for (int i = 0; i < 4; ++i) object->rotation[i] = RdF(state + 40 + i * 4);
     if (size >= 84) for (int i = 0; i < 4; ++i) object->uv[i] = RdF(state + 68 + i * 4);
-    object->angle = 2.0f * atan2f(object->rotation[2], object->rotation[3]) * 180.0f / 3.14159265f;
+    UpdateNativeAngle(object);
 }
 
 }  // namespace
@@ -405,15 +335,13 @@ FengScript::FengScript() : original(0) {
 FengScript::FengScript(FEScript *header) : original(header) {}
 FengScript::~FengScript() { if (original) original->Destroy(1); }
 FengScript::FengScript(FengScript &&other) noexcept
-    : original(other.original), tracks(std::move(other.tracks)), originalKeys(std::move(other.originalKeys)) {
+    : original(other.original) {
     other.original = 0;
 }
 FengScript &FengScript::operator=(FengScript &&other) noexcept {
     if (this != &other) {
         if (original) original->Destroy(1);
         original = other.original;
-        tracks = std::move(other.tracks);
-        originalKeys = std::move(other.originalKeys);
         other.original = 0;
     }
     return *this;
@@ -515,7 +443,6 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                             object->fontHash = 0;
                             object->parent = 0;
                             object->imageMask = 0;
-                            object->scriptRemainder = 0;
                             object->angle = 0;
                             object->depth = 0;
                             for (int i = 0; i < 3; ++i) object->pivot[i] = object->position[i] = 0, object->size[i] = 1;
@@ -654,17 +581,10 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                 FEListObject *list = reinterpret_cast<FEListObject *>(object);
                                 list->CalculateOffsets(); // 0x5554a0 calls this before script initialization.
                             }
-                            // Recovered reader 0x5515e0 builds and links each script; native
-                            // playback metadata mirrors the original tracks. The Init script's
-                            // tracks are applied over the state block (0x541f60 at time 0).
-                            for (size_t si = 0; si < scripts.size(); ++si) {
-                                FengScript *script = ReadNativeScript(object, &scripts[si][0], scripts[si].size(), retainNames);
-                                if (script && script->Header().hash30 == kInitScript) {
-                                    for (size_t k = 0; k < script->tracks.size(); ++k)
-                                        ApplyTrack(script->tracks[k], state.empty() ? 0 : &state[0], (int)state.size(), 0);
-                                }
-                            }
                             if (!state.empty()) ReadState(object, &state[0], (int)state.size());
+                            // Recovered reader 0x5515e0 builds and links each script.
+                            for (size_t si = 0; si < scripts.size(); ++si)
+                                ReadNativeScript(object, &scripts[si][0], scripts[si].size(), retainNames);
                             if (object->resource >= 0 && object->resource < (int)resourceHashes.size()) {
                                 if (object->type18 == 1) object->texture24 = resourceHashes[object->resource];
                                 else if (object->type18 == 2) object->texture24 = object->fontHash = resourceHashes[object->resource];
@@ -710,12 +630,25 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
             object->children[j]->next4 = j + 1 < object->children.size() ? object->children[j + 1] : 0;
             object->children[j]->previous8 = j ? object->children[j - 1] : 0;
         }
-        // Reader 0x5515e0 already selected Init; native package-reader seam for
-        // 0x5554a0 selects it again, initializes tracks and resets time.
+        // Native package-reader seam for the tail of 0x5554a0: Sc stored a script hash;
+        // 0x555631..0x555667 resolves it to the first script with that hash, or null.
+        for (FEScript *script = object->scripts4C; script; script = script->next4) {
+            if (!script->chain18) continue;
+            unsigned int hash = (unsigned int)(size_t)script->chain18;
+            FEScript *target = object->scripts4C;
+            while (target && target->hash30 != hash) target = target->next4;
+            script->chain18 = target;
+        }
+        // Reader 0x5515e0 already selected Init; 0x5554a0 selects it again,
+        // initializes tracks and resets time.
         object->currentScript54 = object->FindScriptByHash(kInitScript);
         if (object->currentScript54) {
             object->InitializeScript();
-            object->currentScript54->time10 = 0;
+            FEScript *init = object->currentScript54;
+            init->time10 = 0;
+            // 0x5554a0 then applies each Init track at time 0 (0x541f60), byte-indexed.
+            for (unsigned char k = 0; k < (unsigned int)init->trackCount1C; ++k) FEngApplyScriptTrack(init, k, 0, object);
+            UpdateNativeAngle(object);
         }
     }
     originalAssociations_.resize(nativeAssociations_.size());
@@ -786,43 +719,26 @@ void FengPackage::PlayScript(FengObject *object, const char *name, bool restart)
     FngSetObjectScript(object, name, restart);
 }
 
-void FengPackage::AdvanceScripts(float seconds) {
-    for (size_t i = 0; i < objects_.size(); ++i) {
-        FengObject *object = objects_[i];
-        if (!object->currentScript54) continue;
-        // Native playback metadata is indexed by the stable original pool node.
-        FengScript *selected = 0;
-        for (size_t j = 0; j < object->scripts.size(); ++j)
-            if (object->scripts[j].original == object->currentScript54) { selected = &object->scripts[j]; break; }
-        if (!selected) continue;
-        FengScript &script = *selected;
-        if (!script.Header().time10) object->scriptRemainder = 0; // Native sub-millisecond clock seam.
-        unsigned char state[84] = {};
-        memcpy(state, object->colour, 16);
-        memcpy(state + 16, object->pivot, 12);
-        memcpy(state + 28, object->position, 12);
-        memcpy(state + 40, object->rotation, 16);
-        memcpy(state + 56, object->size, 12);
-        memcpy(state + 68, object->uv, 16);
-        for (size_t k = 0; k < script.tracks.size(); ++k) {
-            FengTrack &track = script.tracks[k];
-            if (!track.baseline.empty()) {
-                memcpy(&track.baseline[0], static_cast<FEScriptTrack *>(script.Header().tracks20)[k].base18, track.size < 16 ? track.size : 16);
-            }
-            for (size_t n = 0; n < script.originalKeys[k].size(); ++n)
-                memcpy(&track.keys[n + 1].second[0], script.originalKeys[k][n]->value10, track.size < 16 ? track.size : 16);
-            ApplyTrack(track, state, sizeof(state), script.Header().time10);
-        }
-        ReadState(object, state, sizeof(state));
-        float milliseconds = (float)script.Header().time10 + object->scriptRemainder + seconds * 1000.0f;
-        bool cycling = false;
-        for (size_t k = 0; k < script.tracks.size(); ++k) cycling |= script.tracks[k].cycle == 1;
-        if (!cycling && milliseconds > script.Header().lengthC) milliseconds = (float)script.Header().lengthC + 1.0f;
-        script.Header().time10 = (int)milliseconds;
-        object->scriptRemainder = milliseconds - (float)script.Header().time10;
-        // Native clock adapter; 0x54ce60 ticks type4 after script state application.
-        if (object->type18 == 4) reinterpret_cast<FEListObject *>(object)->Tick(seconds * 1000.0f);
-    }
+// Native frame seam: frame seconds become whole milliseconds (the fraction carries),
+// then the script phase of frame manager 0x558c00 with queue byte 0 set: steps of at
+// most 20 ms, each publishing mask 0x7f7c8c from queue +0x5250 and updating the root
+// objects through recovered 0x54ce60. Message delivery is left to the caller's pump
+// rather than interleaved per step.
+void FengPackage::AdvanceScripts(FEPackage *receiver, FEngQueue *queue, float seconds) {
+    clockRemainder_ += seconds * 1000.0f;
+    int remaining = (int)clockRemainder_;
+    clockRemainder_ -= (float)remaining;
+    do {
+        int step = remaining > 20 ? 20 : remaining;
+        fengFlagMask7F7C8C = queue->unidentified5250 ? 0 : 0xffffffffu;
+        receiver->queue30 = queue;
+        receiver->delta34 = step;
+        for (HudVisibilityObject *object = FirstRoot(); object; object = object->next4)
+            if (object->currentScript54) receiver->UpdateObject(object, step); // native guard: objects without scripts
+        remaining -= step;
+        queue->unidentified5250 = 0;
+    } while (remaining);
+    for (size_t i = 0; i < objects_.size(); ++i) UpdateNativeAngle(objects_[i]);
 }
 
 void FengPackage::SetColour(FengObject *object, unsigned int argb) {
