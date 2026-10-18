@@ -1465,3 +1465,64 @@ Native and mod-enabled builds pass. Headless checks pass all 19 settings and
 10 Controls scenarios, slider fill/knob pixels and scroller motion/settled
 centring with the recovered helper. These are integration checks of the current
 native dispatcher and decoded storage, separate from original/rebuilt evidence.
+
+
+## GUID lookup and native tree adapters (2026-10-18)
+
+`FEngLookup.cpp` now recovers GUID visitor `0x5048f0` (25 bytes) and package
+resolver `0x517fe0` (81 bytes). Both fingerprints are added to
+`config/SPEED2_EXE_1_2/feng-lookup.json`. The query layout matches the observed
+visitor ABI: vptr +0, requested GUID +4, found object +8. Original vtable
+`0x79aafc`, slot +4, points to the GUID callback. It compares object **+0xc**,
+independently of name hash +0x10, stores the first matching object and returns
+false to stop traversal. A direct visitor miss leaves the existing result field
+untouched. The package wrapper initializes result to null, calls recovered
+`VisitObjects` `0x504880` and returns that result.
+
+Traversal retains callback-before-recursion order, group type 5 recursion,
+sibling reloads and early return. Duplicate GUIDs therefore select the first
+object in tree order, not necessarily the first record in a flat decoded vector.
+The original wrapper establishes a temporary query's SEH lifetime frame; normal
+return restores the FS chain. Exception delivery/unwind is outside this evidence.
+
+Native `FengPackage::FindGuid` no longer scans `objects_`. It constructs the
+observed package prefix over `FirstRoot()` and calls recovered GUID resolution.
+Native `FengPackage::Find` now similarly calls the already-recovered hash
+resolver `0x517f80`; its flat-vector substitute is also removed. Loader ownership,
+root/child chain construction and temporary package-prefix construction remain
+native scaffolding. Parent linking during loading remains a separate native
+flat scan; renderer iteration over decoded storage is not replaced by this
+checkpoint. Full response dispatch `0x52c7c0` and message delivery remain seams.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_lookup.py --compose-formatting --mutation-checks
+# Explicit fallback when MSVC 7.1/wibo is absent:
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_lookup.py --compiler clang-cl --compose-formatting --mutation-checks
+```
+
+The composed Clang i686 suite passes **19,520 original/rebuilt comparisons**,
+including 1,024 direct GUID callbacks and 1,024 full GUID resolver calls. GUID
+fixtures include empty trees, misses, duplicate targets, nested groups, zero,
+`0xffffffff` and `0x80000000`, with independent name hashes. Duplicate child and
+sibling GUIDs exercise a tree order different from the node-vector order.
+Guarded arena memory, return pointers/AL, callback order/query state, stack cleanup,
+preserved registers and normal-return FS chain restoration are compared. The
+full GUID resolver uses actual recovered traversal and visitor calls with no
+controlled GUID callees.
+
+All **21 mutations** are rejected: the previous seventeen plus GUID comparison
+against the name-hash field, continuing after a GUID match, using a name-hash
+query in the GUID resolver and returning null despite a found GUID. The broader
+composition still controls the visitor only in direct walk fixtures, formatter
+core `0x43e950` and clock import; actual formatter-core verification is recorded
+separately above. Finite acyclic mapped trees do not prove arbitrary pointers,
+cycles, full native loader topology or dispatcher equivalence. MSVC 7.1/wibo,
+exception unwind and byte matching remain outstanding. Reports stay ignored
+under `build/analysis/feng-lookup/formatting-composition.json`.
+
+
+Native and mod-enabled builds pass. Headless integration passes all 19 settings
+and 10 Controls scenarios, slider fill/knob pixels and scroller motion/settled
+centring. Mod HUD checks pass all four aspect ratios, 11 skins and the 120-frame
+capture. These cover current demo integration with recovered GUID/hash adapters,
+not complete loader or dispatcher equivalence.

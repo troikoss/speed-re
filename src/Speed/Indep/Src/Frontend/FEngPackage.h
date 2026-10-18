@@ -45,6 +45,7 @@ struct FEPackage {
     bool VisitChildren(HudVisibilityObject *group, FEngObjectVisitor *visitor); // 0x504830
     bool VisitObjects(FEngObjectVisitor *visitor); // 0x504880
     HudVisibilityObject *FindObject(unsigned int hash); // 0x517f80
+    HudVisibilityObject *FindObjectByGuid(unsigned int guid); // 0x517fe0
 };
 UG2_CHECK_OFFSET(FEPackage, nameC, 0xc);
 UG2_CHECK_OFFSET(FEPackage, firstObject4C, 0x4c);

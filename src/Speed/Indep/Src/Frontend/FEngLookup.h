@@ -13,9 +13,18 @@ struct FEngHashQuery : FEngObjectVisitor {
     unsigned int hash4;
     HudVisibilityObject *found8;
 };
+struct FEngGuidQuery : FEngObjectVisitor {
+    FEngGuidQuery(unsigned int value) : guid4(value), found8(0) {}
+    unsigned char Visit(HudVisibilityObject *object); // 0x5048f0
+    unsigned int guid4;
+    HudVisibilityObject *found8;
+};
 UG2_CHECK_OFFSET(FEngHashQuery, hash4, 4);
 UG2_CHECK_OFFSET(FEngHashQuery, found8, 8);
 UG2_CHECK_SIZE(FEngHashQuery, 12);
+UG2_CHECK_OFFSET(FEngGuidQuery, guid4, 4);
+UG2_CHECK_OFFSET(FEngGuidQuery, found8, 8);
+UG2_CHECK_SIZE(FEngGuidQuery, 12);
 int FEngComparePackageNames(const char *first, const char *second); // 0x505310
 void *FngFindObject5379C0(const char *package, unsigned int hash); // 0x5379c0
 

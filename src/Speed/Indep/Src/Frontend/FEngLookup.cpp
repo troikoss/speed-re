@@ -11,6 +11,15 @@ unsigned char FEngHashQuery::Visit(HudVisibilityObject *object) {
     return true;
 }
 
+// Original 0x5048f0: GUID comparison uses +0xc, independently of name hash +0x10.
+unsigned char FEngGuidQuery::Visit(HudVisibilityObject *object) {
+    if (object->guidC == guid4) {
+        found8 = object;
+        return false;
+    }
+    return true;
+}
+
 // Original 0x504830: callbacks precede recursion, and siblings are reloaded after callbacks.
 bool FEPackage::VisitChildren(HudVisibilityObject *group, FEngObjectVisitor *visitor) {
     HudVisibilityObject *object = group->firstChild64;
@@ -36,6 +45,13 @@ bool FEPackage::VisitObjects(FEngObjectVisitor *visitor) {
 // Original 0x517f80. The retail compiler adds a temporary query's SEH lifetime frame.
 HudVisibilityObject *FEPackage::FindObject(unsigned int hash) {
     FEngHashQuery query(hash);
+    VisitObjects(&query);
+    return query.found8;
+}
+
+// Original 0x517fe0. The retail compiler adds a temporary query's SEH lifetime frame.
+HudVisibilityObject *FEPackage::FindObjectByGuid(unsigned int guid) {
+    FEngGuidQuery query(guid);
     VisitObjects(&query);
     return query.found8;
 }

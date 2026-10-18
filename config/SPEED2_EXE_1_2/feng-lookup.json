@@ -60,6 +60,16 @@
       "address": "0x52cef0",
       "size": 106,
       "sha256": "2ee00e5f20e5baebb43040125d3661874c00da28847848d4ed048ac6774353d4"
+    },
+    "GuidQueryVisit": {
+      "address": "0x5048f0",
+      "size": 25,
+      "sha256": "b5d045a48dc85baf48b16ecb54ad7a33e1c16188a687b46ed959d3b6f00024c7"
+    },
+    "PackageFindGuid": {
+      "address": "0x517fe0",
+      "size": 81,
+      "sha256": "c4b40dd2856e7a94fb02e3741f0e641179d6b758b48dcd5e1da5633d3c21344b"
     }
   }
 }

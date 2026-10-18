@@ -4,6 +4,7 @@
 #include "../../Speed/Indep/Src/Frontend/FEngColour.h"
 #include "../../Speed/Indep/Src/Frontend/FEngText.h"
 #include "../../Speed/Indep/Src/Frontend/FEngScript.h"
+#include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
 #include "../../Speed/Indep/Src/Hud/HudAnimation.h"
 
 #include <algorithm>
@@ -422,10 +423,11 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
 }
 
 FengObject *FengPackage::FindGuid(unsigned int guid) {
-    for (size_t i = 0; i < objects_.size(); ++i) {
-        if (objects_[i]->guidC == guid) return objects_[i];
-    }
-    return 0;
+    // Native loading supplies the tree and observed package prefix; the lookup
+    // itself uses original visitor order rather than decoded-vector order.
+    FEPackage package = {};
+    package.firstObject4C = FirstRoot();
+    return static_cast<FengObject *>(package.FindObjectByGuid(guid));
 }
 
 const FengResponse *FindFengResponse(const std::vector<FengResponse> &responses, unsigned int message) {
@@ -436,10 +438,9 @@ const FengResponse *FindFengResponse(const std::vector<FengResponse> &responses,
 }
 
 FengObject *FengPackage::Find(unsigned int hash) {
-    for (size_t i = 0; i < objects_.size(); ++i) {
-        if (objects_[i]->hash10 == hash) return objects_[i];
-    }
-    return 0;
+    FEPackage package = {};
+    package.firstObject4C = FirstRoot();
+    return static_cast<FengObject *>(package.FindObject(hash));
 }
 
 void FengPackage::Describe() const {

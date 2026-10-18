@@ -30,6 +30,7 @@ GLOBAL, MODE, CALLBACK, ARCHIVE = 0x8384c4, 0x8384d0, STOP + 0x800, 0x8637b0
 ARCHIVE_NODE = ARENA + 0x1800
 PRESERVED = (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP)
 PREFIXES = {
+    'GuidQueryVisit': '?Visit@FEngGuidQuery@', 'PackageFindGuid': '?FindObjectByGuid@FEPackage@',
     'QueryVisit': '?Visit@FEngHashQuery@', 'VisitChildren': '?VisitChildren@FEPackage@',
     'VisitObjects': '?VisitObjects@FEPackage@', 'PackageFindObject': '?FindObject@FEPackage@',
     'CompareNames': '?FEngComparePackageNames@', 'FindByName': '?FindByName@FEngPackageList@',
@@ -151,6 +152,7 @@ def main():
             uc.mem_write(address, body)
         ranges = linked['ranges'] if rebuilt else [(int(f['address'], 16), int(f['address'], 16) + f['size']) for f in functions.values()]
         query_entry = entries['QueryVisit'] if rebuilt else 0x5048d0
+        guid_query_entry = entries['GuidQueryVisit'] if rebuilt else 0x5048f0
         hash_entry = entries['cihash'] if rebuilt else 0x505450
         compare_entry = entries['CompareNames'] if rebuilt else 0x505310
         list_entry = entries['FindByName'] if rebuilt else 0x519e50
@@ -164,7 +166,7 @@ def main():
                 ('initialize', 0x517720, '?InitializeScript@HudVisibilityObject@')):
                 entry = next(a for n, a in linked['exports'].items() if n.startswith(prefix)) if rebuilt else original
                 script_calls[entry] = name
-        def hook(uc, address, size, user, ranges=ranges, query_entry=query_entry,
+        def hook(uc, address, size, user, ranges=ranges, query_entry=query_entry, guid_query_entry=guid_query_entry,
                  hash_entry=hash_entry, compare_entry=compare_entry, list_entry=list_entry, locator_entry=locator_entry, script_calls=script_calls):
             sp = uc.reg_read(UC_X86_REG_ESP)
             if address in script_calls:
@@ -183,6 +185,9 @@ def main():
             if address == query_entry:
                 this = uc.reg_read(UC_X86_REG_ECX)
                 state['trace'].append(('query', words(uc, this + 4, 2), words(uc, sp + 4)[0]))
+            if address == guid_query_entry:
+                this = uc.reg_read(UC_X86_REG_ECX)
+                state['trace'].append(('guid-query', words(uc, this + 4, 2), words(uc, sp + 4)[0]))
             if address == hash_entry:
                 state['trace'].append(('hash', words(uc, sp + 4)[0]))
             if address == compare_entry:
@@ -330,6 +335,7 @@ def main():
             nodes = NODES[p]
             for n, object_ in enumerate(nodes):
                 put(object_ + 4, 0)
+                put(object_ + 0xc, (0, 1, 2, 3, 0xffffffff, 0x80000000)[(trial + p + (0, 1, 1, 2, 3, 4)[n]) % 6])
                 put(object_ + 0x10, rng.randrange(4))
                 put(object_ + 0x18, (5, rng.choice((1, 2, 7)), 1, 5, 2, 1)[n])
                 put(object_ + 0x64, 0)
@@ -392,6 +398,11 @@ def main():
         compare('VisitChildren', memory, [NODES[0][0], VISITOR], PACKAGES[0], 8, True, manager, **fixture)
         compare('VisitObjects', memory, [VISITOR], PACKAGES[0], 4, True, manager, **fixture)
         compare('PackageFindObject', memory, [hash_], PACKAGES[0], 4, manager=manager, **fixture)
+        guid = (0, 1, 2, 3, 0xffffffff, 0x80000000, 0xdeadbeef)[trial % 7]
+        put(QUERY + 4, guid)
+        compare('GuidQueryVisit', memory, [NODES[0][trial % 6]], QUERY, 4, True, manager, **fixture)
+        compare('PackageFindGuid', memory, [guid], PACKAGES[0], 4, manager=manager, **fixture)
+        put(QUERY + 4, hash_)
         compare_pair = [NAMES[1], NAMES[8]] if trial % 13 == 2 else [NAMES[trial % 10], NAMES[(trial + 1) % 10]]
         compare('CompareNames', memory, compare_pair, manager=manager, **fixture)
         compare('FindByName', memory, [name, PACKAGES[0] if length else 0], QUEUE + 0xdc, 8, manager=manager, **fixture)
@@ -431,7 +442,7 @@ def main():
     report = {'compiler': args.compiler, 'comparisons': counts, 'total': sum(counts.values()),
               'fingerprints': functions, 'controlled_interfaces': (['visitor callback in direct walk fixtures'] if args.compose_archive else
                   ['FEngArchive::FindNode 0x51bb70', 'visitor callback in direct walk fixtures']),
-              'composition': 'real tree/hash query, package locator, both live lists, typed wrappers, hashing and name comparison',
+              'composition': 'real tree/hash/GUID queries, package locator, both live lists, typed wrappers, hashing and name comparison',
               'archive_composed': args.compose_archive, 'scripts_composed': args.compose_scripts, 'formatting_composed': args.compose_formatting,
               'seh': 'normal-return FS chain restoration verified; exceptions/unwind excluded', 'byte_matching': 'not established',
               'limitations': ['finite acyclic trees/package chains', 'valid non-null queue behind non-null manager',
@@ -443,6 +454,12 @@ def main():
     if args.mutation_checks:
         source = args.source.read_text()
         mutations = {
+            'wrong-guid-field': ('object->guidC == guid4', 'object->hash10 == guid4'),
+            'guid-continue-after-match': ('if (object->guidC == guid4) {\n        found8 = object;\n        return false;',
+                                          'if (object->guidC == guid4) {\n        found8 = object;\n        return true;'),
+            'guid-use-hash-query': ('FEngGuidQuery query(guid);', 'FEngHashQuery query(guid);'),
+            'guid-return-miss': ('FEngGuidQuery query(guid);\n    VisitObjects(&query);\n    return query.found8;',
+                                'FEngGuidQuery query(guid);\n    VisitObjects(&query);\n    return 0;'),
             'continue-after-match': ('        return false;\n    }\n    return true;', '        return true;\n    }\n    return true;'),
             'skip-root-recursion': ('object->type18 == 5 && !VisitChildren(object, visitor)', 'object->type18 == 9 && !VisitChildren(object, visitor)'),
             'wrong-image-type': ('object && object->type18 == 1 ? object : 0', 'object && object->type18 == 2 ? object : 0'),

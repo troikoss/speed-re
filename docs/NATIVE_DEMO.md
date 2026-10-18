@@ -343,6 +343,11 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   and hash-selection loops are removed. HUD/Controls name selection also calls
   recovered code. Playback/event delivery remain seams.
   See [script wrapper evidence](pc-pause-menu.md#hash-selection-package-script-wrappers-and-running-queries-2026-10-18).
+- Native package GUID/hash helpers now call recovered first-match tree queries
+  (`0x517fe0`/`0x517f80`), replacing their flat-vector lookup loops. GUID callback
+  `0x5048f0` compares object +0xc independently of the name hash. Native loading
+  still supplies tree links and observed package prefixes.
+  See [GUID lookup evidence](pc-pause-menu.md#guid-lookup-and-native-tree-adapters-2026-10-18).
 - Response conditional traversal `0x504490` now executes recovered code over
   decoded 12-byte command records, including the original count boundary.
   Native response dispatch `0x52c7c0`, decoded-prefix construction and queued

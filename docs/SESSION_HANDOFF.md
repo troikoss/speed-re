@@ -465,3 +465,25 @@ renamed from cross-title evidence alone.
     and signed insertion index +0x514c; do not replace signed modulo with a mask
     without verifying negative cases. These are candidates for full-dispatch
     composition, not evidence of recovered native behavior.
+
+
+33. **GUID resolver checkpoint (2026-10-18).** `FEngLookup.cpp` recovers
+    `0x5048f0` GUID visitor and `0x517fe0` package wrapper; query +4 GUID/+8
+    result, object GUID +0xc. Actual recovered tree traversal stops at first
+    match. Both native `FengPackage::FindGuid` and `Find` flat-vector loops are
+    removed in favor of recovered GUID/hash wrappers over a native package
+    prefix and decoded root chain. Loader linking and prefix construction remain
+    seams. Composed Clang suite passes 19,520 comparisons, including 1,024 direct
+    GUID and 1,024 full GUID calls, and rejects 21 mutations. The broader suite
+    still controls formatter core/clock and direct visitor callbacks; full GUID
+    composition has no controlled callees. Normal-return FS restoration checked;
+    exceptions/unwind, malformed/cyclic trees, MSVC and byte matching unverified.
+    Native/mod builds and headless 19 settings/10 Controls, slider pixels,
+    scroller motion and four-ratio/11-skin/120-frame mod HUD checks pass.
+    Next dependency candidates remain `0x5046b0` script lookup, queue focus
+    persistence `0x50b300`/`0x50b360`, package-stack reset `0x50b390`, then full
+    response dispatch `0x52c7c0`. Reset tracing now shows exactly 16 byte clears
+    at queue +0x414c with stride 0x100, followed by a 32-bit zero at +0x4148.
+    This stack is separate from focus insertion index +0x514c and 32 key/value
+    pairs at +0x5150. Keep these observed structures distinct. The reset has
+    not yet been recovered or behaviorally verified.
