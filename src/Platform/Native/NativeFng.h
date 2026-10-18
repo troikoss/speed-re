@@ -95,7 +95,7 @@ struct FengObject : FEStringObject {
 
     std::vector<FengScript> scripts;
     std::vector<FengResponse> responses;
-    std::vector<void *> listAllocations; // Native heap owner around original list allocator calls.
+    std::vector<void *> ownedAllocations; // Native heap owner for list data and optional retained names.
     float scriptRemainder;   // native frame-time fraction below currentScript54->time10
 
     bool Hidden() const { return (flags1C & 1) != 0; }
@@ -114,7 +114,8 @@ public:
     FengPackage();
     ~FengPackage();
     // `offset` is the position of the 0x30203 chunk in `data`.
-    bool Load(const unsigned char *data, size_t size, size_t offset, std::string *error);
+    // retainNames binds observed reader byte +9; its original initialization is pending.
+    bool Load(const unsigned char *data, size_t size, size_t offset, std::string *error, bool retainNames = false);
     FengObject *Find(unsigned int hash);
     FengObject *Find(const char *name) { return Find(FengHash(name)); }
     FengObject *FindGuid(unsigned int guid);

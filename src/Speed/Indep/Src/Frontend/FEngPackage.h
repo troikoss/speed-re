@@ -7,6 +7,7 @@
 struct FEPackage;
 struct FEngObjectVisitor;
 struct FEResponse;
+struct FEngInheritanceRecord { unsigned int key0, packageHash4, guid8; };
 struct FEngSavedFocus { unsigned int key0, value4; };
 struct FEngPackageList {
     char unidentified0[8];
@@ -24,7 +25,9 @@ struct FEngQueue {
     FEngPackageList packagesDC;
     char unidentifiedE8[4];
     FEngPackageList packagesEC;
-    char unidentifiedF8[0x14];
+    char unidentifiedF8[0xc];
+    FEPackage *first104; // Separate package chain used by 0x50b240.
+    char unidentified108[4];
     FEngQueueObserver *value10C;
     char unidentified110[0x4004];
     FEngQueueList messages4114;
@@ -53,9 +56,11 @@ struct FEngQueue {
     void Post(unsigned int message, void *sender, struct FEPackage *package,
               int target, int value10); // 0x51aa20, thiscall
     HudVisibilityObject *FindObject(unsigned int hash, const char *package); // 0x52c570
+    FEPackage *FindByEncodedNameHash(unsigned int hash); // 0x50b240
 };
 UG2_CHECK_OFFSET(FEngQueue, value1, 1);
 UG2_CHECK_OFFSET(FEngQueue, value10C, 0x10c);
+UG2_CHECK_OFFSET(FEngQueue, first104, 0x104);
 UG2_CHECK_OFFSET(FEngQueue, messages4114, 0x4114);
 UG2_CHECK_OFFSET(FEngQueue, operations4124, 0x4124);
 UG2_CHECK_OFFSET(FEngQueue, value5251, 0x5251);
@@ -81,7 +86,8 @@ struct FEPackage {
     unsigned int inputMask20;
     unsigned int inputMask24;
     unsigned int inputMask28;
-    char unidentified2C[0x10];
+    char unidentified2C[0xc];
+    const unsigned char *value38; // 0x50b240 hashes bytes at this pointer +2.
     FEPackage *parent3C;
     char unidentified40[0xc];
     HudVisibilityObject *firstObject4C;
@@ -90,7 +96,9 @@ struct FEPackage {
     char unidentified60[0xc];
     unsigned int associationCount6C;
     FEngMessageAssociation *associations70;
-    char unidentified74[0x18];
+    char unidentified74[0x10];
+    unsigned int inheritanceCount84;
+    FEngInheritanceRecord *inheritance88;
     HudVisibilityObject *focus8C;
     HudVisibilityObject **focusObjects90;
     unsigned int focusCount94;
@@ -99,7 +107,12 @@ struct FEPackage {
     bool VisitObjects(FEngObjectVisitor *visitor); // 0x504880
     HudVisibilityObject *FindObject(unsigned int hash); // 0x517f80
     HudVisibilityObject *FindObjectByGuid(unsigned int guid); // 0x517fe0
+    FEngInheritanceRecord *FindInheritance(unsigned int key); // 0x504960
 };
+UG2_CHECK_SIZE(FEngInheritanceRecord, 12);
+UG2_CHECK_OFFSET(FEPackage, value38, 0x38);
+UG2_CHECK_OFFSET(FEPackage, inheritanceCount84, 0x84);
+UG2_CHECK_OFFSET(FEPackage, inheritance88, 0x88);
 UG2_CHECK_OFFSET(FEPackage, responses5C, 0x5c);
 UG2_CHECK_OFFSET(FEPackage, associationCount6C, 0x6c);
 UG2_CHECK_OFFSET(FEPackage, associations70, 0x70);

@@ -1,5 +1,6 @@
 // Asset-free projection/integration fixture. Its FNG bytes are synthetic test scaffolding.
 #include "NativeFng.h"
+#include "../../Speed/Indep/Src/Frontend/FEngInheritance.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObject.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObjectFactory.h"
 #include "../../Speed/Indep/Src/Frontend/FEngText.h"
@@ -71,7 +72,7 @@ static void Run(unsigned int wrap, bool explicitGuid) {
     assert(!object->next4 && !object->previous8);
     FEListObject *list = reinterpret_cast<FEListObject *>(object);
     assert(list->count60 == 3 && list->count64 == 2 && list->value88 == 2 && list->value8C == 0);
-    assert(list->value78 && list->value7C && list->value90 && object->listAllocations.size() == 3);
+    assert(list->value78 && list->value7C && list->value90 && object->ownedAllocations.size() == 3);
     const unsigned int *cells = static_cast<const unsigned int *>(list->value90);
     assert(cells[0] == 0 && cells[12] == 1 && cells[24] == 2 && cells[1] == 0x3f800000 && cells[6] == 0 && cells[7] == 0 && cells[10] == 0x3f800000);
     assert(list->value78[0].value4 == 0 && list->value78[1].value4 == .25f && list->value78[2].value4 == .75f);
@@ -173,10 +174,10 @@ public:
             FEListObject *list = reinterpret_cast<FEListObject *>(object);
             assert(!(list->value5C & 1));
             assert(list->count60 == 3 && list->count64 == 2);
-            assert(list->value78 && list->value7C && list->value90 && object->listAllocations.size() == 3);
-            assert(std::find(object->listAllocations.begin(), object->listAllocations.end(), list->value78) != object->listAllocations.end());
-            assert(std::find(object->listAllocations.begin(), object->listAllocations.end(), list->value7C) != object->listAllocations.end());
-            assert(std::find(object->listAllocations.begin(), object->listAllocations.end(), list->value90) != object->listAllocations.end());
+            assert(list->value78 && list->value7C && list->value90 && object->ownedAllocations.size() == 3);
+            assert(std::find(object->ownedAllocations.begin(), object->ownedAllocations.end(), list->value78) != object->ownedAllocations.end());
+            assert(std::find(object->ownedAllocations.begin(), object->ownedAllocations.end(), list->value7C) != object->ownedAllocations.end());
+            assert(std::find(object->ownedAllocations.begin(), object->ownedAllocations.end(), list->value90) != object->ownedAllocations.end());
             assert(object->scripts.size() == 1);
         } else if (object->type18 == 5) {
             FEngGroupObject *group = reinterpret_cast<FEngGroupObject *>(object);
@@ -216,8 +217,8 @@ static void RunZeroDimension() {
     assert(!list->count60 && list->count64 == 2 && !list->value78 && list->value7C && !list->value90);
     // Original zero/product behavior can drop the cell field without freeing it.
     // The native heap owner retains the old cells plus the replacement row axis.
-    assert(object->listAllocations.size() == 2);
-    assert(std::find(object->listAllocations.begin(), object->listAllocations.end(), list->value7C) != object->listAllocations.end());
+    assert(object->ownedAllocations.size() == 2);
+    assert(std::find(object->ownedAllocations.begin(), object->ownedAllocations.end(), list->value7C) != object->ownedAllocations.end());
 }
 static void RunCellPayloads() {
     FEngColour colour;
@@ -248,7 +249,7 @@ static void RunCellPayloads() {
     FengObject *object = package.Objects()[0];
     FEListObject *list = reinterpret_cast<FEListObject *>(object);
     const unsigned int *cells = static_cast<const unsigned int *>(list->value90);
-    assert(list->value88 == 2 && list->value8C == 0 && object->listAllocations.size() == 4);
+    assert(list->value88 == 2 && list->value8C == 0 && object->ownedAllocations.size() == 4);
     for (unsigned int i = 0; i < 3; ++i) assert(cells[i * 12] == colours[i]);
     assert(cells[6] == 1 && cells[8] == 0x11223344 && cells[9] == 0x55667788 && cells[11] == 0x40000000);
     assert(cells[12 + 6] == 1 && !cells[12 + 8]); // CT frees the previous owned text.
@@ -256,6 +257,64 @@ static void RunCellPayloads() {
     assert(!cells[24 + 3] && !cells[24 + 4] && cells[24 + 5] == 0x80000000);
     const unsigned short *text = reinterpret_cast<const unsigned short *>(cells[24 + 8]);
     assert(text[0] == 0x3a9 && text[1] == 0xd83d && text[2] == 0xde00 && !text[3]);
+}
+static void RunRetainedNames() {
+    std::vector<unsigned char> data, value;
+    Word(value, 2); Tag(data, 0x744f, value); value.clear();
+    Word(value, 0x12345678); Tag(data, 0x684f, value); value.clear();
+    const char *names[] = {"previous", "CurrentName"};
+    for (unsigned int i = 0; i < 2; ++i) {
+        value.assign(names[i], names[i] + strlen(names[i])); // Native termination seam.
+        Tag(data, 0x6e4f, value);
+    }
+    const char label[] = "LabelName";
+    value.assign(label, label + strlen(label)); Tag(data, 0x4c53, value);
+    data = Chunk(0x30203, Chunk(0xe76e4546, Chunk(0xcc6a624f,
+        Chunk(0xea624f46, Chunk(0x446a624f, data)))));
+    for (unsigned int enabled = 0; enabled < 2; ++enabled) {
+        FengPackage package; std::string error;
+        assert(package.Load(data.data(), data.size(), 0, &error, enabled != 0));
+        FengObject *object = package.Objects()[0];
+        const char *storedLabel = *reinterpret_cast<char **>(reinterpret_cast<char *>(object) + 0x5c);
+        if (enabled) {
+            assert(!strcmp(object->name14, names[1]) && object->hash10 == FngHash(names[1]));
+            assert(storedLabel && !strcmp(storedLabel, label));
+            assert(object->languageHash60 == FngHash(label) && object->font == FngHash(label));
+            assert(object->ownedAllocations.size() == 1 && object->ownedAllocations[0] == object->name14);
+        } else {
+            assert(!object->name14 && object->hash10 == 0x12345678 && !storedLabel);
+            assert(object->ownedAllocations.empty());
+        }
+    }
+}
+static void RunInheritance() {
+    FEPackage source = {}, first = {}, second = {};
+    FEngQueue queue = {};
+    HudVisibilityObject group = {}, child = {}, duplicate = {}, secondChild = {};
+    const unsigned char name[] = {0, 0, 'S', 'c', 'r', 'e', 'e', 'n', 0};
+    first.value38 = second.value38 = name;
+    first.next4 = &second; queue.first104 = &first;
+    group.type18 = 5; group.guidC = 1; group.firstChild64 = &child;
+    child.guidC = duplicate.guidC = 42;
+    group.next4 = &duplicate; first.firstObject4C = &group;
+    FEngInheritanceRecord records[] = {{7, FngHash("screen"), 42}, {7, FngHash("other"), 999}};
+    source.inheritanceCount84 = 2; source.inheritance88 = records;
+    FEngInheritanceContext context = {}; context.package0 = &source; context.queue3C = &queue;
+    HudVisibilityObject *object = &duplicate; FEPackage *package = &source;
+    assert(source.FindInheritance(7) == records && !source.FindInheritance(99));
+    assert(context.Resolve(7, &object, &package) && object == &child && package == &first);
+    assert(!context.Resolve(99, &object, &package) && !object && !package);
+    records[0].packageHash4 = FngHash("missing");
+    assert(!context.Resolve(7, &object, &package) && !object && !package);
+    records[0].packageHash4 = FngHash("screen"); records[0].guid8 = 999;
+    second.firstObject4C = &secondChild; secondChild.guidC = 999;
+    assert(!context.Resolve(7, &object, &package) && !object && package == &first);
+    records[0].guid8 = 42;
+    void *shared = 0;
+    assert(context.Resolve(7, reinterpret_cast<HudVisibilityObject **>(&shared),
+                           reinterpret_cast<FEPackage **>(&shared)) && shared == &child);
+    child.guidC = reinterpret_cast<unsigned int>(&first);
+    assert(context.Resolve(7, &object, reinterpret_cast<FEPackage **>(&records[0].guid8)) && object == &child);
 }
 int main() {
     RunString();
@@ -267,5 +326,7 @@ int main() {
     FEngObjectDestructionObserver = 0;
     RunZeroDimension();
     RunCellPayloads();
-    puts("PASS native FNG owned UTF-16 storage and type4 projection/offsets/Cc selection/navigation/ticking (no assets or display)");
+    RunRetainedNames();
+    RunInheritance();
+    puts("PASS native FNG owned text/names, inheritance/GUID lookup and type4 projection/navigation/ticking (no assets or display)");
 }

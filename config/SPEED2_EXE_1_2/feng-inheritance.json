@@ -1,0 +1,25 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "SetName": {
+      "address": "0x5176b0",
+      "size": 110,
+      "sha256": "908025e928fd50a15a7014af558f8969726edc354d0ebf3c3d7d2ea0ff6bd472"
+    },
+    "FindInheritance": {
+      "address": "0x504960",
+      "size": 62,
+      "sha256": "981a0db0c090e09e9b0c0139fff05a96f20b9f3868b71eb43b5b1927b090f70b"
+    },
+    "FindByEncodedNameHash": {
+      "address": "0x50b240",
+      "size": 82,
+      "sha256": "97afffd6e7d10245f9d039855e79f71c38fc1fb78296e208cf313fb623bcf824"
+    },
+    "Resolve": {
+      "address": "0x5186c0",
+      "size": 102,
+      "sha256": "adee6e4ab5253bfa2bd538ad59030aaeb324fdcd937b5022ceb968f17bd60b3e"
+    }
+  }
+}

@@ -31,25 +31,25 @@ namespace {
 // Native heap owner only: original resizing/free calls remain in recovered code.
 // Retain surviving allocations until wrapper teardown, including original zero-
 // dimension/storage-release cases that leave cell allocations unfreed.
-std::vector<void *> *nativeListAllocationOwner = 0;
-class NativeListAllocationScope {
+std::vector<void *> *nativeFengAllocationOwner = 0;
+class NativeFengAllocationScope {
     std::vector<void *> *previous;
 public:
-    explicit NativeListAllocationScope(std::vector<void *> *owner) : previous(nativeListAllocationOwner) {
-        nativeListAllocationOwner = owner;
+    explicit NativeFengAllocationScope(std::vector<void *> *owner) : previous(nativeFengAllocationOwner) {
+        nativeFengAllocationOwner = owner;
     }
-    ~NativeListAllocationScope() { nativeListAllocationOwner = previous; }
+    ~NativeFengAllocationScope() { nativeFengAllocationOwner = previous; }
 };
 }
 // Native heap adapter for original 0x575620/0x575630 boundaries.
 void *FEngAllocateQueueNode(unsigned int size) {
     void *pointer = malloc(size);
-    if (pointer && nativeListAllocationOwner) nativeListAllocationOwner->push_back(pointer);
+    if (pointer && nativeFengAllocationOwner) nativeFengAllocationOwner->push_back(pointer);
     return pointer;
 }
 void FEngFreeQueueNode(void *pointer) {
-    if (nativeListAllocationOwner) {
-        std::vector<void *> &owned = *nativeListAllocationOwner;
+    if (nativeFengAllocationOwner) {
+        std::vector<void *> &owned = *nativeFengAllocationOwner;
         std::vector<void *>::iterator entry = std::find(owned.begin(), owned.end(), pointer);
         if (entry != owned.end()) owned.erase(entry);
     }
@@ -59,7 +59,7 @@ void *FEngGridAllocateCells(unsigned int bytes) { return malloc(bytes); }
 void FEngGridFreeCells(void *cells) { free(cells); }
 
 FengObject::~FengObject() {
-    NativeListAllocationScope heapOwner(&listAllocations);
+    NativeFengAllocationScope heapOwner(&ownedAllocations);
     if (type18 == 1 || type18 == 2 || type18 == 4 || type18 == 5) {
         // Native ownership adapter: the state is inline, and script/response
         // headers belong to vectors. Detach those borrowed prefixes before
@@ -90,8 +90,8 @@ FengObject::~FengObject() {
     }
     // Platform heap-owner teardown, after original normal cleanup. This is not
     // an extra recovered game cleanup step or a change to its release ordering.
-    for (size_t i = 0; i < listAllocations.size(); ++i) free(listAllocations[i]);
-    listAllocations.clear();
+    for (size_t i = 0; i < ownedAllocations.size(); ++i) free(ownedAllocations[i]);
+    ownedAllocations.clear();
 }
 
 #define IMSTB_TRUETYPE_IMPLEMENTATION
@@ -249,7 +249,7 @@ FengPackage::~FengPackage() {
     for (size_t i = 0; i < objects_.size(); ++i) delete objects_[i];
 }
 
-bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, std::string *error) {
+bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, std::string *error, bool retainNames) {
     if (offset + 16 > size || Rd32(data + offset) != 0x30203) {
         *error = "not an FNG chunk";
         return false;
@@ -367,7 +367,8 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                             tag == 0x6a53 || tag == 0x6c53 || tag == 0x7453 || tag == 0x7753)) {
                                             FEngStringPropertyReader reader = {};
                                             reader.objectC = object;
-                                            // SL label retention is disabled in this native reader adapter.
+                                            // Native option binds the observed optional-name byte at reader+9.
+                                            reader.value9 = retainNames;
                                             const unsigned short *property = reinterpret_cast<const unsigned short *>(data + t);
                                             std::vector<unsigned short> bounded;
                                             if (tag == 0x7453) {
@@ -382,12 +383,22 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                                 }
                                                 bounded.push_back(0);
                                                 property = bounded.data();
+                                            } else if (tag == 0x4c53 && retainNames) {
+                                                bounded.push_back((unsigned short)tag);
+                                                bounded.push_back((unsigned short)len);
+                                                for (unsigned int i = 0; i < len && pl[i]; ++i) {
+                                                    if (!(i & 1)) bounded.push_back(pl[i]);
+                                                    else bounded.back() |= (unsigned short)pl[i] << 8;
+                                                }
+                                                // Two zero bytes also terminate an odd-length byte string.
+                                                bounded.push_back(0);
+                                                property = bounded.data();
                                             } else if (tag != 0x4c53 && len < 4) {
                                                 t += 4 + len;
                                                 continue;
                                             }
                                             reader.ReadProperty(property);
-                                            if (tag == 0x4853) object->font = object->languageHash60;
+                                            if (tag == 0x4853 || (tag == 0x4c53 && retainNames)) object->font = object->languageHash60;
                                             if (tag == 0x7453) {
                                                 object->text.clear();
                                                 for (const unsigned short *c = object->text64; c && *c; ++c)
@@ -426,7 +437,7 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                                         bounded.push_back(0); property = bounded.data();
                                                     }
                                                     // Bounds/termination and heap lifetime are native seams.
-                                                    NativeListAllocationScope heapOwner(&object->listAllocations);
+                                                    NativeFengAllocationScope heapOwner(&object->ownedAllocations);
                                                     listReader.ReadProperty(property);
                                                 }
                                                 t += 4 + len;
@@ -445,6 +456,14 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                             break;
                                         case 0x4150: object->parentGuid = Rd32(pl); break;  // 'PA'
                                         case 0x4153: state.assign(pl, pl + len); break;     // 'SA'
+                                        case 0x6e4f: // On: original reader+9 gates actual owned name setter.
+                                            if (retainNames) {
+                                                std::string bounded;
+                                                for (unsigned int i = 0; i < len && pl[i]; ++i) bounded += (char)pl[i];
+                                                NativeFengAllocationScope heapOwner(&object->ownedAllocations);
+                                                object->SetName(bounded.c_str());
+                                            }
+                                            break;
                                         }
                                         t += 4 + len;
                                     }

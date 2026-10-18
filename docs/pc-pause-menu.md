@@ -3359,3 +3359,68 @@ Headless checks pass all 19 settings scenarios and slider pixels, all 10 Control
 scenarios, pause/scroller motion and settled centering, and HUD skins at 640x480,
 1280x720, 1680x720 and 2560x720. These establish native integration separately
 from original/rebuilt evidence and do not establish the original cell renderer.
+
+
+### Owned object names and inheritance resolution (2026-10-18)
+
+Recovered four complete routines from UG2 PC v1.2: owned name setter
+`0x5176b0` (110 bytes), inheritance-record lookup `0x504960` (62 bytes),
+encoded package-name lookup `0x50b240` (82 bytes), and reader inheritance
+resolver `0x5186c0` (102 bytes). Fingerprints are recorded in
+`config/SPEED2_EXE_1_2/feng-inheritance.json`.
+
+The name setter frees a nonnull `+14`, clears it, resets `hash10` to
+`0xffffffff`, then allocates/copies a supplied byte string including its NUL
+and calls the recovered hash on the fresh field. It does not dirty the object
+or call an observer. A null input leaves the sentinel hash without calling
+the hash helper. Allocator side effects distinguish field reloads and ordering.
+
+Package records are 12 bytes (`key0`, `packageHash4`, `guid8`), addressed by
+captured count `+84` and base `+88`; lookup returns the first matching key.
+Queue lookup uses a separate chain at `+104`, following package `next4`, and
+hashes bytes at `value38 + 2` inline. It ignores `nameC` and `nameHash10`.
+Only the resulting name pointer is null-tested: `value38 == 0xfffffffe`
+wraps to null and produces the sentinel hash; a null `value38` is not a
+valid empty-name encoding.
+
+The resolver is a thiscall method over package `+0` and queue `+3c`, with
+three stack arguments and only AL defined as its result. It clears object
+then package outputs, obtains the first record/package, and calls the actual
+recovered GUID-tree query. It keeps the found package output when the GUID
+is absent, and never retries another identically named package. Package
+output is stored before the record GUID is read, which matters when those
+addresses alias. An aliased pair of output slots ends with the object result.
+
+Validation: `UG2_EXE=... build/venv/bin/python
+tools/verify_pc_feng_inheritance.py --compiler clang-cl --mutation-checks`
+passes 8,192 comparisons (2,048 per root) and rejects 13 semantic mutations.
+Original execution enters the real hash, package/record lookup, GUID query,
+object traversal, nested-child traversal and visitor bodies; only the two
+heap boundaries are controlled. Rebuilt execution is restricted to linked
+source ranges. Comparisons include arena bytes, ordered helper-entry state,
+normalized temporary query descriptors, ABI-preserved registers, stack
+cleanup, and restored FS exception chain. Cases include high byte names,
+case folding, duplicate keys/packages/GUIDs, empty lists/trees, null names,
+allocator rebinding and output/record aliases. Finite valid mapped heaps do
+not establish allocation failure, arbitrary stack aliases, invalid lifetimes,
+concurrency or SEH unwinding. MSVC 7.1/wibo and byte matching remain pending.
+
+Native `FengPackage::Load(..., retainNames)` binds the observed reader byte
+`+9` to a default-false adapter option. Enabled `On` properties call the
+recovered setter, and enabled `SL` properties call the existing complete
+string reader. Native bounds supply terminated byte strings; native heap
+ownership tracks names through replacement and recovered normal destruction.
+Synthetic asset-free fixtures exercise both option values, replacement,
+unterminated input bounding, retained labels, first-match inheritance,
+nested GUID lookup, missing-result outputs and alias-sensitive GUID reloads.
+The original caller's initialization of byte `+9` is still unverified.
+The resolver is verified and exercised natively but not wired into production
+loading: queue/archive bindings, base/group clone `0x554300`/`0x5548a0`,
+and the full outer object reader `0x555140` remain separate work.
+
+Native and mod-enabled builds pass. All three native CTests and the headless
+settings (19 scenarios plus slider pixels), Controls (10 scenarios),
+pause/scroller motion/centering, and all HUD skins at four resolutions pass.
+These integration checks do not establish original rendering or production
+inheritance ownership. Ghidra signatures and plate comments record the four
+verified spans and the resolver's calling convention and alias constraints.

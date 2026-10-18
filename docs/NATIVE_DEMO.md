@@ -318,7 +318,7 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   and [owned UTF-16 storage](pc-pause-menu.md#owned-utf-16-storage-in-native-strings).
 - String property reader `0x534fc0` now applies all seven original string tags,
   calling recovered member label setters `0x4fe940`/`0x519f40`, actual hash and
-  UTF-16 storage methods. Native parsing disables optional `SL` retention and
+  UTF-16 storage methods. Native parsing defaults optional `SL` retention off and
   retains bounds, terminated input and renderer byte projections as seams.
   Observer binding uses relocated native storage; original localization and
   surrounding reader ownership remain pending. String teardown now calls recovered
@@ -327,6 +327,16 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   `0x495780` is separately recovered and verified. Complete original ownership and
   production virtual dispatch remain pending.
   See [string reader evidence](pc-pause-menu.md#complete-string-property-dispatch-and-member-label-helpers).
+- Object name setter `0x5176b0` and inheritance lookup/resolver
+  `0x504960`/`0x50b240`/`0x5186c0` now have original-execution evidence:
+  8,192 comparisons and 13 mutation rejections with clang-cl. Optional native
+  `Load(..., retainNames=true)` applies recovered `On` name and `SL` label
+  storage with bounded input and normal destruction; existing callers default
+  false. Three asset-free CTests include retained names/labels and the actual
+  resolver/GUID tree, including first-package failure and aliased outputs.
+  Production inheritance binding and cloning remain pending; this does not
+  establish the original initialization of reader byte `+9`, MSVC matching,
+  or complete outer-reader recovery. See `docs/pc-pause-menu.md`.
 - Native image/group/list teardown now invokes recovered `0x532660`/`0x534bf0`/
   `0x534a50`, alongside string destruction. Original list storage/cell release
   `0x516dc0`/`0x5042e0` and the three deleting wrappers are verified together with
