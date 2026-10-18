@@ -270,28 +270,14 @@ void RemoveScripts(NativeScreen *screen) {
     }
 }
 
-// 0x504490: from the conditional at `index`, the command that closes it (or its else at depth 1).
-size_t SkipBlock(const std::vector<FengResponseCommand> &commands, size_t index) {
-    size_t count = commands.size();
-    if (index == count - 1) return count;
-    int depth = 1;
-    do {
-        ++index;
-        unsigned int type = commands[index].type;
-        if (type == 0x500) {
-            if (depth == 1) depth = 0;
-        } else if (type == 0x300 || type == 0x301) {
-            ++depth;
-        } else if (type == 0x501) {
-            --depth;
-        }
-    } while (index < count - 1 && depth != 0);
-    return index;
-}
-
 // 0x52c7c0, the commands the options and pause packages use.
 void RunResponse(NativeScreen *screen, const FengResponse &response, FengObject *object) {
     const std::vector<FengResponseCommand> &commands = response.commands;
+    // Native decoded storage supplies the observed response prefix. Dispatch
+    // remains a seam; conditional traversal executes original recovered code.
+    FEResponse original = {};
+    original.commandCount10 = (unsigned int)commands.size();
+    original.commands14 = commands.data();
     for (size_t i = 0; i < commands.size(); ++i) {
         const FengResponseCommand &command = commands[i];
         unsigned int current = object && object->currentScript54 ? object->currentScript54->hash30 : 0;
@@ -311,13 +297,13 @@ void RunResponse(NativeScreen *screen, const FengResponse &response, FengObject 
             Post(screen, command.parameter, object, kTargetInput);
             break;
         case 0x300:
-            if (current != command.parameter) i = SkipBlock(commands, i);
+            if (current != command.parameter) i = original.SkipConditionalBlock((unsigned int)i);
             break;
         case 0x301:
-            if (current == command.parameter) i = SkipBlock(commands, i);
+            if (current == command.parameter) i = original.SkipConditionalBlock((unsigned int)i);
             break;
         case 0x500:
-            i = SkipBlock(commands, i);
+            i = original.SkipConditionalBlock((unsigned int)i);
             break;
         case 0x501:
             break;

@@ -437,3 +437,31 @@ renamed from cross-title evidence alone.
     where the original loop tests `index < count` after reading/incrementing.
     Preserve the reference boundary (including its possible extra record read)
     when recovering it; source/decompile resemblance is not verification.
+
+
+32. **Response conditional helper checkpoint (2026-10-18).**
+    `FEngResponse.cpp` recovers `FEResponse::SkipConditionalBlock` `0x504490`
+    (105 bytes), with response +0x10 count/+0x14 pointer and 12-byte command
+    layout. Native `SkipBlock` removed; native dispatch adapts its decoded vector
+    to the observed prefix and calls recovered code. Original count-boundary
+    extra read preserved, including mapped malformed/count-zero cases in tests.
+    Clang i686 passes 8,192 comparisons of ordered record reads, memory, return
+    index and ABI, with no controlled callees; six mutations rejected.
+    MSVC/byte matching and arbitrary pointer/index/depth overflow are unverified.
+    Native/mod builds and headless 19 settings/10 Controls, slider pixels and
+    scroller motion/settled centring pass.
+    Full response dispatch `0x52c7c0` remains next: queue thiscall, response,
+    object, package and input-mask parameters. Assembly/decompilation records
+    remain local under `/tmp/ug2-response-dispatch-asm.json` and
+    `/tmp/ug2-command-execution.json`. Candidate dependencies include target
+    resolver `0x517fe0`, script lookup `0x5046b0`, focus persistence
+    `0x50b300`/`0x50b360`, package stack operations and existing message queue.
+    Further traced leads (not recovered/verified here): resolver `0x517fe0`
+    uses visitor vtable `0x79aafc`, slot +4 -> `0x5048f0`, comparing object +0xc
+    against query +4 and storing first match at query +8 via recovered tree
+    traversal `0x504880`. Native `FindGuid` currently scans its flat vector.
+    Script lookup `0x5046b0` scans object +0x4c via script +4 against hash +0x30.
+    Persistence store/load `0x50b300`/`0x50b360` use 32 pairs at queue +0x5150
+    and signed insertion index +0x514c; do not replace signed modulo with a mask
+    without verifying negative cases. These are candidates for full-dispatch
+    composition, not evidence of recovered native behavior.

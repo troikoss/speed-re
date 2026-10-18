@@ -1407,3 +1407,61 @@ pixel assertions and scroller motion/settled centring. Mod HUD checks pass all
 four aspect ratios, all 11 skins and the 120-frame capture. These establish
 current demo integration separately from the bounded original/rebuilt core
 comparisons above.
+
+
+## Response conditional traversal (2026-10-18)
+
+`Frontend/FEngResponse.cpp` recovers conditional-block helper `0x504490`
+(105 bytes through `0x5044f8`), fingerprinted in
+`config/SPEED2_EXE_1_2/feng-response.json`. Its response prefix reads a 32-bit
+command count at +0x10 and command pointer at +0x14; commands have stride 12.
+Dispatcher `0x52c7c0` separately shows command type/parameter/target at +0/+4/+8.
+Unknown response prefix fields remain offset-based. The helper uses thiscall
+and returns with `ret 4`.
+
+An index equal to unsigned `count-1` returns count without reading command
+storage. Otherwise depth starts at one, and the helper reads the **next** record
+before incrementing the index. Types `0x300` and `0x301` increase depth;
+`0x500` closes only depth one, and `0x501` decreases depth. Other types leave
+depth unchanged. Iteration continues while the incremented unsigned index is
+less than count and depth is nonzero. Consequently missing delimiters can read
+record index **count** before returning count. Count zero/index zero still
+reads one next record; count zero/index `0xffffffff` returns zero immediately.
+This observed behavior is preserved rather than changing the bound to count-1.
+
+The native `SkipBlock` implementation is removed. The remaining native response
+dispatcher constructs this observed response prefix over its decoded vector and
+calls the recovered helper directly for `0x300`/`0x301`/`0x500`. Native commands
+now use the shared recovered 12-byte record type. Decoding, prefix construction,
+dispatch `0x52c7c0`, target resolution and queued delivery remain seams; this
+checkpoint does not establish equivalence of the native dispatcher. It also
+does not add padding records or redefine the original count to hide the
+reference's possible extra read.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_response.py --mutation-checks
+# Explicit fallback when MSVC 7.1/wibo is absent:
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_response.py --compiler clang-cl --mutation-checks
+```
+
+Clang i686 passes **8,192 original/rebuilt comparisons**, with no controlled
+callees. Fixtures include nested/inverted conditions, depth-one/nested else,
+closing/unknown types, no matching delimiter, final/start-beyond-count indices,
+counts 0–64, invalid command pointers on the no-read return and unsigned
+count-zero/index-`0xffffffff` wrap. Extra records beyond the declared count are
+mapped explicitly in the verifier. It compares exact ordered command reads,
+guarded arena memory and writes, return index, stack cleanup and preserved
+registers. These finite mapped-storage tests do not prove arbitrary bad pointers,
+index/depth overflow or caller dispatch.
+
+Six mutations are rejected: restoring the old native count-1 loop bound,
+skipping reads for every index past the final record, letting else close nested
+depth, ignoring inverted conditions, omitting close-depth decrement and reading
+the current record instead of the next. Legacy MSVC 7.1/wibo and byte matching
+remain outstanding. Reports stay ignored under `build/analysis/feng-response/`.
+
+
+Native and mod-enabled builds pass. Headless checks pass all 19 settings and
+10 Controls scenarios, slider fill/knob pixels and scroller motion/settled
+centring with the recovered helper. These are integration checks of the current
+native dispatcher and decoded storage, separate from original/rebuilt evidence.

@@ -10,6 +10,7 @@
 #include "NativeScene.h"
 #include "../../Speed/Indep/Src/Hud/HudVisibility.h"
 #include "../../Speed/Indep/Src/Frontend/FEngCoordinates.h"
+#include "../../Speed/Indep/Src/Frontend/FEngResponse.h"
 
 #include <GL/gl.h>
 #include <string>
@@ -56,11 +57,7 @@ struct FengScript {
 // Message responses: 'MsgR' per object and 'PkgR' per package, read like 0x54d1d0. Each response
 // names a message ('Mi') and lists commands of type 'Ri', parameter 'Ru' and target 'Rt'; 0x52c7c0
 // runs them (0 script, 1 message to an object, 2 message to the game, 0x300/0x301/0x500/0x501 if/else).
-struct FengResponseCommand {
-    unsigned int type;
-    unsigned int parameter;
-    unsigned int target;
-};
+typedef FEResponseCommand FengResponseCommand;
 struct FengResponse {
     unsigned int message;
     std::vector<FengResponseCommand> commands;

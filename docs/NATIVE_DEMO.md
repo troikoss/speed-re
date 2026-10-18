@@ -343,6 +343,10 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   and hash-selection loops are removed. HUD/Controls name selection also calls
   recovered code. Playback/event delivery remain seams.
   See [script wrapper evidence](pc-pause-menu.md#hash-selection-package-script-wrappers-and-running-queries-2026-10-18).
+- Response conditional traversal `0x504490` now executes recovered code over
+  decoded 12-byte command records, including the original count boundary.
+  Native response dispatch `0x52c7c0`, decoded-prefix construction and queued
+  delivery remain seams. See [response evidence](pc-pause-menu.md#response-conditional-traversal-2026-10-18).
 - GUI formatted hashing `0x50b9c0`, buffer wrapper `0x50c960`, shared profiling
   wrapper `0x43fbc0` and elapsed accounting `0x43e5c0` now execute recovered code.
   The buffer wrapper ignores capacity as the original does. Native SDL counter
