@@ -353,8 +353,9 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   Full response dispatch `0x52c7c0`, script lookup `0x5046b0`, focus cache
   `0x50b300`/`0x50b360` and stack reset `0x50b390` now execute recovered code.
   Decoded-prefix construction, fixed native mask 0xff and delivery remain
-  seams. Target -4 delivery, input-operation delivery and four package-operation
-  callees are explicit traps.
+  seams. Operation consumer `0x5559c0` now executes recovered code and uses a
+  native deleting-vtable binding. Target -4 delivery, package load/remove and
+  four package-operation enqueue boundaries still trap; registry data remains native.
   Native loading now selects/initializes Init as observed in the original readers. See [response evidence](pc-pause-menu.md#response-conditional-traversal-2026-10-18).
 - GUI formatted hashing `0x50b9c0`, buffer wrapper `0x50c960`, shared profiling
   wrapper `0x43fbc0` and elapsed accounting `0x43e5c0` now execute recovered code.
@@ -374,7 +375,8 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   is removed. Message/operation destructor bodies and payload cleanup are recovered;
   native delivery/cancellation call recovered message deletion. Native malloc/free,
   payload-to-screen delivery and dynamic vtable dispatch remain adapters.
-  See [queue evidence](pc-pause-menu.md#message-nodes-and-queue-insertion-2026-10-18).
+  Asset-free queue integration is available as CTest `feng_queue_native`.
+  See [queue/consumer evidence](pc-pause-menu.md#full-queued-operation-consumer-2026-10-18).
 - FEng image centre/size writes and rendered text height now call recovered coordinate
   and metric routines. String and script-track prefixes expose the original offsets;
   position writes update live state and matching script baselines. Low-level font lookup,

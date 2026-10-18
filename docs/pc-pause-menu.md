@@ -1777,3 +1777,105 @@ centring with recovered message destruction. The 12,800 composed-dispatch
 comparisons also pass after linking the expanded ownership component. These
 checks do not execute original exception unwind, dynamic virtual deletion or
 the pending input-operation consumer.
+
+
+## Full queued-operation consumer (2026-10-18)
+
+`FEngOperations.cpp` recovers **all flag paths** of `0x5559c0`, an 826-byte span
+through `0x555cf9`. `feng-operations.json` fingerprints that body, actual string
+comparison `0x43dcc0` and the recovered retail diagnostic `0x50d510`. The
+consumer composes actual message enqueueing and operation deleting-destructor
+helpers; it does not implement only the currently generated 4/8 opcodes.
+Observed layouts add package signed level +0x18, parent link +0x3c and the
+manager's circular registry sentinel +0x10. Registry records have next +0,
+previous +4 and name +8; the sentinel's name word is not used or identified.
+Unknown fields remain offset-based; these are partial UG2 prefixes.
+
+The consumer inlines operation unlinking before reading payload state, retaining
+original node-link/count write order and the absence of an extra Remove call.
+It reloads the queue head after deletion, so callbacks can enqueue more work.
+A package's signed level is cached before lifecycle operations. Flag 1 with a
+nonnegative level validates the parent against live packages, diagnoses/clears a
+stale parent, repairs child links or saves replacement state, restores parent
+masks, calls original removal boundary `0x5362e0` and decrements the cached level.
+The saved package/parent pair persists across operation nodes, including later
+replacement flags whose negative level bypasses removal.
+
+Flag 2 searches the circular registry with actual case-insensitive comparison.
+On a match it calls load boundary `0x555860` with name, wrapped low-byte
+`level+1` and mask. It preserves parent/child replacement and selective mask
+writes. Flag 0x10 updates other packages' temporary mask +0x24 even when loading
+returns null; it is not conditional on a successful result. Unmatched names do
+not load. Flags 4 and 8 transfer only currently owned requested mask bits to a
+parent or the **first** matching child, writing all four masks in original
+order. They post `0x334c5493` to target -4 with the original requested mask,
+including a zero mask. Flag/mask fields are reloaded across callbacks. Every
+consumed operation invokes deleting slot +0 with flag 1 after processing.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_operations.py --mutation-checks
+# Explicit fallback when MSVC 7.1/wibo is absent:
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_operations.py --compiler clang-cl --mutation-checks
+cmake --build build/native --target ug2fengqueue_native_test
+ctest --test-dir build/native -R '^feng_queue_native$' --output-on-failure
+```
+
+Clang i686 passes **4,097 original/rebuilt comparisons** over complete queued
+sequences. The verifier compares exact ordered writes, guarded arena memory,
+callee arguments/order, destructor/helper calls, stack cleanup, preserved
+registers and normal-return FS restoration. Actual recovered Post, string
+comparison, diagnostic and operation destruction execute directly. Loading,
+removal, allocation, deallocation and the selected Post observer are controlled.
+Fixtures include empty/multi-node queues, every low-five-bit flag combination,
+extra high bits, signed level extremes/byte wrap, successful/failed/missing
+loads, stale/self/mapped parent aliases, replacement state across nodes,
+selective mask writes, zero-mask notifications and callbacks changing flags,
+masks or the pending queue. The controlled loader keeps live chains acyclic;
+it does not model real allocation, package reader or ownership behavior.
+
+Every tracked major original block must be reached: unlink/remove/stale-parent,
+child repair, saved replacement, parent/all-mask restoration, registry misses,
+loading, attaching/replacing parents and children, exclusive-mask writes,
+parent/child transfers and both deleting-call sites. The report separately
+records successful and failed loads. This is a finite coverage gate for named
+blocks, not proof of complete branch combinations or arbitrary state.
+
+All **18 mutations** are rejected, including skipped lifecycle/transfer paths,
+retained stale parents, lost cross-node saved state, inverted registry matching,
+wrong level advancement, extra mask writes, skipping exclusive writes on load
+failure, wrong transferred mask, omitted zero-mask notification/count/deletion,
+an extra Remove boundary, and stale queue head/flag/mask caches across callbacks.
+Reports remain ignored under `build/analysis/feng-operations/`. MSVC 7.1/wibo are
+unavailable; byte matching, exception unwind, real package lifecycle/allocator
+composition, arbitrary pointers/aliases and malformed cycles remain unverified.
+
+The **asset-free native CTest probe** composes real enqueue/consume, parent and
+first-child transfers, notification construction, zero-mask notification and
+recovered destruction with actual Linux allocation/freeing. Assertions remain
+enabled in release builds. It maps one private data page for the original
+operation vtable slot and uses a native `thiscall` adapter to the recovered
+deleting body. It checks masks, untouched later children, list/count state,
+notification payloads and balanced allocation/free counts; it needs no retail
+executable/assets, SDL/OpenGL or display server. CTest is now available in the
+ordinary native build, independently of the modding option.
+
+The native operation-consumer trap is removed. Native Pump now follows the
+observed `0x558c00` message/operations/message phase order, retaining native
+message-routing, cancellation and 256-message guards. The operation vtable slot
+is bound to a native ABI adapter calling recovered deletion. This binding
+changes mapped process data, not the player's executable. Native registry
+sentinel initialization currently supplies an **empty** registry; original
+registration/storage is a data seam. Package load/remove boundaries still trap,
+as do four other package-operation enqueue boundaries. Target -4 delivery still
+traps in the message bridge: consumer recovery does not establish delivery of
+its notifications. The CTest probe inspects/unlinks these messages directly;
+current retail menu checks do not cover all lifecycle operations. Full message
+delivery `0x541fc0` and object delivery `0x5367e0` remain next.
+
+
+Native and mod-enabled builds pass. CTest `feng_queue_native` passes without
+assets or a display. Headless integration also passes all 19 settings and 10
+Controls scenarios, slider fill/knob pixel checks and scroller motion/settled
+centring. Those retail scenarios cover current menu behavior; the asset-free
+probe specifically exercises nonempty mask-transfer queues. Neither establishes
+original target -4 delivery, package reader/removal or registry construction.

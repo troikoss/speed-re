@@ -60,9 +60,9 @@ target_compile_options(ug2probe PRIVATE ${UG2_ARCH_FLAGS} -O1 -g -w
 target_link_libraries(ug2probe -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
 target_link_options(ug2probe PRIVATE ${UG2_LINK_FLAGS})
 
+include(CTest)
 option(UG2_ENABLE_MODDING "Build the native mod loader and SDK examples" OFF)
 if(UG2_ENABLE_MODDING)
-    include(CTest)
     add_subdirectory(modding)
 endif()
 
@@ -71,3 +71,14 @@ target_compile_options(ug2recordprobe PRIVATE ${UG2_ARCH_FLAGS} -O2 -Wall
     -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
 target_link_libraries(ug2recordprobe ug2recovered m)
 target_link_options(ug2recordprobe PRIVATE ${UG2_LINK_FLAGS})
+
+# Asset-free, display-free queue integration probe using the native thiscall bridge.
+add_executable(ug2fengqueue_native_test src/Platform/Native/FEngQueueNativeTest.cpp)
+target_compile_options(ug2fengqueue_native_test PRIVATE ${UG2_ARCH_FLAGS} -O1 -g
+    -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+target_link_libraries(ug2fengqueue_native_test ug2recovered)
+target_link_options(ug2fengqueue_native_test PRIVATE -m32 -no-pie)
+
+if(BUILD_TESTING)
+    add_test(NAME feng_queue_native COMMAND ug2fengqueue_native_test)
+endif()

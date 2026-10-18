@@ -559,3 +559,29 @@ renamed from cross-title evidence alone.
     `/tmp/ghidra-rpc-issues-20261018-queue-ownership.md`; requested newly-created
     destructor listings skipped entry bytes. Direct PE/Capstone decoding and
     original execution supplied the evidence; no recovery work is blocked.
+
+
+37. **Full operation consumer checkpoint (2026-10-18).** `FEngOperations.cpp`
+    recovers `0x5559c0` all flags1/2/4/8/0x10, not just current input opcodes.
+    Prefixes add package level18/parent3C and registry sentinel manager+10.
+    Preserve inline unlink, cached signed level, cross-node replacement state,
+    byte-wrapped next level, registry matching, selective masks, first child,
+    zero-mask notification and callback reloads. Clang original/rebuilt:4,097
+    sequence comparisons,18 mutations; tracked original block hits required.
+    Actual Post/string/diagnostic/deleting bodies compose; load/remove/allocator
+    and selected observer boundaries controlled. Native consumer trap removed,
+    original operation vtable slot bound through a native thiscall adapter;
+    Pump follows message/operations/message phases. Empty native registry and
+    package load/remove traps remain; target -4 message delivery and four other
+    package-operation enqueue boundaries still trap. New asset-free native
+    `ug2fengqueue_native_test` / CTest `feng_queue_native` verifies mask transfers,
+    zero notifications, virtual ABI, deletion and balanced allocation/freeing.
+    CTest available with modding disabled; no assets/display needed for this test.
+    MSVC/wibo unavailable, byte matching/exception unwind/full lifecycle and
+    malformed/alias completeness unverified. Next: full message delivery
+    `0x541fc0` and object message dispatch `0x5367e0`, preserving package response
+    and association-table layouts; then registration/lifecycle and original masks.
+    Native/mod builds pass, asset-free CTest passes, and headless 19 settings/10
+    Controls, slider pixels and scroller motion/settled centring pass. No new
+    Ghidra RPC problems encountered in this checkpoint. User .gitignore edits
+    remain unrelated and must stay unstaged.

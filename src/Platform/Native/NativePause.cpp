@@ -312,27 +312,30 @@ void ApplyDeferred() {
 }
 
 void Pump() {
-    for (int guard = 0; guard < 256; ++guard) {
-        ApplyDeferred();
-        FEngQueueNode *node = nativeFengQueue.messages4114.first8;
-        if (!node) break;
-        nativeFengQueue.messages4114.Remove(node);
-        NativeScreen *screen = 0;
-        for (size_t i = 0; i < kScreenCount; ++i)
-            if ((unsigned int)&screens[i]->fePackage == node->value14) { screen = screens[i]; break; }
-        int target = (int)node->value10;
-        if (target == -4) NativeTrap("FEng queue delivery target -4");
-        if (screen) {
-            int route = target == -1 ? kTargetGame : target == -3 ? kTargetPackage :
-                        target == -5 ? kTargetInput : kTargetObject;
-            PendingMessage pending = {screen, node->value18, (FengObject *)node->valueC, route,
-                                      route == kTargetObject ? (FengObject *)target : 0};
-            Process(pending);
+    // Native frame bridge follows 0x558c00's message/operations/message order.
+    for (int phase = 0; phase < 2; ++phase) {
+        for (int guard = 0; guard < 256; ++guard) {
+            ApplyDeferred();
+            FEngQueueNode *node = nativeFengQueue.messages4114.first8;
+            if (!node) break;
+            nativeFengQueue.messages4114.Remove(node);
+            NativeScreen *screen = 0;
+            for (size_t i = 0; i < kScreenCount; ++i)
+                if ((unsigned int)&screens[i]->fePackage == node->value14) { screen = screens[i]; break; }
+            int target = (int)node->value10;
+            if (target == -4) NativeTrap("FEng queue delivery target -4");
+            if (screen) {
+                int route = target == -1 ? kTargetGame : target == -3 ? kTargetPackage :
+                            target == -5 ? kTargetInput : kTargetObject;
+                PendingMessage pending = {screen, node->value18, (FengObject *)node->valueC, route,
+                                          route == kTargetObject ? (FengObject *)target : 0};
+                Process(pending);
+            }
+            node->DestroyMessage(1);
         }
-        node->DestroyMessage(1); // Native bridge knows this is a message node.
+        ApplyDeferred();
+        if (phase == 0) nativeFengQueue.ConsumeOperations();
     }
-    ApplyDeferred();
-    if (nativeFengQueue.operations4124.first8) NativeTrap("FEng input operation delivery");
 }
 
 // 0x54d4b0: a pad message goes to the focus object when it responds to it, else to the
@@ -555,6 +558,16 @@ FngRecord *FngFindRecord(unsigned int hash) {
 // Native allocator/ownership seam for original allocation boundary 0x575620.
 void *FEngAllocateQueueNode(unsigned int size) { return malloc(size); }
 void FEngFreeQueueNode(void *pointer) { free(pointer); }
+
+// Native ABI bridge for the operation node's original deleting-destructor slot.
+static FEngQueueNode *__thiscall NativeDeleteOperation(FEngQueueNode *node, unsigned int flags) {
+    return node->DestroyOperation(flags);
+}
+void FEngQueue::Call5362E0(FEPackage *) { NativeTrap("FEng package removal 0x5362e0"); }
+FEPackage *FEngQueue::Call555860(const char *, unsigned char, unsigned int) {
+    NativeTrap("FEng package loading 0x555860");
+    return 0;
+}
 
 // Explicit unrecovered package operations: current demo response fixtures do not
 // exercise these commands. Keep their call boundaries, without invented behavior.
@@ -796,6 +809,8 @@ NativePause::~NativePause() { CloseAll(); }
 bool NativePause::Load(const char *gameDirectory, NativeTextureCache *cache, const char *fontPath, char *error,
                        int errorSize) {
     fengManager8384C4 = &nativeFengManager;
+    nativeFengManager.names10.next0 = nativeFengManager.names10.previous4 = &nativeFengManager.names10;
+    *(void **)0x79ab64 = (void *)&NativeDeleteOperation; // Native vtable binding; recovered payload and destructor remain unchanged.
     fengValue8384D0 = 0; // Native demo uses the live package collections.
     textures = cache;
     std::string base = gameDirectory;
@@ -837,6 +852,8 @@ bool NativePause::Active() const { return ActiveScreen() != 0; }
 
 void NativePause::Open() {
     fengManager8384C4 = &nativeFengManager;
+    nativeFengManager.names10.next0 = nativeFengManager.names10.previous4 = &nativeFengManager.names10;
+    *(void **)0x79ab64 = (void *)&NativeDeleteOperation; // Native vtable binding; recovered payload and destructor remain unchanged.
     fengValue8384D0 = 0; // Native demo uses the live package collections.
     if (!pauseScreen.loaded || ActiveScreen()) return;
     request = kPauseRequestNone;

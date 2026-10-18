@@ -1,0 +1,20 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "ConsumeOperations": {
+      "address": "0x5559c0",
+      "size": 826,
+      "sha256": "9ac8c97151bfad01363ea0109726759468ed9701c3018ac05814159ad557475e"
+    },
+    "Diagnostic": {
+      "address": "0x50d510",
+      "size": 3,
+      "sha256": "4bc724f3b1d0caf4fe369c18cba3102e6c4ea057f63fe1587e3973134a7f755e"
+    },
+    "StringCompare": {
+      "address": "0x43dcc0",
+      "size": 67,
+      "sha256": "2eaae731d12d32202c0dcf191b980688d1207007fe87d1647c3901f4134f8347"
+    }
+  }
+}

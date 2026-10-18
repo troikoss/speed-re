@@ -32,6 +32,9 @@ struct FEngQueue {
     FEngSavedFocus value5150[32];
     char unidentified5250;
     unsigned char value5251;
+    void ConsumeOperations(); // 0x5559c0
+    void Call5362E0(FEPackage *package);
+    FEPackage *Call555860(const char *name, unsigned char level, unsigned int mask);
     void StoreFocus(unsigned int key, unsigned int value); // 0x50b300
     unsigned int LoadFocus(unsigned int key); // 0x50b360
     void ClearPackageStack(); // 0x50b390
@@ -66,12 +69,15 @@ struct FEPackage {
     char unidentified8[4];
     const char *nameC;
     unsigned int nameHash10;
-    char unidentified14[8];
+    char unidentified14[4];
+    int value18;
     unsigned int inputMask1C;
     unsigned int inputMask20;
     unsigned int inputMask24;
     unsigned int inputMask28;
-    char unidentified2C[0x20];
+    char unidentified2C[0x10];
+    FEPackage *parent3C;
+    char unidentified40[0xc];
     HudVisibilityObject *firstObject4C;
     char unidentified50[0x3c];
     HudVisibilityObject *focus8C;
@@ -83,6 +89,8 @@ struct FEPackage {
     HudVisibilityObject *FindObject(unsigned int hash); // 0x517f80
     HudVisibilityObject *FindObjectByGuid(unsigned int guid); // 0x517fe0
 };
+UG2_CHECK_OFFSET(FEPackage, value18, 0x18);
+UG2_CHECK_OFFSET(FEPackage, parent3C, 0x3c);
 UG2_CHECK_OFFSET(FEPackage, nameC, 0xc);
 UG2_CHECK_OFFSET(FEPackage, firstObject4C, 0x4c);
 UG2_CHECK_OFFSET(FEPackage, inputMask1C, 0x1c);
@@ -113,13 +121,22 @@ UG2_CHECK_OFFSET(FEngPackageNode, links4, 4);
 UG2_CHECK_OFFSET(FEngPackageNode, valueC, 0xc);
 UG2_CHECK_OFFSET(FEngPackageNode, value10, 0x10);
 UG2_CHECK_OFFSET(FEngArchive, root4, 4);
+struct FEngRegisteredPackageLink {
+    FEngRegisteredPackageLink *next0;
+    FEngRegisteredPackageLink *previous4;
+    const char *name8; // Used on non-sentinel records only.
+};
 struct FEngManager {
     char unidentified0[8];
     FEngQueue *queue8;
+    char unidentifiedC[4];
+    FEngRegisteredPackageLink names10; // Circular sentinel: only its two link words are observed.
     void SetFocusByHash(const char *name, unsigned int hash); // 0x52ce40
 };
 UG2_CHECK_OFFSET(FEngPackageNode, package18, 0x18);
 UG2_CHECK_OFFSET(FEngManager, queue8, 8);
+UG2_CHECK_OFFSET(FEngManager, names10, 0x10);
+UG2_CHECK_OFFSET(FEngRegisteredPackageLink, name8, 8);
 
 // Persisted selection belongs to the static FNG record, not the live FEPackage.
 struct FngRecord {
