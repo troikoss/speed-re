@@ -341,8 +341,13 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   three zeroed words. Command cleanup `0x517600`, byte-string setter `0x517630`
   and assignment `0x52ad80` pass 16,384 original/rebuilt comparisons and 12
   mutation rejections. Native fixtures cover deep-copy and self-assignment
-  behavior; the full parser and response-array allocation remain seams.
-  See [command ownership evidence](pc-pause-menu.md#response-command-construction-ownership-and-assignment-2026-10-18).
+  behavior. Recovered resize `0x52ae00` and CRT iterator normal paths now own
+  command arrays; MC sizes storage and bounded Rs strings call the recovered
+  setter. Native movable headers release arrays via recovered resize-to-zero.
+  Resize/iterator verification passes 12,288 comparisons and 14 mutations.
+  Full response parsing, pool-backed headers, exception rollback and byte matching
+  remain pending. See [command ownership evidence](pc-pause-menu.md#response-command-construction-ownership-and-assignment-2026-10-18)
+  and [array ownership](pc-pause-menu.md#response-array-resizing-and-native-ownership-2026-10-18).
 - Native image/group/list teardown now invokes recovered `0x532660`/`0x534bf0`/
   `0x534a50`, alongside string destruction. Original list storage/cell release
   `0x516dc0`/`0x5042e0` and the three deleting wrappers are verified together with

@@ -58,13 +58,19 @@ struct FengScript {
 };
 
 // Message responses: 'MsgR' per object and 'PkgR' per package, read like 0x54d1d0. Each response
-// names a message ('Mi') and lists commands of type 'Ri', parameter 'Ru' and target 'Rt'; 0x52c7c0
+// names a message ('Mi'); MC sizes its recovered command array, Ri/Ru/Rt set words,
+// and Rs calls the recovered owned byte-string setter. Full reader remains a seam. 0x52c7c0
 // runs them (0 script, 1 message to an object, 2 message to the game, 0x300/0x301/0x500/0x501 if/else).
 typedef FEResponseCommand FengResponseCommand;
 struct FengResponse {
     unsigned int message;
-    std::vector<FengResponseCommand> commands;
-    FEResponse original; // Native projection of the observed original response prefix.
+    FEResponse original; // Native header; command storage uses recovered ResizeCommands.
+    FengResponse();
+    ~FengResponse();
+    FengResponse(FengResponse &&other) noexcept;
+    FengResponse &operator=(FengResponse &&other) noexcept;
+    FengResponse(const FengResponse &) = delete;
+    FengResponse &operator=(const FengResponse &) = delete;
 };
 const FengResponse *FindFengResponse(const std::vector<FengResponse> &responses, unsigned int message);
 

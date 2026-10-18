@@ -21,7 +21,8 @@ struct FEResponse {
     char unidentified8[4];
     unsigned int messageC;
     unsigned int commandCount10;
-    const FEResponseCommand *commands14;
+    FEResponseCommand *commands14;
+    void ResizeCommands(unsigned int count); // 0x52ae00
     unsigned int SkipConditionalBlock(unsigned int index); // 0x504490, thiscall
 };
 UG2_CHECK_SIZE(FEResponseCommand, 0xc);

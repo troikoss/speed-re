@@ -129,6 +129,28 @@ static void ResponseCommands() {
     FEngDestructResponseCommand(&source);
     assert(freeCalls == before + 2 && !copy.parameter && !source.parameter);
     assert(copy.type == 0x200 && copy.target == 0xabcdef01);
+    FEResponse response = {};
+    response.ResizeCommands(3);
+    assert(response.commandCount10 == 3 && response.commands14);
+    assert(reinterpret_cast<unsigned int *>(response.commands14)[-1] == 3);
+    for (unsigned int i = 0; i < 3; ++i)
+        assert(!response.commands14[i].type && !response.commands14[i].parameter && !response.commands14[i].target);
+    response.commands14[0].type = 0x201;
+    response.commands14[0].target = 0x12345678;
+    response.commands14[0].SetString("retained");
+    response.commands14[2].type = 0x202;
+    response.commands14[2].SetString("removed");
+    unsigned int oldText = response.commands14[0].parameter;
+    response.ResizeCommands(5);
+    assert(response.commandCount10 == 5 && response.commands14[0].parameter != oldText);
+    assert(!strcmp((const char *)response.commands14[0].parameter, "retained"));
+    assert(!strcmp((const char *)response.commands14[2].parameter, "removed"));
+    assert(response.commands14[0].target == 0x12345678 && !response.commands14[4].type);
+    FEResponseCommand *unchanged = response.commands14;
+    response.ResizeCommands(5); assert(response.commands14 == unchanged);
+    response.ResizeCommands(1);
+    assert(response.commandCount10 == 1 && !strcmp((const char *)response.commands14[0].parameter, "retained"));
+    response.ResizeCommands(0); assert(!response.commands14 && !response.commandCount10);
     copy.type = 0x203; copy.parameter = 0x12345678;
     before = freeCalls; FEngDestructResponseCommand(&copy);
     assert(freeCalls == before && !copy.parameter && copy.type == 0x203);

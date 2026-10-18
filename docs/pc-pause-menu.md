@@ -3486,3 +3486,86 @@ scripted HUD capture. These are integration evidence, separate from recovered
 command behavior. Ghidra signatures/comments are updated. Earlier HUD coverage
 wording above is clarified to distinguish the four-resolution baseline from
 the skin sweep performed at 1280x720.
+
+
+### Response-array resizing and native ownership (2026-10-18)
+
+Recovered the normal-return body of `FEResponse::ResizeCommands` at
+`0x52ae00` (285 bytes), plus the normal paths of the CRT constructor iterator
+`0x75c461` (74-byte main span) and reverse destructor iterator `0x75c401`
+(72-byte main span). `config/SPEED2_EXE_1_2/feng-response-array.json` also
+fingerprints their finally funclets and actual SEH prolog/epilog helpers.
+These are UG2 observations; the source does not assert original file names
+or establish behavior in another SPEED title.
+
+Equal logical counts return without touching the array. A nonzero resize
+allocates `count * 12 + 4` with 32-bit arithmetic, stores the count cookie,
+and calls the actual constructor iterator with both callback arguments.
+It captures the fresh logical count after construction and assigns the smaller
+of it and the requested count. Each copy reloads the old array field and calls
+the actual command assignment, including its nested string setter. Cleanup
+reloads the old array, captures its allocation base before callbacks, destroys
+using the count cookie at `array - 4` rather than the logical count, and frees
+the captured base. Only then does it install the new pointer and logical count.
+Zero-size cleanup follows the same cookie/destruction/free sequence, then clears
+pointer and count. Callback-induced field rebinding distinguishes these loads.
+
+Constructor iteration advances forward and compares signed `i < count`.
+Destructor iteration starts at `base + stride * count`, decrements the count,
+tests its sign, and subtracts stride before each callback. Count/stride arithmetic
+wraps in 32 bits. The callback ABI is ECX-only; the constructor iterator takes
+five stdcall arguments and the destructor iterator takes four. The unused normal-
+path destructor argument is still passed by callers. Separate translation units
+keep that call boundary observable without forcing registers or inventing
+volatile accesses. The source callback types are scoped to verified response
+commands; other CRT callback uses have not been established by this checkpoint.
+
+`UG2_EXE=... build/venv/bin/python tools/verify_pc_feng_response_array.py
+--compiler clang-cl --mutation-checks` passes 12,288 comparisons, 4,096 per
+root, and rejects 14 semantic mutations. Actual original execution enters
+constructor callbacks 21,002 times, cleanup callbacks 21,169 times, command
+assignment 5,370 times, and the string setter 2,386 times. It executes the
+original iterators, finally guards and SEH setup/teardown; only heap calls at
+`0x575620`/`0x575630` are controlled. Rebuilt execution is restricted to linked
+source ranges. Comparisons include arena state, ordered helper/heap snapshots,
+callback identity, stack cleanup, preserved registers and restored FS chain.
+Cases vary logical/cookie counts, growth/shrink/equal/zero requests, null old
+storage, string-owning types, retained strings, heap rebindings, negative signed
+iterator counts and zero/forward/reverse strides. Failed array allocation is
+covered only when the retained count is zero; it is not general allocation-
+failure recovery. Invalid lifetimes, arbitrary stack aliases, huge positive
+iterations, exceptions, concurrency and byte identity remain unproven.
+
+**Exceptional rollback is not recovered.** The original iterator's exceptional
+finally path uses the destructor callback to roll back partially constructed
+arrays. Recovered sources implement normal-return behavior only. Full SEH
+unwinding, MSVC 7.1/wibo verification and byte matching remain pending. Restoring
+the FS chain after a normal call does not prove exception equivalence.
+
+Native responses now own actual recovered command arrays instead of borrowing
+`std::vector` command data. The bounded native parser applies `MC` through
+`ResizeCommands`, writes `Ri`/`Ru`/`Rt` into constructed cells, and applies bounded
+terminated `Rs` strings through the recovered setter. Native response headers
+remain movable wrappers: transfer clears the old owner, and member teardown
+calls recovered `ResizeCommands(0)`. This is an ownership adapter, not recovery
+of the original pool-backed header destructor or its teardown order. Package
+and object header links are still projected natively. Bounds/context guards
+skip out-of-range commands and clear a cached command when MC replaces storage;
+these guards are separate from the original unbounded reader.
+
+Native fixtures exercise growth/shrink/equal/zero storage, cookies, initialized
+cells, string replacement and deep copying, independent package/object arrays,
+unterminated/high-byte Rs input, numeric `0x203` parameters, header-vector
+relocation, explicit move construction/assignment and release of a previous
+owner. The existing conditional traversal verifier also passes 8,192 comparisons
+and six mutations. The full response reader `0x54d1d0`, response-pool allocation
+`0x54bdf0`, base/script cloning and production inheritance remain pending.
+
+Native and mod-enabled builds and all three asset-free CTests pass. Headless
+integration passes 19 settings scenarios plus slider pixels, 10 Controls
+scenarios, pause/scroller motion and settled centering, baseline HUD translation
+at four resolutions, all 11 skins at 1280x720 and the scripted HUD capture.
+These check native integration separately from original/rebuilt evidence.
+They do not establish the full original reader, pool ownership, exception-frame
+observations during callbacks or exceptional unwind. Ghidra signatures and
+comments record the verified boundaries and these normal-path limits.

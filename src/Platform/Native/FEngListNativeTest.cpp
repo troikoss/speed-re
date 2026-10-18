@@ -10,6 +10,7 @@
 #endif
 #include <assert.h>
 #include <algorithm>
+#include <utility>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -129,6 +130,7 @@ static void RunString() {
     value.clear(); Word(value, 0x1744b3); Word(value, 1000); Tag(script, 0x6853, value);
     script = Chunk(0x70726353, script); objectData.insert(objectData.end(), script.begin(), script.end());
     value.clear(); Word(value, 0x1234); Tag(response, 0x694d, value);
+    value.clear(); Word(value, 2); Tag(response, 0x434d, value); // MC owns a constructed array.
     value.clear(); Word(value, 1); Tag(response, 0x6952, value); // First command leaves defaults.
     value.clear(); Word(value, 2); Tag(response, 0x6952, value);
     value.clear(); Word(value, 0x12345678); Tag(response, 0x7552, value);
@@ -295,6 +297,62 @@ static void RunRetainedNames() {
         }
     }
 }
+static void RunResponseStorage() {
+    std::vector<unsigned char> data, value, response;
+    Word(value, 1); Tag(data, 0x744f, value); value.clear();
+    Word(value, 7); Tag(response, 0x694d, value); value.clear();
+    Word(value, 3); Tag(response, 0x434d, value); value.clear();
+    Word(value, 0x200); Tag(response, 0x6952, value); value.clear();
+    const char *strings[] = {"old", "retained", "high\x80\xff"};
+    for (unsigned int i = 0; i < 2; ++i) {
+        value.assign(strings[i], strings[i] + strlen(strings[i]));
+        Tag(response, 0x7352, value);
+    }
+    value.clear(); Word(value, 0xabcdef01); Tag(response, 0x7452, value); value.clear();
+    Word(value, 0x204); Tag(response, 0x6952, value);
+    value.assign(strings[2], strings[2] + strlen(strings[2])); Tag(response, 0x7352, value);
+    value.clear(); Word(value, 0x203); Tag(response, 0x6952, value); value.clear();
+    Word(value, 0x12345678); Tag(response, 0x7552, value); value.clear();
+    // Another response forces native header-vector relocation, preserving owned arrays.
+    Word(value, 8); Tag(response, 0x694d, value); value.clear();
+    Word(value, 0); Tag(response, 0x434d, value);
+    std::vector<unsigned char> object = Chunk(0x446a624f, data);
+    std::vector<unsigned char> responseChunk = Chunk(0x5267734d, response);
+    object.insert(object.end(), responseChunk.begin(), responseChunk.end());
+    std::vector<unsigned char> packageData = Chunk(0x52676b50, response);
+    std::vector<unsigned char> objectChunk = Chunk(0xcc6a624f, Chunk(0xea624f46, object));
+    packageData.insert(packageData.end(), objectChunk.begin(), objectChunk.end());
+    data = Chunk(0x30203, Chunk(0xe76e4546, packageData));
+    FengPackage package; std::string error;
+    assert(package.Load(data.data(), data.size(), 0, &error));
+    assert(package.Responses().size() == 2 && package.Responses()[0].original.commandCount10 == 3);
+    assert(!strcmp((const char *)package.Responses()[0].original.commands14[0].parameter, strings[1]));
+    assert(package.Objects()[0]->responses.size() == 2);
+    FEResponse *header = package.Objects()[0]->responses3C;
+    assert(header->messageC == 7 && header->commandCount10 == 3 && header->next4->messageC == 8);
+    assert(!header->next4->commandCount10 && !header->next4->commands14);
+    assert(!strcmp((const char *)header->commands14[0].parameter, strings[1]));
+    assert(header->commands14[0].target == 0xabcdef01);
+    assert(!strcmp((const char *)header->commands14[1].parameter, strings[2]));
+    assert(header->commands14[2].type == 0x203 && header->commands14[2].parameter == 0x12345678);
+    header->ResizeCommands(1);
+    assert(header->commandCount10 == 1 && !strcmp((const char *)header->commands14[0].parameter, strings[1]));
+    assert(package.Responses()[0].original.commandCount10 == 3); // Independent package/object arrays.
+    FengResponse owner;
+    owner.original.ResizeCommands(1);
+    owner.original.commands14[0].type = 0x201;
+    owner.original.commands14[0].SetString("move-owned");
+    FEResponseCommand *owned = owner.original.commands14;
+    FengResponse moved(std::move(owner));
+    assert(!owner.original.commands14 && !owner.original.commandCount10 && moved.original.commands14 == owned);
+    FengResponse assigned;
+    assigned.original.ResizeCommands(1);
+    assigned.original.commands14[0].type = 0x202;
+    assigned.original.commands14[0].SetString("release-on-move");
+    assigned = std::move(moved);
+    assert(!moved.original.commands14 && !moved.original.commandCount10 && assigned.original.commands14 == owned);
+    assert(!strcmp((const char *)assigned.original.commands14[0].parameter, "move-owned"));
+}
 static void RunInheritance() {
     FEPackage source = {}, first = {}, second = {};
     FEngQueue queue = {};
@@ -336,5 +394,6 @@ int main() {
     RunCellPayloads();
     RunRetainedNames();
     RunInheritance();
+    RunResponseStorage();
     puts("PASS native FNG owned text/names, inheritance/GUID lookup and type4 projection/navigation/ticking (no assets or display)");
 }

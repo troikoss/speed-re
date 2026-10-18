@@ -143,29 +143,39 @@ float RdF(const unsigned char *p) {
 
 const unsigned int kInitScript = 0x1744b3;  // 0x5515e0 / 0x5554a0: the "Init" script hash
 
-// 0x54d1d0: tagged records 'Mi' (new response), 'Ri' (new command), 'Ru', 'Rt'; 'MC' and 'Rs' unused.
+// Native bounded container/context adapter around recovered command storage.
+// Full 0x54d1d0 response reader and pool-owned response headers remain pending.
 void ReadResponses(const unsigned char *data, size_t size, std::vector<FengResponse> *responses) {
+    unsigned int commandIndex = 0;
+    FEResponseCommand *command = 0;
     for (size_t t = 0; t + 4 <= size;) {
         unsigned int tag = Rd16(data + t);
         unsigned int len = Rd16(data + t + 2);
         if (t + 4 + len > size) break;
         unsigned int value = len >= 4 ? Rd32(data + t + 4) : 0;
         if (tag == 0x694d) {
-            FengResponse response;
-            response.message = value;
-            memset(&response.original, 0, sizeof(response.original));
-            responses->push_back(response);
+            responses->emplace_back();
+            responses->back().message = value;
+            commandIndex = 0;
+            command = 0;
         } else if (!responses->empty()) {
-            std::vector<FengResponseCommand> &commands = responses->back().commands;
-            if (tag == 0x6952) {
-                FengResponseCommand command;
-                FEngConstructResponseCommand(&command);
-                command.type = value;
-                commands.push_back(command);
-            } else if (tag == 0x7552 && !commands.empty()) {
-                commands.back().parameter = value;
-            } else if (tag == 0x7452 && !commands.empty()) {
-                commands.back().target = value;
+            FEResponse &response = responses->back().original;
+            if (tag == 0x434d) {
+                response.ResizeCommands(value);
+                command = 0; // Native context guard: do not retain a replaced cell.
+            } else if (tag == 0x6952) {
+                command = commandIndex < response.commandCount10 ? response.commands14 + commandIndex : 0;
+                ++commandIndex;
+                if (command) command->type = value;
+            } else if (tag == 0x7552 && command) {
+                command->parameter = value;
+            } else if (tag == 0x7452 && command) {
+                command->target = value;
+            } else if (tag == 0x7352 && command) {
+                std::string bounded;
+                for (unsigned int i = 0; i < len && data[t + 4 + i]; ++i)
+                    bounded += (char)data[t + 4 + i];
+                command->SetString(bounded.c_str());
             }
         }
         t += 4 + len;
@@ -243,6 +253,25 @@ void BindNativeStringObserver(const std::vector<unsigned char> *language) {
 
 unsigned int FengHash(const char *text) {
     return FngHash(text); // Native naming adapter; original 0x505450 executes recovered code.
+}
+
+// Native movable owner for recovered command arrays. Header pool/list ownership
+// remains a platform seam; only the actual recovered resize owns array lifetime.
+FengResponse::FengResponse() : message(0), original() {}
+FengResponse::~FengResponse() { original.ResizeCommands(0); }
+FengResponse::FengResponse(FengResponse &&other) noexcept : message(other.message), original(other.original) {
+    other.original.commands14 = 0;
+    other.original.commandCount10 = 0;
+}
+FengResponse &FengResponse::operator=(FengResponse &&other) noexcept {
+    if (this != &other) {
+        original.ResizeCommands(0);
+        message = other.message;
+        original = other.original;
+        other.original.commands14 = 0;
+        other.original.commandCount10 = 0;
+    }
+    return *this;
 }
 
 FengPackage::FengPackage() {}
@@ -631,24 +660,18 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
             object->currentScript54->time10 = 0;
         }
     }
-    // Prefix projection only; original response/Targ allocation and parsing remain seams.
+    // Native response-header links; command arrays already have recovered ownership.
     for (size_t i = 0; i < responses_.size(); ++i) {
         FengResponse &response = responses_[i];
-        memset(&response.original, 0, sizeof(response.original));
         response.original.next4 = i + 1 < responses_.size() ? &responses_[i + 1].original : 0;
         response.original.messageC = response.message;
-        response.original.commandCount10 = response.commands.size();
-        response.original.commands14 = response.commands.data();
     }
     for (size_t n = 0; n < objects_.size(); ++n) {
         std::vector<FengResponse> &responses = objects_[n]->responses;
         for (size_t i = 0; i < responses.size(); ++i) {
             FengResponse &response = responses[i];
-            memset(&response.original, 0, sizeof(response.original));
             response.original.next4 = i + 1 < responses.size() ? &responses[i + 1].original : 0;
             response.original.messageC = response.message;
-            response.original.commandCount10 = response.commands.size();
-            response.original.commands14 = response.commands.data();
         }
         objects_[n]->responses3C = responses.empty() ? 0 : &responses[0].original;
     }
