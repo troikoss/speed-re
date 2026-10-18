@@ -331,7 +331,7 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   preceding tween advancement. Native scroller construction remains a seam. Name selection `0x51cf70`,
   pointer assignment `0x5178b0` and track activation `0x517720` now use recovered
   code and arithmetic helpers; native loading supplies key nodes and event
-  delivery observes the selected header. Playback clocks, event delivery and formatted hashing
+  delivery observes the selected header. Playback clocks, event delivery and the formatter core
   remain seams. See [activation evidence](pc-pause-menu.md#script-selection-and-track-activation-2026-10-18).
   Colour, lock/arrow-script policies and scrollbar geometry use recovered routines;
   LOCK/BUTTON_MASTER and all ScrollBar objects now bind the retail objects.
@@ -341,8 +341,13 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   running queries `0x537cc0`/`0x537d40` now execute recovered code. Predicates read
   selected headers with signed inclusive time checks; native event-list queries
   and hash-selection loops are removed. HUD/Controls name selection also calls
-  recovered code. Formatted hashing and playback/event delivery remain seams.
+  recovered code. The formatter core and playback/event delivery remain seams.
   See [script wrapper evidence](pc-pause-menu.md#hash-selection-package-script-wrappers-and-running-queries-2026-10-18).
+- GUI formatted hashing `0x50b9c0`, buffer wrapper `0x50c960`, shared profiling
+  wrapper `0x43fbc0` and elapsed accounting `0x43e5c0` now execute recovered code.
+  The buffer wrapper ignores capacity as the original does. Native SDL counter
+  access/calibration and host formatting behind core `0x43e950` remain seams.
+  See [formatting evidence](pc-pause-menu.md#gui-formatting-wrappers-and-profiling-2026-10-18).
 - FEng image centre/size writes and rendered text height now call recovered coordinate
   and metric routines. String and script-track prefixes expose the original offsets;
   position writes update live state and matching script baselines. Low-level font lookup,

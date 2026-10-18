@@ -590,25 +590,6 @@ void FEngQueue::Post(unsigned int message, void *sender, FEPackage *package, int
     }
 }
 
-// Formatting and optional scroller dependencies still supplied by native interfaces.
-unsigned int FngFormatHash(const char *format, ...) {
-    // Linux formatting backend for the original 0x50b9c0 boundary.
-    char text[256];
-    va_list args;
-    va_start(args, format);
-    vsnprintf(text, sizeof(text), format, args);
-    va_end(args);
-    return FengHash(text);
-}
-
-int FngFormatBuffer(char *buffer, unsigned int size, const char *format, ...) {
-    // Linux formatting backend for 0x50c960; legacy truncation semantics remain unverified.
-    va_list args;
-    va_start(args, format);
-    int result = vsnprintf(buffer, size, format, args);
-    va_end(args);
-    return result;
-}
 // ---- IconScroller base seams --------------------------------------------------------------
 
 IconScrollerIcon::~IconScrollerIcon() {}  // 0x527770

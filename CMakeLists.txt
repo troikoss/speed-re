@@ -15,6 +15,7 @@ file(GLOB UG2_RECOVERED_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Src/Hud/*.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Src/Frontend/*.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Strings.cpp
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Formatting.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/TimedAverage.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/bSlotPool.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Compression.cpp)
@@ -42,6 +43,7 @@ target_link_options(ug2sim PRIVATE ${UG2_LINK_FLAGS})
 
 add_executable(ug2demo src/Platform/Native/DemoMain.cpp src/Platform/Native/NativeAssets.cpp
     src/Platform/Native/NativeScene.cpp src/Platform/Native/NativeFng.cpp src/Platform/Native/NativeHud.cpp
+    src/Platform/Native/NativeFormatting.cpp
     src/Platform/Native/NativePause.cpp src/Platform/Native/NativePauseOptions.cpp src/Platform/Native/NativeControls.cpp)
 target_compile_options(ug2demo PRIVATE ${UG2_ARCH_FLAGS} -O2 -Wall -D_REENTRANT
     -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)

@@ -15,8 +15,9 @@ from unicorn.x86_const import (UC_X86_REG_EAX, UC_X86_REG_ECX, UC_X86_REG_EDX,
                               UC_X86_REG_ESP, UC_X86_REG_EIP, UC_X86_REG_EBX,
                               UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP,
                               UC_X86_REG_GDTR, UC_X86_REG_CS, UC_X86_REG_SS,
-                              UC_X86_REG_DS, UC_X86_REG_ES, UC_X86_REG_FS)
-from pc_coff import link_objects
+                              UC_X86_REG_DS, UC_X86_REG_ES, UC_X86_REG_FS,
+                              UC_X86_REG_FPCW, UC_X86_REG_FPSW, UC_X86_REG_FPTAG)
+from pc_coff import link_objects, read_object
 from probe_pc_race_reward import ROOT, EXE
 
 BUILD = ROOT / 'build/analysis/feng-lookup'
@@ -44,10 +45,12 @@ def main():
     parser.add_argument('--source', type=Path, default=ROOT / 'src/Speed/Indep/Src/Frontend/FEngLookup.cpp')
     parser.add_argument('--locator-source', type=Path, default=ROOT / 'src/Speed/Indep/Src/Frontend/FEngLocator.cpp')
     parser.add_argument('--script-lookup-source', type=Path, default=ROOT / 'src/Speed/Indep/Src/Frontend/FEngScriptLookup.cpp')
+    parser.add_argument('--compose-formatting', action='store_true', help='Execute formatting wrappers/profile with formatter core and clock controlled')
     parser.add_argument('--compose-scripts', action='store_true', help='Execute recovered script wrappers and activation through actual archive lookup')
     parser.add_argument('--compose-archive', action='store_true', help='Execute recovered archive search instead of controlling it')
     parser.add_argument('--mutation-checks', action='store_true')
     args = parser.parse_args()
+    if args.compose_formatting: args.compose_scripts = True
     if args.compose_scripts: args.compose_archive = True
     manifest = json.loads((ROOT / 'config/SPEED2_EXE_1_2/feng-lookup.json').read_text())
     raw = EXE.read_bytes()
@@ -63,6 +66,10 @@ def main():
             extra = json.loads((ROOT / ('config/SPEED2_EXE_1_2/' + name + '.json')).read_text())
             assert extra['executable_sha256'] == manifest['executable_sha256']
             functions.update(extra['functions'])
+    if args.compose_formatting:
+        extra = json.loads((ROOT / 'config/SPEED2_EXE_1_2/feng-formatting.json').read_text())
+        assert extra['executable_sha256'] == manifest['executable_sha256']
+        functions.update(extra['functions'])
     for f in functions.values():
         offset = int(f['address'], 16) - 0x400000
         assert hashlib.sha256(image[offset:offset + f['size']]).hexdigest() == f['sha256']
@@ -73,6 +80,9 @@ def main():
         sources.append(ROOT / 'src/Speed/Indep/Src/Frontend/FEngArchive.cpp')
     if args.compose_scripts:
         sources.extend([ROOT / 'src/Speed/Indep/Src/Frontend/FEngScript.cpp', args.script_lookup_source])
+    if args.compose_formatting:
+        sources.extend([ROOT / 'src/Speed/Indep/Src/Frontend/FEngFormatting.cpp',
+                        ROOT / 'src/Speed/Indep/Libs/bWare/Formatting.cpp'])
     for source in sources:
         obj = BUILD / (source.stem + '.obj')
         if args.compiler == 'msvc':
@@ -93,6 +103,18 @@ def main():
         external['?FngFormatHash@@YAIPBDZZ'] = 0x50b9c0
     if args.compose_archive:
         del external['?FindNode@FEngArchive@@QAEPAUFEngPackageNode@@PBD@Z']
+    if args.compose_formatting:
+        del external['?FngFormatHash@@YAIPBDZZ']
+        external['__allshr'] = 0x75c600
+        external['__fltused'] = ARENA + 0x7800
+        formatting_globals = {'bFormatQueryCounter': STOP + 0xa00, 'bFormatCore': 0x43e950,
+                              'bFormatShift8284E4': 0x8284e4, 'bFormatScale828028': 0x828028,
+                              'bFormatTime828518': 0x828518, 'bFormatCount82851C': 0x82851c}
+        for obj in objects:
+            for symbol in read_object(obj)['symbols'].values():
+                if symbol['section'] == 0:
+                    for name, address in formatting_globals.items():
+                        if symbol['name'].startswith('?' + name + '@'): external[symbol['name']] = address
     linked = link_objects(objects, external)
     entries = {name: next(a for n, a in linked['exports'].items() if n.startswith(prefix))
                for name, prefix in PREFIXES.items()}
@@ -110,6 +132,7 @@ def main():
         uc = Uc(UC_ARCH_X86, UC_MODE_32)
         uc.mem_map(0x400000, (len(image) + 4095) & ~4095)
         uc.mem_write(0x400000, image)
+        if args.compose_formatting: uc.mem_write(0x78311c, struct.pack('<I', STOP + 0xa00))
         uc.mem_map(ARENA, 0x10000)
         uc.mem_map(STOP, 0x1000)
         uc.mem_map(TIB, 0x1000)
@@ -164,7 +187,36 @@ def main():
                 state['trace'].append(('hash', words(uc, sp + 4)[0]))
             if address == compare_entry:
                 state['trace'].append(('name-compare', words(uc, sp + 4, 2)))
-            if address == 0x50b9c0 and args.compose_scripts:
+            if address == STOP + 0xa00 and args.compose_formatting:
+                ret, destination = words(uc, sp, 2)
+                tick = 1000000 + state['clock_index']
+                state['clock_index'] += 1
+                state['trace'].append(('counter', tick))
+                uc.mem_write(destination, struct.pack('<Q', tick))
+                uc.reg_write(UC_X86_REG_EAX, 1)
+                uc.reg_write(UC_X86_REG_ECX, 0xcccccccc)
+                uc.reg_write(UC_X86_REG_EDX, 0xdddddddd)
+                uc.reg_write(UC_X86_REG_ESP, sp + 8)
+                uc.reg_write(UC_X86_REG_EIP, ret)
+                return
+            if address == 0x43e950 and args.compose_formatting:
+                ret, context, argument, raw_arguments = words(uc, sp, 4)
+                assert bytes(uc.mem_read(context + 4, 1)) == b'\0' and words(uc, context + 8)[0] == 0
+                state['trace'].append(('format-core', argument))
+                text_ = (b'go', b'', b'notfound')[state['format_variant']]
+                destination = words(uc, context)[0]
+                uc.mem_write(destination, text_ + b'\0')
+                uc.mem_write(context, struct.pack('<I', destination + len(text_)))
+                if state['format_mutation']:
+                    for nodes in NODES:
+                        for node in nodes: uc.mem_write(node + 0x54, bytes(4))
+                uc.reg_write(UC_X86_REG_EAX, len(text_))
+                uc.reg_write(UC_X86_REG_ECX, 0xcccccccc)
+                uc.reg_write(UC_X86_REG_EDX, 0xdddddddd)
+                uc.reg_write(UC_X86_REG_ESP, sp + 4)
+                uc.reg_write(UC_X86_REG_EIP, ret)
+                return
+            if address == 0x50b9c0 and args.compose_scripts and not args.compose_formatting:
                 ret, argument = words(uc, sp, 2)
                 state['trace'].append(('format-hash', argument))
                 if state['format_mutation']:
@@ -216,6 +268,13 @@ def main():
             uc.mem_write(ARENA, bytes(memory))
             uc.mem_write(GLOBAL, struct.pack('<I', manager))
             uc.mem_write(MODE, struct.pack('<I', mode))
+            if args.compose_formatting:
+                uc.mem_write(0x8284e4, bytes(4))
+                uc.mem_write(0x828028, struct.pack('<f', 0.001))
+                uc.mem_write(0x828518, bytes(8))
+                uc.reg_write(UC_X86_REG_FPCW, 0x27f)
+                uc.reg_write(UC_X86_REG_FPSW, 0)
+                uc.reg_write(UC_X86_REG_FPTAG, 0xffff)
             if args.compose_archive:
                 head = ARCHIVE_NODE + 4 if fixture['archive_node'] else ARCHIVE + 4
                 uc.mem_write(ARCHIVE + 4, struct.pack('<II', head, head))
@@ -226,16 +285,20 @@ def main():
             for i, reg in enumerate(PRESERVED):
                 uc.reg_write(reg, 0x12345000 + i)
             state.clear()
-            state.update(fixture, trace=[], visits=0)
+            state.update(fixture, trace=[], visits=0, clock_index=0)
             uc.emu_start(entries[name] if rebuilt else int(functions[name]['address'], 16), STOP, count=20000)
             assert uc.reg_read(UC_X86_REG_EIP) == STOP
             assert uc.reg_read(UC_X86_REG_ESP) == STACK + 4 + cleanup
             assert all(uc.reg_read(r) == 0x12345000 + i for i, r in enumerate(PRESERVED))
             assert words(uc, TIB)[0] == 0x12345678
+            if args.compose_formatting:
+                assert uc.reg_read(UC_X86_REG_FPCW) == 0x27f
+                assert uc.reg_read(UC_X86_REG_FPSW) & 0x3800 == 0
             value = uc.reg_read(UC_X86_REG_EAX)
             outputs.append((None if void_result else value & 255 if byte_result else value, bytes(uc.mem_read(ARENA, 0xe000)),
                             words(uc, GLOBAL), words(uc, MODE), state['trace'],
-                            bytes(uc.mem_read(ARCHIVE, 12)) if args.compose_archive else b''))
+                            bytes(uc.mem_read(ARCHIVE, 12)) if args.compose_archive else b'',
+                            bytes(uc.mem_read(0x828518, 8)) if args.compose_formatting else b''))
         assert outputs[0] == outputs[1], ('state or call order mismatch', name, outputs[0][0], outputs[1][0],
                                          outputs[0][4], outputs[1][4])
         counts[name] += 1
@@ -322,7 +385,7 @@ def main():
         elif trial % 17 == 4:
             name = NAMES[9]
         fixture = {'archive_node': rng.choice((0, ARCHIVE_NODE)), 'mode': (0, 0, 1, 0x80000000, 0xffffffff)[trial // 5 % 5], 'disable_manager': trial % 11 == 0,
-                   'format_mutation': trial % 3 == 0, 'format_hash': (0x535, 0xffffffff, 0xdeadbeef)[trial % 3],
+                   'format_variant': trial % 3, 'format_mutation': trial % 3 == 0, 'format_hash': (0x535, 0xffffffff, 0xdeadbeef)[trial % 3],
                    'mutation': trial % 4, 'stop_after': trial % 8, 'true_byte': (1, 2, 128, 255)[trial % 4]}
         manager = 0 if trial % 5 == 0 else MANAGER
         compare('QueryVisit', memory, [NODES[0][trial % 6]], QUERY, 4, True, manager, **fixture)
@@ -369,12 +432,14 @@ def main():
               'fingerprints': functions, 'controlled_interfaces': (['visitor callback in direct walk fixtures'] if args.compose_archive else
                   ['FEngArchive::FindNode 0x51bb70', 'visitor callback in direct walk fixtures']),
               'composition': 'real tree/hash query, package locator, both live lists, typed wrappers, hashing and name comparison',
-              'archive_composed': args.compose_archive, 'scripts_composed': args.compose_scripts,
+              'archive_composed': args.compose_archive, 'scripts_composed': args.compose_scripts, 'formatting_composed': args.compose_formatting,
               'seh': 'normal-return FS chain restoration verified; exceptions/unwind excluded', 'byte_matching': 'not established',
               'limitations': ['finite acyclic trees/package chains', 'valid non-null queue behind non-null manager',
                               'null requested name with a non-null empty-name package is excluded',
                               'native package membership and resource loading remain seams', 'MSVC pending with clang-cl']}
-    if args.compose_scripts: report['controlled_interfaces'].append('FngFormatHash 0x50b9c0')
+    if args.compose_formatting:
+        report['controlled_interfaces'].extend(['formatter core 0x43e950', 'QueryPerformanceCounter IAT 0x78311c'])
+    elif args.compose_scripts: report['controlled_interfaces'].append('FngFormatHash 0x50b9c0')
     if args.mutation_checks:
         source = args.source.read_text()
         mutations = {
@@ -393,7 +458,7 @@ def main():
             path = BUILD / ('mutation-' + name + '.cpp')
             path.write_text(source.replace(before, after))
             result = subprocess.run([os.sys.executable, str(Path(__file__).resolve()), '--compiler', args.compiler,
-                                     '--source', str(path), '--locator-source', str(args.locator_source)] + (['--compose-scripts'] if args.compose_scripts else ['--compose-archive'] if args.compose_archive else []), cwd=ROOT, capture_output=True, text=True)
+                                     '--source', str(path), '--locator-source', str(args.locator_source)] + (['--compose-formatting'] if args.compose_formatting else ['--compose-scripts'] if args.compose_scripts else ['--compose-archive'] if args.compose_archive else []), cwd=ROOT, capture_output=True, text=True)
             (BUILD / ('mutation-' + name + '.log')).write_text(result.stdout + result.stderr)
             assert result.returncode != 0 and 'state or call order mismatch' in result.stderr, name
             rejected.append(name)
@@ -411,7 +476,7 @@ def main():
             path = BUILD / ('mutation-' + name + '.cpp')
             path.write_text(locator.replace(before, after))
             result = subprocess.run([os.sys.executable, str(Path(__file__).resolve()), '--compiler', args.compiler,
-                                     '--source', str(args.source), '--locator-source', str(path)] + (['--compose-scripts'] if args.compose_scripts else ['--compose-archive'] if args.compose_archive else []), cwd=ROOT, capture_output=True, text=True)
+                                     '--source', str(args.source), '--locator-source', str(path)] + (['--compose-formatting'] if args.compose_formatting else ['--compose-scripts'] if args.compose_scripts else ['--compose-archive'] if args.compose_archive else []), cwd=ROOT, capture_output=True, text=True)
             (BUILD / ('mutation-' + name + '.log')).write_text(result.stdout + result.stderr)
             assert result.returncode != 0 and 'state or call order mismatch' in result.stderr, name
             rejected.append(name)
@@ -436,12 +501,12 @@ def main():
                 path = BUILD / ('mutation-' + name + '.cpp')
                 path.write_text(wrappers.replace(before, after))
                 result = subprocess.run([os.sys.executable, str(Path(__file__).resolve()), '--compiler', args.compiler,
-                                         '--compose-scripts', '--script-lookup-source', str(path)], cwd=ROOT, capture_output=True, text=True)
+                                         '--compose-formatting' if args.compose_formatting else '--compose-scripts', '--script-lookup-source', str(path)], cwd=ROOT, capture_output=True, text=True)
                 (BUILD / ('mutation-' + name + '.log')).write_text(result.stdout + result.stderr)
                 assert result.returncode != 0 and 'state or call order mismatch' in result.stderr, name
                 rejected.append(name)
         report['rejected_mutations'] = rejected
-    report_name = 'script-composition.json' if args.compose_scripts else 'archive-composition.json' if args.compose_archive else 'verification.json'
+    report_name = 'formatting-composition.json' if args.compose_formatting else 'script-composition.json' if args.compose_scripts else 'archive-composition.json' if args.compose_archive else 'verification.json'
     (BUILD / report_name).write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))
 

@@ -24,11 +24,11 @@ float ScrollerFadeFactor(float position, float centre, float window, float edge)
 struct HudVisibilityObject;
 unsigned int FEngGetColour(HudVisibilityObject *object); // 0x495570
 void FEngSetColour(HudVisibilityObject *object, unsigned int colour); // 0x51d7f0
-unsigned int FngFormatHash(const char *format, ...); // 0x50b9c0, formatting interface
+unsigned int FngFormatHash(const char *format, ...); // 0x50b9c0, recovered wrapper; core 0x43e950 remains a boundary
 bool FngObjectScriptActive(void *object, const char *name); // 0x51d040
 struct IconScrollerIcon;
 void UpdateIconLockScripts(IconScrollerIcon *icon, void *lock, void *button); // 0x51df00
-int FngFormatBuffer(char *buffer, unsigned int size, const char *format, ...); // 0x50c960, formatting boundary
+int FngFormatBuffer(char *buffer, unsigned int size, const char *format, ...); // 0x50c960, recovered wrapper; capacity is unused
 HudVisibilityObject *FngFindImageByHash(const char *package, unsigned int hash); // 0x537a60, recovered typed image lookup
 HudVisibilityObject *FngFindNamedImage(const char *package, const char *name); // 0x4953e0
 struct ScrollerScrollBar {

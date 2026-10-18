@@ -842,3 +842,9 @@ fengStateKeys7992F4 = 0x7992f4;
 frontendDelta865198 = 0x865198;
 scrollerClock8641A0 = 0x8641a0;
 tweenSixth786D94 = 0x786d94;
+
+/* Recovered formatter profiling globals; native clock initialization is a platform seam. */
+bFormatShift8284E4 = 0x8284e4;
+bFormatScale828028 = 0x828028;
+bFormatTime828518 = 0x828518;
+bFormatCount82851C = 0x82851c;

@@ -379,3 +379,21 @@ renamed from cross-title evidence alone.
     coverage and remaining compiler/byte-match limits. Next bounded leads:
     formatted hash `0x50b9c0` and its profiled formatting boundary `0x43fbc0`,
     then command execution `0x52c7c0` and original playback/update dependencies.
+
+29. **GUI formatting/profile checkpoint (2026-10-18).** `FEngFormatting.cpp`
+    recovers `0x50b9c0` inline formatted hash and `0x50c960` capacity-ignoring
+    variadic forwarding. Engine `Libs/bWare/Formatting.cpp` recovers profile
+    wrapper `0x43fbc0` and elapsed accounting `0x43e5c0`, including low-byte
+    saturating signed shift, wrapped/clamped low-word delta, signed scale factor,
+    callback-visible total and wrapping count. Native old wrappers removed;
+    `NativeFormatting.cpp` supplies SDL clock/calibration and host memory-sink
+    formatting at the unrecovered `0x43e950` core boundary. Standalone Clang
+    verification passes 8,192 comparisons at 53/64-bit x87 precision and rejects
+    ten mutations; full `--compose-formatting` lookup/script composition passes
+    17,472 and rejects seventeen existing mutations. Compiler-runtime shift
+    helper `0x75c600` is reference-executed where needed, not engine recovery.
+    Native/mod builds and all headless 19 settings/10 Controls, slider pixels
+    and scroller motion pass. Original core formatting, profiling initialization/units, special/failure
+    behavior, legacy compiler and byte matching remain unresolved. Next leads:
+    formatter state machine `0x43e950` and sink helper `0x43cb40`, then native
+    response execution/playback. See `pc-pause-menu.md` for evidence and limits.

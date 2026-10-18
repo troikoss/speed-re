@@ -1133,3 +1133,96 @@ all 10 Controls scenarios, slider pixel checks and scroller motion. HUD captures
 also pass four aspect ratios, all eleven skins and a 120-frame run after routing
 HUD name selection through recovered code. These are native integration checks,
 separate from original/rebuilt proof of event timing and interpolation.
+
+## GUI formatting wrappers and profiling (2026-10-18)
+
+`Frontend/FEngFormatting.cpp` and `Libs/bWare/Formatting.cpp` recover four
+routines, fingerprinted in `config/SPEED2_EXE_1_2/feng-formatting.json`:
+
+| Address | Bytes | Observed responsibility |
+| --- | ---: | --- |
+| `0x43e5c0` | 86 | Shifted-counter elapsed calculation |
+| `0x43fbc0` | 117 | Formatter context, call and profiling accounting |
+| `0x50b9c0` | 84 | Format into a 256-byte local and hash inline |
+| `0x50c960` | 24 | Forward variadic arguments and ignore advertised capacity |
+
+`0x50b9c0` calls the shared formatter once and computes the case-folded 33 hash
+inline from seed `0xffffffff`, preserving byte order and the terminating NUL.
+It does not call `cihash`. `0x50c960` does **not** use its size parameter and
+propagates the formatter's result. The previous native bounded-formatting
+wrappers are removed; this restores original capacity behavior rather than
+claiming legacy truncation semantics.
+
+The shared wrapper queries the imported performance counter, shifts the signed
+64-bit value by the low byte of global `0x8284e4`, and retains the shifted low
+word as its start value. Its 12-byte context sets destination +0, byte +4 to
+zero and word +8 to zero; padding +5..+7 is not initialized. It calls original
+formatter core `0x43e950`, then elapsed helper `0x43e5c0`, adds elapsed to the
+current float total at `0x828518`, increments count `0x82851c` with wrapping,
+and returns the preserved formatter result.
+
+Elapsed calculation queries the counter again, then reloads shift. It subtracts
+start modulo 32 bits, clamps a negative signed difference to zero, multiplies
+by signed `1 << (shift & 31)`, then by float scale `0x828028`, returning through
+x87. Arithmetic right shift saturates to the counter's sign for counts at least
+64, matching MSVC runtime helper `0x75c600` (33 fingerprinted bytes); it does not
+mask the count modulo 64. Shift 31's signed scale factor is preserved. The total
+is read after elapsed calculation, so callback writes to profiling globals are
+visible. Original profiling units/initialization have not been established.
+
+`NativeFormatting.cpp` now supplies the clock import and the still-unrecovered
+formatter core. Its SDL counter initialization chooses shift zero and a scale
+of `1 / SDL_GetPerformanceFrequency()` (seconds), explicitly a native clock
+seam. The host formatting adapter handles the memory-sink path supplied by the
+recovered wrapper and advances its destination pointer. The original formatter
+state machine at `0x43e950`, debug/ring sinks, custom flags/conversions and error
+behavior remain unrecovered; host formatting is not proof of those behaviors.
+No retail formatter output or original engine parser body is imported here.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_formatting.py --mutation-checks
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_lookup.py --compose-formatting --mutation-checks
+# Explicit fallback when MSVC 7.1/wibo is absent: add --compiler clang-cl.
+```
+
+Clang i686 standalone verification passes **8,192 original/rebuilt comparisons**
+(1,024 fixtures across four entries at x87 `0x027f`/`0x037f`). Only the clock
+import and formatter core are controlled. Comparisons include used context fields,
+six supplied variadic words, helper-call order, guarded output, raw 80-bit elapsed
+return capture, float total/count/shift/scale, integer returns, stack cleanup,
+preserved registers and x87 control/stack balance. Fixtures include zero-to-255
+output bytes, high bytes and lowercase, capacities zero-to-seven, arbitrary
+formatter returns, signed counters, shift boundaries 31/32/63/64/255 and low-byte
+wrapping, negative-delta clamps, count wrapping, and core/clock mutations to
+profiling globals. Uninitialized context padding is not compared.
+
+Ten mutations are rejected: wrong hash seed, omitted case folding, honoring zero
+capacity, shifting the variadic argument pointer, omitted count increment,
+omitted negative-delta clamp, unsigned scale factor, masking shift modulo 64,
+caching total before the clock callback and wrong context initialization.
+The original compiler's signed-shift helper executes from the reference image
+where required by original/rebuilt code; this is a compiler-runtime dependency,
+not a newly recovered engine function.
+
+The full `--compose-formatting` lookup/script suite passes **17,472 comparisons**
+and rejects the seventeen existing lookup/script mutations. Formatted hashing,
+profiling, elapsed calculation, script selection and the earlier lookup/archive
+chain now execute recovered bodies together. Controlled interfaces are the
+formatter core, clock import and the separate direct-walk visitor fixtures.
+Composition uses short controlled core output and fixed increasing clocks;
+the standalone verifier exercises the broader output/clock boundaries. This
+supersedes formatted hashing as an opaque interface in the preceding checkpoint.
+
+**MSVC 7.1/wibo and byte matching remain outstanding.** These finite tests assume
+well-terminated formatter output within the hash wrapper's 256-byte local and a
+clock result written by the import. They do not establish original core parsing,
+all special floating values, failed-clock/unwritten-output behavior or complete
+GUI formatting. Reports remain ignored under `build/analysis/feng-formatting/`
+and `build/analysis/feng-lookup/formatting-composition.json`.
+
+Native and mod-enabled builds pass. Headless integration passes all 19 settings,
+all 10 Controls scenarios, slider fill/knob pixel assertions and scroller
+motion/settled-centre checks after restoring original capacity forwarding and
+adding profiling. These checks cover the current demo's format usage; they do
+not validate the unrecovered core's complete conversion language or failure
+behavior.
