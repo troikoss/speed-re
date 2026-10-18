@@ -2297,3 +2297,80 @@ These component tests do not activate the production grid reader or establish
 its data ownership/rendering. Finite coverage, exception/unwind, arbitrary
 aliases and byte-matching limitations from the previous section still apply;
 verification uses Clang because MSVC 7.1/wibo remain absent.
+
+## Type 6 cell storage and dimension setup (2026-10-18)
+
+`FEngGridStorage.cpp` recovers four complete UG2 v1.2 bodies:
+
+| Routine | Address | Reference span |
+|---|---|---|
+| `FEGridObject::SetLogicalColumns` | 0x518bb0 | 79 bytes |
+| `FEGridObject::SetLogicalRows` | 0x518c00 | 82 bytes |
+| `FEngGridResetCells` | 0x504290 | 79 bytes |
+| `FEGridObject::ResizeCells` | 0x52bb30 | 573 bytes |
+
+`config/SPEED2_EXE_1_2/feng-grid-storage.json` pins all four spans and the reference
+executable. The two setters store logical totals, locally clamp selection
++0x7c/+0x80 without changing those selection fields, and write origins +0x74/+0x78.
+Flag 8 subtracts half the physical count (logical unsigned shift) and applies
+inline signed wrapping. Negative exact multiples still return the total. Their
+observed allocation caller discards EAX; void methods preserve the observed
+contract without manufacturing quotient register values. Centered zero totals
+can divide by zero in the original; no new guard is added.
+
+Resize snapshots the old buffer/counts, stores new physical dimensions, allocates
+`columns * rows * 0x30` bytes at boundary **0x575620**, and partially constructs
+cells before calling the actual full reset body. The partial initialization
+leaves +0x1c/+0x28/+0x2c untouched and gives +0x24 a -1 value; the subsequent
+reset writes every DWORD, including +0x24 = 0 and +0x28/+0x2c = float 1 bits.
+Reset count and setter arguments reload physical dimensions after allocation.
+Both setter bodies execute as actual callees.
+
+When preexisting flag 1 allows ownership handling and the old buffer is nonnull,
+each retained row copies **new physical width times 0x30 bytes**, not the minimum
+old/new column extent. This can consume padded bytes beyond the old row when
+expanding; that behavior is retained. The source represents the original inline
+`REP MOVSD` as a forward DWORD copy with the same wrapped byte count; no synthetic
+memcpy call boundary is inserted. Removed columns and rows whose cell +0x18 is
+2 return DWORD +0x20 into `value9C[--value98]`. Old storage is freed through
+**0x575630** only in the ownership path; flag 1 is set afterward, reloading flags
+following the free call. Previously unknown +0x98/+0x9c now have explicit
+word/pointer fields; other pool fields remain offset-named and unclaimed.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_grid_storage.py --compiler clang-cl --mutation-checks
+ctest --test-dir build/native -R '^feng_(queue|list|grid)_native$' --output-on-failure
+```
+
+The verifier passes **16,448 original/rebuilt comparisons** (4,096 per setter,
+4,096 reset cases and 4,160 resize cases) and rejects **16 mutations**. Only
+allocation/deallocation are controlled. Helper-entry snapshots prove partial
+construction and call ordering before reset overwrites those words. Full mapped
+bytes, ordered allocation/free/helper arguments, stack cleanup and preserved
+registers are compared. Padded buffers cover physical sizes 1..6, expansion,
+shrinkage, ownership bits, null old buffers, zero-sized null allocation and empty
+reset with a null pointer. Setters include signed/unsigned total extrema and
+small-total negative paths. Allocation can change physical counts, selections,
+current buffer, ownership flags and pool pointers/count; free can change flags.
+The tests preserve snapshots versus reloads and payload-return order across
+those changes. Coverage gates hit positive/negative/small-total setter paths,
+partial construction, retained-row copying, both retirement loops and old free.
+Compile/link failures do not count as mutation rejections.
+
+Native CTest `feng_grid_native` now composes recovered allocation, reset, setters,
+initial fill, navigation and shrink with real native virtual callbacks. It checks
+initial cell words, centering, fill coordinates, payload retirement order and old
+buffer free. Its cells/pool data are synthetic. Native malloc/free adapters in
+`NativePause.cpp` implement the two platform allocation seams; original heap
+implementation and allocator failure with nonzero count are unverified. Native
+and mod-enabled builds, all three queue/list/grid CTests, and headless scroller
+motion/settled-centering checks pass.
+
+This is bounded behavioral evidence, using Clang because MSVC 7.1/wibo remain
+absent. Arbitrary aliases, unpadded expansion, overflow-sized allocations,
+nonzero allocation failure, exceptions/unwind and byte matching remain unverified.
+Reports remain ignored in `build/analysis/feng-grid-storage/`. Production type-6
+constructor, reader, string pool setup, cell rendering/ticking and owner callback
+implementations still need recovery/binding. The native type-6 entry stays an
+explicit trap; this checkpoint supplies storage dependencies without inventing
+an alternate cell population or ownership implementation.

@@ -512,6 +512,9 @@ FngRecord *FngFindRecord(unsigned int hash) {
 // Native allocator/ownership seam for original allocation boundary 0x575620.
 void *FEngAllocateQueueNode(unsigned int size) { return malloc(size); }
 void FEngFreeQueueNode(void *pointer) { free(pointer); }
+// Same original allocator boundaries; grid lifetime remains in recovered code.
+void *FEngGridAllocateCells(unsigned int bytes) { return malloc(bytes); }
+void FEngGridFreeCells(void *cells) { free(cells); }
 
 // Native ABI bridges for the original message/operation deleting-destructor slots.
 static FEngQueueNode *__thiscall NativeDeleteMessage(FEngQueueNode *node, unsigned int flags) {

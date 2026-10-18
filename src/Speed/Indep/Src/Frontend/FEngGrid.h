@@ -14,19 +14,30 @@ struct FEGridObject {
     unsigned int value74, value78, value7C, value80;
     float value84, value88;
     FEGridCell *cells8C;
-    char unidentified90[0x30];
+    unsigned int value90, value94, value98;
+    unsigned int *value9C;
+    unsigned int valueA0;
+    char unidentifiedA4[0x1c];
     FEGridRefill callbackC0;
     void *contextC4;
     void InitialFill(); // 0x504c40; observed caller ignores incidental EAX.
+    void SetLogicalColumns(unsigned int total); // 0x518bb0; observed caller ignores EAX.
+    void SetLogicalRows(unsigned int total); // 0x518c00; observed caller ignores EAX.
+    void ResizeCells(unsigned int columns, unsigned int rows); // 0x52bb30
     unsigned char CanShift(int delta, int selection, int offset, int total, int visible); // 0x518e70
     unsigned char MoveSelection(int delta, unsigned int *selection, unsigned int *offset, int total, unsigned int visible); // 0x504e40
     unsigned char ShiftAxis(int delta, unsigned int *selection, unsigned int *offset, int total, unsigned int visible, unsigned char horizontal); // 0x518f20
     void Navigate(int x, int y); // 0x52bd70
 };
 int FEngGridWrapIndex(int value, int total); // 0x504790, cdecl; negative exact multiples return total.
+void FEngGridResetCells(FEGridCell *cells, unsigned int count); // 0x504290, cdecl
+void *FEngGridAllocateCells(unsigned int bytes); // allocation boundary 0x575620
+void FEngGridFreeCells(void *cells); // deallocation boundary 0x575630
 UG2_CHECK_SIZE(FEGridCell, 0x30);
 UG2_CHECK_OFFSET(FEGridObject, owner5C, 0x5c);
 UG2_CHECK_OFFSET(FEGridObject, cells8C, 0x8c);
 UG2_CHECK_OFFSET(FEGridObject, callbackC0, 0xc0);
+UG2_CHECK_OFFSET(FEGridObject, value98, 0x98);
+UG2_CHECK_OFFSET(FEGridObject, value9C, 0x9c);
 UG2_CHECK_SIZE(FEGridObject, 0xc8);
 #endif

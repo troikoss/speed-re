@@ -11,6 +11,10 @@
 #include <sys/mman.h>
 #include <vector>
 
+static unsigned int allocationBytes, freeCalls;
+void *FEngGridAllocateCells(unsigned int bytes) { allocationBytes = bytes; return malloc(bytes); }
+void FEngGridFreeCells(void *cells) { ++freeCalls; free(cells); }
+
 class Owner : public FEGridOwner {
 public:
     struct Event { unsigned int hash; void *sender; unsigned int value8, valueC; };
@@ -100,6 +104,34 @@ int main() {
     assert(owner.messages.size() == 1 && replacement.messages.size() == 1);
     assert(owner.messages[0].hash == FngHash("grid-low") && replacement.messages[0].hash == FngHash("grid-high"));
     assert(owner.messages[0].sender == &grid && owner.messages[0].value8 == 0xff && !owner.messages[0].valueC);
+    // Compose recovered allocation, full reset, setters, fill and navigation.
+    Owner storageOwner;
+    FEGridObject storage; memset(&storage, 0, sizeof(storage));
+    unsigned int pool[16] = {};
+    storage.owner5C = &storageOwner; storage.flags68 = 8;
+    storage.value98 = 8; storage.value9C = pool;
+    storage.ResizeCells(2, 2);
+    assert(allocationBytes == 4 * 48 && !freeCalls);
+    assert(storage.count60 == 2 && storage.count64 == 2 && storage.value6C == 2 && storage.value70 == 2);
+    assert(storage.value74 == 1 && storage.value78 == 1 && storage.flags68 == 9);
+    for (unsigned int i = 0; i < 4; ++i) {
+        assert(storage.cells8C[i].value0[0] == 0xffffffff);
+        assert(storage.cells8C[i].value0[9] == 0 && storage.cells8C[i].value0[11] == 0x3f800000);
+    }
+    storage.InitialFill();
+    assert(storageOwner.fills.size() == 4);
+    assert(storageOwner.fills[0].column == 1 && storageOwner.fills[0].row == 1);
+    assert(storageOwner.fills[3].column == 0 && storageOwner.fills[3].row == 0);
+    storage.Navigate(1, 0);
+    assert(storageOwner.fills.size() == 6);
+    for (unsigned int i = 1; i < 4; ++i) {
+        storage.cells8C[i].value0[6] = 2;
+        storage.cells8C[i].value0[8] = 100 + i;
+    }
+    storage.ResizeCells(1, 1);
+    assert(allocationBytes == 48 && freeCalls == 1 && storage.value98 == 5);
+    assert(pool[7] == 101 && pool[6] == 102 && pool[5] == 103);
+    FEngGridFreeCells(storage.cells8C);
     munmap(page, 4096);
-    puts("PASS recovered grid initial fill/navigation/shallow copies/callback ABI/owner reload/hash (no retail assets or display)");
+    puts("PASS recovered grid resize/reset/setters/fill/navigation/callbacks/hash (no retail assets or display)");
 }

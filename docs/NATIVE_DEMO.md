@@ -370,6 +370,11 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   logical divisors; production reader/owner binding remains pending. No native
   cell-population algorithm is supplied. Asset-free CTest `feng_grid_native`
   exercises navigation and initial fill with synthetic virtual/cdecl callbacks.
+  Grid resize `0x52bb30`, cell reset `0x504290` and logical dimension setters
+  `0x518bb0`/`0x518c00` are recovered too. The native probe composes storage,
+  fill and navigation with synthetic cells/pool data; native allocation/free
+  are documented malloc/free seams. Production constructor/reader/owner binding
+  remains pending; the type-6 navigation entry still traps.
   Name hashing `0x505450` now executes recovered source; the native hash loop is
   removed. See [grid/hash evidence](pc-pause-menu.md#type-6-grid-navigation-and-original-name-hashing-2026-10-18).
   See [message delivery evidence](pc-pause-menu.md#full-queued-message-delivery-2026-10-18).

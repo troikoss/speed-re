@@ -1,0 +1,25 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "SetLogicalColumns": {
+      "address": "0x518bb0",
+      "size": 79,
+      "sha256": "71d237aa02d3d7799f7344070994968bbd9d0f64cf8940497a42dfb54f2d7f72"
+    },
+    "SetLogicalRows": {
+      "address": "0x518c00",
+      "size": 82,
+      "sha256": "c4df0f084b2f62b292b01f24a6932511a5d89303b806599efd99239a3a16ea47"
+    },
+    "ResetCells": {
+      "address": "0x504290",
+      "size": 79,
+      "sha256": "85bf85874bfe42f715bd3a9623a4e90cf944c31f8ad65d0b9e51c6afce8ea8c9"
+    },
+    "ResizeCells": {
+      "address": "0x52bb30",
+      "size": 573,
+      "sha256": "19b44af3fa5eb232b8f47cbde12fda9945419a533327686a0116a9d4368b91e4"
+    }
+  }
+}
