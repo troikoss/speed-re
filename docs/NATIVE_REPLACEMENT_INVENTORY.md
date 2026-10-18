@@ -1,6 +1,6 @@
 # Native code replacement inventory
 
-Snapshot: 2026-10-18 (after commit `7c877f2`). Reference build: UG2 PC v1.2
+Snapshot: 2026-10-18 (after commit `3007487`). Reference build: UG2 PC v1.2
 `speed2.exe`.
 
 This is a planning document. It lists the native code in `src/Platform/Native`
@@ -97,7 +97,7 @@ still should come from recovered code.
 | Camera shake | same | `0x452ed0`, `0x572a50` | 2 | 2 | |
 | Camera finalisation | same | `0x447280` | 2 | 2 | |
 | Cockpit blocked tests | same | `0x445fc0`, `0x5d39f0` | 2 | 2 | |
-| Acceleration vector at car `+0x80` | `DemoMain`/native | Producer inside car update (`0x5fbbe0`/`0x604740` prefixes recovered) | 2 | 3 | Mostly done; completes with item 1. |
+| Acceleration vector at car `+0x80` | `WorldUpdate.cpp` | Producer inside `0x5fbbe0`/`0x604740` | 2 | 3 | Produced by their recovered kinematics prefixes, now called from world update `0x609ce0`; the rest of both routines is not recovered. |
 | Rear-view mirror view not created | `NativeHud.cpp:504` | `0x5f1e10` | 3 | 2 | |
 
 ## 6. World, assets and rendering
