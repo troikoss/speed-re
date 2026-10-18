@@ -15,6 +15,7 @@
 #include "../../Speed/Indep/Src/Hud/HudAnimation.h"
 
 #include <algorithm>
+#include <utility>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -312,6 +313,35 @@ FengResponse &FengResponse::operator=(FengResponse &&other) noexcept {
     return *this;
 }
 
+// Native inline header/track ownership remains a seam. Only name and event
+// storage use these recovered operations; this is not the original script destructor.
+FengScript::FengScript() : header() {}
+FengScript::~FengScript() {
+    header.SetName(0);
+    reinterpret_cast<FEngScriptEventStorage *>(&header.eventCount24)->Resize(0);
+}
+FengScript::FengScript(FengScript &&other) noexcept
+    : header(other.header), tracks(std::move(other.tracks)), originalTracks(std::move(other.originalTracks)),
+      originalKeys(std::move(other.originalKeys)) {
+    other.header.name2C = 0;
+    other.header.eventCount24 = 0;
+    other.header.events28 = 0;
+}
+FengScript &FengScript::operator=(FengScript &&other) noexcept {
+    if (this != &other) {
+        header.SetName(0);
+        reinterpret_cast<FEngScriptEventStorage *>(&header.eventCount24)->Resize(0);
+        header = other.header;
+        tracks = std::move(other.tracks);
+        originalTracks = std::move(other.originalTracks);
+        originalKeys = std::move(other.originalKeys);
+        other.header.name2C = 0;
+        other.header.eventCount24 = 0;
+        other.header.events28 = 0;
+    }
+    return *this;
+}
+
 FengPackage::FengPackage() : responsePackage_() {}
 
 FengPackage::~FengPackage() {
@@ -550,9 +580,8 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                             // Run the INIT script's tracks over the state block (0x541f60 at time 0).
                             for (size_t si = 0; si < scripts.size(); ++si) {
                                 const std::vector<unsigned char> &sc = scripts[si];
-                                FengScript script;
-                                script.hash = 0;
-                                script.duration = 0;
+                                object->scripts.emplace_back();
+                                FengScript &script = object->scripts.back();
                                 std::vector<FengTrack> &tracks = script.tracks;
                                 int nextState = 0;  // 0x5515e0: FI advances by value size / 4
                                 size_t t = 0;
@@ -560,8 +589,15 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                     unsigned int tag = Rd16(&sc[t]);
                                     unsigned int len = Rd16(&sc[t + 2]);
                                     const unsigned char *pl = &sc[t + 4];
-                                    if (tag == 0x6853) { script.hash = Rd32(pl); if (len >= 8) script.duration = (int)Rd32(pl + 4); }  // 'Sh'
-                                    else if (tag == 0x4946) {            // 'FI'
+                                    if (len > sc.size() - t - 4) break;
+                                    if (tag == 0x6e53 && retainNames) { // Sn; original script reader uses byte +0xa.
+                                        std::string bounded;
+                                        for (unsigned int i = 0; i < len && pl[i]; ++i) bounded += (char)pl[i];
+                                        script.header.SetName(bounded.c_str());
+                                    } else if (tag == 0x6853) {
+                                        if (len >= 4) script.header.hash30 = Rd32(pl);
+                                        if (len >= 8) script.header.lengthC = (int)Rd32(pl + 4);
+                                    } else if (tag == 0x4946) {            // 'FI'
                                         FengTrack track;
                                         track.type = pl[0];
                                         track.size = pl[1];
@@ -584,10 +620,13 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                         tracks.back().cycle = pl[0] & 0x7f;
                                     } else if (tag == 0x7454 && !tracks.empty()) {  // 'Tt'
                                         tracks.back().interpolation = pl[0];
-                                    } else if (tag == 0x5645) {  // 'EV'
-                                        for (unsigned int k = 0; k + 12 <= len; k += 12) {
-                                            FengEvent event = {Rd32(pl + k), Rd32(pl + k + 4), (int)Rd32(pl + k + 8)};
-                                            script.events.push_back(event);
+                                    } else if (tag == 0x5645) {  // EV replaces, rather than appends, event storage.
+                                        FEngScriptEventStorage *events = reinterpret_cast<FEngScriptEventStorage *>(&script.header.eventCount24);
+                                        events->Resize((int)(len / 12));
+                                        for (unsigned int k = 0; k < len / 12; ++k) {
+                                            events->data4[k].message = Rd32(pl + k * 12);
+                                            events->data4[k].target = Rd32(pl + k * 12 + 4);
+                                            events->data4[k].time = (int)Rd32(pl + k * 12 + 8);
                                         }
                                     } else if (tag == 0x644b && !tracks.empty()) {  // 'Kd'
                                         FengTrack &track = tracks.back();
@@ -601,8 +640,7 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                     }
                                     t += 4 + len;
                                 }
-                                object->scripts.push_back(script);
-                                if (script.hash == kInitScript) {
+                                if (script.header.hash30 == kInitScript) {
                                     for (size_t k = 0; k < tracks.size(); ++k)
                                         ApplyTrack(tracks[k], state.empty() ? 0 : &state[0], (int)state.size(), 0);
                                 }
@@ -681,9 +719,6 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                 if (!native.baseline.empty()) memcpy(track.base18, &native.baseline[0], native.size < 16 ? native.size : 16);
             }
             FEScript &header = script.header;
-            memset(&header, 0, sizeof(header));
-            header.lengthC = object->scripts[j].duration;
-            header.hash30 = object->scripts[j].hash;
             header.trackCount1C = script.originalTracks.size();
             header.tracks20 = script.originalTracks.empty() ? 0 : &script.originalTracks[0];
             header.previous8 = j ? &object->scripts[j - 1].header : 0;
@@ -793,7 +828,7 @@ void FengPackage::AdvanceScripts(float seconds) {
         float milliseconds = (float)script.header.time10 + object->scriptRemainder + seconds * 1000.0f;
         bool cycling = false;
         for (size_t k = 0; k < script.tracks.size(); ++k) cycling |= script.tracks[k].cycle == 1;
-        if (!cycling && milliseconds > script.duration) milliseconds = (float)script.duration + 1.0f;
+        if (!cycling && milliseconds > script.header.lengthC) milliseconds = (float)script.header.lengthC + 1.0f;
         script.header.time10 = (int)milliseconds;
         object->scriptRemainder = milliseconds - (float)script.header.time10;
         // Native clock adapter; 0x54ce60 ticks type4 after script state application.

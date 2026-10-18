@@ -945,13 +945,14 @@ void NativePause::Update(float seconds) {
         RunningScript &running = scripts[i];
         if (running.finished) continue;
         running.milliseconds += seconds * 1000.0f;
-        const std::vector<FengEvent> &events = running.script->events;
-        while (running.nextEvent < events.size() && events[running.nextEvent].time <= running.milliseconds) {
+        const FengEvent *events = static_cast<const FengEvent *>(running.script->header.events28);
+        const unsigned int eventCount = (unsigned int)running.script->header.eventCount24;
+        while (running.nextEvent < eventCount && events[running.nextEvent].time <= running.milliseconds) {
             if (events[running.nextEvent].target == 0xffffffff)
                 Post(running.screen, events[running.nextEvent].message, 0, kTargetGame);
             ++running.nextEvent;
         }
-        if (running.nextEvent >= events.size() && running.milliseconds >= running.script->duration)
+        if (running.nextEvent >= eventCount && running.milliseconds >= running.script->header.lengthC)
             running.finished = true;
     }
     for (size_t i = 0; i < kScreenCount; ++i) {

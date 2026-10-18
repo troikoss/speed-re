@@ -1,0 +1,15 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "SetName": {
+      "address": "0x518730",
+      "size": 110,
+      "sha256": "54c9f167456cf9d444a58184637945bdbcc61a8ad7a095d8d0b2ed29d6235ac6"
+    },
+    "ResizeEvents": {
+      "address": "0x519a10",
+      "size": 196,
+      "sha256": "287910c3a62c3cc6fa11d6fa582d4df7fba95dd1fdbdbe00bdcedce58eebd57f"
+    }
+  }
+}

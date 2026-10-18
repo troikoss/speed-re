@@ -3788,3 +3788,95 @@ scripted HUD capture. These checks exercise the complete recovered reader in
 the native demo and remain separate from behavioral and byte-matching evidence.
 Ghidra function names, method signatures, return contracts and plate comments
 are updated for all three routines.
+
+
+### Script names and owned event-array storage (2026-10-18)
+
+Tracing script copy `0x551be0` recovered its name-storage dependency
+`0x518730` (110 bytes) and event resize `0x519a10` (196 bytes), fingerprinted
+in `config/SPEED2_EXE_1_2/feng-script-storage.json`. The resize receiver is the
+count/data descriptor at script `+0x24`, confirmed by `lea ecx,[ebx+0x24]`
+at caller `0x551683`. It is not a method over the whole script prefix.
+Event records are three DWORDs: message, target and signed millisecond time.
+Their array has no count cookie; this differs from command/header arrays.
+
+The name setter frees nonnull `name2C`, clears it, resets `hash30` to
+`0xffffffff`, then optionally allocates/copies a byte string including NUL.
+It installs the allocated pointer before copying and calls the actual recovered
+hash on the fresh field afterward. Null input leaves the sentinel without a
+hash call. It does not alter dirty flags or invoke an observer. It retains its
+own original call boundary rather than calling the similarly shaped object
+name setter at `0x5176b0`.
+
+Event resize returns immediately for equal counts. A zero request conditionally
+frees old data, then clears pointer and count. Other requests allocate
+`uint(count) * 12` bytes with wrapped 32-bit arithmetic. A **signed** comparison
+against the post-allocation count chooses whether to copy requested records
+or all old records. Copying advances forward by DWORDs. Growth reloads count
+after copying, computes the tail address and byte count from that fresh value,
+and zeroes added records. Cleanup reloads the old data field after copying,
+calls free unconditionally on that nonzero-request path (including null),
+then installs the new pointer and requested count. These reloads matter for
+controlled descriptor aliases and heap-induced field changes.
+
+`UG2_EXE=... build/venv/bin/python tools/verify_pc_feng_script_storage.py
+--compiler clang-cl --mutation-checks` passes 8,192 comparisons, 4,096 per root,
+and rejects 15 semantic mutations. The actual hash executes 3,276 times;
+only heap allocation/free at `0x575620`/`0x575630` are controlled. Rebuilt
+execution is restricted to linked source ranges. Comparisons include full
+arena bytes, ordered method/hash/heap snapshots, preserved registers and
+stack cleanup. Both routines have void return contracts; incidental EAX values
+are not treated as pointer results.
+
+Cases cover empty/null/high-byte names, replacement and hash reset, equal/
+zero/grow/shrink event counts, zero-filled tails, heap rebinding, forward
+copy overlap, and selected signed high-bit counts whose wrapped byte counts
+remain finite. A descriptor-alias case overwrites count/data during copying;
+it rejects caching either the post-copy count or the pointer passed to free.
+These are mapped-state/arithmetic tests, not proof of allocator overlap or
+freed-memory lifetime validity. Allocation failure is sampled only for a
+zero-byte copy path; general failure behavior, huge positive iterations,
+invalid pointers, arbitrary stack aliases, concurrency and byte identity
+remain unproven. MSVC 7.1/wibo verification remains pending.
+
+**Native script event vectors are removed.** The existing bounded script
+adapter invokes recovered resize on each `EV` and fills the allocated records.
+Repeated EV properties now replace the event array, matching original reader
+`0x5515e0`, instead of appending extra events as the prior adapter did. The native
+record loop retains its zero/truncated-payload guard; the original EV copy loop
+enters unconditionally and does not provide that malformed-input guarantee.
+Native event scheduling reads `eventCount24`/`events28` directly. Duplicate
+native hash/duration fields are also removed; name/hash, duration and event
+storage remain in the observed script header. Timing, event firing and most
+script/track parsing still execute native scaffolding, not recovered routines.
+
+Optional native `retainNames` also bounds `Sn` strings and calls the actual
+script name setter. The original script reader tests a separate byte `+0xa`
+at `0x551b02`; object/string optional names use byte `+9`. The native option
+binds both gates and defaults false; this does not establish their original
+initial values. Native Sh projection can overwrite the hash while retaining
+the copied name. Multiple script-node creation/selection inside the complete
+original script reader is still pending; the adapter retains its existing
+one-wrapper-per-Scrp organization.
+
+Native script wrappers now transfer owned name/event pointers during moves.
+Their cleanup calls recovered name-set-null and event resize-to-zero, while
+track/key vectors and inline header ownership remain platform seams. This is
+not recovery of normal script destructor `0x535170`, whose track cleanup and
+unconditional event free have separate ordering. Full script copy `0x551be0`,
+track allocation `0x535210`, deep/shallow key-reference copying `0x54d350`,
+script header pools and original owner teardown remain required work.
+
+Asset-free native fixtures check repeated EV replacement, retained record bits,
+zeroed growth, equal/shrink/zero paths, both optional-name settings, Sh hash
+override, independent script arrays, script-vector relocation and explicit
+move ownership/release. Native and mod-enabled builds and all three CTests
+pass. Ghidra method signatures and comments record the descriptor receiver,
+signed arithmetic and remaining limits.
+
+All affected headless checks pass: 19 settings scenarios plus slider fill/knob
+pixels, 10 Controls scenarios, pause/scroller motion and settled centering,
+baseline HUD translation at 640x480/1280x720/1680x720/2560x720, all 11 skins at
+1280x720 and the scripted HUD capture. These verify native integration of owned
+script storage separately from original execution and byte-matching evidence;
+they do not establish original event timing or the full script reader.

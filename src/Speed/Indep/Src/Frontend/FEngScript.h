@@ -2,6 +2,19 @@
 #define UG2_FENG_SCRIPT_H
 #include "../Hud/HudVisibility.h"
 
+struct FEScriptEvent {
+    unsigned int message, target;
+    int time;
+};
+struct FEngScriptEventStorage {
+    int count0;
+    FEScriptEvent *data4;
+    void Resize(int count); // 0x519a10; receiver is script+0x24, not script itself.
+};
+UG2_CHECK_SIZE(FEScriptEvent, 12);
+UG2_CHECK_OFFSET(FEScriptEvent, time, 8);
+UG2_CHECK_SIZE(FEngScriptEventStorage, 8);
+
 struct FEngReference {
     char unidentified0[4];
     unsigned char value4;

@@ -358,6 +358,12 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   See [pool evidence](pc-pause-menu.md#response-header-pool-and-virtual-cleanup-2026-10-18)
   and [command ownership evidence](pc-pause-menu.md#response-command-construction-ownership-and-assignment-2026-10-18)
   and [array ownership](pc-pause-menu.md#response-array-resizing-and-native-ownership-2026-10-18).
+- Script name `0x518730` and event storage resize `0x519a10` pass 8,192
+  comparisons and 15 mutations. Native event vectors and duplicate hash/duration
+  metadata are removed; EV uses recovered arrays and repeated EV replaces them.
+  Optional Sn retention calls the recovered name setter. Clock/event firing,
+  full script parsing/copying, track/key ownership and original script teardown
+  remain seams. See [script storage evidence](pc-pause-menu.md#script-names-and-owned-event-array-storage-2026-10-18).
 - Native image/group/list teardown now invokes recovered `0x532660`/`0x534bf0`/
   `0x534a50`, alongside string destruction. Original list storage/cell release
   `0x516dc0`/`0x5042e0` and the three deleting wrappers are verified together with

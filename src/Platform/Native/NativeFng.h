@@ -15,6 +15,7 @@
 #include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
 #include "../../Speed/Indep/Src/Frontend/FEngList.h"
 #include "../../Speed/Indep/Src/Frontend/FEngHash.h"
+#include "../../Speed/Indep/Src/Frontend/FEngScript.h"
 
 #include <GL/gl.h>
 #include <string>
@@ -35,11 +36,7 @@ struct FengTrack {
 };
 // Script event ('EV' records of 12 bytes): message hash, target and time in milliseconds.
 // Target 0xffffffff is read as the owning package (EXIT_COMPLETE in UI_Pause.fng).
-struct FengEvent {
-    unsigned int message;
-    unsigned int target;
-    int time;
-};
+typedef FEScriptEvent FengEvent;
 // Native ownership for the observed key-node prefix (reader 0x5515e0).
 struct FengScriptKey {
     unsigned int value0;
@@ -50,12 +47,15 @@ struct FengScriptKey {
 };
 struct FengScript {
     FEScript header;  // original prefix: links, lengthC (duration), time10, hash30
-    unsigned int hash;
-    int duration;
     std::vector<FengTrack> tracks;
     std::vector<FEScriptTrack> originalTracks;
     std::vector<std::vector<FengScriptKey> > originalKeys;
-    std::vector<FengEvent> events;
+    FengScript();
+    ~FengScript();
+    FengScript(FengScript &&other) noexcept;
+    FengScript &operator=(FengScript &&other) noexcept;
+    FengScript(const FengScript &) = delete;
+    FengScript &operator=(const FengScript &) = delete;
 };
 
 // MsgR/PkgR records call recovered reader 0x54d1d0 through native bounds/context adapters.
@@ -119,7 +119,7 @@ public:
     FengPackage();
     ~FengPackage();
     // `offset` is the position of the 0x30203 chunk in `data`.
-    // retainNames binds observed reader byte +9; its original initialization is pending.
+    // retainNames binds observed On/SL byte +9 and Sn byte +0xa; original setup is pending.
     bool Load(const unsigned char *data, size_t size, size_t offset, std::string *error, bool retainNames = false);
     FengObject *Find(unsigned int hash);
     FengObject *Find(const char *name) { return Find(FengHash(name)); }

@@ -380,6 +380,62 @@ static void RunResponseStorage() {
     assert(!moved.original && assigned.original->commands14 == owned);
     assert(!strcmp((const char *)assigned.original->commands14[0].parameter, "move-owned"));
 }
+static void RunScriptStorage() {
+    std::vector<unsigned char> object, value, first, second;
+    Word(value, 1); Tag(object, 0x744f, value);
+    const char firstName[] = "retainedScript", secondName[] = "other";
+    value.assign(firstName, firstName + strlen(firstName)); Tag(first, 0x6e53, value);
+    value.clear(); Word(value, 0x12345678); Word(value, 300); Tag(first, 0x6853, value);
+    value.clear();
+    for (unsigned int i = 0; i < 2; ++i) { Word(value, i + 1); Word(value, 0xffffffff); Word(value, i + 1); }
+    Tag(first, 0x5645, value);
+    value.clear(); Word(value, 0x11112222); Word(value, 0xffffffff); Word(value, 17); Tag(first, 0x5645, value);
+    value.assign(secondName, secondName + strlen(secondName)); Tag(second, 0x6e53, value);
+    value.clear();
+    for (unsigned int i = 0; i < 2; ++i) { Word(value, 10 + i); Word(value, 42); Word(value, 30 + i); }
+    Tag(second, 0x5645, value);
+    object = Chunk(0x446a624f, object);
+    first = Chunk(0x70726353, first); second = Chunk(0x70726353, second);
+    object.insert(object.end(), first.begin(), first.end()); object.insert(object.end(), second.begin(), second.end());
+    object = Chunk(0x30203, Chunk(0xe76e4546, Chunk(0xcc6a624f, Chunk(0xea624f46, object))));
+    for (unsigned int enabled = 0; enabled < 2; ++enabled) {
+        FengPackage package; std::string error;
+        assert(package.Load(object.data(), object.size(), 0, &error, enabled != 0));
+        assert(package.Objects()[0]->scripts.size() == 2);
+        FEScript &one = package.Objects()[0]->scripts[0].header;
+        FEScript &two = package.Objects()[0]->scripts[1].header;
+        assert(one.hash30 == 0x12345678 && one.lengthC == 300);
+        assert(one.eventCount24 == 1 && two.eventCount24 == 2 && one.events28 != two.events28);
+        FEScriptEvent *event = static_cast<FEScriptEvent *>(one.events28);
+        assert(event->message == 0x11112222 && event->target == 0xffffffff && event->time == 17);
+        assert(one.next4 == &two && two.previous8 == &one);
+        if (enabled) {
+            assert(!strcmp(one.name2C, firstName) && !strcmp(two.name2C, secondName));
+            assert(two.hash30 == FngHash(secondName));
+        } else assert(!one.name2C && !two.name2C && !two.hash30);
+        FEngScriptEventStorage *storage = reinterpret_cast<FEngScriptEventStorage *>(&one.eventCount24);
+        storage->Resize(3);
+        assert(storage->data4[0].message == 0x11112222);
+        for (unsigned int i = 1; i < 3; ++i)
+            assert(!storage->data4[i].message && !storage->data4[i].target && !storage->data4[i].time);
+        event = storage->data4; storage->Resize(3); assert(storage->data4 == event);
+        storage->Resize(1); assert(storage->data4[0].time == 17);
+        storage->Resize(0); assert(!one.events28 && !one.eventCount24 && two.eventCount24 == 2);
+    }
+    FengScript owner;
+    owner.header.SetName("owned");
+    reinterpret_cast<FEngScriptEventStorage *>(&owner.header.eventCount24)->Resize(2);
+    void *events = owner.header.events28; char *name = owner.header.name2C;
+    FengScript moved(std::move(owner));
+    assert(!owner.header.name2C && !owner.header.events28 && !owner.header.eventCount24);
+    assert(moved.header.name2C == name && moved.header.events28 == events);
+    FengScript assigned;
+    assigned.header.SetName("release");
+    reinterpret_cast<FEngScriptEventStorage *>(&assigned.header.eventCount24)->Resize(1);
+    assigned = std::move(moved);
+    assert(!moved.header.name2C && !moved.header.events28 && !moved.header.eventCount24);
+    assert(assigned.header.name2C == name && assigned.header.events28 == events && assigned.header.eventCount24 == 2);
+}
 static void RunResponsePool() {
     assert(!FEngResponseHeaderPool.blocks0.count4 && !FEngResponseHeaderPool.blocks0.first8);
     std::vector<FengResponse> responses;
@@ -441,5 +497,6 @@ int main() {
     RunInheritance();
     RunResponseStorage();
     RunResponsePool();
+    RunScriptStorage();
     puts("PASS native FNG owned text/names, inheritance/GUID lookup and type4 projection/navigation/ticking (no assets or display)");
 }
