@@ -352,10 +352,13 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   decoded 12-byte command records, including the original count boundary.
   Full response dispatch `0x52c7c0`, script lookup `0x5046b0`, focus cache
   `0x50b300`/`0x50b360` and stack reset `0x50b390` now execute recovered code.
-  Decoded-prefix construction, fixed native mask 0xff and delivery remain
-  seams. Operation consumer `0x5559c0` now executes recovered code and uses a
-  native deleting-vtable binding. Target -4 delivery, package load/remove and
-  four package-operation enqueue boundaries still trap; registry data remains native.
+  Message delivery `0x541fc0`, object delivery `0x5367e0`, and directional wrappers
+  `0x51b000`/`0x52c750` now execute recovered code. Queued response masks are preserved.
+  Native loading projects linked response prefixes and explicit Targ subscription rows.
+  Operation consumer `0x5559c0` also executes recovered code. Package load/remove,
+  four package-operation enqueue boundaries and type 4/6 navigation mutators still
+  trap; parser ownership, owner callbacks and registry data remain native.
+  See [message delivery evidence](pc-pause-menu.md#full-queued-message-delivery-2026-10-18).
   Native loading now selects/initializes Init as observed in the original readers. See [response evidence](pc-pause-menu.md#response-conditional-traversal-2026-10-18).
 - GUI formatted hashing `0x50b9c0`, buffer wrapper `0x50c960`, shared profiling
   wrapper `0x43fbc0` and elapsed accounting `0x43e5c0` now execute recovered code.
@@ -373,8 +376,8 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
 - Message/input enqueue `0x51aa20`/`0x51af50` and removal `0x505400` now use
   recovered 32-byte nodes and separate linked lists. The native message vector
   is removed. Message/operation destructor bodies and payload cleanup are recovered;
-  native delivery/cancellation call recovered message deletion. Native malloc/free,
-  payload-to-screen delivery and dynamic vtable dispatch remain adapters.
+  delivery and native cancellation call recovered message deletion. Native malloc/free,
+  owner-to-screen delivery and deleting-vtable ABI bindings remain adapters.
   Asset-free queue integration is available as CTest `feng_queue_native`.
   See [queue/consumer evidence](pc-pause-menu.md#full-queued-operation-consumer-2026-10-18).
 - FEng image centre/size writes and rendered text height now call recovered coordinate

@@ -1,5 +1,6 @@
 // Asset-free native ABI/integration probe; synthetic package prefixes are test scaffolding.
 #include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
+#include "../../Speed/Indep/Src/Frontend/FEngResponse.h"
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -10,11 +11,22 @@
 
 static FEngManager manager;
 FEngManager *fengManager8384C4 = &manager;
-static unsigned int allocations, deallocations;
+static unsigned int allocations, deallocations, responseCalls;
+static unsigned int deliveredMask;
+static HudVisibilityObject *deliveredObject;
+static FEPackage *deliveredPackage;
 void *FEngAllocateQueueNode(unsigned int size) { ++allocations; return malloc(size); }
 void FEngFreeQueueNode(void *pointer) { ++deallocations; free(pointer); }
 void FEngQueue::Call5362E0(FEPackage *) { abort(); }
 FEPackage *FEngQueue::Call555860(const char *, unsigned char, unsigned int) { abort(); }
+void HudVisibilityObject::Call516E90(int, int) { abort(); }
+void HudVisibilityObject::Call52BD70(int, int) { abort(); }
+void FEngQueue::ExecuteResponse(FEResponse *, HudVisibilityObject *object, FEPackage *package, unsigned int mask) {
+    ++responseCalls; deliveredMask = mask; deliveredObject = object; deliveredPackage = package;
+}
+static FEngQueueNode *__thiscall DeleteMessage(FEngQueueNode *node, unsigned int flags) {
+    return node->DestroyMessage(flags);
+}
 static FEngQueueNode *__thiscall DeleteOperation(FEngQueueNode *node, unsigned int flags) {
     return node->DestroyOperation(flags);
 }
@@ -26,12 +38,22 @@ int main() {
     void *page = mmap((void *)0x79a000, 4096, PROT_READ | PROT_WRITE,
                       MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
     assert(page == (void *)0x79a000);
+    *(void **)0x79ab60 = (void *)&DeleteMessage;
     *(void **)0x79ab64 = (void *)&DeleteOperation;
     FEngQueue queue = {};
     FEPackage parent = {}, child = {}, laterChild = {};
     parent.next4 = &child; child.next4 = &laterChild;
     child.parent3C = laterChild.parent3C = &parent;
     queue.packagesDC.first8 = &parent;
+    FEResponse packageResponse = {}, objectResponse = {};
+    packageResponse.messageC = objectResponse.messageC = 0x334c5493;
+    HudVisibilityObject object = {};
+    object.type18 = 1; object.responses3C = &objectResponse;
+    HudVisibilityObject *targets[] = {&object};
+    FEngMessageAssociation association = {0x334c5493, 1, 1, targets};
+    parent.responses5C = child.responses5C = &packageResponse;
+    parent.associationCount6C = child.associationCount6C = 1;
+    parent.associations70 = child.associations70 = &association;
     manager.queue8 = &queue;
     manager.names10.next0 = manager.names10.previous4 = &manager.names10;
     parent.inputMask1C = 0; child.inputMask1C = 0xff;
@@ -42,21 +64,27 @@ int main() {
     FEngQueueNode *notification = queue.messages4114.first8;
     assert(notification && notification->value18 == 0x334c5493 && notification->value14 == (unsigned int)&parent);
     assert(notification->value10 == 0xfffffffc && notification->value1C == 0x55);
-    queue.messages4114.Remove(notification); notification->DestroyMessage(1);
+    queue.DeliverMessages();
+    assert(deliveredObject == &object);
+    assert(responseCalls == 2 && deliveredPackage == &parent && deliveredMask == 0x55);
     queue.Call51AF50(&parent, 0x101, 0x11); // opcode8 -> first matching child only
     queue.ConsumeOperations();
     CheckMasks(parent, 0x44); CheckMasks(child, 0xbb);
     CheckMasks(laterChild, 0);
     notification = queue.messages4114.first8;
     assert(notification && notification->value14 == (unsigned int)&child && notification->value1C == 0x11);
-    queue.messages4114.Remove(notification); notification->DestroyMessage(1);
+    queue.DeliverMessages();
+    assert(deliveredObject == &object);
+    assert(responseCalls == 4 && deliveredPackage == &child && deliveredMask == 0x11);
     queue.Call51AF50(&child, 0, 0);
     queue.ConsumeOperations();
     CheckMasks(parent, 0x44); CheckMasks(child, 0xbb);
     notification = queue.messages4114.first8;
     assert(notification && notification->value1C == 0 && notification->value14 == (unsigned int)&parent);
-    queue.messages4114.Remove(notification); notification->DestroyMessage(1);
+    queue.DeliverMessages();
+    assert(deliveredObject == &object);
+    assert(responseCalls == 6 && deliveredPackage == &parent && deliveredMask == 0);
     assert(allocations == 6 && deallocations == 6 && queue.messages4114.count4 == 0);
     munmap(page, 4096);
-    puts("PASS recovered operation enqueue/consume/mask transfer/notification/deletion (native ABI, no assets)");
+    puts("PASS recovered enqueue/operations/target-4 delivery/associations/virtual deletion (native ABI, no assets)");
 }

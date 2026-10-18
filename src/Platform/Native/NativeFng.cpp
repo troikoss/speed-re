@@ -56,6 +56,7 @@ void ReadResponses(const unsigned char *data, size_t size, std::vector<FengRespo
         if (tag == 0x694d) {
             FengResponse response;
             response.message = value;
+            memset(&response.original, 0, sizeof(response.original));
             responses->push_back(response);
         } else if (!responses->empty()) {
             std::vector<FengResponseCommand> &commands = responses->back().commands;
@@ -198,6 +199,19 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                     }
                 } else if (id2 == 0x52676b50) {  // 'PkgR'
                     ReadResponses(data + q + 8, end2 - q - 8, &responses_);
+                } else if (id2 == 0x67726154) { // Targ: 0x5184e0 reads Tc/Mt, then resolves GUIDs in row order.
+                    for (size_t t = q + 8; t + 4 <= end2;) {
+                        unsigned int tag = Rd16(data + t), len = Rd16(data + t + 2);
+                        if (t + 4 + len > end2) break;
+                        if (tag == 0x744d && len >= 4) {
+                            NativeAssociation association;
+                            association.message = Rd32(data + t + 4);
+                            for (unsigned int i = 4; i + 4 <= len; i += 4)
+                                association.guids.push_back(Rd32(data + t + 4 + i));
+                            nativeAssociations_.push_back(association);
+                        }
+                        t += 4 + len;
+                    }
                 } else if (id2 == 0xcc6a624f) {
                     size_t r = q + 8;
                     while (r + 8 <= end2) {
@@ -425,7 +439,44 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
             object->currentScript54->time10 = 0;
         }
     }
+    // Prefix projection only; original response/Targ allocation and parsing remain seams.
+    for (size_t i = 0; i < responses_.size(); ++i) {
+        FengResponse &response = responses_[i];
+        memset(&response.original, 0, sizeof(response.original));
+        response.original.next4 = i + 1 < responses_.size() ? &responses_[i + 1].original : 0;
+        response.original.messageC = response.message;
+        response.original.commandCount10 = response.commands.size();
+        response.original.commands14 = response.commands.data();
+    }
+    for (size_t n = 0; n < objects_.size(); ++n) {
+        std::vector<FengResponse> &responses = objects_[n]->responses;
+        for (size_t i = 0; i < responses.size(); ++i) {
+            FengResponse &response = responses[i];
+            memset(&response.original, 0, sizeof(response.original));
+            response.original.next4 = i + 1 < responses.size() ? &responses[i + 1].original : 0;
+            response.original.messageC = response.message;
+            response.original.commandCount10 = response.commands.size();
+            response.original.commands14 = response.commands.data();
+        }
+        objects_[n]->responses3C = responses.empty() ? 0 : &responses[0].original;
+    }
+    originalAssociations_.resize(nativeAssociations_.size());
+    for (size_t i = 0; i < nativeAssociations_.size(); ++i) {
+        NativeAssociation &association = nativeAssociations_[i];
+        for (size_t j = 0; j < association.guids.size(); ++j)
+            association.objects.push_back(FindGuid(association.guids[j]));
+        originalAssociations_[i].message0 = association.message;
+        originalAssociations_[i].capacity4 = association.objects.size();
+        originalAssociations_[i].count8 = association.objects.size();
+        originalAssociations_[i].objectsC = association.objects.data();
+    }
     return !objects_.empty();
+}
+
+void FengPackage::BindMessageData(FEPackage *package) {
+    package->responses5C = OriginalResponses();
+    package->associationCount6C = originalAssociations_.size();
+    package->associations70 = originalAssociations_.empty() ? 0 : &originalAssociations_[0];
 }
 
 FengObject *FengPackage::FindGuid(unsigned int guid) {

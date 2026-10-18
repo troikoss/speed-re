@@ -1879,3 +1879,96 @@ Controls scenarios, slider fill/knob pixel checks and scroller motion/settled
 centring. Those retail scenarios cover current menu behavior; the asset-free
 probe specifically exercises nonempty mask-transfer queues. Neither establishes
 original target -4 delivery, package reader/removal or registry construction.
+
+## Full queued-message delivery (2026-10-18)
+
+`FEngDelivery.cpp` recovers message consumer **0x541fc0** (887 bytes), object
+response delivery **0x5367e0** (109 bytes), and the type 4/type 6 directional
+wrappers **0x51b000 / 0x52c750** (111 bytes each). Fingerprints are recorded in
+`config/SPEED2_EXE_1_2/feng-delivery.json`. This supersedes the native delivery
+bridge and target -4 limitations of the preceding checkpoints.
+
+The consumer calls `Remove` for the first message, uses the original inline
+unlink for subsequent messages, and dispatches virtual deleting slot zero with
+flag 1. It rereads the queue head after deletion, allowing callbacks to append
+messages during the drain. Observer slot **+0x58** receives
+`(message, target, sender, package, mask)` before routing fields are read.
+
+| Target | Original routing |
+|---|---|
+| 0 | Every live package: first matching package response, then first matching subscription row's objects |
+| -4 | Same package/objects route, once, only if the specified package is live |
+| -3 | Specified package responses only, without a live-membership check |
+| -2 | Every live package's responses only |
+| -1 / -5 | Owner slots +0x18 / +0x1c, with `(message, sender, mask, package)` |
+| -6 | Hash 0x59bed120 sets queue byte +1; 0x5d4ce32d clears it |
+| Other | Direct object delivery |
+
+Package responses use the message and mask read before execution. Subscription
+lookup reads the message/table/count after the package callback. Object fanout
+caches the selected row's count and message, but rereads its object-array pointer
+and the node mask on each iteration. Live package links are read after callbacks.
+Duplicate response/message rows use the first match. Object delivery independently
+checks type 4 and type 6, then scans responses at object +0x3c. The four directional
+hashes call 0x516e90 or 0x52bd70 with signed unit-axis deltas; only the returned AL
+is defined and compared. These underlying mutators still trap in the native demo.
+
+Original reader **0x5184e0** establishes `Targ` data provenance: `Tc` declares a
+row count; each `Mt` supplies a message DWORD followed by GUIDs. GUID lookup
+results, including null, append in file order. Rows have message/capacity/count/
+objects at +0/+4/+8/+0xc; FEPackage stores count/table at +0x6c/+0x70. The native
+loader now projects valid-file `Mt` rows and linked package/object response
+prefixes, resolving GUIDs through recovered lookup. It does not recover original
+allocation, capacity policy, malformed input handling, response inheritance,
+`Rs`/`MC` command semantics or original parser ownership. It ignores `Tc` capacity
+metadata. Constructor 0x4fe910 confirms all three command DWORDs initially zero;
+0x517600 is command cleanup, not its constructor.
+
+Validation command:
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_delivery.py --compiler clang-cl --mutation-checks
+```
+
+The verifier compares **32,768** original/rebuilt invocations: 8,192 each of the
+consumer, object delivery and both directional wrappers. It checks complete
+mapped arena state, ordered writes, call tuples, stack cleanup and preserved
+registers, with byte returns for the wrappers. Its coverage gate observes every
+named target route and both subscription fanout blocks in original execution.
+Cases include empty/nonempty queues, live/nonlive packages, duplicate matches,
+raw masks, observer mutation, package response mutation, subscription-array/count
+changes and callback-generated messages. Actual object delivery, directional
+wrappers, unlink and deleting helpers execute together. `ExecuteResponse`, owner/
+observer callbacks, navigation mutators and freeing are controlled interfaces.
+The existing dispatcher verifier covers response execution separately; this run
+does not establish arbitrary composition with every command/lifecycle callback.
+All **22 mutations** are rejected by state or call-order mismatches, including
+wrong observer arguments, omitted package/owner/object routes, skipped live
+membership, extra package fanout, fresh count/message versus cached fanout
+state, stale masks, wrong internal state, wrong deletion flags, repeated unlink
+calls and directional deltas. Compilation failures do not count as rejections.
+Reports and mutation logs are ignored under `build/analysis/feng-delivery/`.
+MSVC 7.1/wibo remain unavailable; this is behavioral verification using Clang,
+not byte matching. Arbitrary aliases, malformed cycles and exception unwinding
+remain outside the finite evidence.
+
+Native Pump now calls the recovered consumer in both message phases around the
+recovered operation consumer. Its manual response routing and fixed response-mask
+adapter are removed; queued masks reach recovered responses unchanged. Native
+entry points still choose their own initial masks. Mapped message/operation
+vtable slots bind native ABI adapters to recovered deleting bodies; the retail
+file is unchanged. Native game-owner delivery still selects one of the demo's
+screens, drops the owner mask, and uses its existing shown-state policy. Input
+owner delivery remains a no-op. Observer callbacks remain no-ops. Deferred screen
+lifecycle, cancellation, an empty registry, allocator bridges, package load/remove
+and four package-operation enqueue boundaries remain seams.
+
+The asset-free `feng_queue_native` CTest now drains the three mask-transfer
+notifications through recovered target -4 routing, package responses, associated
+object responses and virtual deletion. Its response executor is a recording test
+boundary; it checks six callback invocations, transferred/zero masks and balanced
+six allocations/frees. Native and mod-enabled builds pass. Headless integration
+passes all 19 settings, 10 Controls scenarios, slider pixel checks and scroller
+motion/settled centring. Modded HUD checks pass at 640x480, 1280x720, 1680x720
+and 2560x720. These checks exercise current demo data and behavior;
+they do not prove complete retail UI/package lifecycle recovery.

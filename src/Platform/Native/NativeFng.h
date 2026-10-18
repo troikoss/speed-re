@@ -11,6 +11,7 @@
 #include "../../Speed/Indep/Src/Hud/HudVisibility.h"
 #include "../../Speed/Indep/Src/Frontend/FEngCoordinates.h"
 #include "../../Speed/Indep/Src/Frontend/FEngResponse.h"
+#include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
 
 #include <GL/gl.h>
 #include <string>
@@ -61,6 +62,7 @@ typedef FEResponseCommand FengResponseCommand;
 struct FengResponse {
     unsigned int message;
     std::vector<FengResponseCommand> commands;
+    FEResponse original; // Native projection of the observed original response prefix.
 };
 const FengResponse *FindFengResponse(const std::vector<FengResponse> &responses, unsigned int message);
 
@@ -112,6 +114,8 @@ public:
     FengObject *Find(const char *name) { return Find(FengHash(name)); }
     FengObject *FindGuid(unsigned int guid);
     const std::vector<FengResponse> &Responses() const { return responses_; }
+    FEResponse *OriginalResponses() { return responses_.empty() ? 0 : &responses_[0].original; }
+    void BindMessageData(FEPackage *package);
     std::vector<FengObject *> &Objects() { return objects_; }
     FengObject *FirstRoot() const { return roots_.empty() ? 0 : roots_[0]; }
     // Names from the executable are not needed to draw; `Describe` lists the package for debugging.
@@ -149,6 +153,13 @@ private:
     void Gather(FengObject *object, const float *parent, float parentAlpha, std::vector<DrawItem> *items);
     std::vector<FengObject *> objects_;
     std::vector<FengObject *> roots_;
+    struct NativeAssociation {
+        unsigned int message;
+        std::vector<unsigned int> guids;
+        std::vector<HudVisibilityObject *> objects;
+    };
+    std::vector<NativeAssociation> nativeAssociations_;
+    std::vector<FEngMessageAssociation> originalAssociations_;
     std::vector<FengResponse> responses_;
     std::map<FengObject *, std::pair<float, float> > modTranslations_;
 };

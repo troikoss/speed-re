@@ -80,6 +80,7 @@ struct NativeScreen {
         fePackage.nameC = name;
         fePackage.nameHash10 = FengHash(name);
         fePackage.firstObject4C = package->FirstRoot();
+        package->BindMessageData(&fePackage);
         const std::vector<FengObject *> &objects = package->Objects();
         for (size_t i = 0; i < objects.size(); ++i) {
             if (objects[i]->flags1C & 0x10000000) focusObjects.push_back(objects[i]);
@@ -126,13 +127,6 @@ struct RunningScript {
     bool finished;
 };
 
-struct PendingMessage {
-    NativeScreen *screen;
-    unsigned int message;
-    FengObject *object;   // value8 delivered to the game, or the sender of a response command
-    int target;
-    FengObject *targetObject;
-};
 
 // The in-game dialog 0x558790 is not recovered. Button order, labels and result messages follow
 // its arguments; reading value1C as the initially highlighted button is an interpretation. The
@@ -271,29 +265,6 @@ void RemoveScripts(NativeScreen *screen) {
     }
 }
 
-// Native decoded storage and mask adapter for recovered 0x52c7c0.
-void RunResponse(NativeScreen *screen, const FengResponse &response, FengObject *object) {
-    FEResponse original = {};
-    original.commandCount10 = (unsigned int)response.commands.size();
-    original.commands14 = response.commands.data();
-    nativeFengQueue.ExecuteResponse(&original, object, &screen->fePackage, 0xff);
-}
-
-void Process(const PendingMessage &pending) {
-    NativeScreen *screen = pending.screen;
-    if (!screen->shown) return;
-    if (pending.target == kTargetGame) {
-        if (Debug()) fprintf(stderr, "pause: %s <- %08x (%p)\n", screen->name, pending.message, (void *)pending.object);
-        screen->Deliver(pending.message, (int)(size_t)pending.object, 0);
-    } else if (pending.target == kTargetPackage) {
-        const FengResponse *response = FindFengResponse(screen->package->Responses(), pending.message);
-        if (response) RunResponse(screen, *response, 0);
-    } else if (pending.target == kTargetObject && pending.targetObject) {
-        const FengResponse *response = FindFengResponse(pending.targetObject->responses, pending.message);
-        if (response) RunResponse(screen, *response, pending.targetObject);
-    }
-}
-
 void ShowScreen(NativeScreen *screen);
 void CloseScreen(NativeScreen *screen);
 
@@ -312,30 +283,13 @@ void ApplyDeferred() {
 }
 
 void Pump() {
-    // Native frame bridge follows 0x558c00's message/operations/message order.
-    for (int phase = 0; phase < 2; ++phase) {
-        for (int guard = 0; guard < 256; ++guard) {
-            ApplyDeferred();
-            FEngQueueNode *node = nativeFengQueue.messages4114.first8;
-            if (!node) break;
-            nativeFengQueue.messages4114.Remove(node);
-            NativeScreen *screen = 0;
-            for (size_t i = 0; i < kScreenCount; ++i)
-                if ((unsigned int)&screens[i]->fePackage == node->value14) { screen = screens[i]; break; }
-            int target = (int)node->value10;
-            if (target == -4) NativeTrap("FEng queue delivery target -4");
-            if (screen) {
-                int route = target == -1 ? kTargetGame : target == -3 ? kTargetPackage :
-                            target == -5 ? kTargetInput : kTargetObject;
-                PendingMessage pending = {screen, node->value18, (FengObject *)node->valueC, route,
-                                          route == kTargetObject ? (FengObject *)target : 0};
-                Process(pending);
-            }
-            node->DestroyMessage(1);
-        }
-        ApplyDeferred();
-        if (phase == 0) nativeFengQueue.ConsumeOperations();
-    }
+    // Native lifecycle bridge around the recovered message/operation consumers.
+    ApplyDeferred();
+    nativeFengQueue.DeliverMessages();
+    ApplyDeferred();
+    nativeFengQueue.ConsumeOperations();
+    nativeFengQueue.DeliverMessages();
+    ApplyDeferred();
 }
 
 // 0x54d4b0: a pad message goes to the focus object when it responds to it, else to the
@@ -559,7 +513,10 @@ FngRecord *FngFindRecord(unsigned int hash) {
 void *FEngAllocateQueueNode(unsigned int size) { return malloc(size); }
 void FEngFreeQueueNode(void *pointer) { free(pointer); }
 
-// Native ABI bridge for the operation node's original deleting-destructor slot.
+// Native ABI bridges for the original message/operation deleting-destructor slots.
+static FEngQueueNode *__thiscall NativeDeleteMessage(FEngQueueNode *node, unsigned int flags) {
+    return node->DestroyMessage(flags);
+}
 static FEngQueueNode *__thiscall NativeDeleteOperation(FEngQueueNode *node, unsigned int flags) {
     return node->DestroyOperation(flags);
 }
@@ -575,6 +532,35 @@ void FEngQueue::Call51AB20(const char *, FEPackage *) { NativeTrap("FEngQueue 0x
 void FEngQueue::Call51AC10(const char *, FEPackage *, unsigned int) { NativeTrap("FEngQueue 0x51ac10"); }
 void FEngQueue::Call51ADB0(FEPackage *) { NativeTrap("FEngQueue 0x51adb0"); }
 void FEngQueue::Call51B070(const char *) { NativeTrap("FEngQueue 0x51b070"); }
+
+// Native owner callbacks. Input-owner behavior remains unmodelled, as in the old bridge.
+class NativeQueueOwner : public FEngQueueObserver {
+public:
+#define UNUSED_SLOT(name) void name() { NativeTrap("FEng owner " #name); }
+    UNUSED_SLOT(Unidentified00) UNUSED_SLOT(Unidentified04) UNUSED_SLOT(Unidentified08)
+    UNUSED_SLOT(Unidentified0C) UNUSED_SLOT(Unidentified10) UNUSED_SLOT(Unidentified14)
+    UNUSED_SLOT(Unidentified20) UNUSED_SLOT(Unidentified24) UNUSED_SLOT(Unidentified28)
+    UNUSED_SLOT(Unidentified2C) UNUSED_SLOT(Unidentified30) UNUSED_SLOT(Unidentified34)
+    UNUSED_SLOT(Unidentified38) UNUSED_SLOT(Unidentified3C) UNUSED_SLOT(Unidentified40)
+    UNUSED_SLOT(Unidentified44) UNUSED_SLOT(Unidentified48) UNUSED_SLOT(Unidentified4C)
+    UNUSED_SLOT(Unidentified50)
+#undef UNUSED_SLOT
+    void GameMessage(unsigned int message, void *sender, unsigned int, FEPackage *package) {
+        for (size_t i = 0; i < kScreenCount; ++i) {
+            NativeScreen *screen = screens[i];
+            if (&screen->fePackage != package || !screen->shown) continue;
+            if (Debug()) fprintf(stderr, "pause: %s <- %08x (%p)\n", screen->name, message, sender);
+            screen->Deliver(message, (int)(size_t)sender, 0); // Original owner mask forwarding remains unrecovered.
+            return;
+        }
+    }
+    void InputMessage(unsigned int, void *, unsigned int, FEPackage *) {}
+    void MessagePosted(unsigned int, void *, FEPackage *, int, int) {}
+    void MessageDelivering(unsigned int, int, void *, FEPackage *, unsigned int) {}
+};
+static NativeQueueOwner nativeQueueOwner;
+void HudVisibilityObject::Call516E90(int, int) { NativeTrap("FEng type4 navigation 0x516e90"); }
+void HudVisibilityObject::Call52BD70(int, int) { NativeTrap("FEng type6 navigation 0x52bd70"); }
 
 // ---- IconScroller base seams --------------------------------------------------------------
 
@@ -810,6 +796,8 @@ bool NativePause::Load(const char *gameDirectory, NativeTextureCache *cache, con
                        int errorSize) {
     fengManager8384C4 = &nativeFengManager;
     nativeFengManager.names10.next0 = nativeFengManager.names10.previous4 = &nativeFengManager.names10;
+    nativeFengQueue.value10C = &nativeQueueOwner;
+    *(void **)0x79ab60 = (void *)&NativeDeleteMessage;
     *(void **)0x79ab64 = (void *)&NativeDeleteOperation; // Native vtable binding; recovered payload and destructor remain unchanged.
     fengValue8384D0 = 0; // Native demo uses the live package collections.
     textures = cache;
@@ -853,6 +841,8 @@ bool NativePause::Active() const { return ActiveScreen() != 0; }
 void NativePause::Open() {
     fengManager8384C4 = &nativeFengManager;
     nativeFengManager.names10.next0 = nativeFengManager.names10.previous4 = &nativeFengManager.names10;
+    nativeFengQueue.value10C = &nativeQueueOwner;
+    *(void **)0x79ab60 = (void *)&NativeDeleteMessage;
     *(void **)0x79ab64 = (void *)&NativeDeleteOperation; // Native vtable binding; recovered payload and destructor remain unchanged.
     fengValue8384D0 = 0; // Native demo uses the live package collections.
     if (!pauseScreen.loaded || ActiveScreen()) return;

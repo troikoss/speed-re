@@ -13,6 +13,10 @@ struct FEngPackageList {
     FEPackage *first8;
     FEPackage *FindByName(const char *name, FEPackage *first); // 0x519e50
 };
+struct FEngMessageAssociation {
+    unsigned int message0, capacity4, count8;
+    HudVisibilityObject **objectsC;
+};
 struct FEngQueue {
     char unidentified0;
     unsigned char value1;
@@ -32,6 +36,8 @@ struct FEngQueue {
     FEngSavedFocus value5150[32];
     char unidentified5250;
     unsigned char value5251;
+    void DeliverMessages(); // 0x541fc0
+    void DeliverObject(HudVisibilityObject *object, FEPackage *package, unsigned int message, unsigned int mask); // 0x5367e0
     void ConsumeOperations(); // 0x5559c0
     void Call5362E0(FEPackage *package);
     FEPackage *Call555860(const char *name, unsigned char level, unsigned int mask);
@@ -79,7 +85,12 @@ struct FEPackage {
     FEPackage *parent3C;
     char unidentified40[0xc];
     HudVisibilityObject *firstObject4C;
-    char unidentified50[0x3c];
+    char unidentified50[0xc];
+    FEResponse *responses5C;
+    char unidentified60[0xc];
+    unsigned int associationCount6C;
+    FEngMessageAssociation *associations70;
+    char unidentified74[0x18];
     HudVisibilityObject *focus8C;
     HudVisibilityObject **focusObjects90;
     unsigned int focusCount94;
@@ -89,6 +100,10 @@ struct FEPackage {
     HudVisibilityObject *FindObject(unsigned int hash); // 0x517f80
     HudVisibilityObject *FindObjectByGuid(unsigned int guid); // 0x517fe0
 };
+UG2_CHECK_OFFSET(FEPackage, responses5C, 0x5c);
+UG2_CHECK_OFFSET(FEPackage, associationCount6C, 0x6c);
+UG2_CHECK_OFFSET(FEPackage, associations70, 0x70);
+UG2_CHECK_SIZE(FEngMessageAssociation, 0x10);
 UG2_CHECK_OFFSET(FEPackage, value18, 0x18);
 UG2_CHECK_OFFSET(FEPackage, parent3C, 0x3c);
 UG2_CHECK_OFFSET(FEPackage, nameC, 0xc);

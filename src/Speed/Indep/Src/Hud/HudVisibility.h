@@ -5,6 +5,7 @@
 
 // Original FEng script (FEScript) prefix: list links, length and current time in milliseconds,
 // track table and name hash (script reader 0x5515e0, script set 0x517720).
+struct FEResponse;
 struct FEScript {
     void *vtable0;
     FEScript *next4;
@@ -46,6 +47,8 @@ UG2_CHECK_SIZE(FEScriptTrack, 0x38);
 // Native FNG objects retain this prefix so recovered routines operate on it directly.
 struct HudVisibilityObject {
     FEScript *FindScriptByHash(unsigned int hash); // 0x5046b0
+    void Call516E90(int x, int y);
+    void Call52BD70(int x, int y);
     void InitializeScript(); // 0x517720
     void SetScript(FEScript *script); // 0x5178b0
     void SetColourState(int key, const unsigned int *value, unsigned char add); // 0x517ad0
@@ -63,7 +66,9 @@ struct HudVisibilityObject {
     unsigned int texture24;    // image resource hash
     unsigned int value28;
     float *data2C;             // state block: colour, pivot, position, rotation, size (+0x38), ...
-    char unidentified30[0x1c];
+    char unidentified30[0xc];
+    FEResponse *responses3C;
+    char unidentified40[0xc];
     FEScript *scripts4C;
     char unidentified50[4];
     FEScript *currentScript54;

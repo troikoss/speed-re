@@ -1,0 +1,25 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "DeliverMessages": {
+      "address": "0x541fc0",
+      "size": 887,
+      "sha256": "a512670e13ed6c7c99d1ea9ce4217e5f45ce6d4c00333640beaddf8a13344ab0"
+    },
+    "DeliverObject": {
+      "address": "0x5367e0",
+      "size": 109,
+      "sha256": "16472cece0bd830313fb7fb429b4d69a9737d5c978e8eb217f01253fa5410bc0"
+    },
+    "HandleObject4": {
+      "address": "0x51b000",
+      "size": 111,
+      "sha256": "c30f6150a80e668badea85bda8bdc60fdf1948cd8282824282deef7eaddbf768"
+    },
+    "HandleObject6": {
+      "address": "0x52c750",
+      "size": 111,
+      "sha256": "c91a39e01c85d21cc69533cde017f45a8ffafd04456a5c2d56520185a5dd2f3e"
+    }
+  }
+}

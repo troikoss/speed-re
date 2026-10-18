@@ -20,7 +20,7 @@ struct FEngQueueList {
     FEngQueueNode *valueC;
     void Remove(FEngQueueNode *node); // 0x505400
 };
-// Only virtual slot +0x54 is established by recovered message posting.
+// Observed slots from message posting/delivery; unidentified slots keep their offsets.
 struct FEngQueueObserver {
     virtual void Unidentified00() = 0;
     virtual void Unidentified04() = 0;
@@ -28,8 +28,8 @@ struct FEngQueueObserver {
     virtual void Unidentified0C() = 0;
     virtual void Unidentified10() = 0;
     virtual void Unidentified14() = 0;
-    virtual void Unidentified18() = 0;
-    virtual void Unidentified1C() = 0;
+    virtual void GameMessage(unsigned int message, void *sender, unsigned int mask, FEPackage *package) = 0;
+    virtual void InputMessage(unsigned int message, void *sender, unsigned int mask, FEPackage *package) = 0;
     virtual void Unidentified20() = 0;
     virtual void Unidentified24() = 0;
     virtual void Unidentified28() = 0;
@@ -44,6 +44,7 @@ struct FEngQueueObserver {
     virtual void Unidentified4C() = 0;
     virtual void Unidentified50() = 0;
     virtual void MessagePosted(unsigned int message, void *sender, FEPackage *package, int target, int mask) = 0;
+    virtual void MessageDelivering(unsigned int message, int target, void *sender, FEPackage *package, unsigned int mask) = 0;
 };
 void *FEngAllocateQueueNode(unsigned int size); // original allocation boundary 0x575620
 void FEngFreeQueueNode(void *pointer); // original deallocation boundary 0x575630
