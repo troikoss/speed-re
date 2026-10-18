@@ -2593,3 +2593,90 @@ concurrent mutation and byte matching remain unverified. Reports remain ignored
 under `build/analysis/feng-grid-reader/`. The earlier statements that this property
 dispatch was unrecovered are superseded; the surrounding reader, text assignment,
 owner implementation and rendering/lifecycle seams remain.
+
+## Normal-return grid and object cleanup (2026-10-18)
+
+`FEngLifecycle.cpp` recovers five UG2 v1.2 cleanup/release bodies. Destructors are
+explicit **normal-return** reconstructions; original compiler SEH registration
+and unwind funclets are not reproduced by these methods.
+
+| Routine | Address | Reference span |
+|---|---|---|
+| `FEngQueueList::ClearOwned` | 0x511670 | 110 bytes |
+| `FEngStatePoolClass::ReleaseSlot` | 0x5174a0 | 124 bytes |
+| `FEngStatePoolManager::ReleaseState` | 0x517520 | 68 bytes |
+| `HudVisibilityObject::DestructBase` | 0x52af90 | 148 bytes |
+| `FEGridObject::Destruct` | 0x52baa0 | 131 bytes |
+
+`config/SPEED2_EXE_1_2/feng-lifecycle.json` pins the full spans, the existing
+75-byte `Remove` callee at 0x505400 and mapped BSS data at 0x838474/0x863770.
+BSS fingerprints refer to mapped zero-initialized bytes, not absent raw-file data.
+`FEngLifecycle.h` records observed block/class/list layouts and the observer slot;
+all evidence remains specific to UG2 v1.2.
+
+Grid cleanup writes its vtable token, frees nonnull +0x8c, +0xa0 and +0x9c in
+that order and calls actual base cleanup. It does not gate frees on flag 1 or
+clear released pointer fields. Each pointer reload follows the prior free call.
+Base cleanup writes its base vtable, calls optional observer slot zero through
+0x838474, releases current data2C through the 0x863770 state manager, frees current
++0x14 if nonzero, clears the +0x44 script list before the +0x34 response list, and
+finishes with vtable 0x79a9e8. Observer and pooled-node deletion callbacks can
+change later fields; those reads remain fresh.
+
+Pool classes search blocks by an unsigned half-open `data14 .. data14+strideC*32`
+range, with 32-bit bound wrap. Stride and used count are 16-bit. Slot index is
+unsigned byte displacement divided by stride: no alignment check is invented.
+Release decrements usedE, clears the bitmap bit, and, on zero, calls actual
+`Remove` before virtual block deletion. The manager searches classes by the AL
+result and, if the matching class's block count is now zero, removes/deletes that
+class. A nonnull nonmember pointer reaches an original null-class dereference;
+it is not converted into a new graceful-failure policy.
+
+Owned-list clearing calls `Remove` for its first node, then uses the original
+inlined unlink sequence for later nodes. Each node is poisoned with link
+sentinels before virtual deletion; the list head is reloaded after the callback.
+This preserves deletion of a newly inserted head and later virtual-target changes.
+No extra `Remove` boundary or cached-next traversal is introduced.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_lifecycle.py --compiler clang-cl --mutation-checks
+ctest --test-dir build/native -R '^feng_(queue|list|grid)_native$' --output-on-failure
+```
+
+Verification passes **20,736 comparisons**: 4,096 each for list clear, manager
+release, base cleanup and grid cleanup, plus 4,352 slot-release cases. It rejects
+**16 semantic mutations**. Actual `Remove`, slot release, manager release, list
+clear and base cleanup compose; only free 0x575630, observer notification and
+virtual deleting-destructor interfaces are controlled. Cases include list sizes
+0..3, callback head insertion and target changes, strides 1..64, all 32 slots,
+unaligned slot interiors, used-count edges including 16-bit underflow, pool misses,
+empty block lists, exclusive upper/lower boundaries and wrapping range endpoints.
+Callbacks change subsequent free pointers, observer availability, payloads, class
+counts and later lists. Mutations catch extra unlink calls, skipped reinsertion,
+wrong slot/range/bitmap math, omitted deletion/notification, wrong cleanup order
+and cached pool pointers. Compiler/link failures do not count as rejections.
+
+Tests compare final mapped bytes, ordered helper/virtual/free targets, arguments
+and snapshots, AL for slot release, preserved registers, stack balance and final
+FS:[0] restoration. Original destructors execute their normal SEH prologues under
+a mapped TEB/GDT; rebuilt methods do not synthesize those frames. Intermediate
+SEH registration/frame identity, callbacks that inspect the exception chain,
+throwing callbacks and exceptional unwinding are outside this evidence. Void
+cleanup EAX contents are not a recovered return contract.
+
+The synthetic native grid probe composes recovered construction, allocation,
+pool creation and normal cleanup, with an observer that allocates a new +0x14
+payload; the recovered base cleanup releases it. A native virtual node fixture
+inserts a new head during deletion and confirms original deletion order and empty
+list state. These tests use private empty state-manager storage and native virtual
+callbacks. All three native queue/list/grid CTests, native/mod-enabled builds and
+headless scroller motion/centering pass.
+
+**Production lifecycle integration remains pending.** Native file objects still
+own vectors/state through their existing wrappers; original factory/state
+allocation, virtual node destructor implementations, callback owners and SEH
+unwind must be recovered/bound before replacing that ownership. This does not
+activate production grid dispatch or claim native pooled-state allocation.
+Arbitrary aliases, invalid/nonmember releases, unbounded callback reconfiguration,
+concurrency and byte matching remain unverified. Clang is the stated verifier;
+MSVC 7.1/wibo are absent. Reports stay ignored under `build/analysis/feng-lifecycle/`.

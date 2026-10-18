@@ -47,6 +47,7 @@ UG2_CHECK_SIZE(FEScriptTrack, 0x38);
 // Native FNG objects retain this prefix so recovered routines operate on it directly.
 struct HudVisibilityObject {
     HudVisibilityObject *ConstructBase(); // 0x52af20; writes only the original 0x5c-byte prefix.
+    void DestructBase(); // 0x52af90, normal-return body; retail compiler supplies SEH unwind.
     FEScript *FindScriptByHash(unsigned int hash); // 0x5046b0
     void Call52BD70(int x, int y);
     void InitializeScript(); // 0x517720

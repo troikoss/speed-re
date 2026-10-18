@@ -3,6 +3,7 @@
 #include "../../Speed/Indep/Src/Frontend/FEngHash.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObject.h"
 #include "../../Speed/Indep/Src/Frontend/FEngGridReader.h"
+#include "../../Speed/Indep/Src/Frontend/FEngLifecycle.h"
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -16,8 +17,40 @@
 static unsigned int allocationBytes, freeCalls;
 unsigned int FEngNextObjectGuid = 1;
 unsigned int FEngValue7F7CC4 = 0x518e20;
+FEngStatePoolManager FEngObjectStateManager = {};
+FEngDestructionObserver *FEngObjectDestructionObserver = 0;
 void *FEngGridAllocateCells(unsigned int bytes) { allocationBytes = bytes; return malloc(bytes); }
 void FEngGridFreeCells(void *cells) { ++freeCalls; free(cells); }
+void *FEngAllocateQueueNode(unsigned int bytes) { return malloc(bytes); }
+void FEngFreeQueueNode(void *node) { ++freeCalls; free(node); }
+static FEngQueueList *deletingList;
+static FEngQueueNode *injectedNode;
+static std::vector<void *> deletedNodes;
+static void __thiscall DeleteFixtureNode(void *pointer, unsigned int flags) {
+    FEngQueueNode *node = (FEngQueueNode *)pointer;
+    assert(flags == 1 && (unsigned int)node->next4 == 0xabadcafe && (unsigned int)node->previous8 == 0xabadcafe);
+    deletedNodes.push_back(pointer);
+    if (injectedNode) {
+        injectedNode->next4 = deletingList->first8;
+        injectedNode->previous8 = 0;
+        if (deletingList->first8) deletingList->first8->previous8 = injectedNode;
+        deletingList->first8 = injectedNode;
+        if (!deletingList->valueC) deletingList->valueC = injectedNode;
+        ++deletingList->count4;
+        injectedNode = 0;
+    }
+}
+class CleanupObserver : public FEngDestructionObserver {
+public:
+    unsigned int calls;
+    CleanupObserver() : calls(0) {}
+    void ObjectDestroyed(HudVisibilityObject *object) {
+        assert(*(unsigned int *)object->unidentified0 == 0x79b8e0);
+        void *payload = malloc(8); assert(payload);
+        *(unsigned int *)object->unidentified14 = (unsigned int)payload;
+        ++calls;
+    }
+};
 
 class Owner : public FEGridOwner {
 public:
@@ -181,6 +214,26 @@ int main() {
     Property(reader, 0x4953, 0, 0);
     assert(!poolGrid.valueA0 && !poolGrid.value9C && !poolGrid.value98 && !poolGrid.value90 && !poolGrid.value94);
     assert(textCells[0].value0[8] == retiredPayload); // Original disable does not clear cell payloads.
+    FEGridObject cleanup; memset(&cleanup, 0xa5, sizeof(cleanup));
+    cleanup.Construct();
+    cleanup.ResizeCells(2, 2);
+    cleanup.ResizeStringPool(4, 8);
+    unsigned int beforeDestruct = freeCalls;
+    CleanupObserver cleanupObserver;
+    FEngObjectDestructionObserver = &cleanupObserver;
+    cleanup.Destruct();
+    FEngObjectDestructionObserver = 0;
+    assert(freeCalls == beforeDestruct + 4 && cleanupObserver.calls == 1);
+    assert(*(unsigned int *)cleanup.unidentified0 == 0x79a9e8);
+    void *deletingVtable[1] = {(void *)DeleteFixtureNode};
+    FEngQueueNode first = {}, last = {}, injected = {};
+    first.vtable0 = last.vtable0 = injected.vtable0 = deletingVtable;
+    first.next4 = &last; last.previous8 = &first;
+    FEngQueueList owned = {0, 2, &first, &last};
+    deletingList = &owned; injectedNode = &injected;
+    owned.ClearOwned();
+    assert(!owned.count4 && !owned.first8 && !owned.valueC && deletedNodes.size() == 3);
+    assert(deletedNodes[0] == &first && deletedNodes[1] == &injected && deletedNodes[2] == &last);
     munmap(page, 4096);
     puts("PASS recovered grid storage/pool migration/cell writes/fill/navigation/callbacks/hash (no retail assets or display)");
 }

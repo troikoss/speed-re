@@ -21,6 +21,7 @@ struct FEGridObject {
     FEGridRefill callbackC0;
     void *contextC4;
     FEGridObject *Construct(); // 0x52b9e0, including actual base constructor call.
+    void Destruct(); // 0x52baa0, normal-return body including actual base cleanup.
     void InitialFill(); // 0x504c40; observed caller ignores incidental EAX.
     void SetLogicalColumns(unsigned int total); // 0x518bb0; observed caller ignores EAX.
     void SetLogicalRows(unsigned int total); // 0x518c00; observed caller ignores EAX.

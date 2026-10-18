@@ -20,6 +20,7 @@ struct FEngQueueList {
     FEngQueueNode *first8;
     FEngQueueNode *valueC;
     void Remove(FEngQueueNode *node); // 0x505400
+    void ClearOwned(); // 0x511670; first removal calls Remove, later removals are inline.
 };
 // Observed owner slots from queue and grid callers; unidentified slots keep their offsets.
 struct FEngQueueObserver {

@@ -1,0 +1,47 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "ClearOwned": {
+      "address": "0x511670",
+      "size": 110,
+      "sha256": "479f556a22d9d9320829a2a2c9ba4516af4c1ca5c40dc8f4157468b7b6e554a7"
+    },
+    "ReleaseSlot": {
+      "address": "0x5174a0",
+      "size": 124,
+      "sha256": "2ba9ea4dbab7859114fd348b1519a43914c00f0df154d6922f782129bc5467b4"
+    },
+    "ReleaseState": {
+      "address": "0x517520",
+      "size": 68,
+      "sha256": "2becc2da18c94abc8da8f62cb460f3cec4f8d65f61b2504cae92732cb1add8f2"
+    },
+    "DestructBase": {
+      "address": "0x52af90",
+      "size": 148,
+      "sha256": "d711c4372e0bfeb62530e79c95a062136cf61d4f7a60e7979d6bc4ebb7dbad8a"
+    },
+    "DestructGrid": {
+      "address": "0x52baa0",
+      "size": 131,
+      "sha256": "7ef14a8ab055924e621cd1ff34a7cc60f13333d395c8a24b9b30f24744c05a3e"
+    },
+    "Remove": {
+      "address": "0x505400",
+      "size": 75,
+      "sha256": "415c9b16fb71606195c2d5dd6f27b0bb04ea45ea7d4574c5940b31373afbaddf"
+    }
+  },
+  "data": {
+    "Observer": {
+      "address": "0x838474",
+      "size": 4,
+      "sha256": "df3f619804a92fdb4057192dc43dd748ea778adc52bc498ce80524c014b81119"
+    },
+    "Manager": {
+      "address": "0x863770",
+      "size": 16,
+      "sha256": "374708fff7719dd5979ec875d56cd2286f6d3cf7ec317a3b25632aab28ec37bb"
+    }
+  }
+}

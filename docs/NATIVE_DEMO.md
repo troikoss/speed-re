@@ -389,6 +389,10 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   and cell-property callees. The native component probe executes this reader;
   native chunk iteration/factory/owner binding still require recovery, so this
   does not activate production type-6 navigation or supply cell text population.
+  Normal-return grid/base cleanup, pooled-state release and owned-list clearing
+  are recovered and compose in the synthetic native probe. Production cleanup
+  still uses native ownership: original virtual destructors, state allocation,
+  factory binding and SEH unwind remain pending. See [lifecycle evidence](pc-pause-menu.md#normal-return-grid-and-object-cleanup-2026-10-18).
   Name hashing `0x505450` now executes recovered source; the native hash loop is
   removed. See [grid/hash evidence](pc-pause-menu.md#type-6-grid-navigation-and-original-name-hashing-2026-10-18).
   See [message delivery evidence](pc-pause-menu.md#full-queued-message-delivery-2026-10-18).
