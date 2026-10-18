@@ -417,7 +417,13 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
             header.next4 = j + 1 < object->scripts.size() ? &object->scripts[j + 1].header : 0;
         }
         object->scripts4C = object->scripts.empty() ? 0 : &object->scripts[0].header;
-        object->currentScript54 = 0;
+        // Native loader seam: original script reader 0x5515e0 selects Init;
+        // package reader 0x5554a0 selects it again, initializes tracks and resets time.
+        object->currentScript54 = object->FindScriptByHash(kInitScript);
+        if (object->currentScript54) {
+            object->InitializeScript();
+            object->currentScript54->time10 = 0;
+        }
     }
     return !objects_.empty();
 }

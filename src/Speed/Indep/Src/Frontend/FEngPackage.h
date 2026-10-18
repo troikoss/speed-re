@@ -5,20 +5,44 @@
 
 struct FEPackage;
 struct FEngObjectVisitor;
+struct FEResponse;
+struct FEngSavedFocus { unsigned int key0, value4; };
 struct FEngPackageList {
     char unidentified0[8];
     FEPackage *first8;
     FEPackage *FindByName(const char *name, FEPackage *first); // 0x519e50
 };
 struct FEngQueue {
-    char unidentified0[0xdc];
+    char unidentified0;
+    unsigned char value1;
+    char unidentified2[0xda];
     FEngPackageList packagesDC;
     char unidentifiedE8[4];
     FEngPackageList packagesEC;
+    char unidentifiedF8[0x4050];
+    unsigned int value4148;
+    char value414C[16][0x100];
+    int value514C;
+    FEngSavedFocus value5150[32];
+    void StoreFocus(unsigned int key, unsigned int value); // 0x50b300
+    unsigned int LoadFocus(unsigned int key); // 0x50b360
+    void ClearPackageStack(); // 0x50b390
+    void ExecuteResponse(FEResponse *response, HudVisibilityObject *object, FEPackage *package, unsigned int mask); // 0x52c7c0
+    void Call51AF50(FEPackage *package, int value, unsigned int mask);
+    void Call51AB20(const char *name, FEPackage *package);
+    void Call51AC10(const char *name, FEPackage *package, unsigned int mask);
+    void Call51ADB0(FEPackage *package);
+    void Call51B070(const char *name);
     void Post(unsigned int message, void *sender, struct FEPackage *package,
               int target, int value10); // 0x51aa20, thiscall
     HudVisibilityObject *FindObject(unsigned int hash, const char *package); // 0x52c570
 };
+UG2_CHECK_OFFSET(FEngQueue, value1, 1);
+UG2_CHECK_OFFSET(FEngQueue, value4148, 0x4148);
+UG2_CHECK_OFFSET(FEngQueue, value414C, 0x414c);
+UG2_CHECK_OFFSET(FEngQueue, value514C, 0x514c);
+UG2_CHECK_OFFSET(FEngQueue, value5150, 0x5150);
+UG2_CHECK_SIZE(FEngSavedFocus, 8);
 UG2_CHECK_OFFSET(FEngQueue, packagesDC, 0xdc);
 UG2_CHECK_OFFSET(FEngQueue, packagesEC, 0xec);
 UG2_CHECK_OFFSET(FEngPackageList, first8, 8);

@@ -14,7 +14,7 @@ from unicorn import Uc, UC_ARCH_X86, UC_MODE_32, UC_HOOK_CODE, UC_HOOK_MEM_READ,
 from unicorn.x86_const import (UC_X86_REG_EAX, UC_X86_REG_ECX, UC_X86_REG_ESP,
                               UC_X86_REG_EIP, UC_X86_REG_EBX, UC_X86_REG_ESI,
                               UC_X86_REG_EDI, UC_X86_REG_EBP)
-from pc_coff import link_objects
+from pc_feng_response import link_response
 from probe_pc_race_reward import ROOT, EXE
 
 BUILD = ROOT / 'build/analysis/feng-response'
@@ -37,12 +37,8 @@ def main():
     address, size = int(f['address'], 16), f['size']
     assert hashlib.sha256(image[address-0x400000:address-0x400000+size]).hexdigest() == f['sha256']
     BUILD.mkdir(parents=True, exist_ok=True)
-    obj = BUILD / (args.source.stem + '.obj')
-    compiler = ([str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe']
-                if args.compiler == 'msvc' else ['clang-cl', '--target=i686-pc-windows-msvc', '/GS-', '/GR-', '/w', '/arch:IA32'])
-    subprocess.run(compiler + ['/nologo', '/c', '/O2', '/Ob0', '/Fo' + str(obj.relative_to(ROOT)),
-                              '/Isrc/Speed/Indep/Src/Frontend', os.path.relpath(args.source, ROOT)], cwd=ROOT, check=True)
-    linked = link_objects([obj], {})
+    linked = link_response(args.compiler, args.source,
+                           ROOT / 'src/Speed/Indep/Src/Frontend/FEngQueueState.cpp', BUILD)
     entry = next(a for n, a in linked['exports'].items() if n.startswith('?SkipConditionalBlock@FEResponse@'))
     state, machines = {}, []
     for rebuilt in (False, True):

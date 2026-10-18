@@ -1526,3 +1526,106 @@ and 10 Controls scenarios, slider fill/knob pixels and scroller motion/settled
 centring. Mod HUD checks pass all four aspect ratios, 11 skins and the 120-frame
 capture. These cover current demo integration with recovered GUID/hash adapters,
 not complete loader or dispatcher equivalence.
+
+
+## Response dispatch and queue state (2026-10-18)
+
+`FEngResponse.cpp` now recovers full command dispatcher `0x52c7c0` (935-byte
+span through `0x52cb66`, with two fingerprinted jump tables).
+`FEngQueueState.cpp` recovers script lookup `0x5046b0` (31 bytes), focus store
+`0x50b300` (92), focus lookup `0x50b360` (46) and package-stack reset `0x50b390`
+(38). `feng-response.json` fingerprints these functions and tables. Queue
+fields retain offset-based names: byte +1, stack depth +0x4148, 16 256-byte
+slots at +0x414c, signed insertion index +0x514c and 32 key/value pairs at
++0x5150. These are an observed prefix, not a recovered complete queue object.
+
+Dispatch caches the initial response count and reloads its command pointer on
+each iteration. Script command 0 calls first-match script lookup, then
+`SetScript` `0x5178b0` **even when already selected**, and resets the local
+script's time after that call. It does not use the hash selector's distinct
+already-selected shortcut. Message command 1 preserves target sentinels -4/-1,
+resolves other targets by GUID, and posts even when resolution returns null.
+Commands 2/3 post to -1/-5. Focus selection 0x100 and saved-focus fallback 0x103
+retain parameter reloads after lookup callbacks and the original notify byte;
+0x102 stores the focused GUID (or zero), keyed by package hash. Byte +1 is set
+only for parameter exactly 1, not arbitrary truthy values.
+
+Input operations 0x105–0x108 preserve on/off values and either caller mask or
+0xff. Package commands 0x200–0x204 preserve their original callees and parameter
+order. 0x202 visits only the low eight mask bits in ascending order, making one
+call per selected bit. Stack command 0x2c1 decrements before calculating its
+256-byte slot and calls the observed package boundary; 0x2c0 uses the current
+package name and 0x2c2 calls recovered stack reset. Conditional commands use
+recovered `SkipConditionalBlock`; unlike the previous native switch, they
+require the original non-null object/current-script precondition. Other
+commands, including 0x104/0x501 and unrecognized values, have no dispatch action.
+
+Focus storage first clears **every** matching key in ascending slot order,
+leaving stale values intact. It reloads the insertion index between the key and
+value stores, and again before signed modulo-32 advancement. Explicit unsigned
+arithmetic preserves x86 overflow and negative-index aliases without clamping.
+Lookup returns the first match, including key zero. Stack reset clears only the
+first byte of each of the sixteen slots, followed by the depth word; it does
+not zero the string buffers or focus cache.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_dispatch.py --mutation-checks
+# Explicit fallback when MSVC 7.1/wibo is absent:
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_dispatch.py --compiler clang-cl --mutation-checks
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_response.py --compiler clang-cl --mutation-checks
+```
+
+Clang i686 passes **12,800 original/rebuilt comparisons**: 4,608 dispatcher
+calls and 2,048 each of the four state helpers. The dispatcher executes actual
+recovered conditional traversal, script lookup, focus store/load and stack
+reset. Its nine other call boundaries are controlled, with full call ordering,
+argument/context checks, volatile-register clobbering and selected callback
+mutations. Cases cover every command family, unknown commands, target sentinels
+and misses, masks, nested conditionals, count changes and pointer relocation
+after callbacks, selected-script changes and focus parameter reloads. Direct
+helper cases include duplicates, zero keys, index wrap, mapped negative-index
+aliases (including an alias to the insertion-index word), first matching
+scripts, empty lists and byte-only stack clearing. Checks compare guarded arena
+memory, exact ordered writes, return values where defined, stack cleanup and
+preserved registers. Controlled GUID and SetScript/focus callees are separate
+from their earlier actual-callee verification; this suite does not claim their
+full composition or platform package operations are recovered.
+
+Sixteen mutations are rejected, covering cached count/pointer differences,
+already-selected script skipping, resetting a changed current script instead
+of the saved local pointer, sentinel/null-target handling, truthy flag writes,
+mask-bit truncation, stale focus parameters, missing stack pop, unsigned focus
+modulo, zero-key lookup, clearing stale values, wide slot clears, missing depth
+reset and wrong script-hash field. The existing conditional suite also passes
+8,192 comparisons and rejects its six mutations after linking the expanded
+component. Reports remain ignored under `build/analysis/feng-dispatch/` and
+`build/analysis/feng-response/`. Finite mapped lists/state and selected callbacks
+do not prove arbitrary pointers, cycles, all aliases or full GUI dispatch.
+MSVC 7.1/wibo and byte matching remain outstanding.
+
+The native hand-written response switch is removed: it now adapts decoded
+commands to the observed prefix and calls the recovered dispatcher. Its mask
+is a documented native 0xff value; original per-message input-mask propagation
+remains unresolved. Queue delivery still uses native messages; the adapter now
+routes -1/-3/-5 to game/package/input destinations. Target -4 and original package
+operations `0x51af50`, `0x51ab20`, `0x51ac10`, `0x51adb0`, `0x51b070` remain
+**explicit traps**, not invented implementations. Current headless demo
+scenarios must not be treated as coverage of these operations.
+
+Integration exposed a native loader defect: it applied Init track values but
+left `currentScript54` null. Original script reader `0x5515e0` selects hash
+`0x1744b3`; package reader `0x5554a0` searches/selects Init, initializes tracks
+and resets its time. The native loader adapter now performs that observed setup
+using recovered script lookup/initialization. This fixes the original
+conditional precondition rather than adding null guards to recovered dispatch.
+The loader itself, Init event-delivery timing and complete package lifecycle
+remain scaffolding/unverified; this is not recovery of either reader.
+
+
+Native and mod-enabled builds pass. After restoring the observed Init selection,
+headless integration passes all 19 settings and 10 Controls scenarios, slider
+fill/knob pixels, scroller motion/settled centring and all four HUD aspect
+ratios/11 skins/120-frame capture. The initial null-selection crash is resolved
+by loader initialization; recovered conditionals retain their original
+preconditions. These checks cover current demo scenarios, not the trapped
+package operations, complete queue delivery or all original scripts.

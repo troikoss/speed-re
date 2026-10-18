@@ -350,8 +350,11 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   See [GUID lookup evidence](pc-pause-menu.md#guid-lookup-and-native-tree-adapters-2026-10-18).
 - Response conditional traversal `0x504490` now executes recovered code over
   decoded 12-byte command records, including the original count boundary.
-  Native response dispatch `0x52c7c0`, decoded-prefix construction and queued
-  delivery remain seams. See [response evidence](pc-pause-menu.md#response-conditional-traversal-2026-10-18).
+  Full response dispatch `0x52c7c0`, script lookup `0x5046b0`, focus cache
+  `0x50b300`/`0x50b360` and stack reset `0x50b390` now execute recovered code.
+  Decoded-prefix construction, fixed native mask 0xff and queued delivery remain
+  seams. Target -4 and five package-operation callees are explicit traps.
+  Native loading now selects/initializes Init as observed in the original readers. See [response evidence](pc-pause-menu.md#response-conditional-traversal-2026-10-18).
 - GUI formatted hashing `0x50b9c0`, buffer wrapper `0x50c960`, shared profiling
   wrapper `0x43fbc0` and elapsed accounting `0x43e5c0` now execute recovered code.
   The buffer wrapper ignores capacity as the original does. Native SDL counter

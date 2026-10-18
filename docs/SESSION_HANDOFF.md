@@ -487,3 +487,25 @@ renamed from cross-title evidence alone.
     This stack is separate from focus insertion index +0x514c and 32 key/value
     pairs at +0x5150. Keep these observed structures distinct. The reset has
     not yet been recovered or behaviorally verified.
+
+
+34. **Full response-dispatch checkpoint (2026-10-18).** `FEngResponse.cpp`
+    recovers `0x52c7c0` all command families, preserving cached count, per-loop
+    command-pointer reload, local script reset and original callee boundaries.
+    `FEngQueueState.cpp` recovers `0x5046b0`, `0x50b300`, `0x50b360`, `0x50b390`;
+    queue observed prefix now reaches the 32-pair focus cache at +0x5150.
+    Clang i686: 12,800 comparisons, 16 mutations; skip helper 8,192/six mutations.
+    Dispatcher executes actual skip/state helpers, controls nine external
+    boundaries; checks ordered writes/calls, negative-index aliases and ABI.
+    Native manual switch removed. Loader now selects/initializes Init script
+    using observed `0x5515e0`/`0x5554a0` setup; missing selection caused a native
+    conditional crash, now addressed at the loader seam. Original readers and
+    Init event timing remain unrecovered. Native delivery/mask (fixed 0xff)
+    remain adapters. Target -4 and package methods `0x51af50`, `0x51ab20`,
+    `0x51ac10`, `0x51adb0`, `0x51b070` explicitly trap; do not claim complete
+    dispatch integration. MSVC, byte matching, all aliases/malformed inputs and
+    full callee composition remain outstanding. Native/mod builds pass; after
+    Init selection repair, headless 19 settings/10 Controls, slider pixels,
+    scroller motion and four-ratio/11-skin/120-frame mod HUD checks pass.
+    Next targets: queue Post
+    `0x51aa20`/delivery `0x541fc0`, input and package-operation callees.

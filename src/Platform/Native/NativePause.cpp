@@ -270,48 +270,12 @@ void RemoveScripts(NativeScreen *screen) {
     }
 }
 
-// 0x52c7c0, the commands the options and pause packages use.
+// Native decoded storage and mask adapter for recovered 0x52c7c0.
 void RunResponse(NativeScreen *screen, const FengResponse &response, FengObject *object) {
-    const std::vector<FengResponseCommand> &commands = response.commands;
-    // Native decoded storage supplies the observed response prefix. Dispatch
-    // remains a seam; conditional traversal executes original recovered code.
     FEResponse original = {};
-    original.commandCount10 = (unsigned int)commands.size();
-    original.commands14 = commands.data();
-    for (size_t i = 0; i < commands.size(); ++i) {
-        const FengResponseCommand &command = commands[i];
-        unsigned int current = object && object->currentScript54 ? object->currentScript54->hash30 : 0;
-        switch (command.type) {
-        case 0:
-            FngSetObjectScriptHash(object, command.parameter, 1);
-            break;
-        case 1: {
-            FengObject *target = screen->package->FindGuid(command.target);
-            if (target) Post(screen, command.parameter, object, kTargetObject, target);
-            break;
-        }
-        case 2:
-            Post(screen, command.parameter, object, kTargetGame);
-            break;
-        case 3:
-            Post(screen, command.parameter, object, kTargetInput);
-            break;
-        case 0x300:
-            if (current != command.parameter) i = original.SkipConditionalBlock((unsigned int)i);
-            break;
-        case 0x301:
-            if (current == command.parameter) i = original.SkipConditionalBlock((unsigned int)i);
-            break;
-        case 0x500:
-            i = original.SkipConditionalBlock((unsigned int)i);
-            break;
-        case 0x501:
-            break;
-        default:
-            if (Debug()) fprintf(stderr, "pause: response command %x not modelled\n", command.type);
-            break;
-        }
-    }
+    original.commandCount10 = (unsigned int)response.commands.size();
+    original.commands14 = response.commands.data();
+    nativeFengQueue.ExecuteResponse(&original, object, &screen->fePackage, 0xff);
 }
 
 void Process(const PendingMessage &pending) {
@@ -569,12 +533,22 @@ FngRecord *FngFindRecord(unsigned int hash) {
 void FEngQueue::Post(unsigned int message, void *sender, FEPackage *package, int target, int) {
     for (size_t i = 0; i < kScreenCount; ++i) {
         if (&screens[i]->fePackage != package) continue;
-        ::Post(screens[i], message, static_cast<FengObject *>(sender),
-               target == -5 ? kTargetInput : kTargetObject,
-               target == -5 ? 0 : reinterpret_cast<FengObject *>(target));
+        if (target == -4) NativeTrap("FEngQueue::Post target -4");
+        int route = target == -1 ? kTargetGame : target == -3 ? kTargetPackage :
+                    target == -5 ? kTargetInput : kTargetObject;
+        ::Post(screens[i], message, static_cast<FengObject *>(sender), route,
+               route == kTargetObject ? reinterpret_cast<FengObject *>(target) : 0);
         return;
     }
 }
+
+// Explicit unrecovered package operations: current demo response fixtures do not
+// exercise these commands. Keep their call boundaries, without invented behavior.
+void FEngQueue::Call51AF50(FEPackage *, int, unsigned int) { NativeTrap("FEngQueue 0x51af50"); }
+void FEngQueue::Call51AB20(const char *, FEPackage *) { NativeTrap("FEngQueue 0x51ab20"); }
+void FEngQueue::Call51AC10(const char *, FEPackage *, unsigned int) { NativeTrap("FEngQueue 0x51ac10"); }
+void FEngQueue::Call51ADB0(FEPackage *) { NativeTrap("FEngQueue 0x51adb0"); }
+void FEngQueue::Call51B070(const char *) { NativeTrap("FEngQueue 0x51b070"); }
 
 // ---- IconScroller base seams --------------------------------------------------------------
 

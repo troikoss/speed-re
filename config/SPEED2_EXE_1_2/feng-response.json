@@ -5,6 +5,43 @@
       "address": "0x504490",
       "size": 105,
       "sha256": "ebf3eb62ebb2019113238da902dd839fb5f1b3fec30fa18f8afd27f291fe46e7"
+    },
+    "ExecuteResponse": {
+      "address": "0x52c7c0",
+      "size": 935,
+      "sha256": "9eb1662e6aee827cbfb7e1af75907ab763ae2a0b588863343b1f81543b5098b6"
+    },
+    "FindScriptByHash": {
+      "address": "0x5046b0",
+      "size": 31,
+      "sha256": "629e25ccdaf645a542e073fde508a91efcd393cd44a10ef9f80f2e7d538369c7"
+    },
+    "StoreFocus": {
+      "address": "0x50b300",
+      "size": 92,
+      "sha256": "57bcf5d23430e739080e7df4d311923fc6c28a3cbe205b395deadf76377f12d1"
+    },
+    "LoadFocus": {
+      "address": "0x50b360",
+      "size": 46,
+      "sha256": "66b6963c4dc54b4a785c1d9a4f814e867e07d38b8a1510aa24997637c8693e3b"
+    },
+    "ClearPackageStack": {
+      "address": "0x50b390",
+      "size": 38,
+      "sha256": "f5ad61594af25b1f05e432169c681487f0dc0675e4123b36e0dc366a1793e874"
+    }
+  },
+  "tables": {
+    "dispatch-input": {
+      "address": "0x52cb68",
+      "size": 24,
+      "sha256": "44ec9e98098aa0bd71e75f1be2e0b5fdefc7a6f9c755efd933d85a06473a369f"
+    },
+    "dispatch-package": {
+      "address": "0x52cb80",
+      "size": 20,
+      "sha256": "3b46d194e8ea4f18cffa3698049235bb58e596df9c37bf56d2921793c6f06323"
     }
   }
 }
