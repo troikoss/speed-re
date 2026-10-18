@@ -58,6 +58,27 @@ binary32-rounded product, so the D3DX implementation itself is not executed. MSV
 compilation and byte identity are not established. Not yet integrated: the native
 camera still hands eye/target/up to the renderer.
 
-Next: the collider sphere query `0x5e6fa0` (with 2D helpers `0x43d220`, `0x43d2f0`,
-`0x43d470`, `0x43d090`), face push `0x444190` (world ray `0x5d39f0`, face test
+## Collider area query (2026-10-18)
+
+`World/WColliderQuery.cpp` recovers `WCollider::QueryArea` `0x5e6fa0` (thiscall,
+`point, radius, velocity`) and its 2D bounds helpers: reset `0x43d220` (minimum
++FLT_MAX, maximum -FLT_MAX), expand `0x43d2f0` (all inputs read before the four
+stores; an unordered comparison takes the point's value), containment `0x43d470`
+(each test fails on an unordered result) and scale-add `0x43d090` (y computed first).
+The query follows the pack (`0x5e68d0` with radius 0), sets the sphere bounds at
++0x1c/+0x24 and returns when they lie in the face area +0x2c/+0x34. Otherwise it
+rebuilds the area around the sphere grown by 0.5 (`0x784260`); with a velocity the
+area also covers the point moved by 0.15 s of it, retried while the area diagonal is at
+least 28.8 (`0x7a5338`, compared unrounded) with the look-ahead scaled by 0.75
+(`0x785510`) and zeroed for the fifth pass. `0x5e5890` then refreshes the faces.
+
+Verification: `tools/verify_pc_collider_query.py --compiler clang-cl --mutation-checks`
+(manifest `config/SPEED2_EXE_1_2/collider-query.json`): 20,480 comparisons (4,096 per
+routine; query paths inside 2,540, no velocity 290, swept 1,266, constructed diagonal
+straddles 512) under 53- and 64-bit precision with NaN, infinity, FLT_MAX, equal edges
+and overlapping outputs; 13 mutations rejected. `UpdatePack` and `RefreshArea` run as
+traced stubs (arguments and collider bounds at each call compared). MSVC 7.1 and byte
+identity are not established; not yet called by native code.
+
+Next: face push `0x444190` (world ray `0x5d39f0`, face test
 `0x5d35b0`), then `0x444530`, `0x44ac10`, `0x44b040` and integration into `0x453570`.

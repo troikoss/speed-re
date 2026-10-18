@@ -174,6 +174,7 @@ struct WCollider {
     void SetPack(WCollisionPack *pack);
     void RefreshArea();
     void UpdatePack(float *point, float radius);
+    void QueryArea(float *point, float radius, float *velocity); // 0x5e6fa0
     bool UpdateArea(float *minimum, float *maximum, WheelVector *velocity);
     float QueryGround(WheelVector *point, int *surface, WheelVector *normal, char *found);
 };
@@ -205,5 +206,11 @@ void InitialiseCollisionCache(WCollisionManager *manager, char large);
 int CollisionSectionIndex(short section);
 void RegisterCollisionPack(WCollisionPack *pack);
 void RunWorldStaticInitializers();
+
+// 2D bounds helpers (WColliderQuery.cpp).
+void Bounds2Reset(float *minimum, float *maximum);                                   // 0x43d220
+void Bounds2Expand(float *minimum, float *maximum, float *point, float radius);      // 0x43d2f0
+int Bounds2Contains(float *outerMinimum, float *outerMaximum, float *innerMinimum, float *innerMaximum); // 0x43d470
+void ScaleAdd2(float *output, float *base, float *direction, float scale);           // 0x43d090
 
 #endif

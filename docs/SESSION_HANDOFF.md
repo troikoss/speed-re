@@ -641,3 +641,8 @@ renamed from cross-title evidence alone.
     Next: `0x5e6fa0` (+ `0x43d220`/`0x43d2f0`/`0x43d470`/`0x43d090`), `0x444190`
     (+ `0x5d39f0`, `0x5d35b0`), then `0x444530`, `0x44ac10`, `0x44b040` and the
     `0x453570` tail (view matrix to renderer). See `docs/pc-camera.md`.
+
+44. **Collider area query (2026-10-18).** `World/WColliderQuery.cpp` recovers
+    `0x5e6fa0` and 2D helpers `0x43d220`/`0x43d2f0`/`0x43d470`/`0x43d090`: 20,480
+    comparisons, 13 mutations (straddle fixtures for the 28.8 diagonal limit).
+    Next: face push `0x444190` (+ `0x5d39f0`, `0x5d35b0`), then the pushes.

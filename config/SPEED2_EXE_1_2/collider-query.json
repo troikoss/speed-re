@@ -1,0 +1,30 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "Bounds2Reset": {
+      "address": "0x43d220",
+      "size": 35,
+      "sha256": "5fdc81ae2b6b9e4537f8604fef7c25865b9236b41725d7d49225f53f24b6ac7f"
+    },
+    "Bounds2Expand": {
+      "address": "0x43d2f0",
+      "size": 141,
+      "sha256": "c43f8057ab841067f5efd10dcf59ccb6681c8e6df4eb1457051213378a204182"
+    },
+    "Bounds2Contains": {
+      "address": "0x43d470",
+      "size": 79,
+      "sha256": "781de12e913d430dc7d94440aa52fe28d45a60b333032c0198741631664717d9"
+    },
+    "ScaleAdd2": {
+      "address": "0x43d090",
+      "size": 36,
+      "sha256": "9248063364e03093446ef9a044f079ec785fb6854ace4d032e9d8dba5f8b932d"
+    },
+    "QueryArea": {
+      "address": "0x5e6fa0",
+      "size": 341,
+      "sha256": "f92593d5fe7317da9aa10fcd403cff6bbc40116875287ac1cc85ff9b4d7ad36e"
+    }
+  }
+}

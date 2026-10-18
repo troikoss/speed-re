@@ -874,3 +874,5 @@ bFormatBadVector786DF4 = 0x786df4;
 bFormatVector2786E0C = 0x786e0c;
 bFormatVector3786E1C = 0x786e1c;
 bFormatInvalidVector786E30 = 0x786e30;
+colliderQuerySpan7A5338 = 0x7a5338;
+colliderQueryDecay785510 = 0x785510;
