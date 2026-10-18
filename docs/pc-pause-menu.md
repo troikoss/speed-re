@@ -2523,3 +2523,73 @@ settings scenarios (including slider fill/knob pixels), all 10 Controls scenario
 scroller motion/settled centering and modded HUD checks at 640x480, 1280x720,
 1680x720 and 2560x720. These establish current demo regression coverage, not full
 original constructor/reader/virtual-lifecycle recovery.
+
+## Type 6 property dispatch and actual callee composition (2026-10-18)
+
+`FEngGridPropertyReader::ReadProperty` recovers the complete **0x535060** body
+(259 bytes) in `FEngGridReader.cpp`. `FEngGridReader.h` represents only the observed
+reader prefix with the current grid pointer at +0xc. It does not represent the
+full reader's allocation, factory, surrounding chunk iteration or ownership.
+`config/SPEED2_EXE_1_2/feng-grid-reader.json` pins the span/executable; verification
+also checks all eight callee fingerprints from the storage and cell manifests.
+
+The original dispatch reads a 16-bit tag and uses payload +4, ignoring the length
+word in this method. Uppercase `LD` (0x444c) calls recovered `ResizeCells`; `SI`
+(0x4953) calls `ResizeStringPool`; `Cc`/`Cs`/`Lj` call the recovered word/pair/word
+property setters across current physical dimensions with starts (0,0). `Cs`
+copies both raw property words into a local pair before entering the setter. `LT`
+(0x744c) stores `flags68 & 1` first, then reads the payload, merges all other bits,
+and stores again. That first store is observable for aliased property data.
+Unknown tags do nothing, including with an invalid current-grid pointer; they
+need no length or payload bytes.
+
+`Lv` (0x764c) loads the second float, loads the first float, then stores +0x84
+and +0x88 in that order through x87. The source uses float assignments that
+compile to those loads/stores with the verification target. It deliberately does
+not replace these with raw word copies: signaling NaNs can quiet and set status.
+The second input is captured before the first output store even if they alias.
+None of these tags assigns cell text; actual text population remains in the
+unrecovered owner/text-assignment path.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_grid_reader.py --compiler clang-cl --mutation-checks
+ctest --test-dir build/native -R '^feng_(queue|list|grid)_native$' --output-on-failure
+```
+
+Verification passes **4,352 full-reader comparisons** and rejects **11 mutations**.
+All eight recovered callees execute together: physical allocation/reset, both
+logical setters, pool migration and all three cell-property setters. Only allocation
+0x575620 and free 0x575630 are controlled. Cases cover all seven supported tags,
+three unknown tags, arbitrary ignored length words, physical extents 1..4, valid
+owned-cell retirement pools, existing/null old pool pointers, and allocator/free
+changes to current fields. Selected properties alias the LT flags word, Lv's first
+output and Cs's destination. An unknown tag at the last mapped two bytes uses an
+invalid grid pointer, proving no extra payload/grid read along that tested path.
+
+The verifier compares final mapped bytes, ordered helper/allocator/free targets,
+arguments and snapshots, preserved registers and stack cleanup. It normalizes
+only Cs's compiler-specific local-pair stack address into its two word contents;
+that callee still executes and selected aliases detect passing the original
+payload directly. Six x87 control words cover selected precision/rounding modes;
+FPCW, FPSW, empty tags and balanced TOP are checked with signed zero, denormals,
+infinities, quiet/signaling NaNs and finite aliased values. Mutation checks catch
+argument/callee/extent changes, ownership-bit replacement, omitting LT's first
+store, bypassing Cs's snapshot and changing Lv load/store behavior. Compile/link
+failures do not count as rejected mutations. MSVC 7.1/wibo remain absent; Clang
+verification retains the existing no-invented-memset flag for the actual pool body.
+
+The native grid component fixture now reaches allocation/reset/dimension setup,
+shrink retirement, pool creation/migration/disable and all property setters through
+this recovered dispatcher, then composes initial fill/navigation with native
+callbacks. Constructor-based fixtures and direct setter alias checks remain.
+Native/mod-enabled builds, all three queue/list/grid CTests and headless scroller
+motion/settled-centering checks pass. These are component/integration results;
+the native file reader still requires original grid factory/iteration/owner
+binding and a valid 0xc8-byte production prefix. Its type-6 navigation trap remains.
+
+Coverage remains finite. Invalid known-tag lengths, arbitrary aliases, undersized
+or exhausted pools, allocation failure/overflow, unmasked FP exceptions/unwind,
+concurrent mutation and byte matching remain unverified. Reports remain ignored
+under `build/analysis/feng-grid-reader/`. The earlier statements that this property
+dispatch was unrecovered are superseded; the surrounding reader, text assignment,
+owner implementation and rendering/lifecycle seams remain.

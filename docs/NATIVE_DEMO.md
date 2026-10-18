@@ -385,6 +385,10 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   probe; production type-6 construction/reader binding remains pending. Unknown
   base fields retain explicit native defaults, and native root/child chain links
   remain a loader seam. See [constructor evidence](pc-pause-menu.md#common-feng-and-grid-construction-2026-10-18).
+  Type-6 property dispatch `0x535060` is recovered with its actual storage/pool
+  and cell-property callees. The native component probe executes this reader;
+  native chunk iteration/factory/owner binding still require recovery, so this
+  does not activate production type-6 navigation or supply cell text population.
   Name hashing `0x505450` now executes recovered source; the native hash loop is
   removed. See [grid/hash evidence](pc-pause-menu.md#type-6-grid-navigation-and-original-name-hashing-2026-10-18).
   See [message delivery evidence](pc-pause-menu.md#full-queued-message-delivery-2026-10-18).

@@ -2,6 +2,7 @@
 #include "../../Speed/Indep/Src/Frontend/FEngGrid.h"
 #include "../../Speed/Indep/Src/Frontend/FEngHash.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObject.h"
+#include "../../Speed/Indep/Src/Frontend/FEngGridReader.h"
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -46,6 +47,10 @@ public:
 };
 static void Custom(void *context, FEGridObject *grid, int column, int row) {
     static_cast<Owner *>(context)->RefillGrid(grid, column, row);
+}
+static void Property(FEngGridPropertyReader &reader, unsigned int tag, unsigned int one, unsigned int two = 0) {
+    unsigned int property[3] = {tag | (8u << 16), one, two};
+    reader.ReadProperty((const unsigned short *)property);
 }
 static void Initialize(FEGridObject &grid, FEGridCell *cells, Owner &owner) {
     memset(&grid, 0, sizeof(grid));
@@ -119,7 +124,9 @@ int main() {
     unsigned int pool[16] = {};
     storage.owner5C = &storageOwner; storage.flags68 = 8;
     storage.value98 = 8; storage.value9C = pool;
-    storage.ResizeCells(2, 2);
+    FEngGridPropertyReader reader = {}; reader.objectC = &storage;
+    Property(reader, 0x744c, 8); // LT retains the original ownership bit.
+    Property(reader, 0x444c, 2, 2); // LD composes allocation/reset/dimension setters.
     assert(allocationBytes == 4 * 48 && !freeCalls);
     assert(storage.count60 == 2 && storage.count64 == 2 && storage.value6C == 2 && storage.value70 == 2);
     assert(storage.value74 == 1 && storage.value78 == 1 && storage.flags68 == 9);
@@ -137,7 +144,7 @@ int main() {
         storage.cells8C[i].value0[6] = 2;
         storage.cells8C[i].value0[8] = 100 + i;
     }
-    storage.ResizeCells(1, 1);
+    Property(reader, 0x444c, 1, 1);
     assert(allocationBytes == 48 && freeCalls == 1 && storage.value98 == 5);
     assert(pool[7] == 101 && pool[6] == 102 && pool[5] == 103);
     FEngGridFreeCells(storage.cells8C);
@@ -146,27 +153,32 @@ int main() {
     FEGridCell textCells[2]; memset(textCells, 0, sizeof(textCells));
     poolGrid.count60 = 2; poolGrid.count64 = 1; poolGrid.cells8C = textCells;
     poolGrid.value6C = 2; poolGrid.value70 = 1;
-    poolGrid.ResizeStringPool(2, 6);
+    reader.objectC = &poolGrid;
+    Property(reader, 0x4953, 2, 6);
     unsigned short *text = (unsigned short *)poolGrid.value9C[0];
     text[0] = 'A'; text[1] = 0x3a9; text[2] = 'C'; text[3] = 0;
     textCells[0].value0[6] = textCells[1].value0[6] = 2;
     textCells[0].value0[8] = poolGrid.value9C[0]; textCells[1].value0[8] = 0;
     poolGrid.value98 = 2;
     unsigned int beforePoolFree = freeCalls;
-    poolGrid.ResizeStringPool(2, 3);
+    Property(reader, 0x4953, 2, 3);
     assert(freeCalls == beforePoolFree + 2 && poolGrid.value98 == 2);
     assert(textCells[0].value0[8] == poolGrid.value9C[0] && textCells[1].value0[8] == poolGrid.value9C[1]);
     text = (unsigned short *)textCells[0].value0[8];
     assert(text[0] == 'A' && text[1] == 0x3a9 && text[2] == 0);
     assert(!*(unsigned short *)textCells[1].value0[8]);
-    poolGrid.SetCellValue0(0, 0, 0x11223344, 2, 1);
-    poolGrid.SetCellValue1C(1, 0, 0x55667788, 1, 1);
+    Property(reader, 0x6343, 0x11223344);
+    Property(reader, 0x6a4c, 0x55667788);
     assert(textCells[0].value0[0] == 0x11223344 && textCells[1].value0[0] == 0x11223344);
-    assert(textCells[1].value0[7] == 0x55667788);
+    assert(textCells[0].value0[7] == 0x55667788 && textCells[1].value0[7] == 0x55667788);
     poolGrid.SetCellPair4(0, 0, textCells[0].value0, 1, 1);
     assert(textCells[0].value0[1] == 0x11223344 && textCells[0].value0[2] == 0x11223344);
+    Property(reader, 0x7343, 0x3f800000, 0x40000000);
+    assert(textCells[0].value0[1] == 0x3f800000 && textCells[1].value0[2] == 0x40000000);
+    Property(reader, 0x764c, 0x3f000000, 0xbf000000);
+    assert(poolGrid.value84 == .5f && poolGrid.value88 == -.5f);
     unsigned int retiredPayload = textCells[0].value0[8];
-    poolGrid.ResizeStringPool(0, 0);
+    Property(reader, 0x4953, 0, 0);
     assert(!poolGrid.valueA0 && !poolGrid.value9C && !poolGrid.value98 && !poolGrid.value90 && !poolGrid.value94);
     assert(textCells[0].value0[8] == retiredPayload); // Original disable does not clear cell payloads.
     munmap(page, 4096);

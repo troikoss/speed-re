@@ -1,0 +1,10 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "ReadProperty": {
+      "address": "0x535060",
+      "size": 259,
+      "sha256": "850e32b6f955759373ed2ff97dac3699bc2a9cc0847a30617e6825a2a1853f36"
+    }
+  }
+}
