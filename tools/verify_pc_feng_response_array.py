@@ -20,8 +20,8 @@ FRONT = ROOT / 'src/Speed/Indep/Src/Frontend'
 ARENA, SELF, WORK, OLD, ALT, NEW, TEXT, STRINGS, STACK, STOP = (
     0x2000000 + x for x in (0, 0x100, 0x1000, 0x2000, 0x3000, 0x5000, 0x6000, 0x8000, 0x1f000, 0x100000))
 TEB, GDT = 0x2120000, 0x2130000
-PREFIXES = dict(Resize='?ResizeCommands@FEResponse@', ConstructArray='?FEngConstructResponseCommands@',
-                DestructArray='?FEngDestructResponseCommands@', Construct='?FEngConstructResponseCommand@',
+PREFIXES = dict(Resize='?ResizeCommands@FEResponse@', ConstructArray='?FEngConstructArrayWithCleanup@',
+                DestructArray='?FEngDestructArrayWithCleanup@', Construct='?FEngConstructResponseCommand@',
                 Destruct='?FEngDestructResponseCommand@', SetString='?SetString@FEResponseCommand@', Assign='?Assign@FEResponseCommand@')
 ARGS = dict(Resize=1, ConstructArray=5, DestructArray=4, Construct=0, Destruct=0, SetString=1, Assign=1)
 ROOTS = ('Resize', 'ConstructArray', 'DestructArray')
@@ -163,11 +163,11 @@ def main():
             'resize-omit-equal-fastpath': ('if (count != commandCount10)', 'if (true)'),
             'resize-wrong-allocation': ('count * 12 + 4', 'count * 12'),
             'resize-wrong-cookie': ('*allocation = count;', '*allocation = count + 1;'),
-            'resize-no-construct': ('FEngConstructResponseCommands(buffer, 12, count,\n                    FEngConstructResponseCommand, FEngDestructResponseCommand);', '/* omitted */'),
+            'resize-no-construct': ('FEngConstructArrayWithCleanup(buffer, 12, count,\n                    (FEngLifetimeConstructor)FEngConstructResponseCommand, (FEngLifetimeDestructor)FEngDestructResponseCommand);', '/* omitted */'),
             'resize-wrong-min': ('if (count < retained) retained = count;', '/* omitted */'),
             'resize-cache-old-before-allocate': [('            unsigned int *allocation =', '            FEResponseCommand *cached = commands14;\n            unsigned int *allocation ='), ('(unsigned int)commands14 + offset', '(unsigned int)cached + offset')],
             'resize-shallow-copy': (')->Assign(\n                    (FEResponseCommand *)((unsigned int)commands14 + offset));', ')[0] = *(FEResponseCommand *)((unsigned int)commands14 + offset);'),
-            'resize-use-logical-dtor-count': ('FEngDestructResponseCommands(old, 12, *base,', 'FEngDestructResponseCommands(old, 12, commandCount10,'),
+            'resize-use-logical-dtor-count': ('FEngDestructArrayWithCleanup(old, 12, *base,', 'FEngDestructArrayWithCleanup(old, 12, commandCount10,'),
             'resize-omit-free': ('FEngFreeQueueNode(base);', '/* omitted */'),
             'resize-omit-install': ('commands14 = buffer;', '/* omitted */'),
         }

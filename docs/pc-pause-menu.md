@@ -3569,3 +3569,116 @@ These check native integration separately from original/rebuilt evidence.
 They do not establish the full original reader, pool ownership, exception-frame
 observations during callbacks or exceptional unwind. Ghidra signatures and
 comments record the verified boundaries and these normal-path limits.
+
+
+### Response-header pool and virtual cleanup (2026-10-18)
+
+Recovered eleven bounded UG2 routines, fingerprinted in
+`config/SPEED2_EXE_1_2/feng-response-pool.json`:
+
+| Routine | Address | Span |
+| --- | --- | --- |
+| Header constructor | `0x4fe920` | 31 bytes |
+| Header normal destructor | `0x534b10` | 117 bytes |
+| Header deleting wrapper | `0x53ee60` | 40 bytes |
+| Pool-block constructor | `0x53e710` | 501 bytes |
+| Pool-block normal destructor | `0x53eb40` | 211 bytes |
+| Pool-block deleting wrapper | `0x53eb20` | 30 bytes |
+| Pool acquire | `0x54bdf0` | 186 bytes |
+| Pool release | `0x525b30` | 86 bytes |
+| List insertion | `0x5053b0` | 76 bytes |
+| Cursor insertion wrapper | `0x4951b0` | 17 bytes |
+| Base-node deleting wrapper | `0x4fdb00` | 31 bytes |
+
+A block is `0x620` bytes: node prefix, 64 embedded `0x18`-byte response
+headers at `+0xc`, a free list at `+0x60c`, and checked-out count at `+0x61c`.
+Construction calls the actual CRT constructor iterator with header callbacks,
+initializes the free list and inserts all 64 slots in order. The retail compiler
+unrolls four insertions; recovered source preserves their pointer-store order
+without adding an out-of-line insertion call. Acquisition chooses the first
+block with a nonzero free count, or allocates/constructs a new block and prepends
+it using fresh pool fields. It removes the first free header and increments
+the checked-out count, even when inconsistent metadata supplies a null first
+header. Allocation failure retains the original null-block dereference path;
+this checkpoint does not establish recovery from it.
+
+Release tests unsigned half-open byte membership `[block+0xc, block+0x60c)`;
+it does not require slot alignment. Nonmembers produce no action. It calls the
+actual cursor insertion wrapper, decrements checked-out count, and when zero
+removes the block and calls its virtual deleting slot with flag 1. The block
+destructor drains its free list inline without deleting individual headers,
+then calls the actual `ClearOwned` and reverse iterator over all 64 headers.
+Finally it restores the base-node vtable; the deleting wrapper optionally frees
+the block. Inconsistent lists, including a nonzero count with no first node,
+are outside the valid-list fixture coverage and are not silently repaired.
+
+Header construction marks links `0xabadcafe`, writes vtable `0x79aa38` and
+zeros message/count/array fields. Its actual destructor frees a present command
+array using its allocation cookie **even if the logical count is zero**, clears
+pointer then count, and restores vtable `0x79a9e8`. This is distinct from
+`ResizeCommands(0)`, whose equal-count fast path can leave such an array alone.
+The header deleting wrapper calls the actual normal destructor, then for low
+flag bit 1 invokes the base virtual slot with flag 0 and calls pool release at
+original global `0x8637a0`. It returns receiver bits even if releasing the last
+header frees its containing block. Other flag bits do not select deallocation.
+
+The shared CRT iterator source now uses generic ECX-only callback pointers and
+names `FEngConstructArrayWithCleanup` / `FEngDestructArrayWithCleanup`.
+Both 12-byte command and 24-byte header callback chains are now verified in UG2;
+this extends the earlier command-only evidence without assuming another title's
+implementation. Exceptional rollback remains unrecovered. The command-array
+verifier still passes its 12,288 comparisons and 14 mutations after this change.
+
+`UG2_EXE=... build/venv/bin/python tools/verify_pc_feng_response_pool.py
+--compiler clang-cl --mutation-checks` passes 5,632 comparisons (512 per root)
+and rejects 19 semantic mutations. Original execution enters header construction
+41,664 times, header destruction 71,936 times, block construction 643 times,
+block destruction 1,108 times and actual command cleanup 2,522 times. Actual
+iterators, list insertion/removal, empty-list cleanup, base virtual dispatch,
+block virtual dispatch and original normal SEH setup/teardown execute; only
+heap allocation/free are controlled. Rebuilt execution is restricted to linked
+source ranges, with native vtable entries pointing to recovered bodies. The
+verifier compares arena and global-pool state, ordered helper/heap snapshots,
+callback identities, defined pointer returns, preserved registers, stack cleanup
+and the restored FS chain. Cases vary free/checked-out counts, empty/exhausted
+chains, second-block selection, new blocks, last-header release, flag bytes,
+unaligned byte membership, boundary nonmembers, logical/cookie count mismatch
+and heap-induced field rebinding. Finite mapped records do not establish
+allocation failure, arbitrary bad pointers/lifetimes, malformed list cycles,
+exception-frame inspection, exceptional unwind, concurrency or byte identity.
+MSVC 7.1/wibo and byte matching remain pending.
+
+Native `FengResponse` now owns a pointer acquired from the recovered pool rather
+than an inline response header. Constructor/reset, command-array destruction,
+base virtual cleanup, return to the pool and empty-block cleanup all execute
+recovered code. Native move operations transfer the header reference; vectors
+own only those references. Package/object list projection, wrapper message
+metadata and the bounded reader are still adapters. Native object teardown
+still detaches borrowed response-list prefixes before recovered base cleanup;
+C++ wrapper teardown then releases pooled headers, so complete original owner
+teardown ordering is not claimed.
+
+The native bridge relocates pool-global storage and binds three virtual slots:
+base node `0x79a9e8`, response `0x79aa38`, and pool block `0x79bf50`. Production
+reuses `MapOriginalImage`'s SHA-256-verified writable retail data mapping,
+checks the original slot values and changes only those three entries to native
+functions. Asset-free fixtures reserve private pages instead. An initial asset
+check caught an attempted duplicate page reservation; mapping ownership is now
+queried explicitly, preserving the retail constants beside the vtables.
+This mapping/dispatch arrangement is platform scaffolding, not original code.
+
+Asset-free native fixtures exercise 70 simultaneous headers across two blocks,
+owned strings/arrays, pointer-preserving header moves, and complete empty-pool
+cleanup. Native and mod-enabled builds and all three CTests pass. Full response
+reader `0x54d1d0`, duplicate-message lookup/merge, original list ownership,
+base/script clones, production inheritance and SEH unwind remain pending.
+
+After the mapping fix, all affected headless checks pass: 19 settings scenarios
+plus slider fill/knob pixels, 10 Controls scenarios, pause/scroller motion and
+settled centering, baseline HUD translation at 640x480/1280x720/1680x720/2560x720,
+all 11 skins at 1280x720, and the scripted HUD capture. The existing conditional
+traversal verifier also passes 8,192 comparisons and six mutations. These are
+separate integration/regression results, not byte-matching or full-reader proof.
+Ghidra labels/comments cover all eleven routines; available function signatures
+and the shared iterator names are updated without fabricating missing function
+bodies in the partially analyzed project.

@@ -9,7 +9,7 @@ void FEResponse::ResizeCommands(unsigned int count) {
             FEResponseCommand *old = commands14;
             if (old) {
                 unsigned int *base = (unsigned int *)old - 1;
-                FEngDestructResponseCommands(old, 12, *base, FEngDestructResponseCommand);
+                FEngDestructArrayWithCleanup(old, 12, *base, (FEngLifetimeDestructor)FEngDestructResponseCommand);
                 FEngFreeQueueNode(base);
             }
             commands14 = 0;
@@ -20,8 +20,8 @@ void FEResponse::ResizeCommands(unsigned int count) {
             if (allocation) {
                 *allocation = count;
                 buffer = (FEResponseCommand *)(allocation + 1);
-                FEngConstructResponseCommands(buffer, 12, count,
-                    FEngConstructResponseCommand, FEngDestructResponseCommand);
+                FEngConstructArrayWithCleanup(buffer, 12, count,
+                    (FEngLifetimeConstructor)FEngConstructResponseCommand, (FEngLifetimeDestructor)FEngDestructResponseCommand);
             }
             unsigned int retained = commandCount10;
             if (count < retained) retained = count;
@@ -35,7 +35,7 @@ void FEResponse::ResizeCommands(unsigned int count) {
             FEResponseCommand *old = commands14;
             if (old) {
                 unsigned int *base = (unsigned int *)old - 1;
-                FEngDestructResponseCommands(old, 12, *base, FEngDestructResponseCommand);
+                FEngDestructArrayWithCleanup(old, 12, *base, (FEngLifetimeDestructor)FEngDestructResponseCommand);
                 FEngFreeQueueNode(base);
             }
             commands14 = buffer;

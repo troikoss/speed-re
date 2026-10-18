@@ -11,6 +11,7 @@
 #include "../../Speed/Indep/Src/Hud/HudVisibility.h"
 #include "../../Speed/Indep/Src/Frontend/FEngCoordinates.h"
 #include "../../Speed/Indep/Src/Frontend/FEngResponse.h"
+#include "../../Speed/Indep/Src/Frontend/FEngResponsePool.h"
 #include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
 #include "../../Speed/Indep/Src/Frontend/FEngList.h"
 #include "../../Speed/Indep/Src/Frontend/FEngHash.h"
@@ -64,7 +65,7 @@ struct FengScript {
 typedef FEResponseCommand FengResponseCommand;
 struct FengResponse {
     unsigned int message;
-    FEResponse original; // Native header; command storage uses recovered ResizeCommands.
+    FEResponse *original; // Recovered pool header; native wrapper only owns a reference.
     FengResponse();
     ~FengResponse();
     FengResponse(FengResponse &&other) noexcept;
@@ -126,7 +127,7 @@ public:
     FengObject *Find(const char *name) { return Find(FengHash(name)); }
     FengObject *FindGuid(unsigned int guid);
     const std::vector<FengResponse> &Responses() const { return responses_; }
-    FEResponse *OriginalResponses() { return responses_.empty() ? 0 : &responses_[0].original; }
+    FEResponse *OriginalResponses() { return responses_.empty() ? 0 : responses_[0].original; }
     void BindMessageData(FEPackage *package);
     std::vector<FengObject *> &Objects() { return objects_; }
     FengObject *FirstRoot() const { return roots_.empty() ? 0 : roots_[0]; }

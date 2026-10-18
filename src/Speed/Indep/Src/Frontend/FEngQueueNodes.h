@@ -4,6 +4,7 @@
 struct FEPackage;
 struct FEGridObject;
 struct FEngQueueNode {
+    FEngQueueNode *DestroyBase(unsigned int flags); // 0x4fdb00
     void DestructMessage(); // 0x51ab10
     void DestructOwnedPayload(); // 0x505350
     void DestructOperation(); // 0x51ac00, thunk
@@ -19,6 +20,8 @@ struct FEngQueueList {
     unsigned int count4;
     FEngQueueNode *first8;
     FEngQueueNode *valueC;
+    void Insert(FEngQueueNode *cursor, FEngQueueNode *node); // 0x5053b0
+    void InsertAtCursor(FEngQueueNode *node); // 0x4951b0
     void Remove(FEngQueueNode *node); // 0x505400
     void ClearOwned(); // 0x511670; first removal calls Remove, later removals are inline.
 };

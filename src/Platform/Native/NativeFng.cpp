@@ -1,3 +1,5 @@
+#include <sys/mman.h>
+#include "OriginalImage.h"
 #include "NativeFng.h"
 #include "NativeAssets.h"
 #include "NativeHud.h"
@@ -159,7 +161,7 @@ void ReadResponses(const unsigned char *data, size_t size, std::vector<FengRespo
             commandIndex = 0;
             command = 0;
         } else if (!responses->empty()) {
-            FEResponse &response = responses->back().original;
+            FEResponse &response = *responses->back().original;
             if (tag == 0x434d) {
                 response.ResizeCommands(value);
                 command = 0; // Native context guard: do not retain a replaced cell.
@@ -255,21 +257,59 @@ unsigned int FengHash(const char *text) {
     return FngHash(text); // Native naming adapter; original 0x505450 executes recovered code.
 }
 
-// Native movable owner for recovered command arrays. Header pool/list ownership
-// remains a platform seam; only the actual recovered resize owns array lifetime.
-FengResponse::FengResponse() : message(0), original() {}
-FengResponse::~FengResponse() { original.ResizeCommands(0); }
+// Native relocation of retail vtable tokens. Recovered code still performs the
+// original virtual calls; mapped retail data or fixture pages bind the slots.
+namespace {
+void *__thiscall NativeDeleteBaseNode(void *pointer, unsigned int flags) {
+    return ((FEngQueueNode *)pointer)->DestroyBase(flags);
+}
+void *__thiscall NativeDeleteResponseBlock(void *pointer, unsigned int flags) {
+    return ((FEngResponsePoolBlock *)pointer)->Destroy(flags);
+}
+void *__thiscall NativeDeleteResponseHeader(void *pointer, unsigned int flags) {
+    return ((FEResponse *)pointer)->Destroy(flags);
+}
+void BindNativeResponseVtables() {
+    static bool bound = false;
+    if (bound) return;
+    if (IsOriginalImageMapped()) {
+        // MapOriginalImage owns this writable data range and verifies its SHA-256.
+        // Preserve retail constants and replace only these verified virtual slots.
+        if (*(unsigned int *)0x79a9e8 != 0x4fdb00 || *(unsigned int *)0x79aa38 != 0x53ee60 ||
+            *(unsigned int *)0x79bf50 != 0x53eb20) NativeTrap("FEng response vtable contents");
+    } else {
+        const unsigned int pages[] = {0x79a000, 0x79b000};
+        for (unsigned int i = 0; i < 2; ++i) {
+            void *page = mmap((void *)pages[i], 4096, PROT_READ | PROT_WRITE,
+                             MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+            if (page != (void *)pages[i]) NativeTrap("FEng response vtable relocation");
+        }
+    }
+    *(void **)0x79a9e8 = (void *)NativeDeleteBaseNode;
+    *(void **)0x79aa38 = (void *)NativeDeleteResponseHeader;
+    *(void **)0x79bf50 = (void *)NativeDeleteResponseBlock;
+    bound = true;
+}
+}
+FEngResponsePool FEngResponseHeaderPool = {{0x79a9ec, 0, 0, 0}};
+
+// Native movable reference owner. Header allocation, destruction, return-to-pool
+// and empty-block cleanup all execute recovered code.
+FengResponse::FengResponse() : message(0), original(0) {
+    BindNativeResponseVtables();
+    original = FEngResponseHeaderPool.Acquire();
+    FEngConstructResponseHeader(original);
+}
+FengResponse::~FengResponse() { if (original) original->Destroy(1); }
 FengResponse::FengResponse(FengResponse &&other) noexcept : message(other.message), original(other.original) {
-    other.original.commands14 = 0;
-    other.original.commandCount10 = 0;
+    other.original = 0;
 }
 FengResponse &FengResponse::operator=(FengResponse &&other) noexcept {
     if (this != &other) {
-        original.ResizeCommands(0);
+        if (original) original->Destroy(1);
         message = other.message;
         original = other.original;
-        other.original.commands14 = 0;
-        other.original.commandCount10 = 0;
+        other.original = 0;
     }
     return *this;
 }
@@ -663,17 +703,17 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
     // Native response-header links; command arrays already have recovered ownership.
     for (size_t i = 0; i < responses_.size(); ++i) {
         FengResponse &response = responses_[i];
-        response.original.next4 = i + 1 < responses_.size() ? &responses_[i + 1].original : 0;
-        response.original.messageC = response.message;
+        response.original->next4 = i + 1 < responses_.size() ? responses_[i + 1].original : 0;
+        response.original->messageC = response.message;
     }
     for (size_t n = 0; n < objects_.size(); ++n) {
         std::vector<FengResponse> &responses = objects_[n]->responses;
         for (size_t i = 0; i < responses.size(); ++i) {
             FengResponse &response = responses[i];
-            response.original.next4 = i + 1 < responses.size() ? &responses[i + 1].original : 0;
-            response.original.messageC = response.message;
+            response.original->next4 = i + 1 < responses.size() ? responses[i + 1].original : 0;
+            response.original->messageC = response.message;
         }
-        objects_[n]->responses3C = responses.empty() ? 0 : &responses[0].original;
+        objects_[n]->responses3C = responses.empty() ? 0 : responses[0].original;
     }
     originalAssociations_.resize(nativeAssociations_.size());
     for (size_t i = 0; i < nativeAssociations_.size(); ++i) {

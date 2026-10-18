@@ -17,6 +17,7 @@
 
 // Unexercised script/localization boundaries must not silently satisfy the fixture.
 void NativeTrap(const char *) { abort(); }
+bool IsOriginalImageMapped() { return false; } // Asset-free fixture owns private vtable pages.
 std::string LookupNativeString(const std::vector<unsigned char> &, unsigned int) { abort(); }
 
 static void Word(std::vector<unsigned char> &bytes, unsigned int value) {
@@ -325,8 +326,8 @@ static void RunResponseStorage() {
     data = Chunk(0x30203, Chunk(0xe76e4546, packageData));
     FengPackage package; std::string error;
     assert(package.Load(data.data(), data.size(), 0, &error));
-    assert(package.Responses().size() == 2 && package.Responses()[0].original.commandCount10 == 3);
-    assert(!strcmp((const char *)package.Responses()[0].original.commands14[0].parameter, strings[1]));
+    assert(package.Responses().size() == 2 && package.Responses()[0].original->commandCount10 == 3);
+    assert(!strcmp((const char *)package.Responses()[0].original->commands14[0].parameter, strings[1]));
     assert(package.Objects()[0]->responses.size() == 2);
     FEResponse *header = package.Objects()[0]->responses3C;
     assert(header->messageC == 7 && header->commandCount10 == 3 && header->next4->messageC == 8);
@@ -337,21 +338,39 @@ static void RunResponseStorage() {
     assert(header->commands14[2].type == 0x203 && header->commands14[2].parameter == 0x12345678);
     header->ResizeCommands(1);
     assert(header->commandCount10 == 1 && !strcmp((const char *)header->commands14[0].parameter, strings[1]));
-    assert(package.Responses()[0].original.commandCount10 == 3); // Independent package/object arrays.
+    assert(package.Responses()[0].original->commandCount10 == 3); // Independent package/object arrays.
     FengResponse owner;
-    owner.original.ResizeCommands(1);
-    owner.original.commands14[0].type = 0x201;
-    owner.original.commands14[0].SetString("move-owned");
-    FEResponseCommand *owned = owner.original.commands14;
+    owner.original->ResizeCommands(1);
+    owner.original->commands14[0].type = 0x201;
+    owner.original->commands14[0].SetString("move-owned");
+    FEResponseCommand *owned = owner.original->commands14;
     FengResponse moved(std::move(owner));
-    assert(!owner.original.commands14 && !owner.original.commandCount10 && moved.original.commands14 == owned);
+    assert(!owner.original && moved.original->commands14 == owned);
     FengResponse assigned;
-    assigned.original.ResizeCommands(1);
-    assigned.original.commands14[0].type = 0x202;
-    assigned.original.commands14[0].SetString("release-on-move");
+    assigned.original->ResizeCommands(1);
+    assigned.original->commands14[0].type = 0x202;
+    assigned.original->commands14[0].SetString("release-on-move");
     assigned = std::move(moved);
-    assert(!moved.original.commands14 && !moved.original.commandCount10 && assigned.original.commands14 == owned);
-    assert(!strcmp((const char *)assigned.original.commands14[0].parameter, "move-owned"));
+    assert(!moved.original && assigned.original->commands14 == owned);
+    assert(!strcmp((const char *)assigned.original->commands14[0].parameter, "move-owned"));
+}
+static void RunResponsePool() {
+    assert(!FEngResponseHeaderPool.blocks0.count4 && !FEngResponseHeaderPool.blocks0.first8);
+    std::vector<FengResponse> responses;
+    for (unsigned int i = 0; i < 70; ++i) {
+        responses.emplace_back();
+        responses.back().original->messageC = i;
+        responses.back().original->ResizeCommands(1);
+        responses.back().original->commands14[0].type = 0x200;
+        responses.back().original->commands14[0].SetString("pooled");
+    }
+    assert(FEngResponseHeaderPool.blocks0.count4 == 2);
+    for (unsigned int i = 0; i < 70; ++i) {
+        assert(responses[i].original->messageC == i);
+        assert(!strcmp((const char *)responses[i].original->commands14[0].parameter, "pooled"));
+    }
+    responses.clear();
+    assert(!FEngResponseHeaderPool.blocks0.count4 && !FEngResponseHeaderPool.blocks0.first8 && !FEngResponseHeaderPool.blocks0.valueC);
 }
 static void RunInheritance() {
     FEPackage source = {}, first = {}, second = {};
@@ -395,5 +414,6 @@ int main() {
     RunRetainedNames();
     RunInheritance();
     RunResponseStorage();
+    RunResponsePool();
     puts("PASS native FNG owned text/names, inheritance/GUID lookup and type4 projection/navigation/ticking (no assets or display)");
 }

@@ -8,6 +8,7 @@
 
 namespace {
 
+bool originalImageMapped = false;
 const uint32_t kImageBase = 0x400000;
 const uint32_t kMapStart = 0x783000;
 const uint32_t kMapEnd = 0x8bc000;
@@ -85,6 +86,8 @@ uint32_t Read32(const std::vector<uint8_t> &file, size_t offset) {
 
 }  // namespace
 
+bool IsOriginalImageMapped() { return originalImageMapped; }
+
 bool MapOriginalImage(const char *path, char *error, int errorSize) {
     FILE *input = fopen(path, "rb");
     if (!input) {
@@ -129,5 +132,6 @@ bool MapOriginalImage(const char *path, char *error, int errorSize) {
         }
         memcpy((void *)(uintptr_t)virtualAddress, file.data() + rawPointer, size);
     }
+    originalImageMapped = true;
     return true;
 }

@@ -18,13 +18,17 @@ void __fastcall FEngDestructResponseCommand(FEResponseCommand *command); // 0x51
 struct FEResponse {
     char unidentified0[4];
     FEResponse *next4;
-    char unidentified8[4];
+    FEResponse *previous8;
     unsigned int messageC;
     unsigned int commandCount10;
     FEResponseCommand *commands14;
+    FEResponse *Destroy(unsigned int flags); // 0x53ee60
     void ResizeCommands(unsigned int count); // 0x52ae00
     unsigned int SkipConditionalBlock(unsigned int index); // 0x504490, thiscall
 };
+void *__fastcall FEngConstructResponseHeader(void *memory); // 0x4fe920
+void __fastcall FEngDestructResponseHeader(void *memory); // callback body at 0x534b10
+UG2_CHECK_SIZE(FEResponse, 0x18);
 UG2_CHECK_SIZE(FEResponseCommand, 0xc);
 UG2_CHECK_OFFSET(FEResponseCommand, parameter, 4);
 UG2_CHECK_OFFSET(FEResponseCommand, target, 8);

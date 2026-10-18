@@ -1,0 +1,60 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "HeaderConstruct": {
+      "address": "0x4fe920",
+      "size": 31,
+      "sha256": "b6a9c3103b9563aacf935bb291e8b320cdb438b69d30c3144eee9534201b98e3"
+    },
+    "HeaderDestruct": {
+      "address": "0x534b10",
+      "size": 117,
+      "sha256": "781cc67487930e5f7836616e3a58f1100cde6aa0b56919ea43e8c68f12b67837"
+    },
+    "HeaderDestroy": {
+      "address": "0x53ee60",
+      "size": 40,
+      "sha256": "03e6903e40ab33d7c1a877e68778e556f6b0bae1cd560a11ac638c7a09a436f3"
+    },
+    "BlockConstruct": {
+      "address": "0x53e710",
+      "size": 501,
+      "sha256": "c32a1e93d7dfaa09ca8e0e67408bd48d307ba7173e0a1eb18324314d8f8d63ef"
+    },
+    "BlockDestruct": {
+      "address": "0x53eb40",
+      "size": 211,
+      "sha256": "bdcab446568c01b79aeff4d7cd6f40e0b6aff6f316418dfe663b23c8726e70a4"
+    },
+    "BlockDestroy": {
+      "address": "0x53eb20",
+      "size": 30,
+      "sha256": "85fe179d8d9220bb6ad1923d897e10e1b8bdf33fa440833ba6418bb9585c56d8"
+    },
+    "Acquire": {
+      "address": "0x54bdf0",
+      "size": 186,
+      "sha256": "95759249fc9085a1043b9cddc4d200f4a33ba6ced1533902031c93dae2bd6401"
+    },
+    "Release": {
+      "address": "0x525b30",
+      "size": 86,
+      "sha256": "e66dfc4da92ffca49c9ab4a736f1052a0ba130361bbe8c90fc24854548403a87"
+    },
+    "Insert": {
+      "address": "0x5053b0",
+      "size": 76,
+      "sha256": "6c0627ec61cbfc5339cc7a6ef14eaa4896a63638ec6b33a5ec10ff68bd14b4d5"
+    },
+    "InsertAtCursor": {
+      "address": "0x4951b0",
+      "size": 17,
+      "sha256": "3b5a3047e21a9353aed7e7cabf58e62a653fa0bf4199e325501df93f10198a20"
+    },
+    "BaseDestroy": {
+      "address": "0x4fdb00",
+      "size": 31,
+      "sha256": "914ff6fab941c0c1a38621ae88f26ff158b67988e731ff18a5dfffdc2f1a7d75"
+    }
+  }
+}

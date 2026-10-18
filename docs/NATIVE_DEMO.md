@@ -345,8 +345,13 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   command arrays; MC sizes storage and bounded Rs strings call the recovered
   setter. Native movable headers release arrays via recovered resize-to-zero.
   Resize/iterator verification passes 12,288 comparisons and 14 mutations.
-  Full response parsing, pool-backed headers, exception rollback and byte matching
-  remain pending. See [command ownership evidence](pc-pause-menu.md#response-command-construction-ownership-and-assignment-2026-10-18)
+  Response headers now come from recovered 64-slot blocks: 11 constructor,
+  allocation, release, list and destruction routines pass 5,632 comparisons and
+  19 mutations. A native vtable/global bridge supplies the original virtual call
+  boundaries; wrappers own pooled references. Full response parsing, original
+  list ownership, exception rollback and byte matching remain pending.
+  See [pool evidence](pc-pause-menu.md#response-header-pool-and-virtual-cleanup-2026-10-18)
+  and [command ownership evidence](pc-pause-menu.md#response-command-construction-ownership-and-assignment-2026-10-18)
   and [array ownership](pc-pause-menu.md#response-array-resizing-and-native-ownership-2026-10-18).
 - Native image/group/list teardown now invokes recovered `0x532660`/`0x534bf0`/
   `0x534a50`, alongside string destruction. Original list storage/cell release

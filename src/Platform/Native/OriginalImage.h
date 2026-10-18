@@ -4,6 +4,7 @@
 // Maps the player's own speed2.exe .rdata/.data at their original addresses so the
 // recovered sources can bind original globals (see OriginalSymbols.ld). No original
 // code is executed; .bss is zero-filled as at process start.
+bool IsOriginalImageMapped(); // Native mapping ownership; no game behavior.
 bool MapOriginalImage(const char *path, char *error, int errorSize);
 
 #endif
