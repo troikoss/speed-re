@@ -1,7 +1,8 @@
 #include "Collision.h"
 
 extern "C" double __cdecl sqrt(double);
-#pragma intrinsic(sqrt)
+extern "C" double __cdecl fabs(double);
+#pragma intrinsic(sqrt, fabs)
 extern "C" void *malloc(unsigned int size);
 extern "C" void free(void *memory);
 
@@ -14,6 +15,12 @@ extern int collisionHullClimb86B2D8;
 extern float collisionThirdWeight;
 extern float collisionThirdRemainder;
 extern float collisionQuarterWeight;
+extern float collisionOne784250;
+extern float collisionZero7D7D3C;
+extern float collisionCylinderStep7A2070;
+extern float collisionCylinderStepScale7A2074;
+// Original 0x7a1930: 12-byte rows {ring axis, ring axis, height axis} indexed by CollisionCylinder::axis30.
+extern int collisionCylinderAxes[][3];
 
 extern unsigned int bRandomSeed7EA624;
 
@@ -343,6 +350,158 @@ CollisionVertex *CollisionPoint::Support(WheelVector *, CollisionVertex *, Wheel
     output->point10[3] = 0.0f;
     output->indexC = index2C;
     return output;
+}
+
+// Original 0x5a23d0: support point of a cylinder. The ring is sampled at 64 steps whose
+// sines are multiples of 0x7a2070; the two ring candidates nearest the direction are
+// compared and the height cap is chosen by the sign of the local height component.
+// The original returns `output` in EAX.
+CollisionVertex *CollisionCylinder::Support(WheelVector *direction, CollisionVertex *, WheelMatrix *matrix,
+                                            WheelMatrix *inverse, CollisionVertex *output) {
+    float local[3];
+    float point[3];
+    WheelTransform(reinterpret_cast<WheelVector *>(local), inverse, direction);
+    int *row = collisionCylinderAxes[axis30];
+    int a = row[0];
+    int b = row[1];
+    float scale = collisionOne784250 / sqrt(local[a] * local[a] + local[b] * local[b]);
+    float scaledB = scale * local[b];
+    int index;
+    if (fabs(local[a]) > fabs(local[b])) {
+        int i = (int)(scaledB * collisionCylinderStepScale7A2074);
+        int j;
+        if (scaledB > collisionZero7D7D3C) {
+            if (i > 7) {
+                i = 7;
+            }
+            j = i + 1;
+        } else {
+            if (i < -7) {
+                i = -7;
+            }
+            j = i - 1;
+        }
+        float sine1 = i * collisionCylinderStep7A2070;
+        float cosine1 = sqrt(collisionOne784250 - sine1 * sine1);
+        float sine2 = j * collisionCylinderStep7A2070;
+        float cosine2 = sqrt(collisionOne784250 - sine2 * sine2);
+        if (cosine2 * fabs(local[a]) + sine2 * local[b] < cosine1 * fabs(local[a]) + sine1 * local[b]) {
+            if (scale * local[a] < collisionZero7D7D3C) {
+                point[a] = -(cosine1 * radius1C);
+                index = 0x18 - i;
+            } else {
+                point[a] = cosine1 * radius1C;
+                index = (i + 0x38) % 0x40;
+            }
+            point[b] = sine1 * radius1C;
+        } else {
+            if (scale * local[a] < collisionZero7D7D3C) {
+                point[a] = -(cosine2 * radius1C);
+                index = 0x18 - j;
+            } else {
+                point[a] = cosine2 * radius1C;
+                index = (j + 0x38) % 0x40;
+            }
+            point[b] = sine2 * radius1C;
+        }
+    } else {
+        int i = (int)((scale * local[a]) * collisionCylinderStepScale7A2074);
+        int j;
+        if (scale * local[a] > collisionZero7D7D3C) {
+            if (i > 7) {
+                i = 7;
+            }
+            j = i + 1;
+        } else {
+            if (i < -7) {
+                i = -7;
+            }
+            j = i - 1;
+        }
+        float sine1 = i * collisionCylinderStep7A2070;
+        float cosine1 = sqrt(collisionOne784250 - sine1 * sine1);
+        float sine2 = j * collisionCylinderStep7A2070;
+        float cosine2 = sqrt(collisionOne784250 - sine2 * sine2);
+        if (fabs(local[b]) * cosine2 + sine2 * local[a] < fabs(local[b]) * cosine1 + sine1 * local[a]) {
+            if (scaledB < collisionZero7D7D3C) {
+                point[b] = -(cosine1 * radius1C);
+                index = i + 0x28;
+            } else {
+                point[b] = cosine1 * radius1C;
+                index = 8 - i;
+            }
+            point[a] = sine1 * radius1C;
+        } else {
+            if (scaledB < collisionZero7D7D3C) {
+                point[b] = -(cosine2 * radius1C);
+                index = j + 0x28;
+            } else {
+                point[b] = cosine2 * radius1C;
+                index = 8 - j;
+            }
+            point[a] = sine2 * radius1C;
+        }
+    }
+    int c = row[2];
+    if (local[c] > collisionZero7D7D3C) {
+        point[c] = halfHeight18;
+        index += 0x40;
+    } else {
+        point[c] = -halfHeight18;
+    }
+    point[0] = point[0] + centre20.x;
+    point[1] = centre20.y + point[1];
+    point[2] = centre20.z + point[2];
+    WheelTransform(reinterpret_cast<WheelVector *>(point), matrix, reinterpret_cast<WheelVector *>(point));
+    output->point10[0] = point[0];
+    output->point10[1] = point[1];
+    output->point10[2] = point[2];
+    output->point10[3] = 0.0f;
+    output->indexC = (short)index;
+    return output;
+}
+
+// Original 0x5a2780: ring index 0..63 plus 0x40 for the positive height cap. Only the
+// point (+0x10..+0x1c) is written; the other vertex fields are left untouched.
+void CollisionCylinder::GetVertex(int index, CollisionVertex *output) {
+    float local[3];
+    int *row = collisionCylinderAxes[axis30];
+    if (index >= 0x40) {
+        local[row[2]] = halfHeight18;
+        index -= 0x40;
+    } else {
+        local[row[2]] = -halfHeight18;
+    }
+    if (index <= 0x20) {
+        if (index <= 0x10) {
+            float sine = (8 - index) * collisionCylinderStep7A2070;
+            local[row[0]] = sine;
+            local[row[1]] = sqrt(collisionOne784250 - sine * sine) * radius1C;
+            local[row[0]] = local[row[0]] * radius1C;
+        } else {
+            float sine = (0x18 - index) * collisionCylinderStep7A2070;
+            local[row[1]] = sine;
+            local[row[0]] = -(sqrt(collisionOne784250 - sine * sine) * radius1C);
+            local[row[1]] = radius1C * local[row[1]];
+        }
+    } else if (index <= 0x30) {
+        float sine = (index - 0x28) * collisionCylinderStep7A2070;
+        local[row[0]] = sine;
+        local[row[1]] = -(sqrt(collisionOne784250 - sine * sine) * radius1C);
+        local[row[0]] = local[row[0]] * radius1C;
+    } else {
+        float sine = (index - 0x38) * collisionCylinderStep7A2070;
+        local[row[1]] = sine;
+        local[row[0]] = sqrt(collisionOne784250 - sine * sine) * radius1C;
+        local[row[1]] = radius1C * local[row[1]];
+    }
+    output->point10[3] = 0.0f;
+    float x = local[0] + centre20.x;
+    float y = centre20.y + local[1];
+    local[2] = centre20.z + local[2];
+    output->point10[2] = local[2];
+    output->point10[0] = x;
+    output->point10[1] = y;
 }
 
 // Original 0x5a2010.

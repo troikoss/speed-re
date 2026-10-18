@@ -1,6 +1,6 @@
 // Platform scaffolding for the recovered collision-body world: seams for original routines
 // reached from it that are not part of this recovery, and the unrecovered virtual slots
-// (replay serialisation, cylinders, world objects), which stop the program if reached.
+// (replay serialisation, world objects), which stop the program if reached.
 #include "NativeVehicle.h"
 #include "../../Speed/Indep/Src/Physics/Collision/Collision.h"
 #include "../../Speed/Indep/Src/Audio/AudioSystem.h"
@@ -120,14 +120,4 @@ void CarCollisionBody::Serialise(void *) {
 
 void TrackPolygonCollisionBody::Serialise(void *) {
     NativeTrap("track polygon collision body serialisation 0x593d10");
-}
-
-void CollisionCylinder::GetVertex(int, CollisionVertex *) {
-    NativeTrap("cylinder shape vertex 0x5a2780");
-}
-
-CollisionVertex *CollisionCylinder::Support(WheelVector *, CollisionVertex *, WheelMatrix *, WheelMatrix *,
-                                            CollisionVertex *output) {
-    NativeTrap("cylinder shape support 0x5a23d0");
-    return output;
 }

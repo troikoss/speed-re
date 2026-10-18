@@ -115,11 +115,20 @@ indices; both FPU control words): 0 failures, 4,520 bit-identical, largest retur
 `0x43c9c0`, `0x43cf10`); the only probe seams are a constant for `bGetTicker` `0x43bdf0`, a reset
 of the `bRandom` seed, an SEH slot for the hull support, and a shim adapting the rebuild's cdecl
 `CollisionShapeVertex` call to the original thiscall-style `0x5aad20` (a calling-convention
-difference of the recovered source, not of behaviour). Cylinders (type 5) are unrecovered and
-never generated. The check found a real divergence, fixed in `CollisionWitness.cpp`: the
+difference of the recovered source, not of behaviour). Cylinder pairs (type 5, original support
+`0x5a23d0`) are generated since 2026-10-19; the default 1,500-trial run (6,000 comparisons over all
+24 ordered pair kinds) has 0 failures. The cylinder's `+0x14` vertex count of 0x80 is a generator
+assumption: no cylinder constructor has been located. The check found a real divergence, fixed in `CollisionWitness.cpp`: the
 loop compared the unrounded x87 result of `Distance` with the previous distance, whereas the
 original stores it as a float (`0x5b3c36`) and compares the reloaded value; the rebuild then
-cycled forever on tie-like inputs (6 of 395 early cases). `tools/verify_pc_collision_impulse.py`
+cycled forever on tie-like inputs (6 of 395 early cases). `tools/verify_pc_collision_cylinder.py` (2026-10-19) runs cylinder support `0x5a23d0` and vertex
+`0x5a2780` against their rebuilds (`CollisionShape.cpp`): 6,000 support and 153,856 vertex cases
+over all three axis rows of table `0x7a1930`, with zero, ±0, NaN, axis-aligned and ring-boundary
+directions, under both FPU control words. It found 0 failures, produced all 128 support indices and
+rejected 9 of 9 mutants. 384 of 398 original instructions run; the 14 unreached ones are the
+±7 clamps (the cast peaked at 7.9999997 in a 400k search) and the negative `% 64` fix-up
+(`i + 0x38` is always positive). The vertex routine writes only the point (`+0x10..+0x1c`).
+`tools/verify_pc_collision_impulse.py`
 runs the contact impulse `0x5af0e0` against its rebuild on 3,000 scripted contacts (car, track
 polygon, wall polygon and world bodies; 1 to 4 loop iterations; early return, shares of 1, single
 and negative, unbreakable sentinel; sliding below, at and above the ramp speed; mode 4 arm
@@ -142,7 +151,7 @@ replay, force feedback), audio registration `0x483e20`/`0x483e40` and the game m
 `0x5e0360` are no-ops; the hull key `0x61c320` is computed by the loader for stock parts;
 slot pools are the recovered bWare pools ([slot pool evidence](pc-bware-slotpool.md)) over a
 calloc-backed heap seam; the world clock runs after the
-step (its original call site is not recovered). World objects (type 1/2), cylinders,
+step (its original call site is not recovered). World objects (type 1/2),
 replay serialisation and mover point velocity (`0x59bec0`) are trapped. `UG2_DEBUG_COLLISION=1`
 prints every impulse with the wall normal and the car's distance to the wall plane.
 
@@ -674,10 +683,9 @@ observations, not equivalence evidence.
 
 ## Outstanding recovery checks
 
-- Extend collision verification to GJK `0x5b3390` and impulse resolution `0x5af0e0`;
-  resolve the 42 degenerate simplex tie differences in `0x595040`.
+- Resolve the 42 degenerate simplex tie differences in `0x595040`.
 - Recover car-vs-car/world-object paths (`0x5b31f0`, `0x5ae000`, slot 0x8c),
-  cylinders (`0x5a23d0`, `0x5a2780`), and collision effects/sounds (`0x5a9620`, `0x59fb70`).
+  the cylinder constructor (not located), and collision effects/sounds (`0x5a9620`, `0x59fb70`).
 - Recover the car-update reset path (`0x5fbed0`, `0x40f690`, `0x6009a0`) and the world-update
   callees that are still no-op seams (`0x5f6cd0`, `0x5f5580`, `0x5f5730`, `0x602650`, `0x6076d0`, ...).
 - Recover camera shake/finalisation, the remaining car pre/post-update logic

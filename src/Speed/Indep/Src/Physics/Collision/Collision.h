@@ -78,6 +78,7 @@ struct CollisionPoint : CollisionShape {
                              WheelMatrix *inverse, CollisionVertex *output);
 };
 
+// Type 5. axis30 selects a row of the axis table 0x7a1930 (collisionCylinderAxes): two ring axes, then the height axis.
 struct CollisionCylinder : CollisionShape {
     float halfHeight18;
     float radius1C;
