@@ -5,6 +5,8 @@
 #include "../../Speed/Indep/Src/Physics/Collision/Collision.h"
 #include "../../Speed/Indep/Src/Audio/AudioSystem.h"
 
+struct WorldObject8357E0;
+
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -82,14 +84,23 @@ int WorldObjectKind(CollisionBody *) {
     return 0;
 }
 
-CollisionBody *PromoteWorldObject(CollisionBody *) {
-    NativeTrap("world object promotion 0x5b31f0");
+// Seams of the recovered world-object chain (CollisionWorldObject.cpp): the callees below are not
+// recovered and stop the program if reached.
+CollisionBody *PromoteWorldObject5B1390(CollisionBody *) {
+    NativeTrap("world object promotion body 0x5b1390");
     return 0;
 }
 
-int BreakWorldObject(CollisionBody *, CollisionBody **) {
-    NativeTrap("world object break 0x5ae000");
-    return 0;
+void WorldObjectAttach5ADB20(CollisionBody *, void *, int, int) {
+    NativeTrap("world object child attach 0x5adb20");
+}
+
+void WorldObjectUpdate5ADD50(CollisionBody *) {
+    NativeTrap("world object child update 0x5add50");
+}
+
+void WorldObjectRegister48BC50(WorldObject8357E0 *, int) {
+    NativeTrap("world object child registration 0x48bc50");
 }
 
 void MoverVelocitiesAt(MoverBody *, WheelVector *, WheelVector *, int, int) {

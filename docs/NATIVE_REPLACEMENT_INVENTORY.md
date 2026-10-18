@@ -31,7 +31,7 @@ still should come from recovered code.
 | 3 | ~~FEng messaging: frame manager `0x558c00`~~ (done; delivery `0x541fc0`/dispatch `0x5367e0` were already recovered; pad/mouse dispatch `0x54d4b0`/`0x54e020` remain) | 3 | 4 |
 | 4 | ~~Car constructor `0x604260` and participant setup `0x6065b0` (replace `CreateNativeVehicle`)~~ (done; participant kind `0x5eba30`, mover factory `0x5f46a0` and ground placement `0x5f5010` remain seams) | 4 | 5 |
 | 5 | ~~FEng package/object loader `0x5554a0`/`0x555860`~~ (recovered and verified; load driver `0x555800`/`0x555720` remains a seam and the native loader is not rewired) | 4 | 4 |
-| 6 | Collision: ~~GJK `0x5b3390`, impulse `0x5af0e0`~~ (verified 2026-10-19; one GJK fix), ~~cylinders `0x5a23d0`/`0x5a2780`~~ (recovered 2026-10-19), world objects | 3–4 | 4 |
+| 6 | Collision: ~~GJK `0x5b3390`, impulse `0x5af0e0`~~ (verified 2026-10-19; one GJK fix), ~~cylinders `0x5a23d0`/`0x5a2780`~~ (recovered 2026-10-19), world objects (wrappers recovered, 4 seams remain) | 3–4 | 4 |
 | 7 | Camera seams: pushes, shake, cockpit tests | 2–3 | 3 |
 | 8 | CarTypeInfo/tuning chunk loaders | 3 | 3 |
 | 9 | Frontend classes (IconScroller, options list, dialog, Controls) | 3–4 | 3 |
@@ -81,7 +81,7 @@ still should come from recovered code.
 | Native piece | Where | Replace with | Diff. | Imp. | Notes |
 | --- | --- | --- | --- | --- | --- |
 | ~~GJK and impulse resolution not yet verified~~ | — | `0x5b3390`, `0x5af0e0` | 3 | 4 | Verified 2026-10-19 ([native demo](NATIVE_DEMO.md)): `verify_pc_collision_gjk.py` 8,000 cases and `verify_pc_collision_impulse.py` 3,000 contacts, 0 failures; GJK now compares the stored float distance (`0x5b3c36`). ContactFrame `0x594000`, CreateEvent `0x5a9b10` and accumulate `0x5a9620` are hooked, not covered. The 42 simplex ties in `0x595040` are degenerate inputs, believed codegen-only (not checked at instruction level). |
-| World-object promotion/break trap | `NativeCollision.cpp:101–107` | `0x5b31f0`, `0x5ae000` | 4 | 4 | Breakable props and barriers. |
+| World-object promotion/break chain (partly recovered 2026-10-19) | `NativeCollision.cpp` seams `0x5b1390`, `0x5adb20`, `0x5add50`, `0x48bc50` | `0x5b31f0`, `0x5ae000`, `0x5adf90`, `0x611000` recovered (`verify_pc_collision_world_object.py`: 9,400 cases, 0 failures, seams hooked); seams remain | 4 | 4 | Breakable props and barriers; the body `0x5b1390` (428 bytes) and `0x5adb20` (551 bytes) plus `0x5add50`/`0x48bc50` are still traps. |
 | ~~Cylinder shapes trap~~ | `CollisionShape.cpp` | `0x5a23d0`, `0x5a2780` | 3 | 3 | Recovered 2026-10-19 ([native demo](NATIVE_DEMO.md)): `verify_pc_collision_cylinder.py` has 0 failures in 159,856 cases; GJK now generates cylinder pairs. The cylinder constructor (and the `+0x14` count it sets) is not located. |
 | ~~Contact notification to the participant traps~~ | `CarUpdate.cpp` | `0x5f4960` | 3 | 3 | Recovered; the native participant scaffold's slot `0x38` is a no-op and the native mover factory seam traps on a switch away from the PhysicsMover. |
 | Collision effects dropped (sparks, debris, sounds, replay, FF) | `NativeCollision.cpp:56–93` | `0x5a9620` tail, `0x59fb70`, `0x5dc4c0`, `0x4814e0`/`0x4792d0`, `0x56fb20` | 4 | 2 | Mostly presentation; sound needs an audio backend. |
