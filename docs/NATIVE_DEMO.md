@@ -253,9 +253,9 @@ widgets accept external career state; their visibility follows the recovered mas
 (cash needs career mode `0x850078` = 1, which the demo leaves 0). The bank balance is stored at the
 original `0x861e74` and read by recovered `0x500f90`; the native loader publishes
 language 0 (English) at `0x7f70d0` for recovered `0x4ff970`. GPS, heat and notification scheduling have bounded source
-verification but are not live native features. Message-script playback supports
-retained noncycling vector/colour tracks with recovered arithmetic. Complete NOS
-stencil rendering and full FEng scripts remain unresolved; see
+verification but are not live native features. Script playback is original (see
+the pause-menu playback evidence). Complete NOS stencil rendering and FEng
+messaging/loading remain unresolved; see
 [freeroam HUD evidence](pc-hud-freeroam.md).
 The minimap uses recovered `0x4ca840`, TrackInfo record 4000, `TRACKMAP4000.BIN`,
 and the retail map/mask/north/player objects. Its border group follows recovered
