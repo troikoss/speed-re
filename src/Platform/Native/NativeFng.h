@@ -58,15 +58,13 @@ struct FengScript {
     std::vector<FengEvent> events;
 };
 
-// Message responses: 'MsgR' per object and 'PkgR' per package, read like 0x54d1d0. Each response
-// names a message ('Mi'); MC sizes its recovered command array, Ri/Ru/Rt set words,
-// and Rs calls the recovered owned byte-string setter. Full reader remains a seam. 0x52c7c0
-// runs them (0 script, 1 message to an object, 2 message to the game, 0x300/0x301/0x500/0x501 if/else).
+// MsgR/PkgR records call recovered reader 0x54d1d0 through native bounds/context adapters.
+// Wrappers own its pooled header references; recovered 0x52c7c0 executes their commands.
 typedef FEResponseCommand FengResponseCommand;
 struct FengResponse {
-    unsigned int message;
     FEResponse *original; // Recovered pool header; native wrapper only owns a reference.
     FengResponse();
+    explicit FengResponse(FEResponse *header); // Adopt a reader-created pool header.
     ~FengResponse();
     FengResponse(FengResponse &&other) noexcept;
     FengResponse &operator=(FengResponse &&other) noexcept;
@@ -127,7 +125,7 @@ public:
     FengObject *Find(const char *name) { return Find(FengHash(name)); }
     FengObject *FindGuid(unsigned int guid);
     const std::vector<FengResponse> &Responses() const { return responses_; }
-    FEResponse *OriginalResponses() { return responses_.empty() ? 0 : responses_[0].original; }
+    FEResponse *OriginalResponses() { return responsePackage_.responses5C; }
     void BindMessageData(FEPackage *package);
     std::vector<FengObject *> &Objects() { return objects_; }
     FengObject *FirstRoot() const { return roots_.empty() ? 0 : roots_[0]; }
@@ -157,6 +155,7 @@ public:
     static void SetText(FengObject *object, const char *text);     // 0x537be0
 
 private:
+    FEPackage responsePackage_; // Reader package-list prefix; remaining FEPackage fields are native bindings.
     struct DrawItem {
         FengObject *object;
         float matrix[6];  // a, b, c, d, tx, ty (column form: x' = a*x + c*y + tx)

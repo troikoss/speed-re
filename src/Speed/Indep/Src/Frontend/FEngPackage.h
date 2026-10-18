@@ -91,9 +91,11 @@ struct FEPackage {
     FEPackage *parent3C;
     char unidentified40[0xc];
     HudVisibilityObject *firstObject4C;
-    char unidentified50[0xc];
+    char unidentified50[8];
+    unsigned int responseCount58;
     FEResponse *responses5C;
-    char unidentified60[0xc];
+    FEResponse *responseCursor60;
+    char unidentified64[8];
     unsigned int associationCount6C;
     FEngMessageAssociation *associations70;
     char unidentified74[0x10];
@@ -102,6 +104,7 @@ struct FEPackage {
     HudVisibilityObject *focus8C;
     HudVisibilityObject **focusObjects90;
     unsigned int focusCount94;
+    void AppendResponse(FEResponse *response); // 0x512120, inline list insertion
     void SetFocus(FEngQueue *queue, HudVisibilityObject *object, unsigned char notify); // 0x52b3a0
     bool VisitChildren(HudVisibilityObject *group, FEngObjectVisitor *visitor); // 0x504830
     bool VisitObjects(FEngObjectVisitor *visitor); // 0x504880
@@ -113,7 +116,9 @@ UG2_CHECK_SIZE(FEngInheritanceRecord, 12);
 UG2_CHECK_OFFSET(FEPackage, value38, 0x38);
 UG2_CHECK_OFFSET(FEPackage, inheritanceCount84, 0x84);
 UG2_CHECK_OFFSET(FEPackage, inheritance88, 0x88);
+UG2_CHECK_OFFSET(FEPackage, responseCount58, 0x58);
 UG2_CHECK_OFFSET(FEPackage, responses5C, 0x5c);
+UG2_CHECK_OFFSET(FEPackage, responseCursor60, 0x60);
 UG2_CHECK_OFFSET(FEPackage, associationCount6C, 0x6c);
 UG2_CHECK_OFFSET(FEPackage, associations70, 0x70);
 UG2_CHECK_SIZE(FEngMessageAssociation, 0x10);

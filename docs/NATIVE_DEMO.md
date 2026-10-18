@@ -348,8 +348,13 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   Response headers now come from recovered 64-slot blocks: 11 constructor,
   allocation, release, list and destruction routines pass 5,632 comparisons and
   19 mutations. A native vtable/global bridge supplies the original virtual call
-  boundaries; wrappers own pooled references. Full response parsing, original
-  list ownership, exception rollback and byte matching remain pending.
+  boundaries; wrappers own pooled references. Complete response reader
+  `0x54d1d0`, message lookup `0x5046d0` and package insertion `0x512120`
+  pass 6,144 comparisons and 17 mutations. Native tag dispatch, manual response
+  links and duplicate message metadata are removed; bounded records call the
+  recovered reader, and wrappers adopt its headers. Original context setup,
+  owner teardown, exception rollback and byte matching remain pending.
+  See [reader evidence](pc-pause-menu.md#complete-response-reader-and-original-owner-list-insertion-2026-10-18).
   See [pool evidence](pc-pause-menu.md#response-header-pool-and-virtual-cleanup-2026-10-18)
   and [command ownership evidence](pc-pause-menu.md#response-command-construction-ownership-and-assignment-2026-10-18)
   and [array ownership](pc-pause-menu.md#response-array-resizing-and-native-ownership-2026-10-18).

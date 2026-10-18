@@ -3682,3 +3682,109 @@ separate integration/regression results, not byte-matching or full-reader proof.
 Ghidra labels/comments cover all eleven routines; available function signatures
 and the shared iterator names are updated without fabricating missing function
 bodies in the partially analyzed project.
+
+
+### Complete response reader and original owner-list insertion (2026-10-18)
+
+Recovered the complete `0x54d1d0` reader body (378 bytes), object response
+lookup `0x5046d0` (31 bytes), and package response insertion `0x512120`
+(75 bytes). Fingerprints are in
+`config/SPEED2_EXE_1_2/feng-response-reader.json`. The reader is a thiscall
+method with data, byte count and byte-valued package-mode arguments; it returns
+1 in AL, leaving the other return bits outside the contract. Its observed
+context contains package `+0`, object `+0xc`, and merge-control byte `+0x18`.
+
+| Tag | Original behavior |
+| --- | --- |
+| `Mi` / `0x694d` | Select/create response, reset command index to `0xffffffff` |
+| `MC` / `0x434d` | Call actual command-array resize |
+| `Ri` / `0x6952` | Increment index, capture cell at array + index * 12, store type |
+| `Rs` / `0x7352` | Call actual byte-string setter on cached command |
+| `Rt` / `0x7452` | Store target at cached command +8 |
+| `Ru` / `0x7552` | Store parameter at cached command +4 |
+
+Unknown properties are skipped by their length word. End is captured with
+32-bit addition, and cursor/end comparison is unsigned. The property length
+word is reloaded **after** callbacks, so a heap-induced length change affects
+which record is read next. Message is captured before allocation and remains
+that value if heap callbacks change its source bytes.
+
+For object mode with nonzero context byte `+0x18`, `Mi` calls the actual object
+lookup and reuses its first matching message. It destroys/frees the prior array
+inline using the count cookie, clears array/count, and preserves header identity
+and list position. It does not call the header destructor. Otherwise it acquires
+a header from the actual pool, initializes its prefix inline, writes message,
+and calls either object cursor insertion `0x4951b0` or package insertion
+`0x512120`. Package mode always creates responses, regardless of merge-control
+byte. Only the low byte of the mode argument controls these branches.
+
+`Mi` resets index but does not clear the cached command pointer; `MC` also leaves
+it intact. A subsequent `Rt` before another `Ri` can therefore update the command
+selected in a different response. This behavior is retained, rather than adding
+reset/validation logic. The original reader trusts record widths, sequence,
+indices and string termination. In-place reuse can make stale cached pointers
+invalid; no lifetime repair or general malformed-input safety is claimed.
+
+Package insertion identifies count `+0x58`, first response `+0x5c`, and cursor
+`+0x60`. It captures cursor, inserts after it or at the head, repairs previous
+links, conditionally updates cursor and increments count; a null node makes no
+changes. The body is inline and does not call generic list insertion. Object
+lookup compares `messageC`, follows `next4`, and returns the first match or null
+in full EAX, independently of GUID/type/count fields.
+
+`UG2_EXE=... build/venv/bin/python tools/verify_pc_feng_response_reader.py
+--compiler clang-cl --mutation-checks` passes 6,144 comparisons (2,048 per root)
+and rejects 17 semantic mutations. Actual original execution enters lookup 3,952
+times, package insertion 5,492 times, pool acquisition 4,954 times, array resize
+6,026 times, string setter 15,304 times, command assignment 287 times, and inline
+merge cleanup's actual reverse iterator/command destructors. New-block paths
+execute all 64 actual header constructors through the CRT iterator. Only heap
+allocation/free are controlled; no reader, lookup, append, pool, command or
+iterator body is replaced by a test stand-in. Rebuilt execution is restricted to
+linked source ranges. Comparisons include arena/input/global-pool bytes, ordered
+callee/heap snapshots, callback identity, defined returns, ABI-preserved
+registers, stack cleanup and restored FS chain.
+
+Cases include duplicate keys, merge hits/misses, package/object modes and high
+mode bits, exhausted/new/existing pool blocks, logical/cookie count mismatch,
+repeated strings and high bytes, odd-sized unknown records, empty input and
+wrapped end arithmetic, cached commands across Mi/MC, context rebinding, and
+heap-induced message/length changes. A nested MC inside Mi's extra payload
+becomes a record when a callback shortens Mi, rejecting cached-length code.
+Finite mapped storage does not establish arbitrary invalid pointers, freed-
+memory lifetime validity, all malformed sequences, allocation failure,
+exception-frame inspection, exceptional unwind, concurrency or byte matching.
+MSVC 7.1/wibo and helper exceptional rollback remain pending.
+
+**Native tagged-response dispatch is removed.** The adapter builds bounded
+records, terminates missing-NUL Rs payloads (updating their length), and invokes
+the complete recovered reader once per response chunk. It supplies package/
+object context and default-zero merge byte; the original outer reader's context
+initialization is still pending. Native width/container guards are separate
+from original code and may stop a malformed record prefix before invoking it.
+The source reader has no added sequence/index guards.
+
+Native wrappers adopt the pool headers created by the reader without allocating
+or initializing extra headers. Vectors track ownership references only. Manual
+response-link projection and duplicate message metadata are removed; original
+code now writes first/previous/next/cursor/count fields. The native package
+adapter supplies a package-list prefix and copies those three response-list
+fields into the bound package. Header/global/vtable relocation and C++ reference
+teardown remain platform seams. Native object base teardown still detaches the
+response list before wrapper destruction, so original owner teardown ordering
+is not claimed.
+
+Asset-free fixtures check package/object counts and both link directions,
+independent arrays, reader merge preserving header identity, replaced strings,
+cached target writes across Mi and MC, and adopted/moved reference cleanup.
+Native and mod-enabled builds and all three CTests pass. Outer object reader
+`0x555140`, base/script cloning, original context setup/owner teardown, production
+inheritance, localization and renderer seams remain separate work.
+
+Headless integration also passes all 19 settings scenarios and slider pixels,
+all 10 Controls scenarios, pause/scroller motion and settled centering, baseline
+HUD translation at four resolutions, all 11 HUD skins at 1280x720 and the
+scripted HUD capture. These checks exercise the complete recovered reader in
+the native demo and remain separate from behavioral and byte-matching evidence.
+Ghidra function names, method signatures, return contracts and plate comments
+are updated for all three routines.

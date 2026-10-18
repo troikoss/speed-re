@@ -6,6 +6,7 @@
 #include "../../Speed/Indep/Src/Frontend/FEngColour.h"
 #include "../../Speed/Indep/Src/Frontend/FEngText.h"
 #include "../../Speed/Indep/Src/Frontend/FEngStringReader.h"
+#include "../../Speed/Indep/Src/Frontend/FEngResponseReader.h"
 #include "../../Speed/Indep/Src/Frontend/FEngListReader.h"
 #include "../../Speed/Indep/Src/Frontend/FEngScript.h"
 #include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
@@ -22,7 +23,7 @@
 void NativeTrap(const char *what);
 
 // Native storage for recovered original data. Vtable/default callback words
-// remain opaque retail address tokens; native code does not dispatch them.
+// retain retail address tokens; verified response virtual slots have native bindings.
 unsigned int FEngNextObjectGuid = 1; // original 0x7f7cf8 initial value
 unsigned int FEngValue7F7CC4 = 0x518e20;
 FEngStringObserver *fengStringObserver838478 = 0; // Relocated native storage for original 0x838478.
@@ -30,6 +31,7 @@ FEngStatePoolManager FEngObjectStateManager = {}; // Original 0x863770; native s
 FEngDestructionObserver *FEngObjectDestructionObserver = 0; // Original 0x838474.
 
 namespace {
+void BindNativeResponseVtables();
 // Native heap owner only: original resizing/free calls remain in recovered code.
 // Retain surviving allocations until wrapper teardown, including original zero-
 // dimension/storage-release cases that leave cell allocations unfreed.
@@ -145,42 +147,38 @@ float RdF(const unsigned char *p) {
 
 const unsigned int kInitScript = 0x1744b3;  // 0x5515e0 / 0x5554a0: the "Init" script hash
 
-// Native bounded container/context adapter around recovered command storage.
-// Full 0x54d1d0 response reader and pool-owned response headers remain pending.
-void ReadResponses(const unsigned char *data, size_t size, std::vector<FengResponse> *responses) {
-    unsigned int commandIndex = 0;
-    FEResponseCommand *command = 0;
+// Native bounds/termination and ownership adapter. All response semantics and
+// list writes execute the complete recovered 0x54d1d0 reader.
+void ReadResponses(const unsigned char *data, size_t size, std::vector<FengResponse> *responses,
+                   FEPackage *package, HudVisibilityObject *object) {
+    std::vector<unsigned char> bounded;
     for (size_t t = 0; t + 4 <= size;) {
-        unsigned int tag = Rd16(data + t);
-        unsigned int len = Rd16(data + t + 2);
-        if (t + 4 + len > size) break;
-        unsigned int value = len >= 4 ? Rd32(data + t + 4) : 0;
-        if (tag == 0x694d) {
-            responses->emplace_back();
-            responses->back().message = value;
-            commandIndex = 0;
-            command = 0;
-        } else if (!responses->empty()) {
-            FEResponse &response = *responses->back().original;
-            if (tag == 0x434d) {
-                response.ResizeCommands(value);
-                command = 0; // Native context guard: do not retain a replaced cell.
-            } else if (tag == 0x6952) {
-                command = commandIndex < response.commandCount10 ? response.commands14 + commandIndex : 0;
-                ++commandIndex;
-                if (command) command->type = value;
-            } else if (tag == 0x7552 && command) {
-                command->parameter = value;
-            } else if (tag == 0x7452 && command) {
-                command->target = value;
-            } else if (tag == 0x7352 && command) {
-                std::string bounded;
-                for (unsigned int i = 0; i < len && data[t + 4 + i]; ++i)
-                    bounded += (char)data[t + 4 + i];
-                command->SetString(bounded.c_str());
-            }
-        }
+        unsigned int tag = Rd16(data + t), len = Rd16(data + t + 2);
+        if (len > size - t - 4) break;
+        if ((tag == 0x694d || tag == 0x434d || tag == 0x6952 || tag == 0x7552 || tag == 0x7452) && len < 4) break;
+        bool terminate = tag == 0x7352 && !memchr(data + t + 4, 0, len);
+        if (terminate && len == 0xffff) break;
+        unsigned int retained = len + (terminate ? 1 : 0);
+        bounded.push_back((unsigned char)tag); bounded.push_back((unsigned char)(tag >> 8));
+        bounded.push_back((unsigned char)retained); bounded.push_back((unsigned char)(retained >> 8));
+        bounded.insert(bounded.end(), data + t + 4, data + t + 4 + len);
+        if (terminate) bounded.push_back(0);
         t += 4 + len;
+    }
+    BindNativeResponseVtables();
+    FEngResponseReader reader = {};
+    reader.package0 = package;
+    reader.objectC = object;
+    // Original outer-reader setup is pending; native objects are not cloned yet.
+    reader.value18 = 0;
+    reader.Read(bounded.data(), bounded.size(), object ? 0 : 1);
+    FEResponse *header = object ? object->responses3C : package->responses5C;
+    while (header) {
+        bool owned = false;
+        for (size_t i = 0; i < responses->size(); ++i)
+            if ((*responses)[i].original == header) { owned = true; break; }
+        if (!owned) responses->emplace_back(header);
+        header = header->next4;
     }
 }
 
@@ -295,26 +293,26 @@ FEngResponsePool FEngResponseHeaderPool = {{0x79a9ec, 0, 0, 0}};
 
 // Native movable reference owner. Header allocation, destruction, return-to-pool
 // and empty-block cleanup all execute recovered code.
-FengResponse::FengResponse() : message(0), original(0) {
+FengResponse::FengResponse() : original(0) {
     BindNativeResponseVtables();
     original = FEngResponseHeaderPool.Acquire();
     FEngConstructResponseHeader(original);
 }
+FengResponse::FengResponse(FEResponse *header) : original(header) {}
 FengResponse::~FengResponse() { if (original) original->Destroy(1); }
-FengResponse::FengResponse(FengResponse &&other) noexcept : message(other.message), original(other.original) {
+FengResponse::FengResponse(FengResponse &&other) noexcept : original(other.original) {
     other.original = 0;
 }
 FengResponse &FengResponse::operator=(FengResponse &&other) noexcept {
     if (this != &other) {
         if (original) original->Destroy(1);
-        message = other.message;
         original = other.original;
         other.original = 0;
     }
     return *this;
 }
 
-FengPackage::FengPackage() {}
+FengPackage::FengPackage() : responsePackage_() {}
 
 FengPackage::~FengPackage() {
     for (size_t i = 0; i < objects_.size(); ++i) delete objects_[i];
@@ -360,7 +358,7 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                         }
                     }
                 } else if (id2 == 0x52676b50) {  // 'PkgR'
-                    ReadResponses(data + q + 8, end2 - q - 8, &responses_);
+                    ReadResponses(data + q + 8, end2 - q - 8, &responses_, &responsePackage_, 0);
                 } else if (id2 == 0x67726154) { // Targ: 0x5184e0 reads Tc/Mt, then resolves GUIDs in row order.
                     for (size_t t = q + 8; t + 4 <= end2;) {
                         unsigned int tag = Rd16(data + t), len = Rd16(data + t + 2);
@@ -539,7 +537,7 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                         t += 4 + len;
                                     }
                                 } else if (id4 == 0x5267734d) {  // 'MsgR'
-                                    ReadResponses(data + s + 8, end4 - s - 8, &object->responses);
+                                    ReadResponses(data + s + 8, end4 - s - 8, &object->responses, &responsePackage_, object);
                                 } else if (id4 == 0x70726353) {  // 'Scrp'
                                     scripts.push_back(std::vector<unsigned char>(data + s + 8, data + end4));
                                 }
@@ -700,21 +698,6 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
             object->currentScript54->time10 = 0;
         }
     }
-    // Native response-header links; command arrays already have recovered ownership.
-    for (size_t i = 0; i < responses_.size(); ++i) {
-        FengResponse &response = responses_[i];
-        response.original->next4 = i + 1 < responses_.size() ? responses_[i + 1].original : 0;
-        response.original->messageC = response.message;
-    }
-    for (size_t n = 0; n < objects_.size(); ++n) {
-        std::vector<FengResponse> &responses = objects_[n]->responses;
-        for (size_t i = 0; i < responses.size(); ++i) {
-            FengResponse &response = responses[i];
-            response.original->next4 = i + 1 < responses.size() ? responses[i + 1].original : 0;
-            response.original->messageC = response.message;
-        }
-        objects_[n]->responses3C = responses.empty() ? 0 : responses[0].original;
-    }
     originalAssociations_.resize(nativeAssociations_.size());
     for (size_t i = 0; i < nativeAssociations_.size(); ++i) {
         NativeAssociation &association = nativeAssociations_[i];
@@ -729,7 +712,9 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
 }
 
 void FengPackage::BindMessageData(FEPackage *package) {
+    package->responseCount58 = responsePackage_.responseCount58;
     package->responses5C = OriginalResponses();
+    package->responseCursor60 = responsePackage_.responseCursor60;
     package->associationCount6C = originalAssociations_.size();
     package->associations70 = originalAssociations_.empty() ? 0 : &originalAssociations_[0];
 }
@@ -744,7 +729,7 @@ FengObject *FengPackage::FindGuid(unsigned int guid) {
 
 const FengResponse *FindFengResponse(const std::vector<FengResponse> &responses, unsigned int message) {
     for (size_t i = 0; i < responses.size(); ++i) {
-        if (responses[i].message == message) return &responses[i];
+        if (responses[i].original->messageC == message) return &responses[i];
     }
     return 0;
 }

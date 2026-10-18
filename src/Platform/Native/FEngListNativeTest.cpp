@@ -1,6 +1,7 @@
 // Asset-free projection/integration fixture. Its FNG bytes are synthetic test scaffolding.
 #include "NativeFng.h"
 #include "../../Speed/Indep/Src/Frontend/FEngInheritance.h"
+#include "../../Speed/Indep/Src/Frontend/FEngResponseReader.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObject.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObjectFactory.h"
 #include "../../Speed/Indep/Src/Frontend/FEngText.h"
@@ -339,6 +340,31 @@ static void RunResponseStorage() {
     header->ResizeCommands(1);
     assert(header->commandCount10 == 1 && !strcmp((const char *)header->commands14[0].parameter, strings[1]));
     assert(package.Responses()[0].original->commandCount10 == 3); // Independent package/object arrays.
+    FEPackage bound = {}; package.BindMessageData(&bound);
+    assert(bound.responseCount58 == 2 && bound.responses5C == package.Responses()[0].original);
+    assert(bound.responseCursor60 == package.Responses()[1].original && bound.responseCursor60->previous8 == bound.responses5C);
+    FEngResponseReader reader = {};
+    reader.objectC = package.Objects()[0]; reader.value18 = 1;
+    FEResponse *second = header->next4;
+    std::vector<unsigned char> merge;
+    value.clear(); Word(value, 7); Tag(merge, 0x694d, value); value.clear();
+    Word(value, 2); Tag(merge, 0x434d, value); value.clear();
+    Word(value, 0x203); Tag(merge, 0x6952, value); value.clear();
+    Word(value, 0x11223344); Tag(merge, 0x7552, value); value.clear();
+    Word(value, 8); Tag(merge, 0x694d, value); value.clear();
+    Word(value, 1); Tag(merge, 0x434d, value); value.clear();
+    // Mi and MC retain the cached command pointer from response7.
+    Word(value, 0xcafebabe); Tag(merge, 0x7452, value); value.clear();
+    Word(value, 0x201); Tag(merge, 0x6952, value);
+    const char merged[] = "merged";
+    value.assign(merged, merged + sizeof(merged)); Tag(merge, 0x7352, value);
+    assert(reader.Read(merge.data(), merge.size(), 0) == 1);
+    assert(reader.objectC->FindResponseByMessage(7) == header && header->next4 == second);
+    assert(package.Objects()[0]->responses.size() == 2 && header->commandCount10 == 2);
+    assert(header->commands14[0].parameter == 0x11223344 && header->commands14[0].target == 0xcafebabe);
+    assert(!header->commands14[1].type && second->commandCount10 == 1);
+    assert(!strcmp((const char *)second->commands14[0].parameter, merged));
+    assert(second->previous8 == header);
     FengResponse owner;
     owner.original->ResizeCommands(1);
     owner.original->commands14[0].type = 0x201;
