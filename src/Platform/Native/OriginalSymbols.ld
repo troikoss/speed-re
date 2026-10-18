@@ -876,3 +876,4 @@ bFormatVector3786E1C = 0x786e1c;
 bFormatInvalidVector786E30 = 0x786e30;
 colliderQuerySpan7A5338 = 0x7a5338;
 colliderQueryDecay785510 = 0x785510;
+rayMinusOne7842A0 = 0x7842a0;

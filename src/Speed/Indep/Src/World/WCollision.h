@@ -90,6 +90,10 @@ struct WCollisionFace {
     WCollisionFace *Expand(WCollisionPolygon *polygon);
     float EdgeDistance(float *point);
     float PlanarDistance(float *point, float limit);
+    bool ContainsPoint(float *point, float *distance);                         // 0x5d35b0
+    bool SegmentHit(float *from, float *to, float *hit);                       // 0x5d36f0
+    bool RayHit(float *best, float *from, float *to, float *rayMinimum, float *rayMaximum,
+                bool twoSided, float *hit);                                    // 0x5d37f0
 };
 
 struct WBarrierGroup {
@@ -175,6 +179,7 @@ struct WCollider {
     void RefreshArea();
     void UpdatePack(float *point, float radius);
     void QueryArea(float *point, float radius, float *velocity); // 0x5e6fa0
+    bool Ray(int mode, bool twoSided, float *from, float *to, float margin, float scale); // 0x5d39f0
     bool UpdateArea(float *minimum, float *maximum, WheelVector *velocity);
     float QueryGround(WheelVector *point, int *surface, WheelVector *normal, char *found);
 };
@@ -212,5 +217,11 @@ void Bounds2Reset(float *minimum, float *maximum);                              
 void Bounds2Expand(float *minimum, float *maximum, float *point, float radius);      // 0x43d2f0
 int Bounds2Contains(float *outerMinimum, float *outerMaximum, float *innerMinimum, float *innerMaximum); // 0x43d470
 void ScaleAdd2(float *output, float *base, float *direction, float scale);           // 0x43d090
+
+// 3D bounds helpers (WCollisionRay.cpp).
+void Bounds3Set(float *minimum, float *maximum, float *point);                       // 0x43d540
+void Bounds3Add(float *minimum, float *maximum, float *point);                       // 0x43d570
+void Bounds3AddSphere(float *minimum, float *maximum, float *center, float radius);  // 0x43d610
+int Bounds3Overlap(float *minimumA, float *maximumA, float *minimumB, float *maximumB); // 0x43d820
 
 #endif

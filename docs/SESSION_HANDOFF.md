@@ -646,3 +646,9 @@ renamed from cross-title evidence alone.
     `0x5e6fa0` and 2D helpers `0x43d220`/`0x43d2f0`/`0x43d470`/`0x43d090`: 20,480
     comparisons, 13 mutations (straddle fixtures for the 28.8 diagonal limit).
     Next: face push `0x444190` (+ `0x5d39f0`, `0x5d35b0`), then the pushes.
+
+45. **Collision ray (2026-10-18).** `World/WCollisionRay.cpp` recovers `0x43d540`,
+    `0x43d570`, `0x43d610`, `0x43d820`, face `0x5d35b0`/`0x5d36f0`/`0x5d37f0` and
+    collider ray `0x5d39f0`: 32,768 comparisons, 21 mutations. Next: face push
+    `0x444190` (slot 0x30 = `0x445a60`), `0x444530`, `0x44ac10`, `0x44b040`, then
+    integrate into `0x453570`.

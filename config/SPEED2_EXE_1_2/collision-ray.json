@@ -1,0 +1,45 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "Bounds3Set": {
+      "address": "0x43d540",
+      "size": 43,
+      "sha256": "18c7dbd1df7b8e81170fbadc3370b3596daf34e5ba5d2ff6b8b1d6cf0afedf09"
+    },
+    "Bounds3Add": {
+      "address": "0x43d570",
+      "size": 145,
+      "sha256": "258a0a23316258876803e51e7396508f1ed9c769fe66554ce7a8201618f5eeb3"
+    },
+    "Bounds3AddSphere": {
+      "address": "0x43d610",
+      "size": 199,
+      "sha256": "da51fd4c82247bde50f1db63f11657ac2f93e02f1673208dd79286fc60545018"
+    },
+    "Bounds3Overlap": {
+      "address": "0x43d820",
+      "size": 105,
+      "sha256": "4293652346fd262703383ce851acd0673057b8eec8c5abf34b6dd0445198048d"
+    },
+    "ContainsPoint": {
+      "address": "0x5d35b0",
+      "size": 313,
+      "sha256": "f60a2c6fbafa1f37e9ce1970e39df00e34e08e0abaf8499e1933fd4cce5e9139"
+    },
+    "SegmentHit": {
+      "address": "0x5d36f0",
+      "size": 255,
+      "sha256": "feaf75353c92c4c9bb7667ae21f98edb98d87d8a349971215e8699876e27d4b3"
+    },
+    "RayHit": {
+      "address": "0x5d37f0",
+      "size": 296,
+      "sha256": "5ce00be40384585bbde89ce36414b91cec130d48179b345d9a9e170f0af12b48"
+    },
+    "Ray": {
+      "address": "0x5d39f0",
+      "size": 537,
+      "sha256": "27c700c16a487458e626a88909ef5162cc75dc93a4151566fe567f8b95809a49"
+    }
+  }
+}

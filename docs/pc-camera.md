@@ -80,5 +80,40 @@ and overlapping outputs; 13 mutations rejected. `UpdatePack` and `RefreshArea` r
 traced stubs (arguments and collider bounds at each call compared). MSVC 7.1 and byte
 identity are not established; not yet called by native code.
 
-Next: face push `0x444190` (world ray `0x5d39f0`, face test
-`0x5d35b0`), then `0x444530`, `0x44ac10`, `0x44b040` and integration into `0x453570`.
+## Collision ray (2026-10-18)
+
+`World/WCollisionRay.cpp` recovers the ray the camera's face push casts from the car
+to the camera:
+
+- 3D bounds helpers: set `0x43d540`, add point `0x43d570` (each component written in
+  place), add sphere `0x43d610` (all six extents computed first) and strict overlap
+  `0x43d820` (touching or unordered bounds do not overlap).
+- `WCollisionFace::ContainsPoint` `0x5d35b0`: edge cross products of the vertex vectors
+  (3 or 4 vertices, byte `+9` signed) against the normal; a negative dot rejects, a NaN
+  dot passes; the optional distance is minus the first vertex vector's normal component.
+- `WCollisionFace::SegmentHit` `0x5d36f0`: the end distances must have strictly opposite
+  signs (unrounded `to` distance); the fraction |from|/(|to rounded|+|from|) interpolates
+  the crossing, which must pass `ContainsPoint`.
+- `WCollisionFace::RayHit` `0x5d37f0`: face bounds must overlap the ray bounds; one-sided
+  rays need the hit direction against the normal; the unrounded hit distance must be
+  below `*best`, which receives it rounded.
+- `WCollider::Ray` `0x5d39f0` (thiscall: mode, two-sided, from, to, margin, scale): ray
+  bounds from `from` and the `margin` sphere at `to`, nearest hit over the area faces
+  (start 999999), compared with the binary32 segment length. Mode 1 pulls `to` back to
+  `margin` before the hit; mode 0 does the same plus a height lift of
+  `(1 - travel/length) * scale` for faces with flag 2, otherwise puts `to` on the face
+  plane's height at its x/y offset by `margin` (below with flag 8); other modes only
+  report the hit. Store order to x, z, y is kept.
+
+Verification: `tools/verify_pc_collision_ray.py --compiler clang-cl --mutation-checks`
+(manifest `config/SPEED2_EXE_1_2/collision-ray.json`): 32,768 comparisons (4,096 per
+routine) under 53- and 64-bit precision over random planar triangles and quads, segments
+across them, exact axis-aligned hits, near-endpoint hits, inverted and touching bounds and
+aliased outputs; paths include 726 contained points, 693 segment hits, 207 face hits and
+1,168 collider-ray hits. 21 mutations rejected. Cross `0x43d1e0`, scale-add `0x43d0c0`
+and set-length `0x43cf90` run original code. A nearest hit exactly equal to the segment
+length was not constructed. MSVC 7.1 and byte identity are not established; not yet called
+by native code.
+
+Next: face push `0x444190` (mover slot 0x30 `0x445a60`), world push `0x444530`,
+other-car push `0x44ac10`/`0x44b040` and integration into `0x453570`.
