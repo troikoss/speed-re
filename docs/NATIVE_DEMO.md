@@ -386,6 +386,10 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   Native wrappers transfer stable pointers; playback metadata and event-clock
   adapters no longer cast original headers to embedded native wrappers.
   Original reader `0x5515e0`, its Ti registry binding and owner-list cleanup remain pending.
+- The reader's Ti lookups `0x504a00`/`0x505480`/`0x5147f0` are recovered and
+  verified (12,288 comparisons, six mutations); the registry at manager +0x4134 is
+  typed but its producer is unrecovered. Retail scripts contain no Ti tags.
+  See [Ti lookup evidence](pc-pause-menu.md#script-reader-ti-lookups-2026-10-18).
   See [script pool evidence](pc-pause-menu.md#script-header-pool-and-native-stable-ownership-2026-10-18).
 - Native image/group/list teardown now invokes recovered `0x532660`/`0x534bf0`/
   `0x534a50`, alongside string destruction. Original list storage/cell release

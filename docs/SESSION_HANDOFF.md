@@ -585,3 +585,11 @@ renamed from cross-title evidence alone.
     Controls, slider pixels and scroller motion/settled centring pass. No new
     Ghidra RPC problems encountered in this checkpoint. User .gitignore edits
     remain unrelated and must stay unstaged.
+
+38. **Script reader Ti lookups (2026-10-18).** `FEngTrackLookup.cpp` recovers
+    `0x504a00` FindTrack, `0x505480` registry find and `0x5147f0` property
+    index; `FEngQueue::types4134` replaces the opaque 0x14 bytes. Clang
+    verifier: 12,288 comparisons, six mutations rejected. Retail scan: no Ti
+    (or Sn/Tb/Ta/Tt/Sf/Sl/SI) tags in 56,804 scripts. Retail install for tools:
+    `UG2_DIR="/home/dq/Games/Need for Speed Underground 2"`. Next: complete
+    reader `0x5515e0` replacing the native Scrp parse in `NativeFng.cpp`.

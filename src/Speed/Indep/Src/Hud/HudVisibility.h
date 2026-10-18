@@ -6,7 +6,9 @@
 // Original FEng script (FEScript) prefix: list links, length and current time in milliseconds,
 // track table and name hash (script reader 0x5515e0, script set 0x517720).
 struct FEResponse;
+struct FEScriptTrack;
 struct FEScript {
+    FEScriptTrack *FindTrack(int selector); // 0x504a00, selector indexes 0x7992f4
     FEScript *Destroy(unsigned int flags); // 0x53ee30
     FEScript *CopyConstruct(const FEScript *other, unsigned char shallow); // 0x551be0, unconstructed receiver
     void SetTracks(unsigned int count); // 0x535210, destructive replacement even for equal counts.

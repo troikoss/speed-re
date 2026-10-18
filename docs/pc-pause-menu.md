@@ -4154,3 +4154,37 @@ then `0x5147f0` takes the Ti selector as its index. Each callee pops four bytes;
 the first leaves the already-pushed selector for the second. Earlier decompiler
 void signatures hid this dependency. Registry construction/binding and complete
 reader ownership remain pending; no invented Ti metadata is supplied.
+
+## Script reader Ti lookups (2026-10-18)
+
+`FEngTrackLookup.cpp` recovers the three lookups reached only from the script
+reader's `Ti` branch (`0x5518f6`, `0x55196b`, `0x551972`):
+
+- `0x504a00` (67 bytes) `FEScript::FindTrack`: thiscall, 4-byte cleanup. It
+  maps the selector through `0x7992f4` before testing the count, then compares
+  `MOVSX` of track +7 against the key across `count1C` tracks with an unsigned
+  bound (`JBE`/`JC`), returning the first match or null. It is also called from
+  `0x4abbd7`.
+- `0x505480` (31 bytes) `FEngTypeRegistry::Find`: walks +8/next +4 and returns
+  the first descriptor whose +0x24 equals the argument, or null. The reader
+  passes object type +0x18 with ECX = context +0x3c → manager +0x4134, so the
+  registry is now typed as `FEngQueue::types4134` (0x14 bytes).
+- `0x5147f0` (31 bytes) `FEngTypeDescriptor::GetProperty`: zero-based node of
+  the +0x1c list (next +4), null past the end. The reader passes its result as
+  ECX unchecked and later reads property +0x14/+0x18/+0x1c, so a missing
+  descriptor faults in the original; no guard is added.
+
+A scan of `InGameCommon.bun`, `FrontB.lzc` and every `GLOBAL` bundle found
+56,804 scripts using only `Sh`, `FI`, `To`, `Kd`, `EV` and `Sc`; no retail
+script contains `Ti`, `Sn`, `Tb`, `Ta`, `Tt`, `Sf`, `Sl` or `SI`. The registry's
+producer is therefore not exercised by retail packages and remains unrecovered;
+no descriptor contents are invented.
+
+`UG2_DIR=... build/venv/bin/python tools/verify_pc_feng_track_lookup.py
+--compiler clang-cl --mutation-checks` passes 12,288 comparisons (4,096 per
+routine; 1,144/2,408/1,211 non-null results) and rejects six mutations:
+unsigned state byte, last match, signed count, unmapped selector, skipped list
+head and one-based indexing. A quarter of track cases substitute controlled
+key-table values to expose the signed compare; negative counts are covered only
+with an in-arena match. Cycles, invalid pointers, MSVC 7.1 and byte identity
+remain unverified. Native integration follows with reader `0x5515e0`.

@@ -3,6 +3,7 @@
 
 #include "../Hud/HudVisibility.h"
 #include "FEngQueueNodes.h"
+#include "FEngTrackLookup.h"
 
 struct FEPackage;
 struct FEngObjectVisitor;
@@ -32,7 +33,7 @@ struct FEngQueue {
     char unidentified110[0x4004];
     FEngQueueList messages4114;
     FEngQueueList operations4124;
-    char unidentified4134[0x14];
+    FEngTypeRegistry types4134;
     unsigned int value4148;
     char value414C[16][0x100];
     int value514C;
@@ -64,6 +65,7 @@ UG2_CHECK_OFFSET(FEngQueue, first104, 0x104);
 UG2_CHECK_OFFSET(FEngQueue, messages4114, 0x4114);
 UG2_CHECK_OFFSET(FEngQueue, operations4124, 0x4124);
 UG2_CHECK_OFFSET(FEngQueue, value5251, 0x5251);
+UG2_CHECK_OFFSET(FEngQueue, types4134, 0x4134);
 UG2_CHECK_OFFSET(FEngQueue, value4148, 0x4148);
 UG2_CHECK_OFFSET(FEngQueue, value414C, 0x414c);
 UG2_CHECK_OFFSET(FEngQueue, value514C, 0x514c);
