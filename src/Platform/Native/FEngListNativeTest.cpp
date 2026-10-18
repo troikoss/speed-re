@@ -3,6 +3,7 @@
 #include "../../Speed/Indep/Src/Frontend/FEngObject.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObjectFactory.h"
 #include "../../Speed/Indep/Src/Frontend/FEngText.h"
+#include "../../Speed/Indep/Src/Frontend/FEngColour.h"
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -72,7 +73,7 @@ static void Run(unsigned int wrap, bool explicitGuid) {
     assert(list->count60 == 3 && list->count64 == 2 && list->value88 == 2 && list->value8C == 0);
     assert(list->value78 && list->value7C && list->value90 && object->listAllocations.size() == 3);
     const unsigned int *cells = static_cast<const unsigned int *>(list->value90);
-    assert(cells[0] == 0xffffffff && cells[1] == 0x3f800000 && cells[6] == 0 && cells[7] == 0 && cells[10] == 0x3f800000);
+    assert(cells[0] == 0 && cells[12] == 1 && cells[24] == 2 && cells[1] == 0x3f800000 && cells[6] == 0 && cells[7] == 0 && cells[10] == 0x3f800000);
     assert(list->value78[0].value4 == 0 && list->value78[1].value4 == .25f && list->value78[2].value4 == .75f);
     assert(list->value7C[0].value4 == 0 && list->value7C[1].value4 == 1);
     assert(list->value78[2].value8 == 12 && list->value7C[1].value8 == 21);
@@ -218,6 +219,44 @@ static void RunZeroDimension() {
     assert(object->listAllocations.size() == 2);
     assert(std::find(object->listAllocations.begin(), object->listAllocations.end(), list->value7C) != object->listAllocations.end());
 }
+static void RunCellPayloads() {
+    FEngColour colour;
+    assert(colour.Unpack(0xffaabbcc) == &colour && colour.Pack() == 0xffaabbcc);
+    std::vector<unsigned char> data, value;
+    Word(value, 4); Tag(data, 0x744f, value); value.clear();
+    Word(value, 3); Word(value, 1); Tag(data, 0x644c, value); value.clear();
+    const unsigned int colours[] = {0xff102030, 0x7fabcdef, 0x11223344};
+    for (unsigned int i = 0; i < 3; ++i) {
+        Word(value, colours[i]); Tag(data, 0x6343, value); value.clear();
+        Word(value, i ? 2 : 1); Tag(data, 0x5443, value); value.clear();
+        if (!i) {
+            Word(value, 0x11223344); Word(value, 0x55667788); Word(value, 0x3f800000); Word(value, 0x40000000);
+            Tag(data, 0x6943, value); value.clear();
+        } else {
+            const unsigned short text[] = {0x3a9, 0xd83d, 0xde00, 0};
+            for (unsigned int j = 0; j < 4; ++j) { value.push_back(text[j]); value.push_back(text[j] >> 8); }
+            Tag(data, 0x7443, value); value.clear();
+            if (i == 1) { Word(value, 1); Tag(data, 0x5443, value); value.clear(); }
+        }
+    }
+    Word(value, 0x7f800001); Word(value, 0x80000000); Tag(data, 0x7343, value); value.clear();
+    Word(value, 0x80000000); Tag(data, 0x7243, value);
+    data = Chunk(0x30203, Chunk(0xe76e4546, Chunk(0xcc6a624f,
+        Chunk(0xea624f46, Chunk(0x446a624f, data)))));
+    FengPackage package; std::string error;
+    assert(package.Load(data.data(), data.size(), 0, &error));
+    FengObject *object = package.Objects()[0];
+    FEListObject *list = reinterpret_cast<FEListObject *>(object);
+    const unsigned int *cells = static_cast<const unsigned int *>(list->value90);
+    assert(list->value88 == 2 && list->value8C == 0 && object->listAllocations.size() == 4);
+    for (unsigned int i = 0; i < 3; ++i) assert(cells[i * 12] == colours[i]);
+    assert(cells[6] == 1 && cells[8] == 0x11223344 && cells[9] == 0x55667788 && cells[11] == 0x40000000);
+    assert(cells[12 + 6] == 1 && !cells[12 + 8]); // CT frees the previous owned text.
+    assert(cells[24 + 6] == 2 && cells[24 + 1] == 0x7f800001 && cells[24 + 2] == 0x80000000);
+    assert(!cells[24 + 3] && !cells[24 + 4] && cells[24 + 5] == 0x80000000);
+    const unsigned short *text = reinterpret_cast<const unsigned short *>(cells[24 + 8]);
+    assert(text[0] == 0x3a9 && text[1] == 0xd83d && text[2] == 0xde00 && !text[3]);
+}
 int main() {
     RunString();
     TypedTeardownObserver teardown;
@@ -227,5 +266,6 @@ int main() {
     assert(teardown.calls == 6);
     FEngObjectDestructionObserver = 0;
     RunZeroDimension();
+    RunCellPayloads();
     puts("PASS native FNG owned UTF-16 storage and type4 projection/offsets/Cc selection/navigation/ticking (no assets or display)");
 }

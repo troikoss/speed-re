@@ -7,6 +7,14 @@ static unsigned int ClampChannel(int value) {
     return value > 255 ? 255 : (unsigned int)value;
 }
 
+FEngColour *FEngColour::Unpack(unsigned int colour) { // Original 0x5054a0
+    alphaC = colour >> 24;
+    red8 = (colour >> 16) & 255;
+    green4 = (colour >> 8) & 255;
+    blue0 = colour & 255;
+    return this;
+}
+
 // Original 0x5054d0: R/G/B/A order and signed channel clamps.
 unsigned int FEngColour::Pack() {
     unsigned int red = ClampChannel(red8);

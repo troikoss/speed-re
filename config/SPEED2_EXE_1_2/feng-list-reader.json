@@ -1,0 +1,50 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "SetCellType": {
+      "address": "0x5041e0",
+      "size": 80,
+      "sha256": "5eeeb14035b90312e0900bd73c3737ac4f99e0caa0237d1378aefbf5164ec47d"
+    },
+    "SetCellColour": {
+      "address": "0x516cd0",
+      "size": 47,
+      "sha256": "e0dceca4c2ad37459918e1793d54e2fbec8a1bd6eb00491ae25f1bb1f4c91378"
+    },
+    "SetCellPair4": {
+      "address": "0x516d00",
+      "size": 51,
+      "sha256": "82e4b1570b510b668529aa385c690e0e5cbf47f49824a02b394d580c07171c0b"
+    },
+    "SetCellTripleC": {
+      "address": "0x516d40",
+      "size": 57,
+      "sha256": "227f30b5f38514e7f850516044ea38740b3e10afcfd2032f5973a8b6c50aa442"
+    },
+    "SetCellFour20": {
+      "address": "0x516d80",
+      "size": 63,
+      "sha256": "6cb8b7d11f9a99c5395717bcfbf0dc849548be411d5922fadd92adae85466e70"
+    },
+    "SetCellText": {
+      "address": "0x516e10",
+      "size": 122,
+      "sha256": "ac06d5ef85b0fe8f801cea45089a89bd6bf29f90fbff58aa67c4787a6fca2331"
+    },
+    "Unpack": {
+      "address": "0x5054a0",
+      "size": 42,
+      "sha256": "9e2249773b501a5b450c77308f5e80f9cabe3b747011af9abb21e5fe69dc1b3e"
+    },
+    "ReadProperty": {
+      "address": "0x52b740",
+      "size": 532,
+      "sha256": "4cc77248c5bc9ddd93e7b9498c7dfec3db7b98a1e7a5bbcc7692ea1c924feb21"
+    },
+    "Pack": {
+      "address": "0x5054d0",
+      "size": 142,
+      "sha256": "a7953106269ee8d624f5b65ac9e58c23ac3c0304f86c381e2af8e731971a69ee"
+    }
+  }
+}

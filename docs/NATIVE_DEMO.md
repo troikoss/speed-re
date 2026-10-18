@@ -338,8 +338,12 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   cell construction. Axis vectors are removed; navigation uses original allocated
   arrays. A native per-wrapper heap owner releases surviving allocations after
   recovered teardown while preserving original resize/release quirks. Full list
-  property dispatch and cell payload handling remain pending.
-  See [list storage evidence](pc-pause-menu.md#original-type-4-axis-and-cell-allocation).
+  property dispatch and cell payload handling are now active through recovered
+  `0x52b740` and its actual colour/type/pair/triple/four-word/UTF-16 callees.
+  Native bounds, context setup and heap ownership remain adapters; outer reader,
+  inheritance and cell rendering remain pending.
+  See [list storage evidence](pc-pause-menu.md#original-type-4-axis-and-cell-allocation)
+  and [complete list reader](pc-pause-menu.md#complete-type-4-list-property-reader-and-cell-payload-writes).
 - Typed string/image lookup (`0x537a10`/`0x537a60`), generic wrapper `0x5379c0`,
   recursive object traversal and package-list fallback now execute recovered code.
   Native loading constructs root/child links; shown-screen membership and order,

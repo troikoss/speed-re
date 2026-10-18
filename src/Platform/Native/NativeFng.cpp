@@ -4,6 +4,7 @@
 #include "../../Speed/Indep/Src/Frontend/FEngColour.h"
 #include "../../Speed/Indep/Src/Frontend/FEngText.h"
 #include "../../Speed/Indep/Src/Frontend/FEngStringReader.h"
+#include "../../Speed/Indep/Src/Frontend/FEngListReader.h"
 #include "../../Speed/Indep/Src/Frontend/FEngScript.h"
 #include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObject.h"
@@ -348,7 +349,9 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                             object->uv[2] = object->uv[3] = 1;
                             std::vector<unsigned char> state;
                             std::vector<std::vector<unsigned char> > scripts;
-                            int listColumn = -1, listRow = -1, listCell = -1;
+                            FEngListPropertyReader listReader = {};
+                            listReader.objectC = reinterpret_cast<FEListObject *>(object);
+                            listReader.value24 = listReader.value28 = listReader.value2C = 0xffffffff;
                             size_t s = r + 8;
                             while (s + 8 <= end3) {
                                 unsigned int id4 = Rd32(data + s);
@@ -393,6 +396,43 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                             t += 4 + len;
                                             continue;
                                         }
+                                        if (object->type18 == 4) {
+                                            unsigned int required = 0;
+                                            switch (tag) {
+                                            case 0x5443: case 0x6343: case 0x7243: case 0x774c: required = 4; break;
+                                            case 0x634c: case 0x644c: case 0x724c: case 0x7343:
+                                            case 0x734c: case 0x764c: required = 8; break;
+                                            case 0x6943: required = 16; break;
+                                            case 0x7443: required = 2; break;
+                                            }
+                                            if (required) {
+                                                FEListObject *list = listReader.objectC;
+                                                bool valid = len >= required;
+                                                if (tag == 0x634c) valid = valid && listReader.value24 + 1 < list->count60;
+                                                if (tag == 0x724c) valid = valid && listReader.value28 + 1 < list->count64;
+                                                if (tag == 0x5443 || tag == 0x6343 || tag == 0x6943 ||
+                                                    tag == 0x7243 || tag == 0x7343 || tag == 0x7443)
+                                                    valid = valid && list->value90 && list->value88 < list->count60 && list->value8C < list->count64;
+                                                if (valid) {
+                                                    const unsigned short *property = reinterpret_cast<const unsigned short *>(data + t);
+                                                    std::vector<unsigned short> bounded;
+                                                    if (tag == 0x7443) {
+                                                        bounded.push_back((unsigned short)tag); bounded.push_back((unsigned short)len);
+                                                        for (unsigned int i = 0; i + 1 < len; i += 2) {
+                                                            unsigned short c = (unsigned short)Rd16(pl + i);
+                                                            if (!c) break;
+                                                            bounded.push_back(c);
+                                                        }
+                                                        bounded.push_back(0); property = bounded.data();
+                                                    }
+                                                    // Bounds/termination and heap lifetime are native seams.
+                                                    NativeListAllocationScope heapOwner(&object->listAllocations);
+                                                    listReader.ReadProperty(property);
+                                                }
+                                                t += 4 + len;
+                                                continue;
+                                            }
+                                        }
                                         switch (tag) {
                                         case 0x744f:
                                             object->type18 = (int)Rd32(pl); // 'Ot'
@@ -405,51 +445,6 @@ bool FengPackage::Load(const unsigned char *data, size_t size, size_t offset, st
                                             break;
                                         case 0x4150: object->parentGuid = Rd32(pl); break;  // 'PA'
                                         case 0x4153: state.assign(pl, pl + len); break;     // 'SA'
-                                        case 0x644c: // Ld: observed 0x52b740 dimension records.
-                                            if (object->type18 == 4 && len >= 8) {
-                                                NativeListAllocationScope heapOwner(&object->listAllocations);
-                                                FEListObject *list = reinterpret_cast<FEListObject *>(object);
-                                                list->ResizeColumns(Rd32(pl));
-                                                list->ResizeRows(Rd32(pl + 4));
-                                                list->SetColumn(0); list->SetRow(0);
-                                                listColumn = listRow = listCell = -1;
-                                            }
-                                            break;
-                                        case 0x6343: // Cc: 0x52b740 advances before every cell after the first.
-                                            if (object->type18 == 4 && ++listCell) reinterpret_cast<FEListObject *>(object)->AdvanceCell();
-                                            break;
-                                        case 0x634c: // Lc: column extent and unidentified value+8.
-                                            if (object->type18 == 4 && len >= 8 && ++listColumn < (int)reinterpret_cast<FEListObject *>(object)->count60) {
-                                                FEListAxisEntry *columns = reinterpret_cast<FEListObject *>(object)->value78;
-                                                columns[listColumn].value0 = RdF(pl);
-                                                columns[listColumn].value8 = RdF(pl + 4);
-                                            }
-                                            break;
-                                        case 0x724c: // Lr: row extent and unidentified value+8.
-                                            if (object->type18 == 4 && len >= 8 && ++listRow < (int)reinterpret_cast<FEListObject *>(object)->count64) {
-                                                FEListAxisEntry *rows = reinterpret_cast<FEListObject *>(object)->value7C;
-                                                rows[listRow].value0 = RdF(pl);
-                                                rows[listRow].value8 = RdF(pl + 4);
-                                            }
-                                            break;
-                                        case 0x734c: // Ls
-                                            if (object->type18 == 4 && len >= 8) {
-                                                FEListObject *list = reinterpret_cast<FEListObject *>(object);
-                                                list->value80 = RdF(pl); list->value84 = RdF(pl + 4);
-                                            }
-                                            break;
-                                        case 0x764c: // Lv
-                                            if (object->type18 == 4 && len >= 8) {
-                                                FEListObject *list = reinterpret_cast<FEListObject *>(object);
-                                                list->value68 = RdF(pl); list->value6C = RdF(pl + 4);
-                                            }
-                                            break;
-                                        case 0x774c: // Lw: 0x504270 clears flag4 when true.
-                                            if (object->type18 == 4 && len >= 4) {
-                                                FEListObject *list = reinterpret_cast<FEListObject *>(object);
-                                                list->SetWrap(Rd32(pl) != 0);
-                                            }
-                                            break;
                                         }
                                         t += 4 + len;
                                     }

@@ -3244,8 +3244,9 @@ Clang behavior passes; MSVC 7.1/wibo and byte matching remain pending.
 axis vectors and final pointer projection are removed. Native `Lc`/`Lr` projection
 writes the actual allocated axes, and recovered offset/navigation code consumes
 those arrays. Newly allocated cell storage also comes from the original path.
-The full list-property reader `0x52b740`, cell payload helpers and surrounding
-reader ownership remain separate work; native property bounds/iteration and
+At this checkpoint the full list-property reader `0x52b740`, cell payload
+helpers and surrounding reader ownership remained separate work. The following
+checkpoint recovers the complete property dispatch and payload helpers; native property bounds/iteration and
 selection setup still form an adapter.
 
 The Linux heap boundary has an explicit per-wrapper allocation owner while
@@ -3266,3 +3267,95 @@ affected headless checks pass: 19 settings scenarios and slider pixels, 10
 Controls scenarios, scroller motion/settled centering, and HUD skins at 640x480,
 1280x720, 1680x720 and 2560x720. These are native integration checks, separately
 from original/rebuilt storage evidence.
+
+### Complete type-4 list property reader and cell payload writes
+
+`FEngListReader.cpp` now recovers the complete 532-byte `0x52b740` dispatch.
+`FEngListCells.cpp` recovers its six cell-write helpers, and `FEngColour.cpp`
+adds packed-colour unpacking. Full spans and the existing pack callee are pinned
+in `config/SPEED2_EXE_1_2/feng-list-reader.json`.
+
+| Entry | Address | Full span | Behavior |
+| --- | --- | ---: | --- |
+| Cell type | `0x5041e0` | 80 bytes | On changed type, free nonnull `+0x20` only when old `+0x18 == 2`; clear payload and set new type |
+| Cell colour | `0x516cd0` | 47 bytes | Actual `FEngColour::Pack`, then selected-cell `+0` write |
+| Cell pair | `0x516d00` | 51 bytes | Forward DWORD writes at `+4`/`+8` |
+| Cell triple | `0x516d40` | 57 bytes | Three DWORD arguments at `+0xc`/`+0x10`/`+0x14` |
+| Cell four-word payload | `0x516d80` | 63 bytes | Forward DWORD writes at `+0x20` through `+0x2c`, without freeing/type checking |
+| Cell UTF-16 | `0x516e10` | 122 bytes | Free old nonnull payload regardless of type; optionally allocate/copy terminated UTF-16 |
+| Colour unpack | `0x5054a0` | 42 bytes | Extract A/R/G/B into original channel fields; observed EAX returns the receiver pointer |
+| Complete reader | `0x52b740` | 532 bytes | All twelve property cases below; ignore declared length and unknown tags |
+
+All cell offsets use unsigned32 `(row8C * count60 + column88) * 0x30`.
+Type/text setters cache their selected cell across heap callbacks. This differs
+from cell-array release, which reloads the array after a free. Text assignment
+clears an existing payload even for null input; nonnull empty input allocates
+2 bytes. It copies forward DWORDs and trailing bytes including the terminator,
+and leaves the cell type unchanged. Pair/four-word input aliases retain their
+sequential forward-copy effects. The unpack receiver return is verified as a
+register-level fact; original C++ constructor/method provenance is not asserted.
+
+| Property | Original dispatch |
+| --- | --- |
+| `CT` | Cell type helper with payload DWORD |
+| `Cc` | Increment reader `+0x2c`; advance selection after the first; actual unpack -> cell colour -> pack |
+| `Lc` / `Lr` | Increment reader `+0x24` / `+0x28`, write axis entry `+0` and `+8` |
+| `Ld` | Actual column/row resizers; reset reader `+0x2c`, `+0x28`, `+0x24` to -1; select column/row 0 |
+| `Ci` | Four-word temporary into the cell `+0x20` helper |
+| `Cr` | Cell triple helper with `0, 0, payload DWORD` |
+| `Cs` | Two-word temporary into the cell pair helper |
+| `Ct` | Cell UTF-16 helper with payload pointer |
+| `Ls` | x87 second-then-first loads into `+0x80` / `+0x84` |
+| `Lv` | x87 second-then-first loads into `+0x68` / `+0x6c` |
+| `Lw` | Actual wrap helper with boolean DWORD test |
+
+The reader captures object `+0xc` once and retains it across callees even if a
+heap callback changes the context's object pointer. Payload reads retain their
+call boundaries, including the row-count read after column resizing. Length
+validation and outer reader lifecycle/iteration are not part of this method.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_list_reader.py --compiler clang-cl --mutation-checks
+```
+
+**16,384 comparisons** pass, 2,048 per new entry. All twelve recognized tags and
+four unknown/adjacent tags receive 128 direct reader cases each. Actual resize,
+constructor iteration/callback, reset/release, selection/wrap, colour unpack/pack
+and cell payload routines execute together; only allocation/free are controlled.
+Cases include unchanged/changed cell types, null payloads/input, empty/non-ASCII
+UTF-16, signed colour clamps, wrapping selected-cell arithmetic, forward input
+aliases, zero/nonzero dimensions, index sentinels, ignored length words, x87
+zero/negative-zero/infinity/quiet/signalling-NaN pairs and heap callbacks changing
+later array/axis/selection/context/payload state. Unknown tags also run with null
+object pointers. Full fixture memory and ordered helper/heap arguments and
+snapshots, preserved registers, stack balance, final original FS:[0] restoration
+and defined full-word unpack returns are compared. Compiler stack temporaries
+are compared by their contents, constructor targets by entry identity, and the
+wrap byte parameter by its defined low byte rather than incidental upper bits.
+**Seventeen semantic mutations** are rejected across dispatch, offsets, selection,
+type/free behavior, text allocation/copy/destination capture and unpack return.
+Compile/link failures do not count as semantic rejection.
+
+Finite mapped heaps do not establish allocation failure, lifetime validity after
+free, arbitrary stack aliases, concurrency, exception-frame inspection or SEH
+unwind. Reports stay ignored in `build/analysis/feng-list-reader/`. Clang behavior
+passes; MSVC 7.1/wibo and byte matching remain pending. Ghidra labels, comments and
+member signatures are updated with the verified boundaries and limits.
+
+**Native type-4 parsing now calls the complete recovered reader.** The manual
+axis/scalar/selection branches and native list counters are removed. A native
+context supplies initial sentinels, property length/axis/selection bounds and
+terminated `Ct` input. The existing scoped heap owner covers every recognized
+property, including text allocations and frees on type changes; its final native
+heap-lifetime cleanup remains separate from original game code. Outer reader
+`0x555140`, inheritance, resource binding, original state/script/response ownership
+and cell rendering are still separate work.
+
+The asset-free parser fixture checks actual packed colours, `Ci` words, raw
+`Cs` signalling-NaN/negative-zero bits, `Cr` triple placement, UTF-16 surrogate
+code units, receiver-pointer unpack return and removal of a text allocation when
+its type changes. All three native CTests and native/mod-enabled builds pass.
+Headless checks pass all 19 settings scenarios and slider pixels, all 10 Controls
+scenarios, pause/scroller motion and settled centering, and HUD skins at 640x480,
+1280x720, 1680x720 and 2560x720. These establish native integration separately
+from original/rebuilt evidence and do not establish the original cell renderer.

@@ -4,6 +4,7 @@
 struct FEngColour {
     int blue0, green4, red8, alphaC;
     unsigned int Pack(); // 0x5054d0
+    FEngColour *Unpack(unsigned int colour); // 0x5054a0; observed EAX returns the receiver.
 };
 UG2_CHECK_SIZE(FEngColour, 0x10);
 void FEngCopyColour(FEngColour *colour, HudVisibilityObject *object); // 0x50ccc0

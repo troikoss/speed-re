@@ -1,6 +1,7 @@
 #ifndef UG2_FENG_LIST_H
 #define UG2_FENG_LIST_H
 #include "../Hud/HudVisibility.h"
+struct FEngColour;
 
 struct FEListAxisEntry {
     float value0, value4, value8;
@@ -27,6 +28,12 @@ struct FEListObject {
     void SetColumn(unsigned int value); // 0x504180
     void SetRow(unsigned int value); // 0x5041b0
     void AdvanceCell(); // 0x504230
+    void SetCellType(unsigned int value); // 0x5041e0
+    void SetCellColour(FEngColour *value); // 0x516cd0
+    void SetCellPair4(const unsigned int *value); // 0x516d00
+    void SetCellTripleC(unsigned int one, unsigned int two, unsigned int three); // 0x516d40
+    void SetCellFour20(const unsigned int *value); // 0x516d80
+    void SetCellText(const unsigned short *value); // 0x516e10
     void SetWrap(unsigned char value); // 0x504270
     void CalculateOffsets(); // 0x504360
     void FinishMotion(); // 0x5043b0
