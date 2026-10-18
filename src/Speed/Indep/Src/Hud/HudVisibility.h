@@ -43,6 +43,9 @@ struct FEngInlineKeyHeader {
 };
 struct FEScriptTrack {
     void Assign(const FEScriptTrack *other); // 0x54d350, clear then owned clone or borrowed reference
+    FEngScriptKey *FindKey(int time); // 0x5052b0
+    FEngScriptKey *FindKeyOrBase(int time); // 0x505260
+    FEngScriptKey *FirstKey(); // 0x4fe8d0
     unsigned char value0;
     unsigned char value1;
     unsigned char value2;

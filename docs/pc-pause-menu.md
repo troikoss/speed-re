@@ -4238,3 +4238,45 @@ reader-built tracks, assuming the retail pairing of one `Kd` per `FI`. Package
 fixtures now use the original 16-byte `Sh` and NUL-terminated `Sn`. Native and
 asset-free CTests, 19 settings, 10 Controls and scroller motion pass, and
 HUD, pause and options captures are byte-identical to the previous build.
+
+## Track interpolation and evaluators (2026-10-18)
+
+Retail scripts use interpolation 1 for every track except one (interpolation 3),
+with types 3 (24 tracks), 4 (28,920), 5 rotation (4,913) and 6 colour (41,148)
+and cycle modes 0/1. The original playback path is per-object update `0x54ce60`
+(from frame manager `0x558c00`) → script apply `0x541db0` → guarded evaluator
+`0x5354f0` or the direct evaluators below.
+
+`FEngInterpolation.cpp` recovers key lookups `0x5052b0` (first key at or after
+time, else last; null if none), `0x505260` (same, but time <= -1 or no keys
+returns the inline base key at +8) and `0x4fe8d0`; integer lerp `0x5050d0`
+(wrapping delta loaded by FILD, +0.5, `__ftol2` 64-bit truncation keeping EAX);
+vector2 lerp `0x505110`; quaternion subtract/scale/add `0x4fe830`/`0x4fe770`/
+`0x4fe7d0`, normalize `0x511c80` (unrounded length; inverse not above 1e-5 or
+NaN gives identity), assign `0x4955f0` and slerp `0x519b00`. The slerp compares
+its unrounded dot product with 0 and 0.999f; only the sine path uses the
+sign-flipped copy of b (angle `0x4000 - 0x43c490(dot)` × `0x784240`, three
+`0x43c350` sines, float spills of the scaled terms and inverse, one unrounded
+x component); the near-equal path is a normalized lerp from the unflipped b.
+Both finish with `interpolated.Multiply(base)` (`0x4fe6b0`).
+
+`FEngTrackEvaluate.cpp` recovers evaluator `0x52bdc0`: clamp, loop (wrapping
+from the last key to the first over the sign-extended 24-bit duration, and from
+`FindKeyOrBase(duration)` before the first key) and ping-pong selection, whose
+null lower key makes the zero-fraction read address 0x10 in the original too.
+Exact fractions 0 and 1 add a key value to the base (integer adds for types 1
+and 6, quaternion multiply for type 5); other fractions call the type's
+interpolator. Without keys the base is copied. Step evaluator `0x519d40`,
+guarded dispatcher `0x5354f0` (bit 7 of +3 skips; a keyless track sets it) and
+single-track apply `0x541f60` are recovered too.
+
+`verify_pc_feng_interpolation.py --compiler clang-cl --mutation-checks`: 45,567
+comparisons under 53/64-bit x87 precision, including constructed dot products
+that straddle 0.999f within float rounding and cancellation inputs; 15
+mutations rejected. `verify_pc_feng_track_evaluate.py`: 21,278 comparisons with
+shared original callees traced by argument, page zero mapped for the ping-pong
+read; 16 mutations rejected. Three volatile float locals and an explicit 64-bit
+conversion reproduce the original's spills and `__ftol2` under Clang; MSVC 7.1
+and byte identity are unverified. `0x535570` (rebase a track to a value, used
+by `0x4abaf0`) is not recovered. Native playback still uses `ApplyTrack`;
+`0x541db0`, events `0x534c70` and update `0x54ce60` are next.

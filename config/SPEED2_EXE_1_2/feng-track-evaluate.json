@@ -1,0 +1,32 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "Evaluate": {
+      "address": "0x52bdc0",
+      "size": 1122,
+      "sha256": "95a3232e8dfad5e86f7a1341c3974eee9c2fa85a163a7568195ddfa4325a77c4"
+    },
+    "Step": {
+      "address": "0x519d40",
+      "size": 122,
+      "sha256": "75c534ed2c66f90d67a699d4f2b5c67d785ed45758aaf4ff4db87a0d59eb8ec3"
+    },
+    "Update": {
+      "address": "0x5354f0",
+      "size": 115,
+      "sha256": "e2d36757ab5e1bbe657b16d17f69548d5cfc63dcedd2333225749a5479fa70da"
+    },
+    "ApplyScriptTrack": {
+      "address": "0x541f60",
+      "size": 95,
+      "sha256": "e1722b2034aa983a04e846d8986e7886f3c1d931513f0983a822aeb0a44b1dfa"
+    }
+  },
+  "data": {
+    "EvaluateJumpTables": {
+      "address": "0x52c224",
+      "size": 72,
+      "sha256": "f450cdc71f303f5d3333cd48f4a88e0943304de704ac5f8f5a9738c26fc5cf6c"
+    }
+  }
+}

@@ -602,3 +602,11 @@ renamed from cross-title evidence alone.
     Smoke scripts need `--game "$UG2_DIR"`. Next: native playback/interpolation
     (`ApplyTrack`/`AdvanceScripts`) against original script update, then
     message delivery `0x541fc0` and object dispatch `0x5367e0`.
+
+40. **Track interpolation/evaluators (2026-10-18).** `FEngInterpolation.cpp`
+    (11 routines incl. slerp `0x519b00`) and `FEngTrackEvaluate.cpp`
+    (`0x52bdc0`, `0x519d40`, `0x5354f0`, `0x541f60`) verified: 45,567 and
+    21,278 comparisons, 15 and 16 mutations. Not yet integrated. Next: apply
+    `0x541db0`, events `0x534c70`, update `0x54ce60` (+ type ticks `0x504910`,
+    `0x517230`, `0x504dc0`), then replace native `AdvanceScripts`/`ApplyTrack`.
+    Global mask `0x7f7c8c` is read by the update/apply flag writes.

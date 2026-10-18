@@ -44,6 +44,7 @@ struct FEngReference {
 struct FEngQuaternion {
     float value0[4];
     FEngQuaternion *Multiply(FEngQuaternion *out, const FEngQuaternion *other); // 0x4fe6b0
+    FEngQuaternion *Assign(const FEngQuaternion *other); // 0x4955f0, returns this
 };
 struct FEngInteger4 {
     unsigned int value0[4];

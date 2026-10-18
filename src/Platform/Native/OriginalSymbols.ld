@@ -835,6 +835,12 @@ fengValue8384D0 = 0x8384d0;
 
 /* Original FEng coordinate tolerance and script state-key table. */
 fengEpsilon7992EC = 0x7992ec;
+fengZero7D7D3C = 0x7d7d3c;
+fengSlerpLimit79B158 = 0x79b158;
+fengAngleUnit784240 = 0x784240;
+fengOne784250 = 0x784250;
+fengHalf784260 = 0x784260;
+fengEpsilon7845A0 = 0x7845a0;
 fengStateKeys7992F4 = 0x7992f4;
 
 /* Original icon scroller clock and tween constants, native frame delta binding. */
