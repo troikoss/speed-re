@@ -62,5 +62,8 @@ fallback side, pack test, loader count and destructor unlink are detected.
 loader, publishes TrackInfo 4000 at `0x883dac` when it is loaded, and builds the six-entry grid
 with `0x5eb5d0`. Native session seam: the demo's single human participant has grid index 1 and
 takes the first entry (L4RA: 1695.2, -883.6, ground 23.8, heading `0xf8be`). This replaces the
-former invented "flat road polygon near the map centre" spawn. The car constructor `0x604260`
-and participant setup remain native.
+former invented "flat road polygon near the map centre" spawn. Participant setup `0x6065b0`
+and the car constructor `0x604260` are recovered
+([vehicle physics](pc-vehicle-physics.md#car-construction-0x604260-and-participant-setup-0x6065b0-recovered));
+the demo's record carries the track spawn as an explicit placement (`+0x91c`), so respawns at
+other points take the same path.

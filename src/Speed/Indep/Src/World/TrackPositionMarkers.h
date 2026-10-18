@@ -57,6 +57,9 @@ struct WRoadNav {
     float value34;
     float value38;
     WRoadNav *Construct(); // 0x5da2f0
+    WRoadNav *Construct(struct StartingPosition *start); // 0x5ded90, not recovered
+    void SetPosition(struct WheelVector *position); // 0x5da3d0, not recovered
+    void SetPosition(struct WheelVector *position, float distance, int flag); // 0x5da410, not recovered
     void Advance5DA370(float distance, float lateral, int flag);
     void Destroy();        // 0x4022c0 (shared empty routine)
 };

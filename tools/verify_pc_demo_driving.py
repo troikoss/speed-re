@@ -129,7 +129,7 @@ def main():
     counts, bit_exact = {}, {}
     rng = random.Random(0x407a30)
 
-    def compare(method, state, duration=None, argument=None, replay=(0, 0, 0), flags=(), frame=7, flow=4):
+    def compare(method, state, duration=None, argument=None, replay=(0, 0, 0), flags=(), frame=7, flow=4, recorder=(0, 0, 0)):
         f, rebuilt_entry = methods[method]
         results, returns = [], []
         for side, uc in enumerate(machines):
@@ -137,6 +137,9 @@ def main():
             uc.mem_write(0x89cf69, bytes([replay[0]]))
             uc.mem_write(0x8669f4, struct.pack('<i', replay[1]))
             uc.mem_write(0x866a14, struct.pack('<i', replay[2]))
+            uc.mem_write(0x850098, bytes([recorder[0]]))
+            uc.mem_write(0x864fac, struct.pack('<i', recorder[1]))
+            uc.mem_write(0x89cf48 + 0x119, bytes([recorder[2]]))
             for a in (0x89e7d8, 0x89e7d9, 0x89e7e2, 0x89e7e3):
                 uc.mem_write(a, bytes([int(a in flags)]))
             for a in (0x890100, 0x890104, 0x890108, 0x89010c, 0x890110, 0x890114):
@@ -152,7 +155,7 @@ def main():
                 args = struct.pack('<i', argument)
             uc.mem_write(STACK, struct.pack('<I', STOP) + args)
             uc.reg_write(UC_X86_REG_ESP, STACK)
-            receiver = CAR if f['kind'] == 'prefix' else 0x89cf48 if method == 'QueryState5F00F0' else INPUT
+            receiver = CAR if f['kind'] == 'prefix' else 0x89cf48 if method.startswith('QueryState') else INPUT
             uc.reg_write(UC_X86_REG_ECX, receiver)
             for reg in (UC_X86_REG_EBX, UC_X86_REG_ESI, UC_X86_REG_EDI, UC_X86_REG_EBP):
                 uc.reg_write(reg, 0x12345678)
@@ -170,7 +173,7 @@ def main():
         counts[method] = counts.get(method, 0) + 1
         bit_exact[method] = bit_exact.get(method, 0) + int(results[0] == results[1])
         assert traces[0] == traces[1], (method, traces)
-        if method.startswith('Read') or method == 'QueryState5F00F0':
+        if method.startswith('Read') or method.startswith('QueryState'):
             assert returns[0] == returns[1], (method, returns)
         for off in range(0, 0x4000, 4):
             a, b = results[0][off:off + 4], results[1][off:off + 4]
@@ -210,6 +213,8 @@ def main():
         compare('SelectForward', state, flags=flags)
     for replay in itertools.product((0, 1, 255), (-1, 0, 1), (-1, 0, 1)):
         state, _ = fixture(); compare('QueryState5F00F0', state, replay=replay)
+    for recorder in itertools.product((0, 1, 255), (-1, 0, 1, 0x100), (0, 1, 255)):
+        state, _ = fixture(); compare('QueryState5EFE70', state, recorder=recorder)
     speeds = (-40, -30, -2.001, -2, -1.999, -0.5, 0, 0.499, 0.5, 0.501, 20)
     for speed, throttle, brake, flag in itertools.product(speeds, (0, 0.49, 0.5, 0.51, 0.6, 0.6001, 1), (0, 0.49, 0.5, 0.51, 0.6, 0.6001, 1), (0, 1)):
         state, put = fixture()

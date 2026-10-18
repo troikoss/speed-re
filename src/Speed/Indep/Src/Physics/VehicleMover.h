@@ -334,6 +334,7 @@ struct PhysicsTuning {
     float valuesC0[9];
     int valueE4;
     PhysicsTuning *Construct();
+    void Bind(int carType, CarPhysicsRecord *record, PhysicsUpgradeSelection *selection); // 0x59b060
     int CountActive(); // 0x59b0e0
     bool IsActive(int index); // 0x59b080
     void ApplyEntry(int index, float *first, float *second); // 0x59b160
@@ -387,6 +388,7 @@ struct PhysicsParameters {
     PhysicsParameters *Construct(); // 0x5ac6e0
     void Compose(int mode, int refresh, int flag); // 0x5b4dc0
     void Refresh(int refresh, int flag, char select);
+    CarPhysicsRecord *GetRecord(bool compose); // 0x5b5350
     signed char GetClassIndex(); // 0x5b5330
     float GetPhysicsSpeed(); // 0x5b5930
     float GetDriveArea(); // 0x59a350
@@ -399,8 +401,11 @@ UG2_CHECK_OFFSET(PhysicsParameters, driveCurve55C, 0x55c);
 UG2_CHECK_SIZE(PhysicsParameters, 0x570);
 
 struct PhysicsInfo {
-    char unidentified0[0x10];
+    int value0;           // car type index
+    char unidentified4[0xc];
     PhysicsParameters parameters10;
+    void Refresh(int secondary, int refresh, int flag, char select); // 0x639ce0
+    void SetupParts(bool secondary, int unused); // 0x6399d0, not recovered
 };
 UG2_CHECK_OFFSET(PhysicsInfo, parameters10, 0x10);
 UG2_CHECK_SIZE(PhysicsInfo, 0x580);
@@ -445,12 +450,60 @@ struct ResetPlacement {
     unsigned int flags70;
 };
 
-struct MoverContext {
-    char unidentified0[4];
-    int value4;
-    char unidentified8[0x8f8];
-    unsigned char flag900;
+// Physics setup held by a participant record at +0x10. Its prefix is PhysicsInfo.
+struct CarPhysicsSetup {
+    int value0;           // car type index
+    unsigned char value4;
+    unsigned char value5;
+    unsigned char value6;
+    unsigned char value7;
+    char unidentified8[8];
+    PhysicsParameters parameters10;
+    unsigned char value580;
+    unsigned char value581;
+    char unidentified582[2];
+    int value584;
+    int value588;
+    int value58C;
+    int values590[0xaa];
+    unsigned char values838[0xaa];
+    char unidentified8E2[2];
+    int value8E4;
+    int value8E8;
+    CarPhysicsSetup &operator=(const CarPhysicsSetup &source); // 0x413440
 };
+UG2_CHECK_OFFSET(CarPhysicsSetup, parameters10, 0x10);
+UG2_CHECK_OFFSET(CarPhysicsSetup, values590, 0x590);
+UG2_CHECK_OFFSET(CarPhysicsSetup, values838, 0x838);
+UG2_CHECK_SIZE(CarPhysicsSetup, 0x8ec);
+
+// Participant record, 0x940 bytes, in the array at *0x89e810 (count *0x89e814); car +0x14.
+struct MoverContext {
+    signed char state0;   // records with a positive value are skipped by 0x6065b0
+    signed char value1;   // copied to car +0xa
+    char unidentified2;
+    signed char gridIndex3; // 1..6
+    int value4;           // participant kind: 1 human, 2 and 3 others
+    char unidentified8[8];
+    CarPhysicsSetup setup10;
+    char unidentified8FC[4];
+    unsigned char flag900;
+    char unidentified901[7];
+    int carType908;       // setup +0 copied by 0x601110
+    char unidentified90C[0x10];
+    unsigned char hasPlacement91C;
+    char unidentified91D[3];
+    WheelVector placement920;
+    char unidentified92C[4];
+    unsigned short heading930;
+    char unidentified932[0xe];
+};
+UG2_CHECK_OFFSET(MoverContext, setup10, 0x10);
+UG2_CHECK_OFFSET(MoverContext, flag900, 0x900);
+UG2_CHECK_OFFSET(MoverContext, carType908, 0x908);
+UG2_CHECK_OFFSET(MoverContext, placement920, 0x920);
+UG2_CHECK_OFFSET(MoverContext, heading930, 0x930);
+UG2_CHECK_SIZE(MoverContext, 0x940);
 
 // Object at car +0x968 read by the HUD gauge 0x4c68d0.
 class CarReplayState {
@@ -479,7 +532,9 @@ struct ParticipantRoute {
 
 // The car object; its +0x40 region is DrivetrainAuxiliary.
 struct MoverModeOwner {
-    char unidentified0[0xc];
+    WCollisionLink link0; // world list at *0x890080 +0
+    short index8;         // slot in the car tables at 0x89ccf8 (0x5f0d20)
+    short valueA;         // participant record +1
     char *valueC;         // +0x7f0 is passed to the needle angle 0x4aa0e0 (unread there)
 
     PhysicsInfo *physicsInfo10;
@@ -517,9 +572,9 @@ struct MoverModeOwner {
     char unidentified46C[0x64];
     int gear4D0;          // last gear seen by 0x5ebe00
     int value4D4;
-    char unidentified4D8[4];
+    float value4D8;
     float value4DC;
-    char unidentified4E0[4];
+    float value4E0;
     float value4E4;
     float value4E8[4];    // integrated by 0x5ecac0
     float value4F8[4];    // smoothed towards car +0x330 by 0x5ecac0
@@ -529,33 +584,98 @@ struct MoverModeOwner {
     WheelVector previousVelocity520;
     char unidentified52C[4];
     WheelVector previousAngular530;
-    char unidentified53C[0x10];
+    char unidentified53C[4];
+    int value540;
+    int value544;
+    int value548;
     float contactTime54C; // 0x5fc050 state-1 timer start
     unsigned char effectsEnabled550;
-    char unidentified551[3];
-    CarEffectEmitters *effects554;
+    unsigned char value551;
+    char unidentified552[2];
+    CarEffectEmitters *effects554; // created by 0x63a5a0 with the car's render object
     char unidentified558[0x58];
     int value5B0;
-    char unidentified5B4[0x18];
+    int value5B4;
+    int value5B8;
+    char unidentified5BC[4];
+    unsigned char value5C0;
+    char unidentified5C1[3];
+    char unidentified5C4[8]; // the collider (see Collider()) starts here
     int colliderPack5CC;
-    char unidentified5D0[0x32c];
-    float value8FC;       // published by world update 0x609ce0 at world +0xe0
-    float direction900;   // reset direction used when 0x88f2be is set
+    char unidentified5D0[0x32c]; // the road navigator (see Navigator()) starts at +0x8d8
+    float value8FC;       // published by world update 0x609ce0 at world +0xe0 (navigator +0x24)
+    float direction900;   // reset direction used when 0x88f2be is set (navigator +0x28)
     float direction904;
-    char unidentified908[0x50];
-    int forceFeedback958;
+    char unidentified908[8];
+    float value910;       // 16.0 for kind-3 participants
+    struct CarTracker914 *tracker914;
+    struct CarRecorder918 *recorder918;
+    int value91C;
+    int value920;
+    unsigned char value924;
+    unsigned char value925;
+    unsigned char value926;
+    unsigned char value927;
+    unsigned char value928;
+    char unidentified929[3];
+    int tick92C;
+    float values930[3];
+    unsigned char value93C;
+    unsigned char value93D;
+    char unidentified93E[2];
+    int value940;
+    unsigned char value944;
+    char unidentified945[3];
+    int value948;
+    int value94C;
+    int value950;
+    int value954;
+    struct CarFeedback958 *forceFeedback958;
     unsigned char mask95C;
-    char unidentified95D[0xb];
-    CarReplayState *replay968; // +0x58 is the replayed engine RPM
+    unsigned char value95D;
+    char unidentified95E[2];
+    int value960;
+    unsigned char value964;
+    char unidentified965[3];
+    CarReplayState *replay968; // created by audio 0x4690e0; +0x58 is the replayed engine RPM
 
     int resetRequested96C;
     int countdown970;     // decremented each world update 0x609ce0
     int resetTick974;
     float resetDuration978;
-    char unidentified97C[0x1c];
+    unsigned char value97C;
+    char unidentified97D[3];
+    int values980[4];
+    float value990;       // start position x
+    float value994;       // start position y
     unsigned char effectsSuppressed998;
-    char unidentified999[0x3f];
+    unsigned char value999;
+    char unidentified99A[2];
+    int values99C[4];
+    int value9AC;
+    unsigned char value9B0;
+    char unidentified9B1[7];
+    int value9B8;
+    char unidentified9BC[4];
+    int value9C0;
+    int value9C4;
+    int value9C8;
+    int value9CC;
+    int value9D0;
+    unsigned char value9D4;
+    char unidentified9D5[3];
     int shiftTick9D8;     // clock at the last gear change, 0x5ebe00
+    char unidentified9DC[4];
+    MoverModeOwner *Construct(MoverContext *record, WheelVector *position, unsigned short heading,
+                              float distance); // 0x604260
+    void SetPhysics(struct CarPhysicsSetup *setup); // 0x601110
+    void SetParticipantKind(int kind); // 0x5eba30, not recovered
+    void LoadColliderPacks(); // 0x5f54a0, not recovered
+    void PlaceOnGround(); // 0x5f5010, not recovered
+    void CreateRender(PhysicsInfo *info); // 0x63a5a0, not recovered
+    void DestroyRender(); // 0x63a610, not recovered
+    void Prepare5F6E20(); // 0x5f6e20, not recovered
+    struct WRoadNav *Navigator() { return reinterpret_cast<struct WRoadNav *>(reinterpret_cast<char *>(this) + 0x8d8); }
     float GetDraftSum(); // 0x5ebd80
     void NotifyContact(MoverModeOwner *other); // 0x5f4960
     void SwitchMover(int type); // 0x5f46a0, not recovered
@@ -608,6 +728,19 @@ UG2_CHECK_OFFSET(MoverModeOwner, value4E4, 0x4e4);
 UG2_CHECK_OFFSET(MoverModeOwner, mask95C, 0x95c);
 UG2_CHECK_OFFSET(MoverModeOwner, resetTick974, 0x974);
 UG2_CHECK_OFFSET(MoverModeOwner, replay968, 0x968);
+UG2_CHECK_OFFSET(MoverModeOwner, valueA, 0xa);
+UG2_CHECK_OFFSET(MoverModeOwner, value548, 0x548);
+UG2_CHECK_OFFSET(MoverModeOwner, value5C0, 0x5c0);
+UG2_CHECK_OFFSET(MoverModeOwner, colliderPack5CC, 0x5cc);
+UG2_CHECK_OFFSET(MoverModeOwner, value8FC, 0x8fc);
+UG2_CHECK_OFFSET(MoverModeOwner, tracker914, 0x914);
+UG2_CHECK_OFFSET(MoverModeOwner, tick92C, 0x92c);
+UG2_CHECK_OFFSET(MoverModeOwner, forceFeedback958, 0x958);
+UG2_CHECK_OFFSET(MoverModeOwner, value990, 0x990);
+UG2_CHECK_OFFSET(MoverModeOwner, values99C, 0x99c);
+UG2_CHECK_OFFSET(MoverModeOwner, value9B8, 0x9b8);
+UG2_CHECK_OFFSET(MoverModeOwner, shiftTick9D8, 0x9d8);
+UG2_CHECK_SIZE(MoverModeOwner, 0x9e0);
 UG2_CHECK_OFFSET(MoverModeOwner, stability464, 0x464);
 UG2_CHECK_OFFSET(MoverModeOwner, physicsInfo10, 0x10);
 UG2_CHECK_OFFSET(MoverModeOwner, effectsEnabled550, 0x550);
@@ -736,12 +869,15 @@ public:
     unsigned char flag21;
     char unidentified22[0x36];
     int tick58;
-    bool QueryState5EFE70();
+    char unidentified5C[0xbd];
+    unsigned char flag119;
+    bool QueryState5EFE70(); // 0x5efe70
     bool QueryState5F00F0();
     int QueryState5F0880(); // 0x5f0880
 };
 UG2_CHECK_OFFSET(ReplayRecorder, flag21, 0x21);
 UG2_CHECK_OFFSET(ReplayRecorder, tick58, 0x58);
+UG2_CHECK_OFFSET(ReplayRecorder, flag119, 0x119);
 extern int *raceState890118;
 unsigned short WheelAngle(float x, float y);
 float ComputeTractionFactor(float slip, float handbrake, float speed, float base, float extra,

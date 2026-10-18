@@ -865,3 +865,63 @@ hook now runs before the whole world update. Headless `ug2sim` runs (960 frames 
 reverse, `UG2_STEER=0.5` and `-0.4` with wall contacts) are byte-identical to the previous
 build, and the 12 native mod scenarios pass.
 
+
+## Car construction `0x604260` and participant setup `0x6065b0` recovered
+
+`CreateNativeVehicle` now builds the car through the recovered construction chain in
+`src/Speed/Indep/Src/Physics/CarConstruction.cpp`:
+
+- Participant setup `0x6065b0` builds the six-entry grid (`0x5eb5d0`) and, for grid
+  indices 1..6, finds the participant record (array `*0x89e810`, 0x940 bytes, count
+  `*0x89e814`) whose `+3` matches and whose `+0` is not positive. A record with `+0x900`
+  set creates kind 0; kind-1 records (human) create kind 3 when `*0x89e7b8 > 0`, else 1,
+  at the explicit placement `+0x920`/heading `+0x930` when `+0x91c` is set; kind-2 records
+  create kind 3. It then rebuilds the world's car list (`0x5f0d20`), appends the kind-3
+  records' entries from world `+0x118` (`0x42f7a0`) and rebuilds it again.
+- Car creation `0x606480` receives the grid entry in `ecx` and the record in `edx` (a
+  compiler-chosen convention; the rebuilt function takes all four arguments on the stack).
+  It refreshes the record's physics (`0x639ce0`), places a road navigator at the entry
+  (`0x5ded90`), allocates 0x9e0 bytes and runs the constructor at the entry (or at another
+  car state's `+0x20`/`+0x3cc`), sets the participant kind (`0x5eba30`), switches the mover
+  (`0x5f46a0`: kind 1 gets mover 1, kind 3 the mover from `0x5f4400` and `0x5f6e20` outside
+  races, otherwise 0) and appends the car to the world list at `*0x890080 +0`.
+- The car constructor `0x604260` (arguments: record, position, heading, navigator distance)
+  constructs the drivetrain state at `+0x40` (`0x5a93a0`), the collider at `+0x5c4`
+  (`0x5e0b40`) and the road navigator at `+0x8d8` (`0x5da2f0`, placed by `0x5da3d0` for a
+  negative distance, else `0x5da410`), the base driver `0x5eb930` (car `+0x30` is its
+  `+8` input), a null mover from `NullMoverSlotPool` (`*0x86b304`, vtable `0x7a5bb0`), the
+  tracker at `+0x914` (`0x63b590`/`0x60bcf0`), registers `0x4022c0` with `0x5e02b0`, loads
+  collider packs (`0x5f54a0`), binds physics (`0x601110`), creates the replay recorder
+  `+0x918` (`0x5fcb00`) when a replay is active or pending and the car sound `+0x968`
+  (`0x4690e0`) when audio is enabled, and places the car on the ground (`0x5f5010`). Kind-3
+  records set `+0x910` to 16.
+- Physics binding `0x601110` copies the setup into the record `+0x10` (`0x413440`), sets car
+  `+0x10`, `+0x20` (`0x5b5350`) and `+0xc` (CarTypeInfo row), refreshes, publishes the human
+  car type and upgrade selection at `0x8021b0`/`0x8900e8`, rebuilds the collision body
+  (`0x5aec20` with id `0x5930a0`), the force-feedback object `+0x958` (`0x63a360`, only when
+  row `+0x844` is zero), the render object (`0x63a610`/`0x63a5a0`), places the car and
+  switches the mover to 0 and back.
+- The setup copy `0x413440` rebinds the curve over its own samples (`0x4133d0`, which copies
+  63 of the 64 samples) and binds the tuning to the copy's car type, record and selection
+  (`0x59b060`). This is the binder the native code used to imitate.
+
+Verification: `tools/verify_pc_car_construction.py` (1024 cases, 53/64-bit x87, 12 routines,
+12288 comparisons, 17 mutations rejected) stubs every other callee at its original address;
+the nested runs compare whole chains from `0x6065b0`. Stack pointers passed to stubs are
+compared by their contents and the rebuilt null-mover vtable is normalised. Replay
+predicate `0x5efe70`, which the mover update now reaches for the human record, is verified
+in `verify_pc_demo_driving.py`. Byte identity is not established.
+
+Native seams (`NativeVehicle.cpp`): one human record with a stock setup and an explicit
+placement (the demo respawns at arbitrary points); `NullMoverSlotPool` created in place of
+race-start pool creation `0x598f10`; zero-filled allocations; the participant kind switch
+`0x5eba30` (native controls with recovered `0x425fc0` and the participant scaffold) and the
+mover factory `0x5f46a0` (null mover or PhysicsMover, now built with the CarTypeInfo row as
+car `+0xc` instead of a zeroed block); a yaw matrix in place of ground placement `0x5f5010`;
+no-op road-network placement, visual parts `0x6399d0`, render object, tracker registration,
+collider pack loading and update registration; a force-feedback object with no device.
+Kind 3, the replay recorder, car sound and world `+0x118` entries trap. With modding enabled, the mod bridge swaps its provider's collision body in after construction (15 mod scenarios pass). The world-list sort
+seam now accepts a single node. Headless `ug2sim` matches the previous build up to the first
+wall contact (between 3.5 and 4 s); afterwards the runs diverge slightly, as the car now
+carries original values the scaffold zeroed (the collision body's id, the CarTypeInfo row
+at car `+0xc`, the human participant kind).

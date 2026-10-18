@@ -209,7 +209,8 @@ struct DrivetrainAuxiliary {
     unsigned char assisted3C8[4];
     unsigned short heading3CC;
     unsigned short steering3CE;
-    char unidentified3D0[8];
+    int value3D0;
+    int value3D4;
     float averageWheel3D8;
     float slip3DC;
     float slip3E0;
@@ -243,6 +244,7 @@ struct DrivetrainAuxiliary {
     void UpdateOrigin(WheelVector *centre);
     void UpdateWheelRenderMatrices(int wheel);
     void InitialiseNitrous();
+    DrivetrainAuxiliary *Construct(WCollider *collider, CarPhysicsRecord *record); // 0x5a93a0
     void Reset();
     int IsWheelDriven(int wheel);
     int GetNitrousIndex();

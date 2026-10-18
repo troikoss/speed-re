@@ -12,6 +12,8 @@
 #include "../../Speed/Indep/Src/World/WCollision.h"
 #include "../../Speed/Indep/Src/Camera/CameraPush.h"
 #include "../../Speed/Indep/Src/Physics/WorldUpdate.h"
+#include "../../Speed/Indep/Src/Physics/CarConstruction.h"
+#include "../../Speed/Indep/Libs/bWare/bSlotPool.h"
 #include "../../Speed/Indep/Src/Hud/HudPlayerMasks.h"
 #include "../../Speed/Indep/Src/Frontend/PauseMenu.h"
 
@@ -232,7 +234,6 @@ unsigned int bGetTicker() {
 }
 
 // Unrecovered original routines. The demo state never reaches them; if it does, stop.
-bool ReplayRecorder::QueryState5EFE70() { NativeTrap("replay recorder 0x5efe70"); return false; }
 void MoverOwnerObject::Reset5FC2A0(MoverModeOwner *) { NativeTrap("car race object reset 0x5fc2a0"); }
 // Unrecovered callees of world update 0x609ce0. The per-frame ones are native no-ops, as
 // the demo never ran them before the world update was recovered; ones the demo state
@@ -253,8 +254,9 @@ void MoverModeOwner::UpdateEffects5F5730(float) {}
 void Update605780() {}
 void Update5E0A00() {}
 void Update5E5430() {}
+// A list of at most one node (the demo's car) is already in order.
 void CarWorld::Sort43E650(int (*)(void *, void *)) {
-    if (list0.next != &list0) NativeTrap("world list sort 0x43e650");
+    if (list0.next != &list0 && list0.next->next != &list0) NativeTrap("world list sort 0x43e650");
 }
 int CompareWorldEntry5EA240(void *, void *) { NativeTrap("world list comparator 0x5ea240"); return 0; }
 void PlayerRecord::Update602650() {}
@@ -495,6 +497,14 @@ void DestroyNativeVehicle(NativeVehicle *vehicle) {
         vehicle->controls = 0;
         if (vehicle->owner) vehicle->owner->input30 = 0;
     }
+    // Scaffold teardown: remove the car from the world list; the car object itself is not
+    // freed (no car destructor is recovered).
+    if (vehicle->owner) {
+        WCollisionLink *link = &vehicle->owner->link0;
+        link->previous->next = link->next;
+        link->next->previous = link->previous;
+        link->next = link->previous = link;
+    }
 }
 
 extern int audioEnabled7FAAA8;
@@ -527,105 +537,170 @@ bool InitialiseNativeRuntime(const char *gameDirectory, char *error, int errorSi
     return true;
 }
 
-bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, const char *carName,
-                         float startX, float startY, float startZ, float heading, char *error,
-                         int errorSize) {
-    memset(vehicle, 0, sizeof(*vehicle));
-    PhysicsInfo *info = static_cast<PhysicsInfo *>(calloc(1, sizeof(PhysicsInfo)));
-    info->parameters10.Construct();
-    int carIndex = 0;
-    char carTypeName[32];
-    if (!LoadCarTypeInfo(gameDirectory, carName, &vehicle->cameraSettings, &carIndex, carTypeName, error, errorSize)) {
-        return false;
-    }
-    PhysicsParameters *parameters = &info->parameters10;
-    parameters->value0 = carIndex;
-    // Native parameter entry seam: the original caller that binds the tuning
-    // object to its car, selection and record is unrecovered. Bind them here,
-    // then run recovered composer 0x5b4dc0 (stock build, extras, tuning,
-    // drive curve, class index) in free-drive mode without the performance run.
-    parameters->tuning374.value0 = carIndex;
-    parameters->tuning374.selection8 = &parameters->selection2E0;
-    parameters->tuning374.recordC = &parameters->record30;
-    parameters->Compose(0, 0, 0);
-    MoverModeOwner *owner = static_cast<MoverModeOwner *>(calloc(1, 0xa00));
-    owner->physicsInfo10 = info;
-    owner->context14 = static_cast<MoverContext *>(calloc(1, 0x910));
-    owner->record20 = &info->parameters10.record30;
-    owner->moverType28 = 1;
-    NativeControls *controls = static_cast<NativeControls *>(calloc(1, sizeof(NativeControls)));
-    new (controls) NativeControls;
-    // Recovered human input constructor 0x425fc0 (with base 0x423330 and route
-    // reset 0x41d160); C++ placement construction above supplies the native
-    // vtable in place of the original identity writes, and SEH is not modelled.
-    controls->ConstructHuman(owner);
-    // Native device seam: the original profile/controller setup assigns a
-    // device slot; slot 0 is assigned in the retail image (0x864788).
-    controls->device2AC = 0;
-    // Native free-drive entry seam: the original session entry is unresolved.
-    // It releases the pre-race brake hold (+0x2b4) and selects drive through
-    // the recovered human slot instead of the constructor's neutral request.
-    controls->flag2B4 = 0;
-    controls->SelectForward();
-    owner->input30 = controls;
-    // Car object defaults from its constructor 0x604260 that the mover reads.
-    owner->gear434 = 1;
-    owner->effectsEnabled550 = 1;
-    // Scaffold: the world object (0x890080) lists the race's cars at +0x10/+0x1c; the demo's
-    // only car is the player's, which the camera's other-car search skips as its own.
-    CameraCarList *cars = reinterpret_cast<CameraCarList *>(&randomScaffold);
-    cars->count10 = 1;
-    worldScaffold.count14 = 1;
-    worldScaffold.count18 = 1;
-    cars->cars1C[0] = owner;
-    owner->resetDuration978 = resetDurationDefault;
-    DrivetrainAuxiliary *state = owner->State();
-    state->record0 = &info->parameters10.record30;
-    // Car constructor 0x604260 builds the collider at +0x5c4; state +4 refers to it.
-    WCollider *collider = reinterpret_cast<WCollider *>(reinterpret_cast<char *>(owner) + 0x5c4);
-    collider->Construct();
-    state->collider4 = collider;
-    state->Reset();
-    state->position20.x = startX;
-    state->position20.y = startY;
-    state->position20.z = startZ;
-    // Scaffold placement: yaw about +Z (rows are the body axes in world space).
-    float c = cosf(heading), s = sinf(heading);
+// ---------------------------------------------------------------------------
+// Car construction seams. Participant setup 0x6065b0, car creation 0x606480, the car
+// constructor 0x604260 and physics binding 0x601110 are recovered (CarConstruction.cpp);
+// these stand in for their unrecovered callees.
+
+extern MoverContext *participantRecords89E810;
+extern int participantCount89E814;
+extern void *carNullMoverPool86B304;
+extern CarWorld *carWorld890080;
+
+// Allocation boundary 0x575620/0x575630. The original heap is not zero-filled; zeroing keeps
+// runs repeatable.
+void *AllocateCarMemory(unsigned int size) { return calloc(1, size); }
+void FreeCarMemory(void *memory) { free(memory); }
+
+void CarNullMover::Slot00() { NativeTrap("null mover slot 0x00"); }
+// 0x5eb930 builds the base driver and its input (0x423330, vtable 0x7855d8). Car creation
+// replaces it at once through SetParticipantKind, so the native stand-in builds nothing.
+CarDriver::CarDriver(MoverModeOwner *) { input8 = 0; }
+// 0x63b590 registers the object in the table at 0x89e970 and the list at 0x8a2ca4, and
+// 0x60bcf0 stores the four pointers; nothing native reads them.
+CarTracker914::CarTracker914() {}
+void CarTracker914::Bind(WheelVector *, WheelVector *, WheelVector *, WheelMatrix *) {}
+CarRecorder918::CarRecorder918(MoverModeOwner *) { NativeTrap("car recorder 0x5fcb00"); }
+// Force-feedback effects object (0x63a360/0x63a440). There is no device natively and the
+// collision consumer 0x637c70 is a native no-op.
+CarFeedback958::CarFeedback958(MoverModeOwner *) {}
+CarFeedback958::~CarFeedback958() {}
+CarReplayState *Audio82B884::CreateCarSound(MoverModeOwner *) { NativeTrap("car sound 0x4690e0"); return 0; }
+// 0x5e02b0 adds the callback to the update list at 0x88e9c4; the registered routine is empty.
+void EmptyRoutine4022C0() {} // 0x4022c0, the shared empty routine
+int RegisterUpdate5E02B0(void (*)(), int) { return 1; }
+int SelectMover5F4400(MoverModeOwner *) { NativeTrap("mover selection 0x5f4400"); return 0; }
+WCollisionLink *WorldSubsystem118::CreateEntry42F7A0(MoverContext *) { NativeTrap("world subsystem entry 0x42f7a0"); return 0; }
+void MoverModeOwner::Prepare5F6E20() { NativeTrap("car preparation 0x5f6e20"); }
+// Visual part selection 0x6399d0 and the render object 0x63a5a0 (which owns the effects
+// emitters at +0x554) belong to the native renderer; +0x554 stays null.
+void PhysicsInfo::SetupParts(bool, int) {}
+void MoverModeOwner::CreateRender(PhysicsInfo *) {}
+void MoverModeOwner::DestroyRender() { NativeTrap("car render release 0x63a610"); }
+// 0x5f54a0 loads the car's collider packs; the native world loads every pack at startup.
+void MoverModeOwner::LoadColliderPacks() {}
+// Road-network placement (0x5ded90, 0x5da3d0, 0x5da410 through 0x5d9cc0/0x5d9e30) is not
+// recovered: the navigators keep their zeroed state, so the constructor's distance is 0.
+WRoadNav *WRoadNav::Construct(StartingPosition *) { return Construct(); }
+void WRoadNav::SetPosition(WheelVector *) {}
+void WRoadNav::SetPosition(WheelVector *, float, int) {}
+
+// Scaffold for 0x5f5010 (ground placement through 0x5f49f0): a yaw matrix about +Z from the
+// constructor's heading (rows are the body axes in world space). No ground fit is made.
+void MoverModeOwner::PlaceOnGround() {
+    DrivetrainAuxiliary *state = State();
+    float angle = state->heading3CC * (6.28318530718f / 65536.0f);
+    float c = cosf(angle), s = sinf(angle);
+    WheelIdentity(&state->matrix50);
     state->matrix50.elements[0] = c;
     state->matrix50.elements[1] = s;
     state->matrix50.elements[4] = -s;
     state->matrix50.elements[5] = c;
     WheelIdentity(&state->matrix90);
-    // Car constructor 0x604260 creates the CarCollisionBody (0x5aec20) at +0x3c from the
-    // car's collision hull (CARS/<car>/GEOMETRY.BIN chunk 0x80034020).
-    if (!LoadCarHulls(gameDirectory, carName, carTypeName, error, errorSize)) {
-        return false;
+}
+
+// Seam for 0x5eba30: only the human kind exists natively. Its driver is the participant
+// scaffold and its input the native controls with the recovered human constructor 0x425fc0.
+void MoverModeOwner::SetParticipantKind(int kind) {
+    if (kind != 1) NativeTrap("participant kind 0x5eba30");
+    FreeCarMemory(participant2C);
+    value24 = kind;
+    NativeControls *controls = static_cast<NativeControls *>(calloc(1, sizeof(NativeControls)));
+    new (controls) NativeControls;
+    // C++ placement construction supplies the native vtable in place of the original
+    // identity writes; SEH is not modelled.
+    controls->ConstructHuman(this);
+    // Native device seam: the original profile/controller setup assigns a device slot;
+    // slot 0 is assigned in the retail image (0x864788).
+    controls->device2AC = 0;
+    // Native free-drive entry seam: the original session entry is unresolved. It releases
+    // the pre-race brake hold (+0x2b4) and selects drive through the recovered human slot
+    // instead of the constructor's neutral request.
+    controls->flag2B4 = 0;
+    controls->SelectForward();
+    participant2C = &participantScaffold;
+    input30 = controls;
+    if (mover34) reinterpret_cast<CarNullMover *>(mover34)->input4 = input30;
+    carKinds89CE00[index8] = value24;
+    carParticipants89CE58[index8] = participant2C;
+    carInputs89CEB0[index8] = input30;
+}
+
+// Seam for mover factory 0x5f46a0: type 0 keeps the null mover; type 1 replaces it with
+// the PhysicsMover, marks the collision body as mover-driven and attaches it (0x5938c0).
+void MoverModeOwner::SwitchMover(int type) {
+    if (type == 0) {
+        if (moverType28 != 0) NativeTrap("mover switch 0x5f46a0 to the null mover");
+        return;
     }
-#ifdef UG2_ENABLE_MODDING
-    owner->collisionBody3C = NativeModsCollisionBody(owner, 0);
-#else
-    owner->collisionBody3C = new CarCollisionBody(owner, 0);
-#endif
-    MoverCarInfo *carInfo = static_cast<MoverCarInfo *>(calloc(1, 0x100));
+    if (type != 1 || moverType28 != 0) NativeTrap("mover switch 0x5f46a0");
+    if (mover34) bFree(carNullMoverPool86B304, mover34);
     VehicleMover *mover = static_cast<VehicleMover *>(calloc(1, sizeof(VehicleMover)));
     new (mover->integrator8) MoverIntegrator;
-    owner->mover34 = mover;
-    mover->Construct(&info->parameters10.record30, carInfo, controls, owner);
-    owner->participant2C = &participantScaffold;
+    mover34 = mover;
+    moverType28 = type;
+    mover->Construct(record20, reinterpret_cast<MoverCarInfo *>(valueC), input30, this);
     // Native vtable seam: install the slot interface car update 0x6012b0 dispatches through.
     static VehicleMoverSlots moverSlots;
     mover->vtable0 = *reinterpret_cast<void **>(&moverSlots);
-    // Mover factory 0x5f46a0 marks the body as mover-driven and attaches it (0x5938c0).
+    collisionBody3C->hasMover5C = 1;
+    collisionBody3C->AttachMover();
+}
+
+bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, const char *carName,
+                         float startX, float startY, float startZ, float heading, char *error,
+                         int errorSize) {
+    memset(vehicle, 0, sizeof(*vehicle));
+    int carIndex = 0;
+    char carTypeName[32];
+    if (!LoadCarTypeInfo(gameDirectory, carName, &vehicle->cameraSettings, &carIndex, carTypeName, error, errorSize)) {
+        return false;
+    }
+    // The car constructor creates the CarCollisionBody (0x5aec20) from the car's collision
+    // hull (CARS/<car>/GEOMETRY.BIN chunk 0x80034020).
+    if (!LoadCarHulls(gameDirectory, carName, carTypeName, error, errorSize)) {
+        return false;
+    }
+    // Native session seam: the frontend and race setup that fill the participant records
+    // (0x89e810) are not recovered. One human record (kind 1, grid index 1) receives a stock
+    // physics setup for the car and an explicit placement, which participant setup 0x6065b0
+    // uses instead of the grid; the demo respawns the car at arbitrary positions.
+    static MoverContext record;
+    static CarPhysicsSetup setup;
+    memset(&record, 0, sizeof(record));
+    memset(&setup, 0, sizeof(setup));
+    setup.parameters10.Construct();
+    setup.value0 = carIndex;
+    setup.parameters10.value0 = carIndex;
+    record.setup10 = setup; // recovered copy 0x413440 binds the tuning to the record
+    record.value4 = 1;
+    record.gridIndex3 = 1;
+    record.hasPlacement91C = 1;
+    record.placement920.x = startX;
+    record.placement920.y = startY;
+    record.placement920.z = startZ;
+    float turns = heading / 6.28318530718f;
+    record.heading930 = (unsigned short)(int)floorf((turns - floorf(turns)) * 65536.0f + 0.5f);
+    participantRecords89E810 = &record;
+    participantCount89E814 = 1;
+    // Seam for race-start pool creation 0x598f10: NullMoverSlotPool, one slot per participant.
+    if (!carNullMoverPool86B304) carNullMoverPool86B304 = bNewSlotPool(0xc, participantCount89E814, "NullMoverSlotPool", 0);
+    SetupParticipants();
+    MoverModeOwner *owner = carWorld890080->cars1C[0];
+#ifdef UG2_ENABLE_MODDING
+    // Mod bridge scaffold: swap in the provider's collision body.
+    short id = owner->collisionBody3C->id14;
+    delete owner->collisionBody3C;
+    owner->collisionBody3C = NativeModsCollisionBody(owner, id);
     owner->collisionBody3C->hasMover5C = 1;
     owner->collisionBody3C->AttachMover();
-    vehicle->mover = mover;
+#endif
+    vehicle->mover = owner->mover34;
     vehicle->owner = owner;
-    vehicle->controls = controls;
-    vehicle->info = info;
-    vehicle->carInfo = carInfo;
+    vehicle->controls = static_cast<NativeControls *>(owner->input30);
+    vehicle->info = owner->physicsInfo10;
+    vehicle->carInfo = reinterpret_cast<MoverCarInfo *>(owner->valueC);
     snprintf(vehicle->carName, sizeof(vehicle->carName), "%s", carName);
-    // Car +0xc is the car's CarTypeInfo record (camera table at +0x720) in the original table.
-    owner->valueC = reinterpret_cast<char *>(carTypeInfoTable + carIndex * 0x890);
     BindNativePlayer(vehicle);
 #ifdef UG2_ENABLE_MODDING
     NativeModsVehicleCreated(vehicle);

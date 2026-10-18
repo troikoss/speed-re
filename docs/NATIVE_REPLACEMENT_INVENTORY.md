@@ -1,6 +1,6 @@
 # Native code replacement inventory
 
-Snapshot: 2026-10-18 (after the FEng frame manager recovery). Reference build: UG2 PC v1.2
+Snapshot: 2026-10-18 (after the car construction recovery). Reference build: UG2 PC v1.2
 `speed2.exe`.
 
 This is a planning document. It lists the native code in `src/Platform/Native`
@@ -29,7 +29,7 @@ still should come from recovered code.
 | 1 | ~~Car update `0x6012b0` and world update `0x609ce0`~~ (done; many callees remain seams) | 3 | 5 |
 | 2 | ~~Wire in verified-but-unintegrated tuning routines~~ (already linked; reachable only once the tuning-table loader, item 8, exists) | 1 | 3 |
 | 3 | ~~FEng messaging: frame manager `0x558c00`~~ (done; delivery `0x541fc0`/dispatch `0x5367e0` were already recovered; pad/mouse dispatch `0x54d4b0`/`0x54e020` remain) | 3 | 4 |
-| 4 | Car constructor `0x604260` and participant setup `0x6065b0` (replace `CreateNativeVehicle`) | 4 | 5 |
+| 4 | ~~Car constructor `0x604260` and participant setup `0x6065b0` (replace `CreateNativeVehicle`)~~ (done; participant kind `0x5eba30`, mover factory `0x5f46a0` and ground placement `0x5f5010` remain seams) | 4 | 5 |
 | 5 | FEng package/object loader `0x5554a0`/`0x555860` | 4 | 4 |
 | 6 | Collision: GJK `0x5b3390`, impulse `0x5af0e0`, world objects, cylinders | 3–4 | 4 |
 | 7 | Camera seams: pushes, shake, cockpit tests | 2–3 | 3 |
@@ -53,9 +53,11 @@ still should come from recovered code.
 
 | Native piece | Where | Replace with | Diff. | Imp. | Notes |
 | --- | --- | --- | --- | --- | --- |
-| `CreateNativeVehicle`: allocation, vtable shims, defaults, yaw-matrix placement, collider attach | `NativeVehicle.cpp:~228–310` | Car constructor `0x604260`, mover factory `0x5f46a0`, participant setup `0x6065b0` | 4 | 5 | Largest native substitute in the driving path. |
+| ~~`CreateNativeVehicle`: allocation, vtable shims, defaults, yaw-matrix placement, collider attach~~ | `CarConstruction.cpp` | Car constructor `0x604260`, physics binding `0x601110`, car creation `0x606480`, participant setup `0x6065b0` | 4 | 5 | Done 2026-10-18 ([vehicle physics](pc-vehicle-physics.md#car-construction-0x604260-and-participant-setup-0x6065b0-recovered)); the native session fills one participant record. |
+| Participant kind switch, mover factory and ground placement | `NativeVehicle.cpp` construction seams | `0x5eba30` (human `0x4266d0`), `0x5f46a0`, `0x5f5010`/`0x5f49f0` | 3–4 | 4 | Native controls and participant scaffold; null mover or PhysicsMover; a yaw matrix with no ground fit. |
+| Participant records and race-start pools | `CreateNativeVehicle` | Frontend/race setup filling `0x89e810`; pool creation `0x598f10` | 4 | 3 | One human record with an explicit placement; only `NullMoverSlotPool` is created. |
 | `New...` allocation factories (`NewMoverBody`, `NewEngine`, …), zero-filled blocks | `NativeVehicle.cpp:100–160` | Slot pools `0x440e50` and the original factories | 3 | 2 | Zero-filling hides uninitialised-read differences. |
-| Tuning bound to car by native code | `NativeVehicle.cpp:228` | The original caller that binds tuning to its car (unidentified) | 3 | 3 | Composer `0x5b4dc0` itself is recovered. |
+| ~~Tuning bound to car by native code~~ | `CarConstruction.cpp` | Setup copy `0x413440` (tuning bind `0x59b060`) | — | — | Done 2026-10-18: the record copy binds the tuning; the composer now runs through refresh `0x639ce0`. |
 | Verified routines not yet integrated: mode variants `0x5a7530`/`0x5a7750`/`0x5a77c0`/`0x5a7830`, offset `0x59aee0`, field switch `0x59b200`, normalisation `0x59b3c0`, reader `0x5a7da0`, range/setter leaves | not called | Already linked (2026-10-18 check) | — | 3 | Mode variants run from composer `0x5b4dc0`; the tuning routines run under `0x5b4780`, which the composer calls only when `CountActive() > 0`. No tuning entries exist natively, so they stay unreached until the tuning-table loader and binder are recovered. |
 | GLOBALB.BUN CarTypeInfo chunk kept resident and installed at `0x8a1ccc` | `NativeVehicle.cpp:91` | CarTypeInfo chunk loader (unrecovered) | 3 | 3 | |
 | Tuning-table loader absent, so full tuning never runs | — | Tuning-table loader | 3 | 3 | |
@@ -81,7 +83,7 @@ still should come from recovered code.
 | GJK and impulse resolution not yet verified | — | Verify `0x5b3390`, `0x5af0e0`; resolve 42 simplex ties in `0x595040` | 3 | 4 | |
 | World-object promotion/break trap | `NativeCollision.cpp:101–107` | `0x5b31f0`, `0x5ae000` | 4 | 4 | Breakable props and barriers. |
 | Cylinder shapes trap | `NativeCollision.cpp:141` | `0x5a23d0`, `0x5a2780` | 3 | 3 | |
-| ~~Contact notification to the participant traps~~ | `CarUpdate.cpp` | `0x5f4960` | 3 | 3 | Recovered; the native participant scaffold's slot `0x38` is a no-op and mover switch `0x5f46a0` traps. |
+| ~~Contact notification to the participant traps~~ | `CarUpdate.cpp` | `0x5f4960` | 3 | 3 | Recovered; the native participant scaffold's slot `0x38` is a no-op and the native mover factory seam traps on a switch away from the PhysicsMover. |
 | Collision effects dropped (sparks, debris, sounds, replay, FF) | `NativeCollision.cpp:56–93` | `0x5a9620` tail, `0x59fb70`, `0x5dc4c0`, `0x4814e0`/`0x4792d0`, `0x56fb20` | 4 | 2 | Mostly presentation; sound needs an audio backend. |
 | Point velocity, energy and car-body slot trap | `NativeCollision.cpp:111–121` | `0x59bec0`, `0x59bfd0`, `0x5a08b0` | 2 | 3 | Small leaves; likely reached once more contact paths run. |
 | Serialisation traps | `NativeCollision.cpp:125–138` | `0x593cc0`, `0x593120`, `0x5a9e80`, `0x593d10` | 2 | 1 | Replay/save only. |
@@ -169,7 +171,7 @@ still should come from recovered code.
 | Native piece | Where | Replace with | Diff. | Imp. | Notes |
 | --- | --- | --- | --- | --- | --- |
 | No sound device (`0x7faaa8 = 0`); collision sound set traps | `NativeVehicle.cpp:193`, `NativeCollision.cpp:93` | Audio system | 5 | 3 | Needs a native audio backend as well. |
-| Replay recorder query traps | `NativeVehicle.cpp:186` | `0x5efe70` | 4 | 1 | |
+| ~~Replay recorder query traps~~ | `ReplayState.cpp` | `0x5efe70` | — | — | Recovered 2026-10-18; reached by the mover update for the human record. |
 | bWare heap uses malloc/free | `NativeWorld.cpp:61` | `0x440390` `bMalloc`, `0x440540` | 2 | 1 | A reasonable permanent seam. |
 | `bGetTicker` and `bSPrintf` | `NativeVehicle.cpp:179`, `NativeCollision.cpp:20` | `bSPrintf` `0x4400d0` | 1 | 1 | |
 | D3DX matrix multiply | `NativeVehicle.cpp:161` | Statically linked D3DX (library, not game code) | — | — | Keep native. |

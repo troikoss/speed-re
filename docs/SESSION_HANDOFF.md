@@ -240,8 +240,8 @@ Decompilations of the scroller set were saved under the session scratchpad (`scr
   (loader `0x5df8a0`, also `0x80034100` sub-chunks, table at `0x883df0`/`0x883df4`), `0x34108`
   (`0x5db2e0`, list `0x88f760`), `0x34110..0x34113` (`0x5def30` -> grid `0x88eb00` `0x5da7a0`).
   Loaders are registered by the static initializers at `0x77e7d0..0x77e8d0`.
-- HUD caller `0x600590` (blocked on rear-view mirror view `0x5f1e10`), participant setup
-  `0x6065b0`, car constructor `0x604260`, world update `0x609ce0`, asset chunk loaders.
+- HUD caller `0x600590` (blocked on rear-view mirror view `0x5f1e10`), participant kind
+  switch `0x5eba30`, mover factory `0x5f46a0`, ground placement `0x5f5010`, asset chunk loaders.
 - Earlier physics items (tuning-table loader, CarTypeInfo binding) remain as listed in
   `docs/demo-substitute-audit.md`.
 

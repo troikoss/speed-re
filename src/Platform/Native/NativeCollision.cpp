@@ -37,10 +37,6 @@ unsigned int CarCollisionBaseHullKey(PhysicsInfo *) {
     return nativeCollisionHullKey;
 }
 
-// Mover switch 0x5f46a0 (from contact notification 0x5f4960); the demo car always has
-// a physics mover.
-void MoverModeOwner::SwitchMover(int) { NativeTrap("mover switch 0x5f46a0"); }
-
 // Effects of 0x5a9620 after the impulse sums (sparks 0x59fb70, debris 0x5dc4c0, collision
 // sounds 0x4814e0/0x4792d0, replay 0x56fb20, force feedback 0x5727b0): not recovered.
 void CollisionEffects(CollisionEvent *event, WheelVector *point, WheelVector *impulse, float speed) {

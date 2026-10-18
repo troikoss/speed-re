@@ -44,6 +44,13 @@
       "kind": "function"
     },
     {
+      "address": 6225520,
+      "size": 37,
+      "sha256": "28745bd718ef587f2f1814e3cafdce850846dbeb7454b544b751668ee81475af",
+      "method": "QueryState5EFE70",
+      "kind": "function"
+    },
+    {
       "address": 6226160,
       "size": 34,
       "sha256": "8548f348f0eafc4d3a1e8af3a2ae92c1bbfcd20c41a03812aaf5ad1fc0b9c60e",

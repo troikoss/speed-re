@@ -12,6 +12,7 @@ struct WorldCarPosition {
 
 struct WorldSubsystem118 {
     void Update42F910(float duration); // 0x42f910, not recovered
+    WCollisionLink *CreateEntry42F7A0(struct MoverContext *record); // 0x42f7a0, not recovered (kind-3 records)
 };
 
 struct CarWorld {
@@ -29,6 +30,7 @@ struct CarWorld {
     float NearestPlayerDistance(WheelVector *point); // 0x5f1160
     void Prepare5FA770(); // 0x5fa770, not recovered
     void Sort43E650(int (*compare)(void *, void *)); // 0x43e650, not recovered
+    void RebuildCarList(); // 0x5f0d20
 };
 UG2_CHECK_OFFSET(CarWorld, count10, 0x10);
 UG2_CHECK_OFFSET(CarWorld, cars1C, 0x1c);
@@ -51,5 +53,13 @@ void Update5E0A00(); // 0x5e0a00, not recovered
 void Update5E5430(); // 0x5e5430, not recovered
 void Update638070(); // 0x638070, not recovered
 int CompareWorldEntry5EA240(void *first, void *second); // 0x5ea240, not recovered
+
+// Per-index car tables (22 entries each) filled by 0x5f0d20 and 0x5eba30.
+extern MoverModeOwner *carTable89CCF8[22];
+extern int carMoverTypes89CD50[22];
+extern struct VehicleMover *carMovers89CDA8[22];
+extern int carKinds89CE00[22];
+extern RaceParticipant *carParticipants89CE58[22];
+extern MoverInput *carInputs89CEB0[22];
 
 #endif
