@@ -3,9 +3,9 @@
 
 #include "../Physics/Ug2Layout.h"
 #include "IconScrollerLayout.h"
+#include "FEngHash.h"
 
 // FEng/game-flow interfaces at the original call boundaries (all cdecl).
-unsigned int FngHash(const char *name); // 0x505450
 void *FngFindObject(const char *package, unsigned int hash); // native compatibility adapter
 void *FngFindStringByHash(const char *package, unsigned int hash); // 0x537a10, recovered typed string lookup
 void *FngFindNamedString(const char *package, const char *name); // 0x4953c0

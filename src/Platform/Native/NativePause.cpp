@@ -542,7 +542,7 @@ public:
     UNUSED_SLOT(Unidentified20) UNUSED_SLOT(Unidentified24) UNUSED_SLOT(Unidentified28)
     UNUSED_SLOT(Unidentified2C) UNUSED_SLOT(Unidentified30) UNUSED_SLOT(Unidentified34)
     UNUSED_SLOT(Unidentified38) UNUSED_SLOT(Unidentified3C) UNUSED_SLOT(Unidentified40)
-    UNUSED_SLOT(Unidentified44) UNUSED_SLOT(Unidentified48) UNUSED_SLOT(Unidentified4C)
+    UNUSED_SLOT(Unidentified44) UNUSED_SLOT(Unidentified48)
     UNUSED_SLOT(Unidentified50)
 #undef UNUSED_SLOT
     void GameMessage(unsigned int message, void *sender, unsigned int, FEPackage *package) {
@@ -554,6 +554,7 @@ public:
             return;
         }
     }
+    void RefillGrid(FEGridObject *, int, int) { NativeTrap("FEng grid owner refill +0x4c"); }
     void InputMessage(unsigned int, void *, unsigned int, FEPackage *) {}
     void MessagePosted(unsigned int, void *, FEPackage *, int, int) {}
     void MessageDelivering(unsigned int, int, void *, FEPackage *, unsigned int) {}
@@ -642,8 +643,6 @@ void IconScrollerFNGObject::MessageHandler(unsigned int message, int value8, int
 }
 
 // ---- FEng seams (cdecl interfaces declared in PauseMenu.h / PauseOptions.h) -----------------
-
-unsigned int FngHash(const char *name) { return FengHash(name); }  // 0x505450
 
 void *FngFindObject(const char *package, unsigned int hash) {  // native compatibility adapter
     NativeScreen *screen = FindScreen(package);

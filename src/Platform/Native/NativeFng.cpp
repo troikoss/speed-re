@@ -143,13 +143,7 @@ void BindNativeStringObserver(const std::vector<unsigned char> *language) {
 }
 
 unsigned int FengHash(const char *text) {
-    unsigned int hash = 0xffffffff;
-    for (; *text; ++text) {
-        unsigned char c = (unsigned char)*text;
-        if (c >= 'a' && c <= 'z') c -= 0x20;
-        hash = hash * 33 + c;
-    }
-    return hash;
+    return FngHash(text); // Native naming adapter; original 0x505450 executes recovered code.
 }
 
 FengPackage::FengPackage() {}

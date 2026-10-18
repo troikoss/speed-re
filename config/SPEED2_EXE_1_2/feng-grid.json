@@ -1,0 +1,35 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "WrapIndex": {
+      "address": "0x504790",
+      "size": 38,
+      "sha256": "559899a5ddfb15f7eec5b759540ea2486b0febb9f6338c537a72b7bdc3d38378"
+    },
+    "FngHash": {
+      "address": "0x505450",
+      "size": 47,
+      "sha256": "8c43e57b7bcd7ccde6bf7571a00a79334bbbd6f6e459eb0e2de11cd6b6014641"
+    },
+    "CanShift": {
+      "address": "0x518e70",
+      "size": 163,
+      "sha256": "596938db0014ee163f1359a27942d40a2aa5a54796623104c703a6f2a28dc52d"
+    },
+    "MoveSelection": {
+      "address": "0x504e40",
+      "size": 347,
+      "sha256": "27a666850504cd496c1a9c784d2efebb1e4b65cda2518d9ee7717ccfd2f8e9a5"
+    },
+    "ShiftAxis": {
+      "address": "0x518f20",
+      "size": 1933,
+      "sha256": "c96aaa3c449f60a91bdeaff97383028fd1bb26cd20c148b06908bfc9539777b6"
+    },
+    "Navigate": {
+      "address": "0x52bd70",
+      "size": 70,
+      "sha256": "f83fd546d9be7187ca386c7fa90919c8e58c80560d157557bfd9ed2b1cd62934"
+    }
+  }
+}

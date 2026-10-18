@@ -1,0 +1,31 @@
+#ifndef UG2_FENG_GRID_H
+#define UG2_FENG_GRID_H
+#include "FEngQueueNodes.h"
+struct FEGridObject;
+// 0x555800 -> reader+0x38 -> grid+0x5c supplies the queue's owner instance.
+typedef FEngQueueObserver FEGridOwner;
+struct FEGridCell { unsigned int value0[12]; };
+typedef void (__cdecl *FEGridRefill)(void *context, FEGridObject *grid, int column, int row);
+struct FEGridObject {
+    char unidentified0[0x5c];
+    FEGridOwner *owner5C;
+    unsigned int count60, count64, flags68;
+    int value6C, value70;
+    unsigned int value74, value78, value7C, value80;
+    float value84, value88;
+    FEGridCell *cells8C;
+    char unidentified90[0x30];
+    FEGridRefill callbackC0;
+    void *contextC4;
+    unsigned char CanShift(int delta, int selection, int offset, int total, int visible); // 0x518e70
+    unsigned char MoveSelection(int delta, unsigned int *selection, unsigned int *offset, int total, unsigned int visible); // 0x504e40
+    unsigned char ShiftAxis(int delta, unsigned int *selection, unsigned int *offset, int total, unsigned int visible, unsigned char horizontal); // 0x518f20
+    void Navigate(int x, int y); // 0x52bd70
+};
+int FEngGridWrapIndex(int value, int total); // 0x504790, cdecl; negative exact multiples return total.
+UG2_CHECK_SIZE(FEGridCell, 0x30);
+UG2_CHECK_OFFSET(FEGridObject, owner5C, 0x5c);
+UG2_CHECK_OFFSET(FEGridObject, cells8C, 0x8c);
+UG2_CHECK_OFFSET(FEGridObject, callbackC0, 0xc0);
+UG2_CHECK_SIZE(FEGridObject, 0xc8);
+#endif

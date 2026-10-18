@@ -363,6 +363,12 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   cell rendering and frame clock remain seams. Asset-free CTest `feng_list_native`
   checks the actual native parser through navigation and settling.
   See [list-state evidence](pc-pause-menu.md#list-setup-motion-and-native-projection-2026-10-18).
+  Type 6 navigation and both gates are now recovered/verified with controlled
+  refill interfaces. Production activation still needs the 0xc8-byte grid model
+  and original initial-fill/owner behavior; no native cell-population algorithm
+  is supplied. Asset-free CTest `feng_grid_native` exercises the recovered body.
+  Name hashing `0x505450` now executes recovered source; the native hash loop is
+  removed. See [grid/hash evidence](pc-pause-menu.md#type-6-grid-navigation-and-original-name-hashing-2026-10-18).
   See [message delivery evidence](pc-pause-menu.md#full-queued-message-delivery-2026-10-18).
   Native loading now selects/initializes Init as observed in the original readers. See [response evidence](pc-pause-menu.md#response-conditional-traversal-2026-10-18).
 - GUI formatted hashing `0x50b9c0`, buffer wrapper `0x50c960`, shared profiling

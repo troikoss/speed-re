@@ -92,3 +92,13 @@ target_link_options(ug2fenglist_native_test PRIVATE ${UG2_LINK_FLAGS} -Wl,--gc-s
 if(BUILD_TESTING)
     add_test(NAME feng_list_native COMMAND ug2fenglist_native_test)
 endif()
+
+# Asset-free recovered grid/callback integration. Fixed-address strings are synthetic.
+add_executable(ug2fenggrid_native_test src/Platform/Native/FEngGridNativeTest.cpp)
+target_compile_options(ug2fenggrid_native_test PRIVATE ${UG2_ARCH_FLAGS} -O1 -g
+    -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+target_link_libraries(ug2fenggrid_native_test ug2recovered)
+target_link_options(ug2fenggrid_native_test PRIVATE -m32 -no-pie)
+if(BUILD_TESTING)
+    add_test(NAME feng_grid_native COMMAND ug2fenggrid_native_test)
+endif()

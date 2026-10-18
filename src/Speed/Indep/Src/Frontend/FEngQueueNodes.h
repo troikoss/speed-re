@@ -2,6 +2,7 @@
 #define UG2_FENG_QUEUE_NODES_H
 #include "../Hud/HudVisibility.h"
 struct FEPackage;
+struct FEGridObject;
 struct FEngQueueNode {
     void DestructMessage(); // 0x51ab10
     void DestructOwnedPayload(); // 0x505350
@@ -20,7 +21,7 @@ struct FEngQueueList {
     FEngQueueNode *valueC;
     void Remove(FEngQueueNode *node); // 0x505400
 };
-// Observed slots from message posting/delivery; unidentified slots keep their offsets.
+// Observed owner slots from queue and grid callers; unidentified slots keep their offsets.
 struct FEngQueueObserver {
     virtual void Unidentified00() = 0;
     virtual void Unidentified04() = 0;
@@ -41,7 +42,7 @@ struct FEngQueueObserver {
     virtual void Unidentified40() = 0;
     virtual void Unidentified44() = 0;
     virtual void Unidentified48() = 0;
-    virtual void Unidentified4C() = 0;
+    virtual void RefillGrid(FEGridObject *grid, int column, int row) = 0; // original grid callback
     virtual void Unidentified50() = 0;
     virtual void MessagePosted(unsigned int message, void *sender, FEPackage *package, int target, int mask) = 0;
     virtual void MessageDelivering(unsigned int message, int target, void *sender, FEPackage *package, unsigned int mask) = 0;

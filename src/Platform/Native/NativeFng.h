@@ -13,13 +13,14 @@
 #include "../../Speed/Indep/Src/Frontend/FEngResponse.h"
 #include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
 #include "../../Speed/Indep/Src/Frontend/FEngList.h"
+#include "../../Speed/Indep/Src/Frontend/FEngHash.h"
 
 #include <GL/gl.h>
 #include <string>
 #include <vector>
 #include <map>
 
-// Original 0x505450: case-insensitive h = h * 33 + c from 0xffffffff.
+// Native naming adapter for recovered FngHash (original 0x505450).
 unsigned int FengHash(const char *text);
 void BindNativeStringObserver(const std::vector<unsigned char> *language);
 

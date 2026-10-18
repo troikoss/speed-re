@@ -2132,3 +2132,116 @@ pixels, all 10 Controls scenarios, scroller motion/settled centring and modded
 HUD checks at 640x480, 1280x720, 1680x720 and 2560x720. Those tests check current
 demo behavior; the synthetic fixture specifically covers nonempty type-4 lists.
 They do not establish original reader/cell-renderer/frame-manager recovery.
+
+## Type 6 grid navigation and original name hashing (2026-10-18)
+
+`FEngGrid.cpp` recovers the **complete axis-shift body**, both gates, index wrap
+and the two-axis wrapper directly from UG2 v1.2. `FEngHash.cpp` also recovers the
+actual name-hash callee used by its boundary notifications:
+
+| Routine | Address | Reference span |
+|---|---|---|
+| `FEngGridWrapIndex` | 0x504790 | 38 bytes |
+| `FngHash` | 0x505450 | 47 bytes |
+| `FEGridObject::CanShift` | 0x518e70 | 163 bytes |
+| `FEGridObject::MoveSelection` | 0x504e40 | 347 bytes |
+| `FEGridObject::ShiftAxis` | 0x518f20 | 1,933 bytes, including 9 padding bytes outside Ghidra's 1,924-byte body |
+| `FEGridObject::Navigate` | 0x52bd70 | 70 bytes |
+
+`config/SPEED2_EXE_1_2/feng-grid.json` fingerprints the complete spans and pinned
+executable. The 0xc8-byte type-6 prefix, physical counts, logical dimensions,
+selection/offset words, 0x30-byte cells and callback/context at +0xc0/+0xc4 are
+represented in `FEngGrid.h`; unknown fields retain offsets.
+
+A zero delta returns before reading selection pointers. Otherwise the first
+gate checks flags/ranges and can report `CLB AT MIN` / `CLB AT MAX`; a full-window
+rejection sends **both**, even if the first callback changes owner/flags. The
+second gate updates selection/offset, with distinct coupled/windowed flag paths.
+It can change the offset while returning false, which suppresses physical cell
+shifting. Alias cases where both pointers address the same word are preserved.
+Only AL is defined for the gate/shift return values.
+
+Successful shifting preserves all eight positive/negative, horizontal/vertical,
+custom-callback/owner branches. Whole cells are **shallow-copied**; only DWORD
++0x20 is recycled onto the exposed edge. It is not a full-record rotation. The
+positive path caches its copy extent and exposed coordinate while later callbacks
+can change fields used by addressing and loop bounds. Cell-buffer, callback,
+context and owner reads retain the original reload behavior. The negative-vertical
+refill uses the same base column for each column iteration; no `+column` fix is
+introduced. Negative exact-multiple wrapping likewise returns the total rather
+than zero; `INT_MIN` negation retains the original 32-bit wrap. Calls to 0x504790
+and its inlined arithmetic remain separate where the binary distinguishes them.
+Navigate reads the second axis's dimensions after first-axis callbacks.
+
+The owner identity is grounded in a concrete pointer chain: queue wrapper
+**0x555800** pushes queue +0x10c into reader **0x555720**; the reader stores it at
++0x38; factory **0x534df0** copies that pointer into type-6 object +0x5c. Thus the
+grid uses the same observed owner interface as queue delivery. Its virtual
+**+0x4c** has three stack arguments `(grid, column, row)`; its custom callback
+has four cdecl arguments `(context, grid, column, row)`. The queue observer's
+formerly unidentified +0x4c declaration is now typed `RefillGrid`. This establishes
+the pointer/slot contract, not the original owning class's implementation or
+an identity shared with other titles.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_grid.py --compiler clang-cl --mutation-checks
+ctest --test-dir build/native -R '^feng_(queue|list|grid)_native$' --output-on-failure
+```
+
+The verifier passes **24,922 original/rebuilt comparisons** across all six
+routines, including **30 rejected mutations**. Actual hash, wrap, both gates
+and full shift bodies execute together; only owner/custom interfaces are
+controlled. It checks final mapped bytes, full arena snapshots at each callback,
+ordered call targets/arguments, return bytes or words, preserved registers and
+stack cleanup. Callback targets, owner pointers, contexts, cell buffers, physical
+counts, coordinates, logical totals and cell payloads change under controlled
+callbacks. Cases include physical sizes 1..4, logical totals larger/equal/smaller
+than windows, aliases of selection/offset pointers, zero-delta null pointers,
+selected non-dividing zero-total paths, low-byte horizontal flags, signed extrema,
+null/empty strings and random high bytes. Coverage gates hit all eight refill
+paths and both boundary-notification sites. Compilation/link failures do not count
+as mutation rejections; a fault in rebuilt execution is rejected only after the
+original completes the same mapped input.
+
+This is finite behavioral evidence. Record-copy store scheduling may differ, so
+individual DWORD store order is not claimed; callback snapshots and complete final
+bytes are compared. Arbitrary memory aliases, invalid grids/divisors, unbounded
+callback reconfiguration, exceptions/unwind and all state combinations remain
+unverified. MSVC 7.1/wibo are absent; byte matching remains pending. Reports stay
+ignored under `build/analysis/feng-grid/`.
+
+Native CTest **`feng_grid_native`** composes the recovered two-axis wrapper,
+gates and copies with real native virtual/cdecl callbacks. It checks recycled
+payloads versus retained edge metadata, the negative-vertical coordinate asymmetry,
+custom refill selection, owner changes between boundary messages, signed-wrap
+quirks and name hashing. Its two fixed-address strings and cell data are synthetic;
+it requires no retail files, display, SDL or OpenGL. Existing queue/list probes
+also pass.
+
+**Native name hashing now executes recovered code.** The old NativePause FngHash
+implementation and NativeFng hashing loop are removed; the remaining FengHash
+name is a thin platform naming adapter. Null returns 0xffffffff; ASCII lowercase
+folding, unsigned high bytes and 32-bit arithmetic follow original execution.
+The hash header is shared by the recovered frontend and native loader.
+
+**Production type-6 activation remains pending.** Native FengObject still reserves
+a 0xac-byte prefix for type 4; its later metadata cannot be treated as the 0xc8-byte
+grid. Moreover, post-reader **0x5554a0** invokes initial refill **0x504c40** before
+Init application. Native `RefillGrid` remains an explicit trap; no substitute cell
+populator is invented and the existing type-6 navigation trap is retained. The
+native owner's null-package boundary-message handling is also unverified for grids.
+
+Next dependencies have concrete original leads: reader **0x535060** handles
+uppercase `LD` via **0x52bb30** (physical cells), `SI` via **0x518c60** (string-pool
+storage, not logical dimensions), `LT` flags and `Lv` at +0x84/+0x88. Dimension setup
+calls **0x518bb0 / 0x518c00** for logical counts; `Cc`/`Cs`/`Lj` use **0x5196b0 /
+0x5197d0 / 0x5198f0**. Original allocation, initial fill, cell ownership/rendering,
+type-6 ticking and the owner implementations still require recovery. The earlier
+statements that the entire type-6 body was unrecovered are superseded by this
+checkpoint; these data/lifecycle seams remain.
+
+Native and mod-enabled builds pass. Headless integration also passes all 19
+settings cases (including slider fill/knob pixels), all 10 Controls cases,
+scroller motion/settled centering, and modded HUD checks at 640x480, 1280x720,
+1680x720 and 2560x720 with recovered hashing active. These checks cover the
+current demo; the asset-free grid fixture covers the recovered grid component.
