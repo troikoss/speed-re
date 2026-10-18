@@ -17,6 +17,7 @@ struct FEGridObject {
     char unidentified90[0x30];
     FEGridRefill callbackC0;
     void *contextC4;
+    void InitialFill(); // 0x504c40; observed caller ignores incidental EAX.
     unsigned char CanShift(int delta, int selection, int offset, int total, int visible); // 0x518e70
     unsigned char MoveSelection(int delta, unsigned int *selection, unsigned int *offset, int total, unsigned int visible); // 0x504e40
     unsigned char ShiftAxis(int delta, unsigned int *selection, unsigned int *offset, int total, unsigned int visible, unsigned char horizontal); // 0x518f20

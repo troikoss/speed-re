@@ -60,6 +60,25 @@ int main() {
     Owner owner, replacement;
     FEGridObject grid; FEGridCell cells[6];
     Initialize(grid, cells, owner);
+    grid.InitialFill();
+    assert(owner.fills.size() == 6);
+    for (unsigned int i = 0; i < 6; ++i) {
+        assert(owner.fills[i].column == (int)(1 + i % 3));
+        assert(owner.fills[i].row == (int)(2 + i / 3));
+    }
+    owner.fills.clear();
+    grid.callbackC0 = Custom; grid.contextC4 = &replacement;
+    grid.value6C = 2; grid.value70 = 1;
+    grid.value74 = 1; grid.value78 = 0;
+    grid.InitialFill();
+    assert(owner.fills.empty() && replacement.fills.size() == 2);
+    assert(replacement.fills[0].column == 1 && replacement.fills[1].column == 0);
+    assert(replacement.fills[0].row == 0 && replacement.fills[1].row == 0);
+    replacement.fills.clear();
+    grid.count60 = 0;
+    grid.InitialFill();
+    assert(replacement.fills.empty());
+    Initialize(grid, cells, owner);
     grid.Navigate(0, -1);
     assert(owner.fills.size() == 3 && grid.value78 == 1 && grid.value80 == 1);
     for (unsigned int i = 0; i < 3; ++i) {
@@ -82,5 +101,5 @@ int main() {
     assert(owner.messages[0].hash == FngHash("grid-low") && replacement.messages[0].hash == FngHash("grid-high"));
     assert(owner.messages[0].sender == &grid && owner.messages[0].value8 == 0xff && !owner.messages[0].valueC);
     munmap(page, 4096);
-    puts("PASS recovered grid navigation/shallow copies/callback ABI/owner reload/hash (no retail assets or display)");
+    puts("PASS recovered grid initial fill/navigation/shallow copies/callback ABI/owner reload/hash (no retail assets or display)");
 }

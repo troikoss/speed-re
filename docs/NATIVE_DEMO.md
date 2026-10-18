@@ -365,8 +365,11 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   See [list-state evidence](pc-pause-menu.md#list-setup-motion-and-native-projection-2026-10-18).
   Type 6 navigation and both gates are now recovered/verified with controlled
   refill interfaces. Production activation still needs the 0xc8-byte grid model
-  and original initial-fill/owner behavior; no native cell-population algorithm
-  is supplied. Asset-free CTest `feng_grid_native` exercises the recovered body.
+  and original owner behavior. Initial fill `0x504c40` is also recovered and
+  verified, including cached extents/origins and reloaded callback targets and
+  logical divisors; production reader/owner binding remains pending. No native
+  cell-population algorithm is supplied. Asset-free CTest `feng_grid_native`
+  exercises navigation and initial fill with synthetic virtual/cdecl callbacks.
   Name hashing `0x505450` now executes recovered source; the native hash loop is
   removed. See [grid/hash evidence](pc-pause-menu.md#type-6-grid-navigation-and-original-name-hashing-2026-10-18).
   See [message delivery evidence](pc-pause-menu.md#full-queued-message-delivery-2026-10-18).

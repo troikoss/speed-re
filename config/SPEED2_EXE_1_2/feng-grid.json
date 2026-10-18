@@ -30,6 +30,11 @@
       "address": "0x52bd70",
       "size": 70,
       "sha256": "f83fd546d9be7187ca386c7fa90919c8e58c80560d157557bfd9ed2b1cd62934"
+    },
+    "InitialFill": {
+      "address": "0x504c40",
+      "size": 370,
+      "sha256": "23ec081ad691db666510f5bf773a4da5ba25a58522c9a4b060d1e22fe8f39310"
     }
   }
 }

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare full UG2 grid navigation, gates, wrap and hash with callback mutations."""
+"""Compare full UG2 grid initial fill, navigation, gates, wrap and hash with callback mutations."""
 import argparse
 import hashlib
 import json
@@ -20,8 +20,8 @@ OWNERS, VTABLES = (ARENA + 0x400, ARENA + 0x420), (ARENA + 0x500, ARENA + 0x580)
 MESSAGES, REFILLS, CUSTOMS = (STOP + 0x180, STOP + 0x1c0), (STOP + 0x4c0, STOP + 0x500), (STOP + 0x600, STOP + 0x640)
 PRESERVED = (xc.UC_X86_REG_EBX, xc.UC_X86_REG_ESI, xc.UC_X86_REG_EDI, xc.UC_X86_REG_EBP)
 PREFIXES = {'WrapIndex': '?FEngGridWrapIndex@', 'FngHash': '?FngHash@', 'CanShift': '?CanShift@FEGridObject@',
-            'MoveSelection': '?MoveSelection@FEGridObject@', 'ShiftAxis': '?ShiftAxis@FEGridObject@', 'Navigate': '?Navigate@FEGridObject@'}
-ARGUMENTS = {'WrapIndex': 2, 'FngHash': 1, 'CanShift': 5, 'MoveSelection': 5, 'ShiftAxis': 6, 'Navigate': 2}
+            'MoveSelection': '?MoveSelection@FEGridObject@', 'ShiftAxis': '?ShiftAxis@FEGridObject@', 'Navigate': '?Navigate@FEGridObject@', 'InitialFill': '?InitialFill@FEGridObject@'}
+ARGUMENTS = {'WrapIndex': 2, 'FngHash': 1, 'CanShift': 5, 'MoveSelection': 5, 'ShiftAxis': 6, 'Navigate': 2, 'InitialFill': 0}
 
 
 def main():
@@ -47,7 +47,7 @@ def main():
         objects.append(obj)
     linked = link_objects(objects, {})
     entries = {name: next(a for n, a in linked['exports'].items() if n.startswith(prefix)) for name, prefix in PREFIXES.items()}
-    markers = {0x519079: 'positive-horizontal-custom', 0x51913a: 'positive-horizontal-owner',
+    markers = {0x504cca: 'initial-custom', 0x504d58: 'initial-owner', 0x519079: 'positive-horizontal-custom', 0x51913a: 'positive-horizontal-owner',
                0x5191fe: 'negative-horizontal-custom', 0x5192c1: 'negative-horizontal-owner',
                0x5193d5: 'positive-vertical-custom', 0x5194b6: 'positive-vertical-owner',
                0x51959d: 'negative-vertical-custom', 0x519686: 'negative-vertical-owner',
@@ -118,11 +118,11 @@ def main():
             uc.reg_write(xc.UC_X86_REG_ESP, sp + 4 + cleanup); uc.reg_write(xc.UC_X86_REG_EIP, ret)
         uc.hook_add(UC_HOOK_CODE, hook); machines.append(uc)
     counts = dict.fromkeys(entries, 0)
-    def compare(name, memory, arguments, mode, trial):
+    def compare(name, memory, arguments, mode, trial, this=SELF):
         outputs = []
         for rebuilt, uc in zip((False, True), machines):
             uc.mem_write(ARENA, bytes(memory)); uc.mem_write(STACK, struct.pack('<I', STOP) + struct.pack('<' + 'I' * len(arguments), *[x & 0xffffffff for x in arguments]))
-            uc.reg_write(xc.UC_X86_REG_ESP, STACK); uc.reg_write(xc.UC_X86_REG_ECX, SELF)
+            uc.reg_write(xc.UC_X86_REG_ESP, STACK); uc.reg_write(xc.UC_X86_REG_ECX, this)
             for i, register in enumerate(PRESERVED): uc.reg_write(register, 0x12345000 + i)
             state.clear(); state.update(trace=[], mode=mode, mutated=False, axis=0)
             address = entries[name] if rebuilt else int(manifest['functions'][name]['address'], 16)
@@ -135,7 +135,7 @@ def main():
             assert uc.reg_read(xc.UC_X86_REG_ESP) == STACK + 4 + (0 if name in ('WrapIndex', 'FngHash') else 4 * len(arguments))
             assert all(uc.reg_read(register) == 0x12345000 + i for i, register in enumerate(PRESERVED))
             result = uc.reg_read(xc.UC_X86_REG_EAX)
-            if name == 'Navigate': result = None
+            if name in ('Navigate', 'InitialFill'): result = None
             elif name not in ('WrapIndex', 'FngHash'): result &= 255
             outputs.append((result, bytes(uc.mem_read(ARENA, 0x9000)), state['trace']))
         if outputs[0] != outputs[1]:
@@ -186,6 +186,35 @@ def main():
         compare('MoveSelection', memory, [delta, selection, offset, total, visible], 0, trial)
         compare('ShiftAxis', memory, [delta, selection, offset, total, visible, horizontal], mode, trial)
         compare('Navigate', memory, [delta, deltas[(trial // 13) % len(deltas)]], mode, trial)
+        compare('InitialFill', memory, [], mode, trial)
+        # Initial coordinates are passed raw, then incremented/wrapped inline;
+        # callback changes must not change cached extents or reset column origin.
+        fill = bytearray(memory)
+        origins = (-12, -6, -3, -2, -1, 0, 1, 2, 0x80000000, 0x7fffffff)
+        struct.pack_into('<I', fill, SELF - ARENA + 0x74, origins[trial % len(origins)] & 0xffffffff)
+        struct.pack_into('<I', fill, SELF - ARENA + 0x78, origins[(trial // len(origins)) % len(origins)] & 0xffffffff)
+        compare('InitialFill', fill, [], mode, trial)
+        if trial % 64 == 0:
+            for zero in (0x6c, 0x70, 0x64, 0x60):
+                empty = bytearray(fill)
+                struct.pack_into('<I', empty, SELF - ARENA + zero, 0)
+                # No callback may be accessed for an empty dimension.
+                struct.pack_into('<I', empty, SELF - ARENA + 0xc0, 0xdeadbeef)
+                struct.pack_into('<I', empty, SELF - ARENA + 0x5c, 0xdeadbeef)
+                if zero == 0x60:
+                    # Prefix ends at an unmapped page: the final zero guard
+                    # must return before touching callback/context +c0/+c4.
+                    guarded = ARENA + 0xff80
+                    empty[0xff80:] = empty[SELF - ARENA:SELF - ARENA + 0x80]
+                    compare('InitialFill', empty, [], mode, trial, this=guarded)
+                else:
+                    compare('InitialFill', empty, [], mode, trial)
+            # Unsigned min comparisons: large logical counts stay bounded by
+            # small physical dimensions; use nonnegative origins/divisors.
+            large = bytearray(memory)
+            for offset in (0x6c, 0x70): struct.pack_into('<I', large, SELF - ARENA + offset, 0x80000001)
+            for offset in (0x74, 0x78): struct.pack_into('<I', large, SELF - ARENA + offset, 0)
+            compare('InitialFill', large, [], 0, trial)
         if trial % 64 == 0:
             compare('ShiftAxis', memory, [0, 0, 0, 0, 0, 0], mode, trial)
             special = bytearray(memory)
@@ -193,9 +222,9 @@ def main():
             compare('ShiftAxis', special, [-1, SELF + 0x74, SELF + 0x7c, 0, 0, 1], mode, trial)
     assert all(coverage.values()), coverage
     report = {'compiler': args.compiler, 'comparisons': counts, 'total': sum(counts.values()), 'original_block_hits': coverage,
-              'actual_callees': ['name hash', 'index wrap', 'both gates', 'full axis shift'],
+              'actual_callees': ['name hash', 'index wrap', 'both gates', 'full axis shift', 'initial grid fill'],
               'controlled_interfaces': ['owner +0x18 messages', 'owner +0x4c refill', 'cdecl refill callback'],
-              'limitations': ['finite mapped nonempty physical grids and positive logical totals, plus selected zero-total early paths', 'no exception/unwind or arbitrary pointer aliases',
+              'limitations': ['finite mapped physical grids/logical totals, initial-fill empty guards and selected signed/unsigned extrema', 'no exception/unwind or arbitrary pointer aliases',
                               'callback snapshots/final bytes rather than byte matching or per-DWORD store order', 'native grid reader/owner binding not proved', 'MSVC and byte matching pending'],
               'fingerprints': manifest}
     if args.mutation_checks:
@@ -203,6 +232,16 @@ def main():
         report['rejected_mutations'] = []
         start = '    if (!delta) return 0;'
         mutations = {
+            'fill-normalize-first-column': [('int firstColumn = (int)value74;', 'int firstColumn = (int)value74 % value6C;')],
+            'fill-live-column-origin': [('int column = firstColumn;', 'int column = (int)value74;')],
+            'fill-live-row-origin': [('int column = firstColumn;', 'row = (int)value78; int column = firstColumn;')],
+            'fill-live-column-extent': [('unsigned int remaining = columns;', 'unsigned int remaining = count60;')],
+            'fill-live-row-extent': [('} while (--rows);', '} while (--rows && rows < count64);')],
+            'fill-extra-wrap-call': [('if (next >= 0) column = next % total;', 'if (next >= 0) column = FEngGridWrapIndex(next, total);')],
+            'fill-cache-owner': [('void FEGridObject::InitialFill() {', 'void FEGridObject::InitialFill() { FEGridOwner *fillOwner = owner5C;'), ('owner5C->RefillGrid(this, column, row);', 'fillOwner->RefillGrid(this, column, row);')],
+            'fill-cache-custom': [('void FEGridObject::InitialFill() {', 'void FEGridObject::InitialFill() { FEGridRefill fillCallback = callbackC0; void *fillContext = contextC4;'), ('callbackC0(contextC4, this, column, row);', 'fillCallback(fillContext, this, column, row);')],
+            'fill-ignore-logical-row-min': [('if (logicalRows < rows) rows = logicalRows;', 'if (false) rows = logicalRows;')],
+            'fill-ignore-empty-column': [('if (!physicalColumns) return;', 'if (false) return;')],
             'normalize-negative-wrap': [('return (int)((unsigned int)total - (unsigned int)(magnitude % total));', 'return (int)((unsigned int)total - (unsigned int)(magnitude % total)) % total;')],
             'wrong-singleton-negative-wrap': [('if (total > 1) {', 'if (total >= 1) {')],
             'omit-full-window-message': [('owner5C->GameMessage(FngHash((const char *)0x79b14c), this, 0xff, 0);', 'owner5C->GameMessage(FngHash((const char *)0x79b140), this, 0xff, 0);')],
@@ -238,11 +277,17 @@ def main():
         }
         for target, variants, original_source in (('grid', mutations, source), ('hash', hash_mutations, hash_source)):
             for name, edits in variants.items():
+                # Older navigation mutations belong to the original six-function
+                # unit, not the new fill body with similar callback expressions.
+                prefix = ''
                 mutated = original_source
+                if target == 'grid' and not name.startswith('fill-'):
+                    split = original_source.index('// Original 0x504790.')
+                    prefix, mutated = original_source[:split], original_source[split:]
                 for before, after in edits:
                     assert before in mutated, name
                     mutated = mutated.replace(before, after)
-                path = BUILD / ('mutation-' + name + '.cpp'); path.write_text(mutated)
+                path = BUILD / ('mutation-' + name + '.cpp'); path.write_text(prefix + mutated)
                 command = [os.sys.executable, str(Path(__file__).resolve()), '--compiler', args.compiler,
                            '--source', str(path if target == 'grid' else args.source),
                            '--hash-source', str(path if target == 'hash' else args.hash_source)]

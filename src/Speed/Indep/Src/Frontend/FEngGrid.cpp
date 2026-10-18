@@ -1,6 +1,62 @@
 #include "FEngGrid.h"
 #include "FEngHash.h"
 
+// Original 0x504c40. Extents and starting coordinates are snapshots; callback
+// targets and logical divisors reload. These wraps are inline in the original.
+void FEGridObject::InitialFill() {
+    unsigned int columns = (unsigned int)value6C;
+    if (!columns) return;
+    unsigned int logicalRows = (unsigned int)value70;
+    if (!logicalRows) return;
+    unsigned int rows = count64;
+    if (!rows) return;
+    unsigned int physicalColumns = count60;
+    if (!physicalColumns) return;
+    int row = (int)value78;
+    int firstColumn = (int)value74;
+    if (logicalRows < rows) rows = logicalRows;
+    if (physicalColumns <= columns) columns = physicalColumns;
+    if (callbackC0) {
+        do {
+            int column = firstColumn;
+            unsigned int remaining = columns;
+            while (remaining) {
+                callbackC0(contextC4, this, column, row);
+                int total = value6C;
+                int next = (int)((unsigned int)column + 1);
+                if (next >= 0) column = next % total;
+                else if (total > 1) column = (int)((unsigned int)total - (unsigned int)(((int)(0u - (unsigned int)next)) % total));
+                else column = 0;
+                --remaining;
+            }
+            int total = value70;
+            int next = (int)((unsigned int)row + 1);
+            if (next >= 0) row = next % total;
+            else if (total > 1) row = (int)((unsigned int)total - (unsigned int)(((int)(0u - (unsigned int)next)) % total));
+            else row = 0;
+        } while (--rows);
+    } else if (owner5C) {
+        do {
+            int column = firstColumn;
+            unsigned int remaining = columns;
+            while (remaining) {
+                owner5C->RefillGrid(this, column, row);
+                int total = value6C;
+                int next = (int)((unsigned int)column + 1);
+                if (next >= 0) column = next % total;
+                else if (total > 1) column = (int)((unsigned int)total - (unsigned int)(((int)(0u - (unsigned int)next)) % total));
+                else column = 0;
+                --remaining;
+            }
+            int total = value70;
+            int next = (int)((unsigned int)row + 1);
+            if (next >= 0) row = next % total;
+            else if (total > 1) row = (int)((unsigned int)total - (unsigned int)(((int)(0u - (unsigned int)next)) % total));
+            else row = 0;
+        } while (--rows);
+    }
+}
+
 // Original 0x504790. Do not normalize negative exact multiples to zero.
 int FEngGridWrapIndex(int value, int total) {
     if (value >= 0) return value % total;

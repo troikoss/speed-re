@@ -2245,3 +2245,55 @@ settings cases (including slider fill/knob pixels), all 10 Controls cases,
 scroller motion/settled centering, and modded HUD checks at 640x480, 1280x720,
 1680x720 and 2560x720 with recovered hashing active. These checks cover the
 current demo; the asset-free grid fixture covers the recovered grid component.
+
+## Type 6 initial fill (2026-10-18)
+
+`FEGridObject::InitialFill` now recovers the complete **0x504c40..0x504db1**
+body (370 bytes). This supersedes the unrecovered-initial-fill limitation above;
+production grid allocation, reader/owner binding and owner implementations still
+remain. Post-reader `0x5554a0` calls it at `0x55562c`, then overwrites EAX at
+`0x555631`. It is represented as a void thiscall method: incidental EAX contents
+vary across exits and are not claimed as a recovered return contract.
+
+The original checks logical columns, logical rows, physical rows and physical
+columns for zero in that order. It snapshots unsigned `min(logical, physical)`
+extents and starting +0x74/+0x78 coordinates, then chooses the custom-callback
+branch or owner branch once. Each row restarts at the original column; initial
+coordinates are passed raw. Every refill reloads custom +0xc0/context +0xc4 or
+owner +0x5c/virtual +0x4c. After every callback, including the last column of the
+last row, the next column wraps using the current logical +0x6c. Each completed
+row likewise wraps using current +0x70. These are inline signed divisions,
+including wrapped increment/negation and the negative exact-multiple quirk;
+they do not call `FEngGridWrapIndex`. Callback changes to extents, origins or
+branch choice do not change the cached loop counts/origins/branch.
+
+The existing grid verifier now executes this body alongside the six previously
+recovered routines. The baseline passes **33,434 comparisons**, including
+**8,512 initial-fill cases**: both dispatch paths, neither interface, logical
+dimensions below/equal/above physical dimensions, all four empty guards with
+invalid callback/owner pointers (including an unmapped callback-field boundary
+for empty physical columns), raw negative/extreme origins, unsigned large
+logical dimensions, and controlled callback changes to counts, origins, logical
+totals, targets, context, owner, buffers and payloads. Ordered callback snapshots,
+final mapped bytes, preserved registers and stack balance are compared. Return
+EAX is ignored only for the two void routines; all actual hash/wrap/gate return
+contracts remain checked. Original block counters cover both initial-fill
+callback sites. The manifest fingerprints the complete new span.
+
+The combined run rejects **40 semantic mutations**, including **10 new fill
+mutations**: premature origin normalization, live origins/extents, extra wrap
+calls, cached owner/custom dispatch, omitted logical clipping and omitted empty
+column guarding. Navigation mutations are scoped to the navigation portion of
+the source so similar fill expressions do not introduce compilation failures.
+Compilation/link failures remain excluded from accepted mutation rejections.
+
+Native CTest `feng_grid_native` also calls the recovered fill directly through
+the shared native owner interface and custom cdecl callback. Its synthetic cases
+check row-major coordinates, logical clipping, wrapping and empty physical
+columns. All three queue/list/grid CTests and native/mod-enabled builds pass.
+The headless pause/scroller smoke check also passes motion and settled centering
+with this checkpoint linked.
+These component tests do not activate the production grid reader or establish
+its data ownership/rendering. Finite coverage, exception/unwind, arbitrary
+aliases and byte-matching limitations from the previous section still apply;
+verification uses Clang because MSVC 7.1/wibo remain absent.
