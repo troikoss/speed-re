@@ -132,6 +132,33 @@ int main() {
     assert(allocationBytes == 48 && freeCalls == 1 && storage.value98 == 5);
     assert(pool[7] == 101 && pool[6] == 102 && pool[5] == 103);
     FEngGridFreeCells(storage.cells8C);
+    FEGridObject poolGrid; memset(&poolGrid, 0, sizeof(poolGrid));
+    FEGridCell textCells[2]; memset(textCells, 0, sizeof(textCells));
+    poolGrid.count60 = 2; poolGrid.count64 = 1; poolGrid.cells8C = textCells;
+    poolGrid.value6C = 2; poolGrid.value70 = 1;
+    poolGrid.ResizeStringPool(2, 6);
+    unsigned short *text = (unsigned short *)poolGrid.value9C[0];
+    text[0] = 'A'; text[1] = 0x3a9; text[2] = 'C'; text[3] = 0;
+    textCells[0].value0[6] = textCells[1].value0[6] = 2;
+    textCells[0].value0[8] = poolGrid.value9C[0]; textCells[1].value0[8] = 0;
+    poolGrid.value98 = 2;
+    unsigned int beforePoolFree = freeCalls;
+    poolGrid.ResizeStringPool(2, 3);
+    assert(freeCalls == beforePoolFree + 2 && poolGrid.value98 == 2);
+    assert(textCells[0].value0[8] == poolGrid.value9C[0] && textCells[1].value0[8] == poolGrid.value9C[1]);
+    text = (unsigned short *)textCells[0].value0[8];
+    assert(text[0] == 'A' && text[1] == 0x3a9 && text[2] == 0);
+    assert(!*(unsigned short *)textCells[1].value0[8]);
+    poolGrid.SetCellValue0(0, 0, 0x11223344, 2, 1);
+    poolGrid.SetCellValue1C(1, 0, 0x55667788, 1, 1);
+    assert(textCells[0].value0[0] == 0x11223344 && textCells[1].value0[0] == 0x11223344);
+    assert(textCells[1].value0[7] == 0x55667788);
+    poolGrid.SetCellPair4(0, 0, textCells[0].value0, 1, 1);
+    assert(textCells[0].value0[1] == 0x11223344 && textCells[0].value0[2] == 0x11223344);
+    unsigned int retiredPayload = textCells[0].value0[8];
+    poolGrid.ResizeStringPool(0, 0);
+    assert(!poolGrid.valueA0 && !poolGrid.value9C && !poolGrid.value98 && !poolGrid.value90 && !poolGrid.value94);
+    assert(textCells[0].value0[8] == retiredPayload); // Original disable does not clear cell payloads.
     munmap(page, 4096);
-    puts("PASS recovered grid resize/reset/setters/fill/navigation/callbacks/hash (no retail assets or display)");
+    puts("PASS recovered grid storage/pool migration/cell writes/fill/navigation/callbacks/hash (no retail assets or display)");
 }

@@ -2374,3 +2374,82 @@ constructor, reader, string pool setup, cell rendering/ticking and owner callbac
 implementations still need recovery/binding. The native type-6 entry stays an
 explicit trap; this checkpoint supplies storage dependencies without inventing
 an alternate cell population or ownership implementation.
+
+## Type 6 string-pool migration and cell properties (2026-10-18)
+
+`FEngGridCells.cpp` recovers four more complete UG2 v1.2 bodies, fingerprinted
+with the executable in `config/SPEED2_EXE_1_2/feng-grid-cells.json`:
+
+| Routine | Address | Reference span |
+|---|---|---|
+| `FEGridObject::ResizeStringPool` | 0x518c60 | 446 bytes |
+| `FEGridObject::SetCellValue0` | 0x5196b0 | 273 bytes |
+| `FEGridObject::SetCellPair4` | 0x5197d0 | 284 bytes |
+| `FEGridObject::SetCellValue1C` | 0x5198f0 | 274 bytes |
+
+Pool resize snapshots old +0xa0/+0x9c, then clears +0x90/+0x98/+0x94/+0xa0/+0x9c.
+Nonzero count/capacity allocate `count * capacity * 2` bytes and `count * 4`
+pointer bytes through the existing **0x575620** seam. Original inline DWORD/tail
+zeroing and per-slot address construction are represented directly; capacity is
+in 16-bit units. Current storage fields reload after allocation callbacks.
+Count/capacity are set after allocation/table construction. When both old pointers
+were nonnull, each physical type-2 cell obtains the next `value9C[value98++]`
+slot, receives a new payload pointer, and copies at most capacity-minus-one
+16-bit units from its old payload before adding a zero terminator. Null old
+payloads become empty strings. Physical dimensions and cell buffers reload during
+migration. Old data and old table free in that order, using their snapshots even
+if allocation/free callbacks change current fields.
+
+Zero count or capacity disables the pool and frees old allocations. It does
+**not** clear cell payload pointers. No new guard, placeholder text or substitute
+pool ownership policy is added. This supersedes the previously unrecovered pool
+setup body, while production reader binding and cell text-assignment routines
+remain pending.
+
+The three property setters apply a rectangular unsigned start/end traversal.
+They inline the same projection twice per cell: conditionally reduce signed
+coordinates by logical dimensions, subtract origins, add the logical dimension
+once for negative differences, and wrap against physical dimensions. A zero
+logical dimension projects to -1 rather than suppressing the write. Negative
+exact multiples retain their existing wrap quirk; wrapped end bounds can suppress
+all writes. They set cell DWORD +0, the two words +4/+8, and DWORD +0x1c respectively.
+Names remain offset-based because these bodies alone do not establish property
+semantics. The pair setter loads/stores its first word before loading its second;
+input aliases that observe the first store are preserved. No helper-call boundary
+is added to the inlined projections.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_grid_cells.py --compiler clang-cl --mutation-checks
+ctest --test-dir build/native -R '^feng_(queue|list|grid)_native$' --output-on-failure
+```
+
+Verification passes **16,512 comparisons** (4,096 pool cases, 4,096 per scalar
+setter, 4,224 pair cases), rejecting **18 semantic mutations**. All four original
+bodies execute; only allocation/free are controlled. It compares final mapped
+bytes, ordered allocation/free arguments and snapshots, preserved registers and
+stack cleanup. Pool cases cover count/capacity zero, capacities 1..9, all old
+pointer-presence combinations, null/empty/non-ASCII UTF-16 payloads, clipping,
+word/tail zeroing, and allocation changes to dimensions, buffer, pool fields and
+used count; free changes current fields while snapshot frees remain ordered.
+Property cases cover zero/nonzero logical dimensions, padded physical grids,
+negative/extreme raw coordinates and origins, wrapped/empty rectangles, exact
+negative multiples and explicit pair-source aliases. Coverage gates require both
+pool zeroing paths, slot creation, migration/copy/termination and both frees.
+Compiler/link failures are excluded from mutation rejection counts.
+
+Clang verification disables the compiler's invented `memset` libcall with
+`-fno-builtin-memset`, so zeroing stays inside the recovered body. The source does
+not introduce a memset seam or stub. Native/mod-enabled builds, all three native
+CTest probes and headless scroller motion/centering pass. The expanded synthetic
+native grid probe composes pool creation and migration with truncation, null text,
+all three property setters, the aliased pair write and pool disabling; it checks
+that disabling retains cell payload bits while clearing pool fields.
+
+This remains finite behavioral evidence, not byte matching or a claim about
+per-instruction memory access ordering. Arbitrary aliases, undersized buffers,
+pool exhaustion, allocation failure/overflow, exceptions/unwind and all states
+remain unverified; padded mapped buffers permit original negative-index behavior
+to be observed. MSVC 7.1/wibo are absent; reports stay ignored under
+`build/analysis/feng-grid-cells/`. Production constructor/base-object lifecycle,
+reader, text assignment, cell rendering/ticking and owner callbacks still require
+recovery/binding. The native type-6 dispatch trap remains explicit.

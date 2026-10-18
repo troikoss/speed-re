@@ -24,6 +24,10 @@ struct FEGridObject {
     void SetLogicalColumns(unsigned int total); // 0x518bb0; observed caller ignores EAX.
     void SetLogicalRows(unsigned int total); // 0x518c00; observed caller ignores EAX.
     void ResizeCells(unsigned int columns, unsigned int rows); // 0x52bb30
+    void ResizeStringPool(unsigned int count, unsigned int capacity); // 0x518c60, UTF-16 units
+    void SetCellValue0(unsigned int x, unsigned int y, unsigned int value, unsigned int columns, unsigned int rows); // 0x5196b0
+    void SetCellPair4(unsigned int x, unsigned int y, const unsigned int *pair, unsigned int columns, unsigned int rows); // 0x5197d0
+    void SetCellValue1C(unsigned int x, unsigned int y, unsigned int value, unsigned int columns, unsigned int rows); // 0x5198f0
     unsigned char CanShift(int delta, int selection, int offset, int total, int visible); // 0x518e70
     unsigned char MoveSelection(int delta, unsigned int *selection, unsigned int *offset, int total, unsigned int visible); // 0x504e40
     unsigned char ShiftAxis(int delta, unsigned int *selection, unsigned int *offset, int total, unsigned int visible, unsigned char horizontal); // 0x518f20

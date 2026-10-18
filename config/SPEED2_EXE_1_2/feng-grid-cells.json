@@ -1,0 +1,25 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "ResizeStringPool": {
+      "address": "0x518c60",
+      "size": 446,
+      "sha256": "69cc8a6b95e987526fd0d0d57bbac6eb0164f0d3e9e8ed9ede8bdc3cae98f75d"
+    },
+    "SetCellValue0": {
+      "address": "0x5196b0",
+      "size": 273,
+      "sha256": "8da1f8fcad3a4f86eaf4e816e906d8be14634fc09e94a171912e77e920014b6a"
+    },
+    "SetCellPair4": {
+      "address": "0x5197d0",
+      "size": 284,
+      "sha256": "6dd4bbc9d527aedb2d7a75df34d6ef3b97cde82333c5893230e1e964e09fefc1"
+    },
+    "SetCellValue1C": {
+      "address": "0x5198f0",
+      "size": 274,
+      "sha256": "5b6bc5d54fb09f35e70493d9e02ffb0936a4d72ca8886f767cc7c4be8538f0d5"
+    }
+  }
+}

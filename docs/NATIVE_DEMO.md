@@ -375,6 +375,10 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   fill and navigation with synthetic cells/pool data; native allocation/free
   are documented malloc/free seams. Production constructor/reader/owner binding
   remains pending; the type-6 navigation entry still traps.
+  String-pool resize/migration `0x518c60` and rectangular cell setters
+  `0x5196b0`/`0x5197d0`/`0x5198f0` are also recovered. The synthetic native probe
+  checks UTF-16 truncation/rebinding and aliased pair writes; original reader
+  composition, text assignment and owner population remain pending.
   Name hashing `0x505450` now executes recovered source; the native hash loop is
   removed. See [grid/hash evidence](pc-pause-menu.md#type-6-grid-navigation-and-original-name-hashing-2026-10-18).
   See [message delivery evidence](pc-pause-menu.md#full-queued-message-delivery-2026-10-18).
