@@ -1972,3 +1972,71 @@ passes all 19 settings, 10 Controls scenarios, slider pixel checks and scroller
 motion/settled centring. Modded HUD checks pass at 640x480, 1280x720, 1680x720
 and 2560x720. These checks exercise current demo data and behavior;
 they do not prove complete retail UI/package lifecycle recovery.
+
+## Type 4 list navigation leaf (2026-10-18)
+
+`FEngList.cpp` recovers the complete **0x516e90** leaf (927 bytes) as
+`FEListObject::Navigate`. Its observed 0xac-byte prefix and 12-byte axis entries
+are defined separately in `FEngList.h`; unidentified fields retain offset names.
+`config/SPEED2_EXE_1_2/feng-list.json` pins the reference span and executable.
+
+Bits 0x20/0x40 independently suppress busy axes, and both bits suppress the
+whole update. Bit 4 selects clamp behavior. Each axis uses its own count, index,
+entry array and viewport value. Negative/positive wrapping preserves the original
+loops, stores and unsigned division. In particular, the negative candidate is
+ultimately divided **as unsigned**; replacing this with ordinary signed modulo
+changes the result. Both wrap branches initially set bit 8, including the vertical
+branch. Later vertical viewport insufficiency sets bit 0x10. These asymmetries
+are retained. The routine computes both target deltas, stores them, normalizes
+above the observed float threshold 0.1, or snaps to target and clears motion bits.
+The original parity test also normalizes an unordered length; `!(length < 0.1f)`
+preserves that behavior, whereas `length >= 0.1f` does not.
+
+Wrap-loop float stores/reloads at +0x70/+0x74/+0x94/+0x98 are explicit precision
+boundaries. These fields are volatile in this recovered prefix so the compiler
+cannot carry an unrounded accumulator across iterations. Wider local arithmetic
+preserves the computations between field stores; the Clang verifier requests
+extended x87 evaluation. An initial float-rounded length and an unrounded wrap
+accumulator each produced differential failures before correction. No registers,
+inline assembly, invented navigation helper or replacement algorithm is used.
+Clang coalesces some nonvolatile flag writes, so ordered-write comparison excludes
+only +0x5c; its complete final bytes are still compared. This is a behavioral
+recovery checkpoint, not a byte match or a proof of identical instruction/store
+sequences for every compiler.
+
+```sh
+UG2_EXE='/path/to/speed2.exe' build/venv/bin/python tools/verify_pc_feng_list.py --compiler clang-cl --mutation-checks
+ctest --test-dir build/native -R '^feng_queue_native$' --output-on-failure
+```
+
+The standalone verifier passes **16,896 comparisons** and rejects **19 mutations**
+by state/write mismatches; compilation errors do not count as rejections. It
+executes the actual leaf bodies with **no controlled callees**. It checks arena bytes, ordered non-flag writes, preserved registers,
+stack cleanup and termination. Coverage gates observe both busy axes, upper/lower
+clamps, positive/negative wraps, both viewport adjustments, wrap flags, settling
+and normalization in the original. Cases use valid nonempty arrays, small signed
+deltas and both x87 precision control words 0x27f and 0x37f, with exact binary
+fractions, random finite values and selected exceptional floating-point values.
+Arbitrary invalid pointers, empty active axes, large out-of-range deltas, all NaN
+payloads, alternate rounding modes and unmasked floating exceptions are outside
+the evidence. MSVC 7.1/wibo and byte matching remain pending.
+
+The asset-free native queue probe now composes recovered object delivery and the
+type-4 directional wrapper with the new leaf via a **test-only prefix adapter**.
+Its synthetic 0xac-byte fixture checks horizontal movement, busy-axis rejection,
+vertical movement, direction normalization and early return before response
+execution. Native and mod-enabled builds pass, and the expanded CTest passes
+without a retail installation, display, SDL or OpenGL.
+
+**Retail integration remains pending.** Native `FengObject` extends the string
+prefix and uses later bytes for native metadata; calling the leaf on it would
+corrupt that metadata. The production type-4 navigation trap therefore remains.
+The original factory 0x534df0 allocates 0xac bytes and calls constructor 0x5349c0;
+the latter initializes flags +0x5c to 4, counts/pointers/selection/motion fields to
+zero, +0x80/+0x84/+0xa4 to 1, and +0xa8 to bits 0xbab60b61. Reader 0x52b740 handles
+`Ld` via 0x52a910/0x52ab30, fills `Lc`/`Lr` entries at +0/+8, and loads `Ls`, `Lv`
+and `Lw`. Entry +4 initialization/update and the native storage/parser projection
+still need tracing before replacing the production trap. These reader/constructor
+observations are static evidence, not recovered implementations in this commit.
+Type-6 0x52bd70 calls 0x518f20 twice; that helper reshuffles 0x30-byte cells and
+invokes callbacks. Neither its body nor a native grid projection is recovered.

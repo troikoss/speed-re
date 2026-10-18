@@ -1,6 +1,7 @@
 // Asset-free native ABI/integration probe; synthetic package prefixes are test scaffolding.
 #include "../../Speed/Indep/Src/Frontend/FEngPackage.h"
 #include "../../Speed/Indep/Src/Frontend/FEngResponse.h"
+#include "../../Speed/Indep/Src/Frontend/FEngList.h"
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -19,7 +20,8 @@ void *FEngAllocateQueueNode(unsigned int size) { ++allocations; return malloc(si
 void FEngFreeQueueNode(void *pointer) { ++deallocations; free(pointer); }
 void FEngQueue::Call5362E0(FEPackage *) { abort(); }
 FEPackage *FEngQueue::Call555860(const char *, unsigned char, unsigned int) { abort(); }
-void HudVisibilityObject::Call516E90(int, int) { abort(); }
+// Test-only projection bridge: the fixture below has a complete original type-4 prefix.
+void HudVisibilityObject::Call516E90(int x, int y) { reinterpret_cast<FEListObject *>(this)->Navigate(x, y); }
 void HudVisibilityObject::Call52BD70(int, int) { abort(); }
 void FEngQueue::ExecuteResponse(FEResponse *, HudVisibilityObject *object, FEPackage *package, unsigned int mask) {
     ++responseCalls; deliveredMask = mask; deliveredObject = object; deliveredPackage = package;
@@ -85,6 +87,22 @@ int main() {
     assert(deliveredObject == &object);
     assert(responseCalls == 6 && deliveredPackage == &parent && deliveredMask == 0);
     assert(allocations == 6 && deallocations == 6 && queue.messages4114.count4 == 0);
+    // Compose original special-handler delivery with the complete native leaf.
+    FEListObject list = {};
+    reinterpret_cast<HudVisibilityObject *>(&list)->type18 = 4;
+    FEListAxisEntry xrows[] = {{.25f, 0, 0}, {.5f, 2, 0}, {.75f, 4, 0}};
+    FEListAxisEntry yrows[] = {{1, 0, 0}, {1, 3, 0}};
+    list.value5C = 4; list.count60 = 3; list.count64 = 2;
+    list.value78 = xrows; list.value7C = yrows;
+    queue.DeliverObject(reinterpret_cast<HudVisibilityObject *>(&list), &parent, 0x030471ac, 0x55);
+    assert(list.value88 == 1 && list.value94 == 2 && list.value9C == 1 && list.valueA0 == 0);
+    queue.DeliverObject(reinterpret_cast<HudVisibilityObject *>(&list), &parent, 0x030471ac, 0x55);
+    assert(list.value88 == 1); // Busy horizontal axis ignores another right message.
+    queue.DeliverObject(reinterpret_cast<HudVisibilityObject *>(&list), &parent, 0xe10814a6, 0x55);
+    assert(list.value8C == 1 && list.value98 == 3 && (list.value5C & 0x60) == 0x60);
+    assert(list.value9C > .5546f && list.value9C < .5548f);
+    assert(list.valueA0 > .8319f && list.valueA0 < .8322f);
+    assert(responseCalls == 6); // Recognized type-4 messages stop before response lookup.
     munmap(page, 4096);
-    puts("PASS recovered enqueue/operations/target-4 delivery/associations/virtual deletion (native ABI, no assets)");
+    puts("PASS recovered queue delivery/associations/deletion and type-4 navigation (native ABI, no assets)");
 }
