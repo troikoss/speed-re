@@ -9,8 +9,6 @@
 FengPackage *NativeFrontendPackage(const char *package);
 // 0x52b3a0 / 0x52ce40: the package's focus object receives pad input (0x54d4b0).
 void NativeFrontendSetFocus(const char *package, FengObject *object);
-// Native localization/storage adapter.
-std::string NativeFrontendString(unsigned int hash);
 
 // Session-only settings initialization for the demo.
 void NativePauseOptionsLoad(const char *gameDirectory);

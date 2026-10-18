@@ -27,7 +27,6 @@ public:
     void SetViewSettings(bool metric, int camera);
     bool Metric() const;
     int CameraOption() const;
-    bool Loaded() const;
     bool Active() const;
     // JOY_EVENT_PAUSE seam: constructs the screen through FNGINIT_UI_Pause.fng (0x4f4790).
     void Open();

@@ -189,10 +189,6 @@ NativeScreen *FindScreen(const char *name) {
     return 0;
 }
 
-std::string Localised(unsigned int hash) {
-    return LookupNativeString(language, hash);  // '^' line breaks are laid out by NativeFont (0x51c110)
-}
-
 // Package loading seam: UI_*.fng chunks 0x30210 hold the name hash and a JDLZ block that
 // unpacks to the 'FEn\xe7' package body of a 0x30203 chunk.
 bool LoadCompressedPackage(const std::vector<unsigned char> &bundle, NativeScreen *screen, std::string *error) {
@@ -493,8 +489,6 @@ void NativeFrontendSetFocus(const char *package, FengObject *object) {
     NativeScreen *screen = FindScreen(package);
     if (screen) screen->fePackage.SetFocus(&nativeFengQueue, object, 1);
 }
-
-std::string NativeFrontendString(unsigned int hash) { return Localised(hash); }
 
 // Static-record lookup, archive storage and queue dispatch remain native seams.
 FngRecord *FngFindRecord(unsigned int hash) {
@@ -835,8 +829,6 @@ bool NativePause::Load(const char *gameDirectory, NativeTextureCache *cache, con
     NativePauseOptionsLoad(gameDirectory);
     return true;
 }
-
-bool NativePause::Loaded() const { return pauseScreen.loaded; }
 
 bool NativePause::Active() const { return ActiveScreen() != 0; }
 

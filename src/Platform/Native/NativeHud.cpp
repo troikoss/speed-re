@@ -526,14 +526,6 @@ void NativeHud::Update(NativeVehicle *vehicle, bool metric, float seconds) {
     package_.SyncAngles();
 }
 
-void NativeHud::SetCareerHudState(int balance, unsigned int regionHash) {
-    careerBank861E74.balance0 = balance;
-    nativePlayer.region.region9B8 = regionHash;
-    // Region/cash/reward visibility follows the 0x600090 masks applied by the controller.
-    controller_.feature74 = &region_;
-    controller_.current8 &= ~1u; // Reapply bit 0 to the newly attached region feature.
-}
-
 void NativeHud::Draw(int width, int height) {
     if (!loaded_) return;
     package_.ClearModTranslations();

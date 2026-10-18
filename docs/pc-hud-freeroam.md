@@ -151,10 +151,10 @@ Parent containers are revealed without recursively showing unrelated siblings.
 Retail authoring sample strings for cash/reward/region are cleared at native
 initialisation so they cannot appear as live events.
 
-`SetCareerHudState` accepts actual balance and region hash from a future recovered
-career/world producer. The demo does not call it and does not invent a wallet,
-region transition or reward event. An ignored analysis fixture supplied explicit
-synthetic values to inspect these layouts; they are not gameplay evidence.
+The demo has no career balance/region producer and does not invent a wallet,
+region transition or reward event. A future recovered career/world producer will
+need to write `careerBank861E74.balance0` and the player region `9B8` and attach
+the region feature.
 
 Script reading and playback are original: reader `0x5515e0`, per-object update
 `0x54ce60`, apply `0x541db0`, events `0x534c70` and the track evaluators and

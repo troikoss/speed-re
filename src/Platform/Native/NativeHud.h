@@ -23,8 +23,6 @@ public:
               int errorSize);
     void Configure(NativeVehicle *vehicle, int skinIndex);
     void Update(NativeVehicle *vehicle, bool metric, float seconds);
-    // Boundary for a recovered career/world producer; no synthetic wallet or region.
-    void SetCareerHudState(int balance, unsigned int regionHash);
     std::string Localised(unsigned int hash) const;
     void Draw(int width, int height);
     void Describe() { package_.Describe(); }
