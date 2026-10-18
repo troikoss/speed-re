@@ -3018,7 +3018,7 @@ teardown checks. All three asset-free native CTests pass.
 Native and mod-enabled builds pass. With recovered dispatch active, headless
 retail-asset checks pass all 19 settings scenarios and slider pixels, all 10
 Controls scenarios, pause/scroller motion and settled centering, and all tested
-HUD skins at 640x480, 1280x720, 1680x720 and 2560x720. A settings capture was
+baseline HUD at 640x480, 1280x720, 1680x720 and 2560x720, plus all 11 skins at 1280x720. A settings capture was
 visually inspected; the review PNG remains ignored at
 `build/analysis/feng-string-reader/settings.png`. These are native integration
 checks, separately from the original/rebuilt execution evidence above.
@@ -3176,8 +3176,8 @@ is claimed or invented by this checkpoint.
 
 Native and mod-enabled builds pass. With recovered typed cleanup active, all
 19 headless settings scenarios and slider fill/knob pixels, all 10 Controls
-scenarios, pause/scroller motion and settled centering, and HUD skins at 640x480,
-1280x720, 1680x720 and 2560x720 pass. These check production wrapper integration
+scenarios, pause/scroller motion and settled centering, and baseline HUD at 640x480,
+1280x720, 1680x720 and 2560x720 plus all 11 skins at 1280x720 pass. These check production wrapper integration
 and package resets, separately from original/rebuilt cleanup evidence. Original
 production state/list allocation, outer reader/inheritance and SEH unwind remain
 pending.
@@ -3264,8 +3264,8 @@ allocation records still alive at base cleanup, and a 3x2 -> 0x2 dimension
 sequence whose lost cell allocation stays registered for native heap-owner
 teardown. All three native CTests pass. Native and mod-enabled builds and all
 affected headless checks pass: 19 settings scenarios and slider pixels, 10
-Controls scenarios, scroller motion/settled centering, and HUD skins at 640x480,
-1280x720, 1680x720 and 2560x720. These are native integration checks, separately
+Controls scenarios, scroller motion/settled centering, and baseline HUD at 640x480,
+1280x720, 1680x720 and 2560x720 plus all 11 skins at 1280x720. These are native integration checks, separately
 from original/rebuilt storage evidence.
 
 ### Complete type-4 list property reader and cell payload writes
@@ -3356,8 +3356,8 @@ The asset-free parser fixture checks actual packed colours, `Ci` words, raw
 code units, receiver-pointer unpack return and removal of a text allocation when
 its type changes. All three native CTests and native/mod-enabled builds pass.
 Headless checks pass all 19 settings scenarios and slider pixels, all 10 Controls
-scenarios, pause/scroller motion and settled centering, and HUD skins at 640x480,
-1280x720, 1680x720 and 2560x720. These establish native integration separately
+scenarios, pause/scroller motion and settled centering, and baseline HUD at 640x480,
+1280x720, 1680x720 and 2560x720 plus all 11 skins at 1280x720. These establish native integration separately
 from original/rebuilt evidence and do not establish the original cell renderer.
 
 
@@ -3420,7 +3420,69 @@ and the full outer object reader `0x555140` remain separate work.
 
 Native and mod-enabled builds pass. All three native CTests and the headless
 settings (19 scenarios plus slider pixels), Controls (10 scenarios),
-pause/scroller motion/centering, and all HUD skins at four resolutions pass.
+pause/scroller motion/centering, and baseline HUD at four resolutions plus all 11 skins at 1280x720 pass.
 These integration checks do not establish original rendering or production
 inheritance ownership. Ghidra signatures and plate comments record the four
 verified spans and the resolver's calling convention and alias constraints.
+
+
+### Response-command construction, ownership and assignment (2026-10-18)
+
+Tracing base clone `0x554300` reached response-array resize `0x52ae00` and
+command assignment `0x52ad80`. This checkpoint recovers the complete command
+constructor `0x4fe910` (13 bytes), cleanup callback `0x517600` (47 bytes),
+byte-string setter `0x517630` (115 bytes), and assignment `0x52ad80`
+(118 bytes). All spans are fingerprinted in
+`config/SPEED2_EXE_1_2/feng-response-command.json`.
+
+The constructor zeros all three words and returns the receiver in EAX.
+Constructor and cleanup are ECX-only array callbacks; recovered free functions
+use fastcall to preserve that observed ABI without claiming original C++ member
+provenance. Cleanup tests an unsigned type range: `0x200` through `0x204`,
+excluding `0x203`, own a byte-string parameter. It calls free even for a null
+parameter, then clears parameter only; type and target remain unchanged.
+
+`SetString` repeats that ownership test/free, clears parameter, and optionally
+allocates `strlen + 1` bytes. It copies forward including the terminator and
+stores the allocated pointer only after copying. Assignment frees the old
+owned parameter, clears it, copies source type, then calls the actual setter
+for string-owning types. The setter's second `free(NULL)` is preserved.
+Assignment reloads source target after the nested setter/heap callbacks and
+returns the receiver. Other types copy the raw parameter then target. There
+is no self-assignment guard: owning self-assignment frees the old string and
+ends with a null parameter. These are observed original mechanics, including
+their quirks, rather than a replacement ownership policy.
+
+`UG2_EXE=... build/venv/bin/python tools/verify_pc_feng_response_command.py
+--compiler clang-cl --mutation-checks` passes 16,384 comparisons (4,096 per
+root), entering the actual setter 5,735 times, and rejects 12 semantic
+mutations. Original and rebuilt runs execute the entire nested setter body;
+only heap allocation `0x575620` and free `0x575630` are controlled. Comparisons
+include full mapped arena bytes, ordered callee/heap entry snapshots, receiver
+returns, preserved registers and stack cleanup. Rebuilt execution is restricted
+to linked source ranges. Cases include all ownership boundaries, high bytes,
+empty/null strings, source/self aliases, input aliasing the parameter field,
+and heap callbacks rebinding fields/source records. A field-alias case rejects
+storing the new pointer before copying. Finite mapped storage does not prove
+allocation failure, freed-memory lifetime validity, arbitrary stack aliases,
+exception unwinding, concurrency or byte identity. MSVC 7.1/wibo remain pending.
+
+The native response parser now calls the recovered constructor instead of
+initializing command defaults itself. Parsing of `Ri`/`Ru`/`Rt`, vector ownership
+and response-prefix projection remain native seams. Native fixtures check
+zero defaults through parsing, numeric payload projection, deep-copy pointer
+independence, string replacement, two free calls during assignment,
+self-assignment and non-owning `0x203` cleanup. The existing conditional-traversal
+verifier also passes all 8,192 comparisons and its six mutation rejections.
+Original response-array resizing/allocation `0x52ae00`, full response parsing
+`0x54d1d0`, base/script copying and production inheritance binding remain work
+required before replacing the complete outer object reader.
+
+Native and mod-enabled builds and all three asset-free CTests pass. Headless
+integration passes 19 settings scenarios plus slider pixels, 10 Controls
+scenarios, pause/scroller motion and settled centering, baseline HUD translation
+at 640x480/1280x720/1680x720/2560x720, all 11 HUD skins at 1280x720, and the
+scripted HUD capture. These are integration evidence, separate from recovered
+command behavior. Ghidra signatures/comments are updated. Earlier HUD coverage
+wording above is clarified to distinguish the four-resolution baseline from
+the skin sweep performed at 1280x720.

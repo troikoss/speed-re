@@ -6,6 +6,7 @@
 #include "../../Speed/Indep/Src/Frontend/FEngLifecycle.h"
 #include "../../Speed/Indep/Src/Frontend/FEngObjectFactory.h"
 #include "../../Speed/Indep/Src/Frontend/FEngText.h"
+#include "../../Speed/Indep/Src/Frontend/FEngResponse.h"
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
@@ -105,6 +106,32 @@ static void Initialize(FEGridObject &grid, FEGridCell *cells, Owner &owner) {
     grid.cells8C = cells;
     for (unsigned int i = 0; i < 6; ++i)
         for (unsigned int j = 0; j < 12; ++j) cells[i].value0[j] = 0x10000 + i * 256 + j;
+}
+static void ResponseCommands() {
+    FEResponseCommand source, copy;
+    assert(FEngConstructResponseCommand(&source) == &source);
+    assert(FEngConstructResponseCommand(&copy) == &copy);
+    assert(!source.type && !source.parameter && !source.target);
+    source.type = 0x200; source.target = 0xabcdef01;
+    source.SetString("original");
+    copy.type = 0x204;
+    unsigned int before = freeCalls;
+    assert(copy.Assign(&source) == &copy && freeCalls == before + 2); // Includes the second free(NULL).
+    assert(copy.parameter != source.parameter && !strcmp((const char *)copy.parameter, "original"));
+    assert(copy.type == 0x200 && copy.target == source.target);
+    source.SetString("replacement");
+    assert(!strcmp((const char *)copy.parameter, "original"));
+    before = freeCalls;
+    assert(source.Assign(&source) == &source && freeCalls == before + 2);
+    assert(!source.parameter && source.type == 0x200 && source.target == 0xabcdef01);
+    before = freeCalls;
+    FEngDestructResponseCommand(&copy);
+    FEngDestructResponseCommand(&source);
+    assert(freeCalls == before + 2 && !copy.parameter && !source.parameter);
+    assert(copy.type == 0x200 && copy.target == 0xabcdef01);
+    copy.type = 0x203; copy.parameter = 0x12345678;
+    before = freeCalls; FEngDestructResponseCommand(&copy);
+    assert(freeCalls == before && !copy.parameter && copy.type == 0x203);
 }
 int main() {
     void *page = mmap((void *)0x79b000, 4096, PROT_READ | PROT_WRITE,
@@ -361,6 +388,7 @@ int main() {
         assert(freeCalls == before + 3 * (deleteFlags[i] & 1));
         if (!(deleteFlags[i] & 1)) { free(image); free(group); free(list); }
     }
+    ResponseCommands();
     munmap(page, 4096);
     puts("PASS recovered grid storage/pool migration/cell writes/fill/navigation/callbacks/hash (no retail assets or display)");
 }

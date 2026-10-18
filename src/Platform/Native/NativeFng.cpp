@@ -158,7 +158,9 @@ void ReadResponses(const unsigned char *data, size_t size, std::vector<FengRespo
         } else if (!responses->empty()) {
             std::vector<FengResponseCommand> &commands = responses->back().commands;
             if (tag == 0x6952) {
-                FengResponseCommand command = {value, 0, 0};
+                FengResponseCommand command;
+                FEngConstructResponseCommand(&command);
+                command.type = value;
                 commands.push_back(command);
             } else if (tag == 0x7552 && !commands.empty()) {
                 commands.back().parameter = value;

@@ -337,6 +337,12 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   Production inheritance binding and cloning remain pending; this does not
   establish the original initialization of reader byte `+9`, MSVC matching,
   or complete outer-reader recovery. See `docs/pc-pause-menu.md`.
+- Response parsing now calls recovered command constructor `0x4fe910` for
+  three zeroed words. Command cleanup `0x517600`, byte-string setter `0x517630`
+  and assignment `0x52ad80` pass 16,384 original/rebuilt comparisons and 12
+  mutation rejections. Native fixtures cover deep-copy and self-assignment
+  behavior; the full parser and response-array allocation remain seams.
+  See [command ownership evidence](pc-pause-menu.md#response-command-construction-ownership-and-assignment-2026-10-18).
 - Native image/group/list teardown now invokes recovered `0x532660`/`0x534bf0`/
   `0x534a50`, alongside string destruction. Original list storage/cell release
   `0x516dc0`/`0x5042e0` and the three deleting wrappers are verified together with

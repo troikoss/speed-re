@@ -7,7 +7,13 @@ struct FEResponseCommand {
     unsigned int type;
     unsigned int parameter;
     unsigned int target;
+    void SetString(const char *text); // 0x517630, owned parameter for string command types.
+    FEResponseCommand *Assign(const FEResponseCommand *source); // 0x52ad80
 };
+
+// ECX-only array callback ABI; C++ member provenance is not established.
+FEResponseCommand *__fastcall FEngConstructResponseCommand(FEResponseCommand *command); // 0x4fe910
+void __fastcall FEngDestructResponseCommand(FEResponseCommand *command); // 0x517600
 
 struct FEResponse {
     char unidentified0[4];

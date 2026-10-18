@@ -129,6 +129,10 @@ static void RunString() {
     value.clear(); Word(value, 0x1744b3); Word(value, 1000); Tag(script, 0x6853, value);
     script = Chunk(0x70726353, script); objectData.insert(objectData.end(), script.begin(), script.end());
     value.clear(); Word(value, 0x1234); Tag(response, 0x694d, value);
+    value.clear(); Word(value, 1); Tag(response, 0x6952, value); // First command leaves defaults.
+    value.clear(); Word(value, 2); Tag(response, 0x6952, value);
+    value.clear(); Word(value, 0x12345678); Tag(response, 0x7552, value);
+    value.clear(); Word(value, 0x87654321); Tag(response, 0x7452, value);
     response = Chunk(0x5267734d, response); objectData.insert(objectData.end(), response.begin(), response.end());
     data = Chunk(0x30203, Chunk(0xe76e4546, Chunk(0xcc6a624f, Chunk(0xea624f46, objectData))));
     StringTeardownObserver teardown;
@@ -143,6 +147,10 @@ static void RunString() {
         assert(object->type18 == 2 && object->text == "A???");
         assert(object->data2C == reinterpret_cast<float *>(object->colour));
         assert(object->scripts4C && object->responses3C && object->scripts.size() == 1 && object->responses.size() == 1);
+        const FEResponseCommand *commands = object->responses3C->commands14;
+        assert(object->responses3C->commandCount10 == 2 && commands[0].type == 1);
+        assert(!commands[0].parameter && !commands[0].target);
+        assert(commands[1].type == 2 && commands[1].parameter == 0x12345678 && commands[1].target == 0x87654321);
         assert(storage->capacity4 == 6 && !memcmp(storage->text0, text, sizeof(text)));
         assert(storage->GetBuffer(6) == object->text64);
         assert(object->languageHash60 == 0x12345678 && object->font == 0x12345678);
