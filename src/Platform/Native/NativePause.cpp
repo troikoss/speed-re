@@ -60,7 +60,7 @@ void *CreateOptions(void *data) { return CreatePauseOptionsFNGObject(data); }
 struct NativeScreen {
     NativeScreen(const char *packageName, ScreenFactory create, bool list)
         : name(packageName), factory(create), optionsList(list), package(0), loaded(false), shown(false),
-          object(0) {
+          scriptsPending(false), object(0) {
         memset(&fePackage, 0, sizeof(fePackage));
         memset(&record, 0, sizeof(record));
         memset(&node, 0, sizeof(node));
@@ -88,6 +88,7 @@ struct NativeScreen {
         }
         fePackage.focusObjects90 = focusObjects.empty() ? 0 : &focusObjects[0];
         fePackage.focusCount94 = focusObjects.size();
+        scriptsPending = true;
         return true;
     }
     void Deliver(unsigned int message, int value8, int valueC) {
@@ -111,6 +112,7 @@ struct NativeScreen {
     FengPackage *package;
     bool loaded;
     bool shown;
+    bool scriptsPending;   // shown since its scripts were last applied (see Pump)
     FEPackage fePackage;  // original prefix, native object loading remains a seam
     FngRecord record;      // static FNG selection survives package reloads
     FEngPackageNode node;
@@ -276,6 +278,14 @@ void Pump() {
     nativeFengQueue.ConsumeOperations();
     nativeFengQueue.DeliverMessages();
     ApplyDeferred();
+    // Native ordering seam: a screen pushed while messages are delivered selects its opening
+    // scripts but would otherwise be drawn before the next frame's script phase, showing the
+    // loaded Init state for a frame. A zero-length script phase applies them first.
+    for (size_t i = 0; i < kScreenCount; ++i) {
+        if (!screens[i]->shown || !screens[i]->scriptsPending) continue;
+        screens[i]->scriptsPending = false;
+        screens[i]->package->AdvanceScripts(&screens[i]->fePackage, &nativeFengQueue, 0);
+    }
 }
 
 // 0x54d4b0: a pad message goes to the focus object when it responds to it, else to the
@@ -897,6 +907,7 @@ void NativePause::Update(float seconds) {
     realClock8651AC += ticks;
     for (size_t i = 0; i < kScreenCount; ++i) {
         if (!screens[i]->shown) continue;
+        screens[i]->scriptsPending = false;
         // Recovered 0x54ce60 fires script events through the queue and its observer.
         screens[i]->package->AdvanceScripts(&screens[i]->fePackage, &nativeFengQueue, seconds);
         if (screens[i] != &dialogScreen) Post(screens[i], kFrontendTick, 0, kTargetGame);  // 0x5663b0

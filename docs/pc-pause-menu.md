@@ -4326,7 +4326,10 @@ tracks with `0x541f60` after resolving `Sc` hashes to scripts as `0x5554a0` does
 (`0x555631`). Native seams: objects without a current script are skipped, the
 HUD package (not yet registered with a frame manager) posts to a HUD-local queue
 whose observer ignores messages and whose posts are discarded each frame, and
-the render angle is recomputed from the state quaternion. Retail HUD packages
+the render angle is recomputed from the state quaternion. A screen shown while the
+pump delivers messages gets one zero-length script phase at the end of `Pump()`
+so it is not drawn for a frame in its loaded Init state before its opening
+script applies (seen as a one-frame flash of the fully lit screen). Retail HUD packages
 use event targets -1/-4/GUID (8 events); in-game packages 121 GUID, 23 -4 and
 88 -1. The asset-free list test publishes the retail constant bit patterns it
 now reads; `ug2recovered` is compiled with per-function sections so the test can

@@ -398,7 +398,8 @@ Seams in `src/Platform/Native/NativePause.cpp` (scaffolding, behaviour as read, 
   See [reader evidence](pc-pause-menu.md#complete-script-reader-and-native-integration-2026-10-18).
 - Script playback is original: per-object update `0x54ce60`, apply `0x541db0`,
   events `0x534c70` and the evaluators/interpolators beneath them. The native
-  frame seam converts seconds to whole milliseconds in ≤20 ms steps; the HUD
+  frame seam converts seconds to whole milliseconds in ≤20 ms steps (plus a
+  zero-length step for screens shown during the message pump); the HUD
   posts events to a discarded local queue. Native `ApplyTrack` and the pause
   event scheduler are removed.
   See [playback evidence](pc-pause-menu.md#original-script-playback-in-the-native-demo-2026-10-18).
