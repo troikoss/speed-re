@@ -1,0 +1,15 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "GetWheelRenderMatrices": {
+      "address": "0x5f6820",
+      "size": 954,
+      "sha256": "95a6b24183dcf9c1d9529582117dac9d49a54ada973d83cb0e171b14995a1c85"
+    },
+    "GetWheelSpinMatrices": {
+      "address": "0x5ec7f0",
+      "size": 707,
+      "sha256": "6079aaa18bdda68d1f6db0fadf4d4a942180fe8c79eb46a72f9cb35da143812f"
+    }
+  }
+}

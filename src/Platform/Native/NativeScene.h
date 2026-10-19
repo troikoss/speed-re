@@ -37,8 +37,9 @@ class NativeCarModel {
 public:
     bool Load(const char *gameDirectory, const char *carName, NativeTextureCache *textures, char *error,
               int errorSize);
-    // `body` is the column-major render matrix of the car origin; `wheels` the four
-    // column-major wheel frames, `spins` their spin-including frames.
+    // `body` is the column-major render matrix of the car origin; `wheels` the four car-local
+    // brake frames and `spins` the four car-local tyre frames (0x5f6820 outputs), composed with
+    // `body` here.
     void Draw(const float *body, const float wheels[4][16], const float spins[4][16], const bool mirrored[4],
               bool translucent);
     int SolidCount() const { return (int)solids_.size(); }
@@ -51,6 +52,7 @@ private:
     std::vector<NativeSolid> solids_;
     std::vector<NativeDrawSolid> body_;
     NativeDrawSolid wheel_;
+    float wheelCentreY_ = 0.0f;  // scaffold: tyre solid's mid y, see Draw
     NativeDrawSolid frontBrake_;
     NativeDrawSolid rearBrake_;
     std::map<unsigned int, unsigned int> replacements_;

@@ -184,6 +184,7 @@ bool NativeCarModel::Load(const char *gameDirectory, const char *carName, Native
         return false;
     }
     wheel_.solid = wheel;
+    wheelCentreY_ = (wheel->minimum[1] + wheel->maximum[1]) * 0.5f;
     wheel_.opaqueList = Build(*wheel, false);
     wheel_.translucentList = Build(*wheel, true);
     frontBrake_.solid = front;
@@ -209,11 +210,21 @@ void NativeCarModel::Draw(const float *body, const float wheels[4][16], const fl
         for (int k = 0; k < 2; ++k) {
             if (!lists[k]) continue;
             glPushMatrix();
+            // Platform seam standing in for the unrecovered draw 0x620ae0: the wheel frames are
+            // car-local (0x5f6820), so the car body frame is applied first.
+            glMultMatrixf(body);
             glMultMatrixf(frames[k]);
             if (mirrored[w]) {
                 glScalef(1.0f, -1.0f, 1.0f);
                 glFrontFace(GL_CW);
             }
+            // Scaffold standing in for the lateral offset of 0x620ae0 (0x6271c5..0x62738d,
+            // render-info +0x420/+0x430/+0x434, not recovered): the tyre solid spans local y
+            // [-0.017, 0.234] with its outer face at y~0, so the recovered wheel plane would put
+            // the face on the plane and the hub-centred brake would poke through the rim. Centre
+            // the tyre width on the plane instead (after the mirror, so both sides match).
+            // The tyre radius (model 0.354 vs spec 0.327) is not scaled.
+            if (k == 0) glTranslatef(0.0f, -wheelCentreY_, 0.0f);
             glCallList(lists[k]);
             glFrontFace(GL_CCW);
             glPopMatrix();

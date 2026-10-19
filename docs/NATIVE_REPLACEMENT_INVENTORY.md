@@ -36,6 +36,7 @@ still should come from recovered code.
 | 8 | CarTypeInfo/tuning chunk loaders | 3 | 3 |
 | 9 | Frontend classes (IconScroller, options list, dialog, Controls) | 3–4 | 3 |
 | 10 | HUD feature construction and mask caller | 3 | 3 |
+| 11 | Car wheel draw `0x620ae0` wheel block: placement, side scale, width (see [wheel seams](#car-wheel-rendering-seams)); getters `0x5f6820`/`0x5ec7f0` done | 4 | 4 |
 
 ## 1. Game loop, timing and update composition
 
@@ -116,6 +117,31 @@ still should come from recovered code.
 | No depth sorting of blended draws | `NativeScene.cpp` | Original draw ordering | 4 | 2 | |
 | Fixed paint colour for SKIN1; no vinyls, damage or light switching | `NativeScene.cpp:114–140` | Skin builder, `0x638190`, `0x631e20` | 4 | 2 | |
 | Scaffold lighting and horizon colour | `DemoMain.cpp:266`, `:673` | Time-of-day/fog colour selection | 4 | 2 | |
+| ~~Wheel render frames composed natively from `DrivetrainWheel` `matrix30`×`matrix70`~~ (done) | `DemoMain.cpp` `DrawCarModel` | `0x5f6820` (recovered, wired in), `0x5ec7f0` (recovered, not drawn) | — | — | Remaining seam: unrecovered draw `0x620ae0` (body-frame composition and positive-y mirroring in `NativeCarModel::Draw`; the original zeroes frame y and scales from render-info `+0x420`). Fallback `DrawWheel` unchanged. Remaining seams: [car wheel rendering seams](#car-wheel-rendering-seams). |
+
+### Car wheel rendering seams
+
+Snapshot 2026-10-19. The wheels still do not look right in the demo: they sit too low in the
+arches in both the old and new frame paths, and only the side choice of the mirroring was
+corrected visually. The getters `0x5f6820`/`0x5ec7f0` are recovered and verified
+(`verify_pc_wheel_render.py`). Everything after them is native. The original chain is the
+render callers `0x631250`/`0x6316d0`, which call `0x5f6820` (tyres, brakes) and `0x5ec7f0` (a third
+set) and pass them with the body matrix (car `+0x5a0` or `+0x50`) and car `+0x560`/`+0xd0` to the
+car draw `0x620ae0` (66 KB, not recovered; Ghidra's decompiler times out on it). Addresses below
+are disassembly leads, not verified boundaries.
+
+| Native piece | Where | Replace with | Diff. | Imp. | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Body-frame composition: each car-local frame is multiplied under the body frame (`matrixD0` with `origin10`) | `NativeScene.cpp` `NativeCarModel::Draw` | `0x620ae0` wheel block (`0x62710d`..`0x6274b4` and the draws after it); `0x4012b0` is called 32 times there | 4 | 4 | The parent frame the original uses (its body argument versus `+0x560`/`+0xd0`) is not established. |
+| Lateral placement and side: the record's wheel y is kept, and positive-y wheels are mirrored with `glScalef(1,-1,1)` | `DemoMain.cpp` `DrawCarModel`, `NativeCarModel::Draw` | `0x620ae0`: zeroes element 13 (y translation) of the tyre, brake and third-set frames (`0x627462`..`0x627481`), then builds four per-wheel matrix sets on the stack (`+0x200`, `+0x3d0`, `+0x4d0`, `+0x5d0`, stride 0x40) | 4 | 4 | Element 5 (y scale) = width × render-info `+0x420[w]` (falls back to `[0x8026c4]` when zero); element 13 = −(lateral offset); the front wheels (offset < 0x80) also subtract an offset from elements 14 of three sets (`0x627432`..`0x62745b`). Measured on SKYLINE: the tyre solid's outer face/normals point -y (y [-0.017, 0.234], radius 0.354), hence the mirror; the scaffold also translates the tyre by minus its mid y (brake unchanged) to centre it on the wheel plane. The tyre radius is not scaled to the spec radius 0.327. The stock `FRONT_WHEEL_A` is a hollow tyre: no rim solid is drawn, so the brake shows through the centre. Lead for the original brake placement: `0x638190` reads `+0x430`/`+0x434` from the `MARKER_BRAKE` marker (string `0x7a8d14`, field `+0x44`) of the wheel models; in SKYLINE GEOMETRY.BIN that marker (chunk `0x0013401a`) has y translation 0.0974. |
+| Wheel width/size scaling absent (model drawn at authored size) | `NativeCarModel::Draw` | `0x620ae0` `0x62700e`..`0x627086`: front/rear widths from render-info `+0x430`/`+0x434` unless the globals `0x7a668c`/`0x7a6690` are non-zero | 3 | 4 | `+0x430`/`+0x434` are written by the CarRenderInfo constructor `0x638190` at `0x6390ef`/`0x639102` from field `+0x44` of the solids at render-info `+0x1b48`/`+0x1b68`. A likely cause of the low or oversized look. |
+| Spin angle / extra rotation computed in the draw | — | `0x620ae0` `0x6270a2`..`0x627102`: `0x59a420` on car `+0x10`, scaled by `0x7a6754`/`0x784238`, `0x75bed4`, reduced with the 0xb60b60b7 reciprocal (divide by 360) | 3 | 2 | Purpose unproven; not applied natively. |
+| Third frame set `0x5ec7f0` not drawn | `DemoMain.cpp` | `0x620ae0` argument 7 (`[ebp+0x20]`) | 2 | 2 | Recovered (`GetWheelSpinMatrices`); its role in the draw is unknown. |
+| Wheel/brake solid selection: `<CAR>_KIT00_FRONT_WHEEL_A` for all four wheels, `FRONT_BRAKE_A`/`REAR_BRAKE_A` by axle, always LOD A | `NativeScene.cpp` `NativeCarModel::Load` | CarRenderInfo `0x638190` model slots `+0x1b48`/`+0x1b68` (wheel), `+0x1b78`, `+0x1ba8` (brake loop at `0x626f80` via `0x48d860`, `0x5c5930`) | 3 | 3 | Rear wheel and rim/kit choices are not original; no LOD selection. |
+| Solid draw and render state: GL display lists, no culling, `glFrontFace` toggled for mirrored wheels, fixed-function lighting | `NativeScene.cpp` | Solid draw `0x5c5930` (8 calls in the wheel block), `0x48f660`, `0x620600`, `0x60d700`; D3D path (`0x5c7ea0`, `0x5c5020`) | 5 | 3 | GL stays the backend. The culling and lighting decisions should follow the original states. |
+| View flag: `0x5f6820` is called with view 0, so the rest-pose branch (`value5B0` bit) is never chosen per view | `DemoMain.cpp` | View index from the callers `0x631250`/`0x6316d0` (`param_1 + 4`) | 1 | 1 | |
+| Procedural fallback `DrawWheel` composes `DrivetrainWheel` `matrix30`×`matrix70` when no car model loads | `DemoMain.cpp` | None (pure scaffold) | — | 1 | Keep, or remove once model loading is reliable. |
+| Mod bridge exports `matrix30`/`matrix70` | `NativeModBridge.cpp` | — | — | — | Outside recovery scope; not a render seam. |
 
 ## 7. FEng engine (shared by HUD and menus)
 

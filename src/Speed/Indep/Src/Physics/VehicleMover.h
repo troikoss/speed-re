@@ -696,6 +696,8 @@ struct MoverModeOwner {
     DrivetrainAuxiliary *State() {
         return reinterpret_cast<DrivetrainAuxiliary *>(unidentified40);
     }
+    void GetWheelRenderMatrices(WheelMatrix *tires, WheelMatrix *brakes, int view); // 0x5f6820 (WheelRenderMatrices.cpp)
+    void GetWheelSpinMatrices(WheelMatrix *output, int view); // 0x5ec7f0 (WheelRenderMatrices.cpp)
     bool HasWheelInputs();  // 0x5ed290 (Camera/CameraPush.cpp)
     bool HasWheelTargets(); // 0x5ed300 (Camera/CameraPush.cpp)
     int GetMoverWheelState(int wheel);
@@ -753,6 +755,7 @@ UG2_CHECK_OFFSET(MoverModeOwner, value4E8, 0x4e8);
 UG2_CHECK_OFFSET(MoverModeOwner, value4F8, 0x4f8);
 UG2_CHECK_OFFSET(MoverModeOwner, contactTime54C, 0x54c);
 UG2_CHECK_OFFSET(MoverModeOwner, effects554, 0x554);
+UG2_CHECK_OFFSET(MoverModeOwner, record20, 0x20);
 UG2_CHECK_OFFSET(MoverModeOwner, value5B0, 0x5b0);
 UG2_CHECK_OFFSET(MoverModeOwner, direction900, 0x900);
 UG2_CHECK_OFFSET(MoverModeOwner, shiftTick9D8, 0x9d8);

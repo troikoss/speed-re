@@ -261,20 +261,22 @@ void DrawCarModel(NativeCarModel *model, NativeVehicle *vehicle) {
     frame[12] = state->origin10.x;
     frame[13] = state->origin10.y;
     frame[14] = state->origin10.z;
+    // Recovered original 0x5f6820, as called by 0x631250/0x6316d0 with view 0: car-local tyre and
+    // brake frames. Platform seam: the unrecovered draw 0x620ae0 combines them with the body
+    // frame (done in NativeCarModel::Draw) and places the wheels sideways itself: it zeroes the
+    // frames' y translation (0x627462) and builds per-wheel y-scale matrices from render-info
+    // +0x420 (0x6271c5). Scaffold: keep the record's y and mirror the positive-y wheels, because
+    // the stock wheel solid's outer face and normals point -y (mirroring the other side shows the
+    // rim's back). The tyre is then centred on the wheel plane in NativeCarModel::Draw as a
+    // stand-in for the unrecovered lateral offset of 0x620ae0.
+    WheelMatrix tires[4], brakes[4];
+    vehicle->owner->GetWheelRenderMatrices(tires, brakes, 0);
     float wheels[4][16], spins[4][16];
     bool mirrored[4];
     for (int i = 0; i < 4; ++i) {
-        DrivetrainWheel *wheel = vehicle->mover->wheels38[i];
-        float *spin = wheel->matrix30.elements, *world = wheel->matrix70.elements;
-        memcpy(wheels[i], world, sizeof(wheels[i]));
-        for (int r = 0; r < 4; ++r) {
-            for (int c = 0; c < 4; ++c) {
-                float sum = 0.0f;
-                for (int k = 0; k < 4; ++k) sum += spin[r * 4 + k] * world[k * 4 + c];
-                spins[i][r * 4 + c] = sum;
-            }
-        }
-        mirrored[i] = record->wheels10[i].position0.y < 0.0f;
+        memcpy(spins[i], tires[i].elements, sizeof(spins[i]));
+        memcpy(wheels[i], brakes[i].elements, sizeof(wheels[i]));
+        mirrored[i] = record->wheels10[i].position0.y > 0.0f;
     }
     GLfloat light[4] = {0.35f, 0.25f, 0.9f, 0.0f};
     // Scaffold lighting roughly matching the night-time baked colours of the track.

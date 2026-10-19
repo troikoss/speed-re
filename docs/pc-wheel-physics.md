@@ -257,3 +257,28 @@ Command: `python tools/verify_pc_body_post_update.py`. Report: ignored
 mover regressions also pass after the layout extension. Body construction and
 parameter refresh 0x59b940, actual retail record loading and the native runtime
 remain unrecovered.
+
+## Wheel render frame getters
+
+`MoverModeOwner::GetWheelRenderMatrices` at 0x5f6820 (`__thiscall`, `RET 0xc`; 954 bytes) and
+`MoverModeOwner::GetWheelSpinMatrices` at 0x5ec7f0 (`RET 0x8`; 707 bytes) are called by the car
+render routines 0x631250 and 0x6316d0, which pass the results with the body matrix (car +0x5a0 or
++0x50), car +0x560/+0xd0 and the view's tyre, brake and third frame sets to the unrecovered car
+draw 0x620ae0. Both take a view index and test bit `view` of car +0x5b0. When set, the outputs are
+rest-pose frames: identity with the translation of record `wheels10[w].position0` (record = car
++0x20). Otherwise 0x5f6820 copies, by 0x4012b0, the state frames `wheelMatricesF0[w]` (car +0x130,
+tyres) and `wheelMatrices1F0[w]` (car +0x230, brakes) written by 0x5921b0. 0x5ec7f0 instead builds
+each frame: identity, `RotateMatrixY` (0x5bada0) by the integer conversion (0x75bed4) of car
++0x4e8 + 4w (the `value4E8` angles integrated by 0x5ecac0) times 0x78423c, `RotateMatrixZ`
+(0x5bae60) by the short at car +0x40e (`steering3CE`) for wheels whose record offset is below 0x60,
+and the record position with z increased by car +0x380 + 4w (`suspension340`). The purpose of the
+third set inside 0x620ae0 is not proven.
+
+Command: `python tools/verify_pc_wheel_render.py [--mutation-checks]` (fingerprints in
+`config/SPEED2_EXE_1_2/wheel-render.json`). 2,048 randomized cases per routine at 53- and 64-bit x87
+precision (4,096 comparisons), both value5B0 branches, 0..255 view indices, compare the whole
+arena (outputs and state), ESP, saved registers, FPU control and tag words, and the callee call
+sequence against the original run. The copy, rotations, conversion and D3DX thunk 0x63cedb run
+as original code or a traced stub in both runs. Eleven mutations are rejected. Byte identity is not
+claimed. 0x620ae0 and the body composition remain unrecovered; the demo composes the frames with
+the body frame natively.

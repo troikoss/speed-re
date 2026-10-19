@@ -270,8 +270,24 @@ used-texture setup `0x631e20`, resolved with lights off and no damage: `WINDOW_*
 `<CAR>_KIT00_BRAKELIGHT_OFF`, `BRAKELIGHT_CENTRE` → `<CAR>_CENTRE_BRAKELIGHT_OFF`. Scaffold
 choices: windows bind GLOBALB's `WINDOW`; the paint/vinyl layers (`<CAR>_SKIN1` and the
 unnamed body-panel and skirt keys `0x3c84d757`/`0xa7366ae6`) are drawn in a fixed colour;
-lighting is fixed-function OpenGL. The wheel model is drawn at the recovered wheel render
-frames (`0x5921b0`), mirrored for right-side wheels.
+lighting is fixed-function OpenGL. The wheel model is drawn at the car-local
+frames returned by the recovered `MoverModeOwner::GetWheelRenderMatrices` (`0x5f6820`, view 0;
+frames written by `0x5921b0`), as the render callers `0x631250`/`0x6316d0` obtain them. Platform
+seam standing in for the unrecovered draw `0x620ae0`: `NativeCarModel::Draw` composes each frame
+with the car body frame (`matrixD0` with `origin10`) and mirrors the wheels whose record position y
+is positive (glScale -1 on y): the stock tyre solid (`<CAR>_KIT00_FRONT_WHEEL_A`, SKYLINE bounds
+y [-0.017, 0.234], x/z radius 0.354) has its outer face (sidewall and the rim disc, which is only a
+texture) at local y~0 with normals toward -y and the tread running to +0.224, so mirroring the
+other side drew the back of the rim. As a stand-in for the lateral offset of `0x620ae0`, the tyre
+(not the brake, which is hub-centred) is translated by minus the mid of its y bounds so its width
+is centred on the wheel plane; the brake then sits behind the rim face. The model radius (0.354)
+is not scaled to the physics spec radius (0.327). The original side handling is inside `0x620ae0` and not
+recovered: it zeroes the y translation of the tyre, brake and spin frames (`0x627462`..`0x627481`)
+and builds per-wheel matrices whose y scale comes from render-info `+0x420[w]`
+(`0x6271c5`..`0x62738d`). The spin-matrix getter `0x5ec7f0`
+(`GetWheelSpinMatrices`) is recovered but not drawn. The procedural fallback `DrawWheel` (no model
+loaded) still composes `DrivetrainWheel` `matrix30`/`matrix70` natively. The wheels still do not match the original. The remaining native wheel seams are listed in
+[the replacement inventory](NATIVE_REPLACEMENT_INVENTORY.md#car-wheel-rendering-seams).
 
 ## Drive camera and HUD (fifth pass)
 
