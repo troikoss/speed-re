@@ -13,7 +13,7 @@ Always decompile the original UG2 code; never author replacement game code yours
 ## Agent Workflow
 
 - For any implementation task, write a plan before editing any file. The plan names the goal, the files and routines involved (with original addresses where relevant), the validation commands, and open risks.
-- Then delegate the implementation to a subagent launched with the Agent tool using `model: "sonnet"` and `effort: "medium"`. Make the brief self-contained: files, addresses, expected behavior, and validation commands.
+- Then delegate the implementation to a subagent launched with the Agent tool using `model: "haiku"` and `effort: "max"`. Make the brief self-contained: files, addresses, expected behavior, and validation commands.
 - The main agent reviews the subagent's diff and runs the relevant verifiers itself before reporting results.
 - For broad code or file searches whose answer needs only the conclusion, use an explorer subagent: launch it with the Agent tool using `subagent_type: "Explore"`, `model: "haiku"`, and `effort: "high"`. Its brief must state the question and the search breadth. It is read-only and must not edit files.
 
