@@ -24,19 +24,18 @@ still should come from recovered code.
 
 ## Recommended order
 
+Open items, ordered by importance (ties: lower difficulty first). Finished items are
+recorded in the section tables below.
+
 | # | Item | Diff. | Imp. |
 | --- | --- | --- | --- |
-| 1 | ~~Car update `0x6012b0` and world update `0x609ce0`~~ (done; many callees remain seams) | 3 | 5 |
-| 2 | ~~Wire in verified-but-unintegrated tuning routines~~ (already linked; reachable only once the tuning-table loader, item 8, exists) | 1 | 3 |
-| 3 | ~~FEng messaging: frame manager `0x558c00`~~ (done; delivery `0x541fc0`/dispatch `0x5367e0` were already recovered; pad/mouse dispatch `0x54d4b0`/`0x54e020` remain) | 3 | 4 |
-| 4 | ~~Car constructor `0x604260` and participant setup `0x6065b0` (replace `CreateNativeVehicle`)~~ (done; participant kind `0x5eba30`, mover factory `0x5f46a0` and ground placement `0x5f5010` remain seams) | 4 | 5 |
-| 5 | ~~FEng package/object loader `0x5554a0`/`0x555860`~~ (recovered and verified; load driver `0x555800`/`0x555720` remains a seam and the native loader is not rewired) | 4 | 4 |
-| 6 | Collision: ~~GJK `0x5b3390`, impulse `0x5af0e0`~~ (verified 2026-10-19; one GJK fix), ~~cylinders `0x5a23d0`/`0x5a2780`~~ (recovered 2026-10-19), ~~world objects `0x5b31f0`/`0x5b1390`/`0x5adb20`/`0x5add50`/`0x48bc50`~~ (recovered 2026-10-19; slot `0x8c` and the creation function remain seams) | 3–4 | 4 |
-| 7 | Camera seams: ~~pushes~~, ~~cockpit tests `0x445fc0`/`0x5f14f0`~~ (recovered 2026-10-19), shake `0x572a50`/`0x452ed0`, finalisation `0x447280`, ~~chase frame branch of `0x445e00`~~ (recovered 2026-10-19 with the heading follower steering `0x445c20`) | 2–3 | 3 |
-| 8 | CarTypeInfo/tuning chunk loaders | 3 | 3 |
-| 9 | Frontend classes (IconScroller, options list, dialog, Controls) | 3–4 | 3 |
-| 10 | HUD feature construction and mask caller | 3 | 3 |
-| 11 | Car wheel draw `0x620ae0` wheel block: placement, side scale, width (see [wheel seams](#car-wheel-rendering-seams)); getters `0x5f6820`/`0x5ec7f0` done | 4 | 4 |
+| 1 | Collision: ~~GJK `0x5b3390`, impulse `0x5af0e0`~~ (verified 2026-10-19; one GJK fix), ~~cylinders `0x5a23d0`/`0x5a2780`~~ (recovered 2026-10-19), ~~world objects `0x5b31f0`/`0x5b1390`/`0x5adb20`/`0x5add50`/`0x48bc50`~~ (recovered 2026-10-19; slot `0x8c` and the creation function remain seams) | 3–4 | 4 |
+| 2 | Car wheel draw `0x620ae0` wheel block: placement, side scale, width (see [wheel seams](#car-wheel-rendering-seams)); getters `0x5f6820`/`0x5ec7f0` done | 4 | 4 |
+| 3 | Camera seams: ~~pushes~~, ~~cockpit tests `0x445fc0`/`0x5f14f0`~~ (recovered 2026-10-19), shake `0x572a50`/`0x452ed0`, finalisation `0x447280`, ~~chase frame branch of `0x445e00`~~ (recovered 2026-10-19 with the heading follower steering `0x445c20`) | 2–3 | 3 |
+| 4 | CarTypeInfo/tuning chunk loaders | 3 | 3 |
+| 5 | HUD feature construction and mask caller | 3 | 3 |
+| 6 | Frontend classes (IconScroller, options list, dialog, Controls) | 3–4 | 3 |
+| 7 | Car body draw: CarRenderInfo `0x638190`, render callers `0x631250`/`0x6316d0`, draw `0x620ae0` body path (see [body seams](#car-body-rendering-seams)) | 5 | 3 |
 
 ## 1. Game loop, timing and update composition
 
@@ -115,9 +114,37 @@ still should come from recovered code.
 | Pixel-size LOD missing | — | `0x5d64d0` | 3 | 3 | |
 | Render states derived from texture alpha fields | `NativeScene.cpp:225` | D3D render path (`0x5c7ea0`, `0x5c5020`, `0x5bcc30`) | 5 | 3 | GL stays as the backend; state selection should be original. |
 | No depth sorting of blended draws | `NativeScene.cpp` | Original draw ordering | 4 | 2 | |
-| Fixed paint colour for SKIN1; no vinyls, damage or light switching | `NativeScene.cpp:114–140` | Skin builder, `0x638190`, `0x631e20` | 4 | 2 | |
+| Fixed paint colour for SKIN1; no vinyls, damage or light switching | `NativeScene.cpp:114–140` | Skin builder, `0x638190`, `0x631e20` | 4 | 2 | Details and the other body seams: [car body rendering seams](#car-body-rendering-seams). |
 | Scaffold lighting and horizon colour | `DemoMain.cpp:266`, `:673` | Time-of-day/fog colour selection | 4 | 2 | |
 | ~~Wheel render frames composed natively from `DrivetrainWheel` `matrix30`×`matrix70`~~ (done) | `DemoMain.cpp` `DrawCarModel` | `0x5f6820` (recovered, wired in), `0x5ec7f0` (recovered, not drawn) | — | — | Remaining seam: unrecovered draw `0x620ae0` (body-frame composition and positive-y mirroring in `NativeCarModel::Draw`; the original zeroes frame y and scales from render-info `+0x420`). Fallback `DrawWheel` unchanged. Remaining seams: [car wheel rendering seams](#car-wheel-rendering-seams). |
+
+### Car body rendering seams
+
+Snapshot 2026-10-19. The car body is drawn natively from fixed part lists, with scaffold paint and
+lighting. The original chain, from the call graph: the frame render driver `0x5caad0` (caller
+`0x5d2850`; it also calls the scenery solid render `0x5cf420`) calls three car paths,
+`0x630de0`, `0x631250` and `0x6316d0`. All three call the 66 KB car draw `0x620ae0` (Ghidra's
+decompiler times out on it); `0x631250`/`0x6316d0` also call the wheel getters. The render info
+behind them is built by the CarRenderInfo constructor `0x638190` (6 KB), created by `0x63a5a0`
+(malloc; callers `0x5f4650`, `0x601110`) and `0x63a650` (callers `0x4a79d0`, `0x4d82d0`,
+`0x4ea900`, `0x63b850`; likely frontend/showcase cars, unproven). The wheel block has its own
+table below ([car wheel rendering seams](#car-wheel-rendering-seams)); the items there are not
+repeated here. Addresses are call-graph leads, not verified boundaries.
+
+| Native piece | Where | Replace with | Diff. | Imp. | Notes |
+| --- | --- | --- | --- | --- | --- |
+| Part list: `<CAR>_BASE_A` plus 19 fixed KIT00 parts (BODY, BRAKELIGHT, DOOR_LEFT/RIGHT, ENGINE, EXHAUST, FRONT_BUMPER, HEADLIGHT_LEFT/RIGHT, HOOD, HOOD_UNDER, side mirrors, REAR_BUMPER, ROOF, SKIRT, SPOILER, TRUNK, TRUNK_UNDER), always LOD A; door panel/sill and trunk audio variants left out | `NativeScene.cpp` `NativeCarModel::Load` (reads `CARS/<car>/GEOMETRY.BIN`; texture packs `CARS/<car>/TEXTURES.BIN`, `CARS/TEXTURES.BIN`, `CARS/BRAKES/TEXTURES.BIN`, `GLOBAL/GLOBALB.BUN`) | CarRenderInfo constructor `0x638190` (part/kit selection from the car preset) | 4 | 3 | LOD selection is not recovered. Setup copy `0x413440` and `0x634630` are also called from `0x63a650`. `0x638190` also calls `0x634800` (8 KB, its only caller; role unknown, calls texture/solid helpers). |
+| Texture replacement keys hard-coded, lights off, no damage: `WINDOW_*` to GLOBALB `WINDOW`, `DRIVER` to `DRIVER_MALE`, brakelight/headlight to `_OFF` textures | `NativeScene.cpp` `NativeCarModel::Load` | Used-texture setup `0x631e20` (also reached via `0x636840` and `0x6335d0` from `0x637840`) and keys built by `0x638190` | 3 | 2 | The window texture the game binds (damage/variant) is not recovered. The per-frame light on/off and damage switching are not located. |
+| Paint: SKIN1 (`<CAR>_SKIN1`) and the unnamed body panel `0x3c84d757` / skirt `0xa7366ae6` keys drawn untextured in fixed colour (0.62, 0.64, 0.68); other untextured parts dark grey (0.12, 0.12, 0.13) | `NativeScene.cpp` `NativeCarModel::Build` | Skin layer built at run time from the preset paint and vinyls (builder not located) | 4 | 2 | Strings `VINYL_PAINT` and `DECAL_*` exist; their builder is not located. No vinyls or decals are drawn. |
+| Render state and display lists: one GL list per solid, opaque and translucent lists split purely by the texture alpha flag; mesh-part flags (record `+0x38`, parsed into `part.flags`) ignored | `NativeScene.cpp` `NativeCarModel::Build` | Per-part state via solid draw `0x5c5930` and the D3D path `0x5c7ea0`/`0x5c5020` | 5 | 3 | Shares the solid-draw row of the wheel table. The solid chunk parser (`NativeAssets.cpp` `LoadSolid`: chunks `0x134011`/`0x134012`/`0x134900`/`0x134b01`/`0x134b02`/`0x134b03`, vertex strides 24 or 36 only, car vertex colours unused, normals used) stands in for the loaders `0x493bb0`/`0x494ea0` listed in the main table. |
+| Lighting: one directional GL light (0.35, 0.25, 0.9), ambient 0.22/0.22/0.27, diffuse 0.5/0.48/0.45, `GL_COLOR_MATERIAL`, alpha test > 0.02; translucent pass with `SRC_ALPHA` blend, no depth write, no sorting. No envmap or gloss | `DemoMain.cpp` `DrawCarModel`, `NativeScene.cpp` | Car lighting/shader constants, envmap and gloss | 4 | 2 | Leads: string `EnvMapTexture` (`0x7a4428`) is referenced by `0x5d0f80` (effect parameter setup); `FRONTEND\ENVMAPS\%s.BIN` by `0x523d00`; a `CarSkin GlossMap` string (`0x7a4604`) has only a data-table reference. |
+| Car shadow not drawn | — | Shadow consumer of `g_CarShadowEnable` (`0x7a386c`) | 3 | 2 | The string is referenced only by the option read/write pair `0x5bea20`/`0x5beea0`; the consumer is not located. |
+| Damage not drawn | — | Damage consumer of `g_CarDamageEnable` (`0x7a382c`) | 4 | 1 | Same situation as the shadow option; the consumer is not located. |
+| Unidentified car draw paths: `0x630de0` (a third `0x620ae0` caller), `0x6162e0` and `0x5f3ae0` (both called only from `0x6316d0`) | none natively | Identify roles | 3 | 2 | `0x630de0`: role unknown. `0x6162e0` (18 KB): draws solids via `0x5c5930`, uses `0x60d700` and `0x48f660` like `0x620ae0`. `0x5f3ae0`: draws a solid via `0x5c5930`, calls `0x5eac90`. Roles unproven. `0x60f880` draws solids via `0x5c5930`; only a lead, an unidentified solid draw in the frame driver, not shown to be car-related. |
+| Body frame: `MoverBody` `matrixD0` with the translation replaced by `DrivetrainAuxiliary` `origin10` | `DemoMain.cpp` `DrawCarModel` | Body matrix the callers pass to `0x620ae0` (car `+0x5a0` or `+0x50`) | 2 | 3 | Car origin comes from `0x592400`. See the wheel table for the parent frame question. |
+| Car skipped when `cameraView.attachedToCar` (bumper/driver cameras, camera `+0x280`) | `DemoMain.cpp` main loop | Whatever the original draw skips for those views | 2 | 1 | A native decision, unverified. The rear-view mirror render of the car is not drawn either (mirror view: camera section, `0x5f1e10`). |
+| Only the player car is drawn; no AI/traffic cars | `DemoMain.cpp` main loop | Per-car render info for every participant | 3 | 2 | Ties to the single player record in section 2. Driver variation, headlight beams and light flares are not drawn. |
+| Fallback box `DrawBody` when no model loads | `DemoMain.cpp` | None (pure scaffold) | — | 1 | Keep. |
 
 ### Car wheel rendering seams
 
