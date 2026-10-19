@@ -860,7 +860,7 @@ Native seams (`NativeVehicle.cpp`): a 0x11c-byte world scaffold replaces the 0xf
 random source it used to be; a participant scaffold whose driver update and contact slot
 do nothing; a game-flow scaffold when the pause menu has not installed one. The per-frame
 unrecovered callees are no-ops (the demo never ran them before); `0x42f910`, `0x5ebc20`,
-`0x572e50`, the comparator and a non-empty list sort trap. The mod bridge's before-step
+the comparator and a non-empty list sort trap (`0x572e50` was a trap until the collision shake was recovered on 2026-10-19, see [collision shake](pc-camera.md#collision-shake-2026-10-19)). The mod bridge's before-step
 hook now runs before the whole world update. Headless `ug2sim` runs (960 frames forward,
 reverse, `UG2_STEER=0.5` and `-0.4` with wall contacts) are byte-identical to the previous
 build, and the 12 native mod scenarios pass.

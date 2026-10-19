@@ -355,7 +355,7 @@ types, runs the recovered world and other-car pushes `0x444530`/`0x44b040`
 the mover's vtable slots 0x30/0x44, the world car list holding only the player's car, and the
 GL path reading eye/target/up back from the matrix.
 
-Camera shake (`0x452ed0`, `0x572a50`) and finalisation (`0x447280`) are recovered ([camera](pc-camera.md#camera-shake-and-finalisation-2026-10-19)); the Camera object is a zeroed native object and the GL path reads it. Not recovered, left as seams: the replay RPM source and
+Camera shake (`0x452ed0`, `0x572a50`) and finalisation (`0x447280`) are recovered ([camera](pc-camera.md#camera-shake-and-finalisation-2026-10-19)); the Camera object is a zeroed native object and the GL path reads it. The collision shake that feeds the view shake (`0x572e50`, with the view shake states `0x572810`, `0x5728c0` and `0x5729e0`) is recovered too ([collision shake](pc-camera.md#collision-shake-2026-10-19)): the human car's race entry (car `+0x18`) is bound to the native player record in `BindNativePlayer`, the world gate `+0x108` is 1.0 and the states are reset in `InitialiseNativeRuntime`, and `CameraViewShakeTick` runs before the world clock in `StepNativeVehicle`. Not recovered, left as seams: the replay RPM source and
 HUDINDEX option. The cockpit blocked tests are recovered; the mover's vtable also supplies slot 0x24
 and the car input's slot 0x54 is `NativeControls::GetWheelMode54`.
 

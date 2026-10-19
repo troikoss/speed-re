@@ -437,8 +437,10 @@ Limits and seams:
   rest of that constructor (copying `+0x280/+0x284`, `0x444040`) is not.
 - `0x447280` copies `+0..+0xd0` to `+0xd0` before it rewrites the matrix, so every difference except position, direction and target (the focal, near, far, noise and field-of-view velocities, written after Update/Shake already changed those fields) is zero in the original; the verifier cannot observe a mutation of those lines (mutations of them were dropped as equivalent).
 - The noise fields `+0x70..+0xac` are written only by the drive camera shake; other writers are
-  not recovered. The per-view shake states at `0x865360` and `*0x890080 +0x108` are read from the
-  original image (zero/unwritten in the demo), so the view shake is a no-op natively.
+  not recovered. The per-view shake states at `0x865360` are written by the collision shake
+  recovered below (and its tick and reset); the request flag `0x8650c4` is still written by game
+  events that are not recovered, and the native demo never sets it. The view shake gate
+  `*0x890080 +0x108` is 1.0 from the native scaffold, as the world constructor `0x5ff490` sets it.
 - D3DX transpose: inferred from use; the real routine is not executed (stub in the verifier).
 - `volatile` appears where the original stores a binary32 and reloads it (noise products, bump sums,
   translation read-back) and to keep the eight noise calls in order; it is a verification-driven
@@ -454,3 +456,112 @@ Limits and seams:
   the pre-shake eye/target/heading lines are identical to the previous build, the final eye differs
   from the pre-shake eye by about 0.025/-0.008/0.0 m (the shake), no NaNs; the screenshot differs
   from the old one in 4,563 pixels.
+
+## Collision shake (2026-10-19)
+
+Recovered: the collision shake `0x572e50` (`CameraCollisionShake`) that feeds the view shake, with
+the state start `0x572810` (`CameraViewShakeState::Start`), the tick `0x5728c0`
+(`CameraViewShakeTick`), the reset `0x5729e0` (`CameraViewShakeReset`), the player gate `0x5ea7c0`
+(`PlayerRecord::QueryDriverCamera`) and the option mapping `0x502500` (`DriveCameraTypeForOption`,
+recovered earlier in `DriveCamera.cpp` and verified here). Source: `CameraCollisionShake.cpp`. The
+view shake `0x572a50` in `CameraShake.cpp` is unchanged and reads the states.
+
+Evidence (retail `speed2.exe`, Ghidra listings and xrefs):
+
+- `0x572e50` has one caller, the world update `0x609ce0` (`0x60a144`), for the leading cars whose
+  race entry (car `+0x18`) is set; the entry's `index10` is the view.
+- `0x5ea7c0` is true when the chase camera `+0x238` is non-null, its kind `+0xc` is 1, `+0x14` is
+  non-zero and `0x502500(0x83aa74 + index10 * 0x28) == 3`. `0x502500` maps 0 to 2, 1 to 4, 2 to 1,
+  3 to 0, 4 to 5 and anything else to 0, so it never returns the driver camera (3) and the gate is
+  always false. The true branch is recorded as code only.
+- The scaled vector is `(0.7 x, 0.5 y, 2.0 z)` (`0x7fb750..0x7fb758`), each component rounded to
+  binary32 when stored (`0x572e7d..0x572e97`). The magnitude `m = sqrt((z*z + x*x) + y*y)` stays an
+  unrounded x87 `FSQRT`. The test is `m < 250` (`0x79dcd4`) for a return, so `m == 250` and NaN
+  continue (the NaN fails the amplitude test); `m` is clamped to 600 (`0x79dcd8`) and
+  `t = (m - 250) / (600 - 250)` is stored as binary32.
+- Amplitude `0.08 + (0.16 - 0.08) t` (`0x79dcdc`, `0x79dce0`) and duration `0.3 + (0.7 - 0.3) t`
+  (`0x79dce4`, `0x79dce8`). The value to beat is the state's curve at `time14` (`0x5722a0`), or
+  `0.0` (`0x7d7d3c`) without a curve; the shake starts only when `amplitude > current` (NaN returns).
+- A player in state 7 (`+0x58`) scales the amplitude by 0.8 (`0x7850ec`) and the duration by 1.2
+  (`0x78a0ec`). `0x43cf90` (`WheelSetLength`) writes the scaled vector to a local separate from its
+  input, and `CameraViewShakeState::Start` takes that output with the duration and the frequency
+  `0x79dc68` (17.0).
+- `Start` (`0x572810`) negates the vector (`* -1.0` at `0x7842a0`), sets the curve `0x7fb7a0` (five
+  keys: (0, 1), (0.1, 0.7), (0.3, 0.5), (0.5, 0.4), (1, 0)), time 0, duration and frequency.
+- Tick `0x5728c0` runs from the game loop `0x5811c0` at `0x5814b2`, before the world clock `0x57a0e0`
+  at `0x5814ea`. If the request flag `0x8650c4` is set, slot 0 starts inline with
+  `-(0x7fb730, 0x7fb734, 0x7fb738)`, duration `0x79dc64` (0.6), frequency `0x79dc68`, and the flag is
+  cleared. Then each slot with a curve adds `frame / duration` (`0x865154`) to `time14` and drops the
+  curve when the time is below its first key or at or above its last key; an unordered time keeps it.
+- Reset `0x5729e0` clears vector, curve and time of both slots, sets duration 1.0 and frequency
+  `0x79dc68`, and leaves the padding at `+0xc` alone. The world constructor `0x5ff490` stores
+  `world +0x108 = 1.0` (`0x5ff574`) and calls the reset (`0x5ff639`). Two more callers, `0x5fa820`
+  (`0x5fa862`) and `0x5ff890` (`0x5ff984`), are not recovered.
+
+Source map: `CameraCollisionShake.cpp` defines `CameraViewShakeState::Start`, `CameraViewShakeTick`,
+`CameraViewShakeReset`, `CameraCollisionShake` and `PlayerRecord::QueryDriverCamera`. `Camera.h`
+names `duration18` and declares them. `HudPlayerMasks.h` declares the gate. `WorldUpdate.h` splits
+`CarWorld` at `+0x108` (named `viewShakeGate108`; sizes and offsets unchanged) and declares the call,
+which `WorldUpdate.cpp` now makes where it called the trap.
+
+Verification (set `UG2_EXE` to the retail `speed2.exe`): `tools/verify_pc_collision_shake.py --compiler msvc --mutation-checks` (manifest
+`config/SPEED2_EXE_1_2/collision-shake.json`: `0x572810` 71 bytes, `0x5728c0` 274, `0x5729e0` 108,
+`0x572e50` 373, `0x5ea7c0` 57, `0x502500` 43, each hashed): 6,144 comparisons, 1,024 for each of the
+six targets, under 53- and 64-bit x87 precision, with no failures. The final run covers 450 collision
+shakes that started and 574 that did not, 639 curve lookups, magnitudes exactly 250 (31 cases) and 600
+(46), 233 directional magnitudes between 240 and 620, NaN and infinite magnitudes, views 0 (510) and 1
+(514), player states 7 and others, camera kinds, active flags and a null camera, 673 tick requests
+with 537 curve drops, reset padding, and every mapped option of `0x502500` with the defaults. 42
+mutations are rejected and none survive. `--compiler clang-cl` also passes (6,144 comparisons, no
+failures). Original code runs for `0x5722a0` and `0x43cf90`; the 44 other externals of
+`DriveCamera.cpp` link to a trap that fails the comparison if it is reached. Two rounding-only
+mutants (dropping `volatile` from `t` and `amplitude`, or using `float` for the magnitude) compile to
+the same MSVC code, because the stored values are kept as binary32 either way, so they are not
+counted. The z-square mutant `scaled[2] * scaled[2]` is equivalent too (doubling is exact), so the
+suite uses a non-equivalent one.
+
+Regressions run with the changed headers and callers: `verify_pc_camera_shake.py --compiler msvc
+--cases 2048 --mutation-checks` gives 30,720 comparisons, 70 mutations rejected, none surviving;
+`verify_pc_world_update.py` (default) gives 6,144 comparisons with no failures, and its stub for
+`0x572e50` is now `?CameraCollisionShake@`.
+
+Native seams (`NativeVehicle.cpp`):
+
+- `UpdateRace572E50` (the trap) is removed; the world update calls the recovered shake.
+- `BindNativePlayer` sets the human car's race entry (car `+0x18`) to the native player record
+  (`index10` 0, the native chase mover of kind 1 and active). The other readers of `+0x18` were
+  checked. `NotifyContact` (`0x5f4960`) takes the participant branch, since the scaffold participant
+  is set. `UpdateOpponentGap` needs two players. The reset branch (`0x6009a0`) runs only after a reset
+  request. Steering force feedback returns early because `forceFeedbackManager870760` is 0 in the
+  retail image and nothing natively sets it, so `MoverRaceEntry::QueryFlag5EB420` is never reached.
+- `InitialiseNativeRuntime` sets `worldScaffold.viewShakeGate108 = 1.0f` and calls
+  `CameraViewShakeReset()`, which mirror `0x5ff574` and `0x5ff639`.
+- `StepNativeVehicle` calls `CameraViewShakeTick()` after `frameDuration865154 = duration` and before
+  `AdvanceWorldClock()`.
+
+Native observations (temporary prints, removed afterwards):
+
+- Headless `ug2sim ... SKYLINE 900` with `UG2_STEER=-0.4`: three wall impacts with magnitudes 592,
+  830 (clamped to 600) and 704 (clamped). The first start is amplitude 0.158186 and duration 0.690931
+  at m = 592.064, which matches the formulas; the others are 0.16 and 0.7.
+- `ug2demo --camera 3 --scripted` with `UG2_STEER=-0.4`, 900 frames, offscreen: impacts at 612 and 783
+  (clamped). Slot 0 starts at frame 202 and advances by 1/60 / 0.7 = 0.0238 per frame; 82 frames carry a
+  live curve in total (two shakes of about 41 frames each); `0x572a50` reads these states on every
+  frame of the demo.
+- Both runs and `ug2demo --frames 300 --scripted` exit 0, with no trap and no NaN.
+
+Limits:
+
+- The gate `0x5ea7c0` is always false, as in the original (type 3 is never produced by `0x502500`).
+- The request flag `0x8650c4` is written only by unrecovered game events. The native demo never sets
+  it, so the tick's inline start is verified against the original but never runs natively.
+- `0x5729e0` has the unrecovered callers `0x5fa820` and `0x5ff890`; the native demo does not run them.
+- `0x572e50` runs for the leading cars (`count14`) that have a race entry; the native demo's single car
+  qualifies.
+- The original realigns the stack (`AND ESP,-16`) in `0x572e50`; the rebuilt frame is compared by content.
+- The verifier compares binary32 results bit for bit at 53- and 64-bit precision; byte identity of the
+  compiled code is not established.
+- `0x572e50` reads `players8900AC[view]` (and `0x5ea7c0` its `+0x238`) without a null check, as the
+  original does, so a missing player record stops the demo in both; the verifier never fixes that case.
+- The gate of `0x572a50` still reads `carList890080 + 0x108` directly (`CameraCarList` does not name the
+  offset), so `CameraShake.cpp` is unchanged.

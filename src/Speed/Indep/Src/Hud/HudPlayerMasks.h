@@ -62,6 +62,7 @@ struct PlayerRecord {
     unsigned __int64 GetRaceMask();           // 0x5f33b0
     unsigned __int64 GetAmbientMask();        // 0x5f34c0
     bool QueryRestart();                      // 0x5fff50
+    bool QueryDriverCamera();                 // 0x5ea7c0, CameraCollisionShake.cpp
     void Update602650();                      // 0x602650, not recovered
 };
 UG2_CHECK_OFFSET(PlayerRecord, index10, 0x10);

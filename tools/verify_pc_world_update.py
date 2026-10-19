@@ -40,7 +40,7 @@ CALLEES = {0x5fa770: ('?Prepare5FA770@CarWorld@', 'void', 0, True), 0x5fc0e0: ('
            0x5ebc20: ('?GetDraft5EBC20@MoverModeOwner@', 'float', 4, True), 0x59e350: ('?Update59E350@', 'void', 0, False),
            0x5fbbe0: ('?SnapshotFrameKinematics@MoverModeOwner@', 'void', 4, True),
            0x604740: ('?UpdateFrameAcceleration@MoverModeOwner@', 'void', 4, True),
-           0x5f5580: ('?Update5F5580@MoverModeOwner@', 'void', 0, True), 0x572e50: ('?UpdateRace572E50@', 'void-cdecl2', 0, False),
+           0x5f5580: ('?Update5F5580@MoverModeOwner@', 'void', 0, True), 0x572e50: ('?CameraCollisionShake@', 'void-cdecl2', 0, False),
            0x5f6350: ('?Update5F6350@MoverModeOwner@', 'void', 0, True), 0x492e10: ('?Update492E10@WorldObject8357E0@', 'void', 4, True),
            0x5f5730: ('?UpdateEffects5F5730@MoverModeOwner@', 'void', 4, True), 0x605780: ('?Update605780@', 'void', 0, False),
            0x5e0a00: ('?Update5E0A00@', 'void', 0, False), 0x5e5430: ('?Update5E5430@', 'void', 0, False),

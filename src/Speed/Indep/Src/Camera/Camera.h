@@ -107,8 +107,8 @@ WheelMatrix *CameraTranspose(WheelMatrix *output, WheelMatrix *input);
 // Platform seam: the D3DX matrix transpose (see Platform/Native/NativeVehicle.cpp).
 extern "C" WheelMatrix *__stdcall D3DXMatrixTranspose(WheelMatrix *output, WheelMatrix *input);
 
-// Per-view shake state at 0x865360 (stride 0x20). Written by game events that are not recovered;
-// the camera reads it (0x572a50).
+// Per-view shake state at 0x865360 (stride 0x20). The collision shake (0x572e50) and the tick
+// and reset below write it; the camera reads it (0x572a50).
 struct CameraViewShakeCurve {
     float *points0;                      // (x, y) pairs
     int count4;
@@ -121,19 +121,30 @@ struct CameraViewShakeState {
     char unidentifiedC[4];
     CameraViewShakeCurve *curve10;
     float time14;
-    char unidentified18[4];
-    float value1C;
+    float duration18;                    // 0.6 for a tick request, 1.0 after the reset
+    float value1C;                       // frequency: 17.0 (0x79dc68)
+    // 0x572810 (thiscall, `ret 0xc`): the vector negated, the curve 0x7fb7a0 at time 0, the
+    // duration and the frequency. CameraCollisionShake.cpp.
+    void Start(float *vector, float duration, float frequency);
     // 0x572860 (thiscall, `ret 4`): the vector times the curve value at time14, zero when
     // value1C * time14 truncates to an odd number.
     void Evaluate(float *output);
 };
 UG2_CHECK_SIZE(CameraViewShakeState, 0x20);
 UG2_CHECK_OFFSET(CameraViewShakeState, curve10, 0x10);
+UG2_CHECK_OFFSET(CameraViewShakeState, duration18, 0x18);
 
 // 0x572a50 (cdecl): view 1 and 3 use slot 0 of the states, view 2 slot 1; right-multiplies
 // `matrix` by a translation and three rotations built from the state's vector. Gated on the car
 // list field *(float *)(*0x890080 + 0x108).
 void CameraViewShake(int view, WheelMatrix *matrix);
+// 0x5728c0 (cdecl): starts slot 0 when the request flag 0x8650c4 is set, then advances both
+// slots' curves by the frame time. CameraCollisionShake.cpp.
+void CameraViewShakeTick();
+// 0x5729e0 (cdecl): clears both slots (duration 1.0, frequency 17.0). CameraCollisionShake.cpp.
+void CameraViewShakeReset();
+// 0x572e50 (cdecl): the collision shake for `view` from the car acceleration. CameraCollisionShake.cpp.
+void CameraCollisionShake(int view, WheelVector *acceleration);
 
 // Sample curve of 16-byte keys used by the drive camera shake (0x446d00); the same layout as
 // CameraDynamicsCurve with keys of four floats.

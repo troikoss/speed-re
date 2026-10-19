@@ -159,7 +159,7 @@ void CarWorld::Update(float duration) {
     if (gameFlow8900D8->state0 != 5) {
         for (i = 0; i < count14; ++i) {
             MoverModeOwner *car = cars1C[i];
-            if (car->raceEntry18) UpdateRace572E50(car->raceEntry18->index10, &car->State()->value40);
+            if (car->raceEntry18) CameraCollisionShake(car->raceEntry18->index10, &car->State()->value40);
             if (gameFlow8900D8->state0 != 5) car->Update5F6350();
         }
     }

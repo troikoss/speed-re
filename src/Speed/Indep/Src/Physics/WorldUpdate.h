@@ -24,7 +24,9 @@ struct CarWorld {
     MoverModeOwner *cars1C[0x19];
     WorldCarPosition positions80[6]; // unused entries hold 9999999
     float valuesE0[6];      // car +0x8fc of the leading cars
-    char unidentifiedF8[0x20];
+    char unidentifiedF8[0x10];
+    float viewShakeGate108;  // 1.0 from the constructor 0x5ff490; 0x572a50 skips the view shake below it
+    char unidentified10C[0xc];
     WorldSubsystem118 *value118;
     void Update(float duration); // 0x609ce0
     float NearestPlayerDistance(WheelVector *point); // 0x5f1160
@@ -36,6 +38,7 @@ UG2_CHECK_OFFSET(CarWorld, count10, 0x10);
 UG2_CHECK_OFFSET(CarWorld, cars1C, 0x1c);
 UG2_CHECK_OFFSET(CarWorld, positions80, 0x80);
 UG2_CHECK_OFFSET(CarWorld, valuesE0, 0xe0);
+UG2_CHECK_OFFSET(CarWorld, viewShakeGate108, 0x108);
 UG2_CHECK_OFFSET(CarWorld, value118, 0x118);
 
 // Objects with unrecovered per-frame updates.
@@ -63,7 +66,7 @@ struct WorldObject88EB00 { void Update5E86E0(); }; // 0x5e86e0
 void UpdateCars5FC0E0(); // 0x5fc0e0, not recovered
 void Update614820(); // 0x614820, not recovered
 void Update59E350(); // 0x59e350, not recovered
-void UpdateRace572E50(int index, WheelVector *acceleration); // 0x572e50, not recovered
+void CameraCollisionShake(int view, WheelVector *acceleration); // 0x572e50, Camera/CameraCollisionShake.cpp
 void Update605780(); // 0x605780, not recovered
 void Update5E0A00(); // 0x5e0a00, not recovered
 void Update5E5430(); // 0x5e5430, not recovered

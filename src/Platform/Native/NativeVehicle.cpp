@@ -10,6 +10,7 @@
 #include "../../Speed/Indep/Src/Physics/VehicleAllocation.h"
 #include "../../Speed/Indep/Src/Physics/PhysicsUpgradeSource.h"
 #include "../../Speed/Indep/Src/World/WCollision.h"
+#include "../../Speed/Indep/Src/Camera/Camera.h"
 #include "../../Speed/Indep/Src/Camera/CameraPush.h"
 #include "../../Speed/Indep/Src/Physics/WorldUpdate.h"
 #include "../../Speed/Indep/Src/Physics/CarConstruction.h"
@@ -260,7 +261,6 @@ void WorldSubsystem118::Update42F910(float) { NativeTrap("world subsystem update
 float MoverModeOwner::GetDraft5EBC20(MoverModeOwner *) { NativeTrap("car draft 0x5ebc20"); return 0.0f; }
 void Update59E350() {}
 void MoverModeOwner::Update5F5580() {}
-void UpdateRace572E50(int, WheelVector *) { NativeTrap("race entry update 0x572e50"); }
 void MoverModeOwner::Update5F6350() {}
 void WorldObject8357E0::Update492E10(float) {}
 void MoverModeOwner::UpdateEffects5F5730(float) {}
@@ -549,6 +549,10 @@ bool InitialiseNativeRuntime(const char *gameDirectory, char *error, int errorSi
     CollisionEventOwner *events = reinterpret_cast<CollisionEventOwner *>(&randomScaffold);
     events->unidentified0.next = events->unidentified0.previous = &events->unidentified0;
     events->events8.next = events->events8.previous = &events->events8;
+    // Native seam for the world constructor 0x5ff490: the view shake gate +0x108 is 1.0 (0x5ff574)
+    // and the per-view shake states are reset (0x5ff639).
+    worldScaffold.viewShakeGate108 = 1.0f;
+    CameraViewShakeReset();
     return true;
 }
 
@@ -749,6 +753,8 @@ float StepNativeVehicle(NativeVehicle *vehicle, float duration) {
     if (NativeModsFailed()) return 0.0f;
 #endif
     frameDuration865154 = duration;
+    // Game loop 0x5811c0 calls the view shake tick 0x5728c0 at 0x5814b2, before the world clock.
+    CameraViewShakeTick();
     AdvanceWorldClock();
 #ifdef UG2_ENABLE_MODDING
     NativeModsAfterStep(vehicle, duration);
@@ -786,6 +792,9 @@ bool NativeChaseCameraMover::Query28() { return false; }
 void BindNativePlayer(NativeVehicle *vehicle) {
     nativePlayer.record.car4 = vehicle->owner;
     nativePlayer.record.camera238 = &nativeChaseCamera;
+    // Native seam for race setup: the human car's race entry (car +0x18) is its player record, so
+    // world update 0x609ce0 shakes the view through 0x572e50 with the record's index10 (0).
+    vehicle->owner->raceEntry18 = reinterpret_cast<MoverRaceEntry *>(&nativePlayer.record);
     hudPlayerSlots8900AC[0] = reinterpret_cast<HudPlayerSlot *>(&nativePlayer.record);
     players8900B4[0] = &nativePlayer.record;
     playerCount8900BC = 1;
