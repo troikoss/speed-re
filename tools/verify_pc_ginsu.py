@@ -4,10 +4,14 @@
 The recovered sources src/Speed/Indep/Src/EAXSound/Ginsu/GinsuData.cpp and GinsuSynth.cpp are compiled with
 MSVC 7.1 (wibo) and linked as analysis objects. Each routine of config/SPEED2_EXE_1_2/ginsu.json runs on two
 Unicorn machines with the same fixture: the retail image at the manifest address, and the linked objects at
-the exported symbol. The snd library calls (lock 0x721f99, unlock 0x721fa7, submit 0x723515) are events on
-both sides: the Unicorn copy of the retail image has those three sites patched to RET, and the linked objects
-call one-byte RET stubs. Each entry is logged in call order, with its arguments and the packet record of the
-submit call read by value.
+the exported symbol. The snd library is a seam (SND below) with two kinds of entry:
+
+- stateful entry points (critical section, SNDPKTPLAY_overhead/create/start/submit/stop/destroy) are events on
+  both sides. The Unicorn copy of the retail image has their call targets patched to RET, and the linked objects
+  call one-byte RET stubs. Each call is logged in call order with its arguments (structs and the packet record by
+  content). The return value (EAX) comes from a per-trial script, so the success and error paths are both run.
+- pure leaves (SND_attrsetdef, SNDplaysetdef) keep no state and only fill their argument: both sides run the retail
+  bytes and log the call. The native replacements are checked separately (see docs/pc-ginsu.md).
 
 Compared per case: the whole fixture arena (object, sample buffers and gin tables), the return value (AL or
 EAX, or the x87 ST0 for float routines), ESP, EBX/ESI/EDI/EBP, the FXSAVE control word, the logical x87 stack
@@ -36,8 +40,9 @@ SOURCE_DIR = 'src/Speed/Indep/Src/EAXSound/Ginsu'
 SOURCES = {'data': SOURCE_DIR + '/GinsuData.cpp', 'synth': SOURCE_DIR + '/GinsuSynth.cpp'}
 SEED = 0x47494e53
 IMAGE_BASE = 0x400000
-ARENA, ARENA_SIZE = 0x2000000, 0x30000
+ARENA, ARENA_SIZE = 0x2000000, 0x40000
 OBJ, SYN, SAMPLES, DEST, GIN = ARENA + 0x0000, ARENA + 0x0100, ARENA + 0x0400, ARENA + 0x1800, ARENA + 0x2000
+PKT1, PKT2 = ARENA + 0x3c000, ARENA + 0x3c800  # the two packet buffers of StartSynthesis (2 KB each)
 STACK_BASE, STACK = 0x2100000, 0x2110000
 STACK_ZERO = STACK - 0x8000
 STACK_RANGE = (STACK_ZERO, STACK + 0x100)
@@ -66,14 +71,31 @@ ROUTINES = {
     'SetSynthData': (0x467160, '?SetSynthData@GinsuSynthesis@', 4, 'al', 'arena', ['p']),
     'UpdateFrequency': (0x467230, '?UpdateFrequency@GinsuSynthesis@', 8, 'al', 'arena', ['w', 'w']),
     'HandlePacketRelease': (0x466d30, '?HandlePacketRelease@GinsuSynthesis@', 4, None, 'arena', ['p']),
+    'PacketReleaseCallback': (0x4777f0, '?PacketReleaseCallback@GinsuSynthesis@', 0, None, None, ['p', 'p']),
+    'SynthesisConstruct': (0x477800, '??0GinsuSynthesis@', 8, None, 'arena', ['p', 'w']),
+    'SynthesisDestruct': (0x477870, '??1GinsuSynthesis@', 0, None, 'arena', []),
+    'StartSynthesis': (0x4778c0, '?StartSynthesis@GinsuSynthesis@', 4, 'eax', 'arena', ['w']),
 }
-# snd events: key: (retail call target, rebuilt symbol prefix, argument kinds, logged name)
+# snd seam: key: (retail address, rebuilt symbol prefix, argument kinds, logged name, mode).
+# mode 'stub': an event with a scripted EAX (see RETURNS); 'retail': a pure leaf run as retail bytes on both sides.
+# 'f' is a function pointer, logged by the name of the routine it names on that side.
 SND = {
-    'Lock': (0x721f99, '?GinsuAudioLock@', [], 'GinsuAudioLock'),
-    'Unlock': (0x721fa7, '?GinsuAudioUnlock@', [], 'GinsuAudioUnlock'),
-    'Submit': (0x723515, '?GinsuAudioSubmit@', ['w', ('c', 16)], 'GinsuAudioSubmit'),
+    'Lock': (0x721f99, '?SNDSYS_entercritical@', [], 'SNDSYS_entercritical', 'stub'),
+    'Unlock': (0x721fa7, '?SNDSYS_leavecritical@', [], 'SNDSYS_leavecritical', 'stub'),
+    'Overhead': (0x723124, '?SNDPKTPLAY_overhead@', ['w'], 'SNDPKTPLAY_overhead', 'stub'),
+    'Create': (0x723138, '?SNDPKTPLAY_create@', ['f', 'w', 'p', 'p', 'w'], 'SNDPKTPLAY_create', 'stub'),
+    'Start': (0x7231d4, '?SNDPKTPLAY_start@', ['w', ('c', 4), ('c', 0x68), ('c', 0x18)], 'SNDPKTPLAY_start', 'stub'),
+    'Submit': (0x723515, '?SNDPKTPLAY_submit@', ['w', ('c', 16)], 'SNDPKTPLAY_submit', 'stub'),
+    'Stop': (0x72387b, '?SNDPKTPLAY_stop@', ['w'], 'SNDPKTPLAY_stop', 'stub'),
+    'Destroy': (0x72366a, '?SNDPKTPLAY_destroy@', ['w'], 'SNDPKTPLAY_destroy', 'stub'),
+    'SetAttr': (0x72423e, '?SND_attrsetdef@', ['p'], 'SND_attrsetdef', 'retail'),
+    'SetPlay': (0x721a6b, '?SNDplaysetdef@', ['p'], 'SNDplaysetdef', 'retail'),
 }
-STUB = {'Lock': STUBS, 'Unlock': STUBS + 0x10, 'Submit': STUBS + 0x20}
+STUB = {'Lock': STUBS, 'Unlock': STUBS + 0x10, 'Overhead': STUBS + 0x20, 'Create': STUBS + 0x30,
+        'Start': STUBS + 0x40, 'Submit': STUBS + 0x50, 'Stop': STUBS + 0x60, 'Destroy': STUBS + 0x70}
+# Retail address of each pure leaf (its bytes run on both sides): SND_attrsetdef 0x72423e..0x72428b and
+# SNDplaysetdef 0x721a6b..0x721aae (both end in RET and call nothing).
+PURE_RANGES = ((0x72423e, 0x72428b), (0x721a6b, 0x721aae))
 # Retail globals read by the recovered code, by MSVC symbol prefix; __fltused is a null symbol.
 SHARED = {'?ginsuZero7D7D3C@': 0x7d7d3c, '?ginsuOne784250@': 0x784250, '?ginsuHalf784260@': 0x784260,
           '?ginsuThousand784550@': 0x784550, '?ginsuRateScaleA788890@': 0x788890,
@@ -83,14 +105,17 @@ SHARED = {'?ginsuZero7D7D3C@': 0x7d7d3c, '?ginsuOne784250@': 0x784250, '?ginsuHa
 # Retail addresses of the E branch (fz1 == fz2) and of the SampleToCycle found path (0x466c2f).
 E_BRANCH_HOOK, FOUND_HOOK = 0x466e98, 0x466c2f
 TARGETS = ('Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
-           'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt')
+           'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt',
+           'PacketReleaseCallback', 'SynthesisConstruct', 'SynthesisDestruct', 'StartSynthesis')
 LIMITATIONS = [
-    'the packet bit 31 and the packet fields at 0x3c and 0x44 are read without being written by the original; the stack is zeroed before each run so both sides read zero',
+    'the uninitialised packet words are read without being written by the original (the frame word bit 31, the SNDPACKET ssf and sizeofsamples words, and the fields at 0x3c and 0x44 of the HandlePacketRelease record); the stack is zeroed before each run so both sides read zero',
     'status word condition bits and exception flags are not compared (only the control word and the logical stack)',
     'NaN is generated only for CyclePeriod and CeilToInt inputs; a NaN CyclePeriod result compares as NaN class (sign and payload not compared)',
     'finite values only for integers within |x| < 2^28 and overlap within [0, 40]',
     'the arena is compared byte for byte; the stack is compared through the events, the return values and the x87 image only',
     'the MSVC 7.1 build passes no /GS flag: this cl.exe reads /GS- as /GS (security cookies appear), and the default compile has none',
+    'the stateful snd entry points are scripted: their retail bodies do not run, so the player behaviour is not compared here (the native player is checked separately); the scripted EAX is the only result they give',
+    'SND_attrsetdef and SNDplaysetdef run as retail bytes on both sides, so the struct contents passed to SNDPKTPLAY_start are the retail ones by construction',
 ]
 
 
@@ -118,10 +143,11 @@ def pk(memory, address, fmt, *values): struct.pack_into(fmt, memory, address - A
 
 
 # Named arena regions for mismatch reports: object header, decoded samples, object block number, synth state,
-# the packet sample buffer, the GetSamples destination and the gin tables.
+# the packet sample buffers, the GetSamples destination, the packet region of StartSynthesis and the gin tables.
 ARENA_REGIONS = ((OBJ, OBJ + 0x2c, 'object.header'), (OBJ + 0x2c, OBJ + 0xac, 'object.sample2C'),
                  (OBJ + 0xac, OBJ + 0xb0, 'object.currentBlockAC'), (SYN, SYN + 0x44, 'synth'),
-                 (SAMPLES, SAMPLES + 0x1000, 'samples'), (DEST, DEST + 0x100, 'dest'), (GIN, ARENA + ARENA_SIZE, 'gin'))
+                 (SAMPLES, SAMPLES + 0x1000, 'samples'), (DEST, DEST + 0x100, 'dest'), (PKT1, PKT2 + 0x800, 'packets'),
+                 (GIN, ARENA + ARENA_SIZE, 'gin'))
 
 
 def arena_regions(diff):
@@ -170,17 +196,21 @@ def write_gin(memory, raw):
     memory[GIN - ARENA:GIN - ARENA + len(raw)] = raw
 
 
-SYNTH_FIELDS = {'maxPacketSizeC': (0x0c, '<i'), 'noJumpSize10': (0x10, '<i'), 'packetSize14': (0x14, '<i'),
-                'overlapSize18': (0x18, '<i'), 'packetHandle1C': (0x1c, '<I'), 'sampleRate24': (0x24, '<i'),
-                'synthData28': (0x28, '<I'), 'playbackPos2C': (0x2c, '<i'), 'currentPos30': (0x30, '<i'),
-                'targetPos34': (0x34, '<i'), 'packetCountdown38': (0x38, '<i'), 'noJumpRemaining3C': (0x3c, '<i'),
-                'currentCycle40': (0x40, '<f')}
+# GinsuSynthesis fields (object at SYN, 0x44 bytes). Pointers and the vtable are unsigned, counts signed.
+SYNTH_FIELDS = {'vtable0': (0x00, '<I'), 'packetData4': (0x04, '<I'), 'packetData8': (0x08, '<I'),
+                'maxPacketSizeC': (0x0c, '<i'), 'noJumpSize10': (0x10, '<i'), 'packetSize14': (0x14, '<i'),
+                'overlapSize18': (0x18, '<i'), 'packetHandle1C': (0x1c, '<I'), 'sndHandle': (0x20, '<i'),
+                'sampleRate24': (0x24, '<i'), 'synthData28': (0x28, '<I'), 'playbackPos2C': (0x2c, '<i'),
+                'currentPos30': (0x30, '<i'), 'targetPos34': (0x34, '<i'), 'packetCountdown38': (0x38, '<i'),
+                'noJumpRemaining3C': (0x3c, '<i'), 'currentCycle40': (0x40, '<f')}
 
 
 def write_synth(memory, **fields):
     for name, value in fields.items():
         offset, fmt = SYNTH_FIELDS[name]
-        pk(memory, SYN + offset, fmt, f32(value) if fmt == '<f' else value)
+        if fmt == '<f': value = f32(value)
+        elif fmt == '<I': value &= 0xffffffff
+        pk(memory, SYN + offset, fmt, value)
 
 
 def scale_sizes(rate, scales):
@@ -197,18 +227,22 @@ def pointer_view(uc, w, size):
     return ('raw', w)
 
 
-def argument_view(uc, w, kind):
+def argument_view(uc, w, kind, labels):
     if kind == 'w': return w
+    if kind == 'f': return ('callback', labels.get(w, ('raw', w)))
     if isinstance(kind, tuple): return pointer_view(uc, w, kind[1])
     return pointer_view(uc, w, 0)
 
 
-def entry_hook(log, name, this_kind, kinds):
+def entry_hook(log, name, this_kind, kinds, labels, scripted=None, key=None):
+    """Logs one entry. For a stateful snd entry, scripted[key] (when present) becomes EAX before the RET stub."""
     def hook(uc, address, size, user):
         esp = uc.reg_read(xc.UC_X86_REG_ESP)
         this = pointer_view(uc, uc.reg_read(xc.UC_X86_REG_ECX), 0) if this_kind else None
         words = struct.unpack('<%dI' % len(kinds), bytes(uc.mem_read(esp + 4, 4 * len(kinds)))) if kinds else ()
-        log.append((name, this, tuple(argument_view(uc, w, k) for w, k in zip(words, kinds))))
+        log.append((name, this, tuple(argument_view(uc, w, k, labels) for w, k in zip(words, kinds))))
+        if scripted is not None and key in scripted:
+            uc.reg_write(xc.UC_X86_REG_EAX, scripted[key] & 0xffffffff)
     return hook
 
 
@@ -256,12 +290,14 @@ def main():
         objects.append((key, obj))
     parsed = {key: read_object(obj) for key, obj in objects}
     defined = {s['name'] for p in parsed.values() for s in p['symbols'].values() if s['section'] > 0}
+    # Each snd entry resolves to its stub (stateful) or to its retail bytes (pure leaf).
+    snd_link = {key: (STUB[key] if spec[4] == 'stub' else spec[0]) for key, spec in SND.items()}
     externals = {}
     for key, p in parsed.items():
         for s in p['symbols'].values():
             if s['section'] != 0 or s['name'] in defined: continue
             match = [a for prefix, a in SHARED.items() if s['name'].startswith(prefix)]
-            snd = [STUB[k] for k, (_, prefix, _, _) in SND.items() if s['name'].startswith(prefix)]
+            snd = [snd_link[k] for k, spec in SND.items() if s['name'].startswith(spec[1])]
             if len(match) + len(snd) != 1:
                 raise AssertionError(('unresolved external', key, s['name']))
             externals[s['name']] = match[0] if match else snd[0]
@@ -273,13 +309,14 @@ def main():
         assert len(found) == 1, ('entry symbol', prefix, len(found))
         return found.pop()
     rebuilt_entry = {name: entry_of(spec[1]) for name, spec in ROUTINES.items()}
-    rebuilt_entry.update({key: STUB[key] for key in SND})
+    rebuilt_entry.update(snd_link)
     retail_entry = {name: spec[0] for name, spec in ROUTINES.items()}
     retail_entry.update({key: spec[0] for key, spec in SND.items()})
     original_ranges = [(spec[0], spec[0] + manifest['functions'][name]['size']) for name, spec in ROUTINES.items()]
     linked_ranges = linked['ranges']
-    original_allowed = original_ranges + [(a, a + 1) for a in (spec[0] for spec in SND.values())] + [(STOP, STOP + 7)]
-    rebuilt_allowed = linked_ranges + [(STUBS, STUBS + 0x30), (STOP, STOP + 7)]
+    stub_retail = [spec[0] for spec in SND.values() if spec[4] == 'stub']
+    original_allowed = original_ranges + [(a, a + 1) for a in stub_retail] + list(PURE_RANGES) + [(STOP, STOP + 7)]
+    rebuilt_allowed = linked_ranges + [(STUBS, STUBS + 0x80), (STOP, STOP + 7)] + list(PURE_RANGES)
     inside = lambda ranges, a: any(lo <= a < hi for lo, hi in ranges)
 
     # Gin files: sorted by name, five fixed positions and the last one.
@@ -290,6 +327,9 @@ def main():
 
     events = {False: [], True: []}
     counters = {False: {}, True: {}}
+    returns = {}  # scripted EAX of the stateful snd entries for the current run
+    labels = {False: {retail_entry['PacketReleaseCallback']: 'PacketReleaseCallback'},
+              True: {rebuilt_entry['PacketReleaseCallback']: 'PacketReleaseCallback'}}
     machines = {}
     for rebuilt in (False, True):
         uc = Uc(UC_ARCH_X86, UC_MODE_32)
@@ -304,7 +344,8 @@ def main():
             uc.mem_map(STUBS, 0x1000)
             for address in STUB.values(): uc.mem_write(address, b'\xc3')
         else:
-            for spec in SND.values(): uc.mem_write(spec[0], b'\xc3')
+            for spec in SND.values():
+                if spec[4] == 'stub': uc.mem_write(spec[0], b'\xc3')
 
         def block(uc, address, size, user, rebuilt=rebuilt):
             if rebuilt:
@@ -320,10 +361,11 @@ def main():
         uc.hook_add(UC_HOOK_BLOCK, block)
         for name, spec in ROUTINES.items():
             address = rebuilt_entry[name] if rebuilt else spec[0]
-            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], name, spec[4], spec[5]), begin=address, end=address)
+            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], name, spec[4], spec[5], labels[rebuilt]), begin=address, end=address)
         for key, spec in SND.items():
             address = rebuilt_entry[key] if rebuilt else spec[0]
-            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], spec[3], None, spec[2]), begin=address, end=address)
+            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], spec[3], None, spec[2], labels[rebuilt], returns, key),
+                        begin=address, end=address)
         if not rebuilt:
             def count(name, rebuilt=rebuilt):
                 return lambda uc, address, size, user: counters[rebuilt].__setitem__(name, counters[rebuilt].get(name, 0) + 1)
@@ -431,6 +473,10 @@ def main():
             return (cycs[i] + cycs[i + 1]) // 2
         return rng.randint(-2 ** 20, 2 ** 28 - 1)
 
+    def create_result():
+        return rng.choice((rng.randrange(0, 8), rng.randrange(0, 8), -9, -10, -6, rng.randint(-2 ** 31, -1),
+                           rng.randint(8, 2 ** 31 - 1)))
+
     scales = tuple(struct.unpack_from('<f', image, a - IMAGE_BASE)[0] for a in (0x788890, 0x788894, 0x788898))
 
     for trial in range(args.cases):
@@ -438,6 +484,7 @@ def main():
         gin = gins[rng.randrange(len(gins))]
         for name in selected:
             memory = random_memory()
+            returns.clear()
             if name == 'Construct':
                 words, this = [], OBJ
                 note('construct')
@@ -525,7 +572,7 @@ def main():
                 target = frequency_input(gin)
                 latency = rng.choice((0.0, 1e-30, 0.5, 1.0, 1e6, rng.uniform(0.0, 2.0), -0.5, -1e6, -rng.uniform(0.0, 2.0)))
                 words, this = [fw(target), fw(latency)], SYN
-            elif name == 'HandlePacketRelease':
+            elif name in ('HandlePacketRelease', 'PacketReleaseCallback'):
                 write_gin(memory, gin['raw'])
                 write_object(memory, gin, rng)
                 cnt = gin['cnt']
@@ -539,7 +586,49 @@ def main():
                             currentCycle40=f32(rng.uniform(0.0, gin['cyc'])), packetHandle1C=rng.getrandbits(32),
                             sampleRate24=rng.choice((0, gin['rate'], rng.randint(1, 2 ** 20))),
                             synthData28=OBJ)
-                words, this = [SAMPLES], SYN
+                # The callback receives the samples and the GinsuSynthesis; the routine itself is the same as above.
+                words = [SAMPLES] if name == 'HandlePacketRelease' else [SAMPLES, SYN]
+                this = SYN
+            elif name == 'SynthesisConstruct':
+                write_gin(memory, gin['raw'])
+                write_object(memory, gin, rng)
+                overhead = rng.choice((0x19c, 0x19c, 0x19c, 0x9c + 32 * rng.randrange(0, 40), rng.randrange(0, 0x2000)))
+                returns['Overhead'] = overhead
+                returns['Create'] = create_result()
+                k = rng.random()
+                if k < 0.5:
+                    size = overhead + 8 * rng.randint(36, 44) + rng.choice((-8, -4, -1, 0, 0, 1, 4, 7, 8))
+                    note('ctor-boundary')
+                elif k < 0.8:
+                    size = rng.randint(0, 0x30000)
+                else:
+                    size = overhead - rng.randint(1, 0x100)
+                    note('ctor-size-below-overhead')
+                words, this = [PKT1, size & 0xffffffff], SYN
+            elif name == 'SynthesisDestruct':
+                write_gin(memory, gin['raw'])
+                write_object(memory, gin, rng)
+                write_synth(memory, packetHandle1C=rng.choice((-1, rng.randrange(0, 8), rng.randint(-2 ** 31, 2 ** 31 - 1))),
+                            sampleRate24=rng.choice((0, 0, gin['rate'], rng.randint(1, 2 ** 20))),
+                            synthData28=rng.choice((0, OBJ)))
+                words, this = [], SYN
+            elif name == 'StartSynthesis':
+                write_gin(memory, gin['raw'])
+                write_object(memory, gin, rng)
+                cnt = gin['cnt']
+                write_synth(memory, packetData4=PKT1, packetData8=PKT2,
+                            packetHandle1C=rng.choice((-1, rng.randrange(0, 8), rng.randrange(0, 8), rng.randint(-2 ** 31, 2 ** 31 - 1))),
+                            sndHandle=rng.randint(-2 ** 31, 2 ** 31 - 1),
+                            sampleRate24=rng.choice((0, 0, gin['rate'], rng.randint(1, 2 ** 20))),
+                            synthData28=rng.choice((OBJ, OBJ, OBJ, 0)),
+                            noJumpSize10=rng.randint(0, 600), packetSize14=rng.randint(0, 1024),
+                            overlapSize18=rng.randint(0, 40), maxPacketSizeC=rng.randint(0, 4096),
+                            playbackPos2C=rng.randint(0, cnt - 1), currentPos30=rng.randint(0, cnt - 1),
+                            targetPos34=rng.randint(0, cnt - 1), packetCountdown38=rng.randint(0, 40),
+                            noJumpRemaining3C=rng.randint(-100, 700), currentCycle40=f32(rng.uniform(0.0, gin['cyc'])))
+                returns['Start'] = rng.choice((rng.randrange(0, 8), rng.randrange(0, 8), -9, -10, -6, -13,
+                                               rng.randint(-2 ** 31, -1)))
+                words, this = [fw(frequency_input(gin))], SYN
             elif name == 'CeilToInt':
                 k = rng.random()
                 value = rng.choice((rng.uniform(-1000.0, 1000.0), float(rng.randint(-1000, 1000)), rng.uniform(-1000.0, 1000.0) + 0.5,
@@ -552,9 +641,9 @@ def main():
             except AssertionError as error:
                 record_failure(name, trial, precision, error)
                 continue
+            names = [e[0] for e in a['events']]
             # The original's run defines the coverage, whatever the comparison says.
             if name == 'HandlePacketRelease':
-                names = [e[0] for e in a['events']]
                 if 'CyclePeriod' not in names: note('hpr-J')
                 else: note('hpr-N-E' if a['counters'].get('E') else 'hpr-N-D')
                 if 'CeilToInt' in names: note('hpr-E1')
@@ -567,6 +656,11 @@ def main():
             if name == 'GetSamples': note('gs-ok' if (a['eax'] & 0xff) else 'gs-rejected')
             if name == 'SetSynthData': note('set-accepted' if (a['eax'] & 0xff) else 'set-rejected')
             if name == 'BindToData': note('bind-ok' if (a['eax'] & 0xff) else 'bind-rejected')
+            if name == 'SynthesisConstruct': note('ctor-create' if 'SNDPKTPLAY_create' in names else 'ctor-no-create')
+            if name == 'SynthesisDestruct': note('dtor-stop' if 'SNDPKTPLAY_stop' in names else 'dtor-plain')
+            if name == 'StartSynthesis':
+                note('start-refused' if a['eax'] & 0x80000000 else 'start-started')
+                note('start-stop-first' if 'SNDPKTPLAY_stop' in names else 'start-no-stop')
             try:
                 check(name, precision, a, b)
             except AssertionError as error:
@@ -609,6 +703,23 @@ def main():
             'handle-multiplier': ('synth', 'multiplier = (k != 0) ? (float)qRounded : ginsuOne784250;', 'multiplier = (float)qRounded;'),
             'handle-wp-volatile': ('synth', 'volatile float wp = (ginsuRateScaleA788890 / ginsuRateScaleB788894) * y1;', 'float wp = (ginsuRateScaleA788890 / ginsuRateScaleB788894) * y1;'),
             'handle-u-volatile': ('synth', 'volatile float u = (float)k + data->SampleToCycle(playbackPos2C);', 'float u = (float)k + data->SampleToCycle(playbackPos2C);'),
+            'callback-this': ('synth', 'GinsuSynthesis *object = static_cast<GinsuSynthesis *>(clientdata);', 'GinsuSynthesis *object = static_cast<GinsuSynthesis *>(samples);'),
+            'ctor-threshold': ('synth', 'if (maxPacketSizeC >= 0x50) {', 'if (maxPacketSizeC > 0x50) {'),
+            'ctor-shift': ('synth', 'const unsigned int n = (unsigned int)(size - overhead) >> 3;', 'const unsigned int n = (unsigned int)(size - overhead) >> 2;'),
+            'ctor-buffer2': ('synth', 'packetData[1] = reinterpret_cast<short *>(base + 4 * n);', 'packetData[1] = reinterpret_cast<short *>(base + 2 * n);'),
+            'ctor-memory': ('synth', 'base + 8 * n, overhead);', 'base + 8 * n + 4, overhead);'),
+            'ctor-handle-init': ('synth', '    packetHandle1C = -1;\n    sampleRate24 = 0;', '    packetHandle1C = 0;\n    sampleRate24 = 0;'),
+            'dtor-vtable': ('synth', '    SNDPKTPLAY_destroy(packetHandle1C);\n    vtable0 = (void *)0x789ce4;', '    SNDPKTPLAY_destroy(packetHandle1C);'),
+            'start-handle-check': ('synth', 'if (packetHandle1C < 0 || synthData28 == 0) {', 'if (packetHandle1C <= 0 || synthData28 == 0) {'),
+            'start-samplerep': ('synth', 'format.samplerep = 8;', 'format.samplerep = 7;'),
+            'start-rendermode': ('synth', 'attr.rendermode = 4;', 'attr.rendermode = 3;'),
+            'start-volume': ('synth', 'options.vol = 0;', 'options.vol = 0x7f;'),
+            'start-zero-length': ('synth', 'GinsuZeroBytes(packetData[1], (unsigned int)packetSize14 * 2u);', 'GinsuZeroBytes(packetData[1], (unsigned int)packetSize14 * 2u + 1u);'),
+            'start-rate-store': ('synth', '        sampleRate24 = synthData28->sampleRate18;', '        sampleRate24 = 0;'),
+            'start-second-buffer': ('synth', 'packet.psamples[0] = packetData[1];', 'packet.psamples[0] = packetData[0];'),
+            'start-unlock': ('synth', '    SNDSYS_leavecritical();\n    return sndHandle;', '    return sndHandle;'),
+            'start-return': ('synth', 'return sndHandle;', 'return 0;'),
+            'start-key-bit': ('synth', 'key ^= (key ^ (unsigned int)packetSize14) & 0x7fffffffu;', 'key = (unsigned int)packetSize14;'),
         }
         rejected, survived, no_mismatch_text = [], [], []
         for label, (key, before, after) in mutations.items():

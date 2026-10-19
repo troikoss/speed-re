@@ -60,6 +60,26 @@
       "address": "0x466d30",
       "size": 1058,
       "sha256": "f8cbbf33c59a6cf86b1541738819e0d84fd4038b918681dc9b095a24da716d36"
+    },
+    "PacketReleaseCallback": {
+      "address": "0x4777f0",
+      "size": 15,
+      "sha256": "33d29635e8e4934644be79f2a0e9b44381918d10a64b83d183b41b48e5c09837"
+    },
+    "SynthesisConstruct": {
+      "address": "0x477800",
+      "size": 104,
+      "sha256": "5a9ab0525a5292a20356dc0ef28a33ff46dc83b88299630ee6b8547bc8ad0b72"
+    },
+    "SynthesisDestruct": {
+      "address": "0x477870",
+      "size": 65,
+      "sha256": "e349618e510f43f6287551a745f5d4caa1e0d5c25164f7ff357c8a72d9c18091"
+    },
+    "StartSynthesis": {
+      "address": "0x4778c0",
+      "size": 366,
+      "sha256": "504b1490d9643f40bfa5a249a51daa83220940ce0f003448c2205dc63450a30a"
     }
   }
 }

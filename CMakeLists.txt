@@ -32,7 +32,8 @@ add_library(ug2native STATIC
     src/Platform/Native/NativeVehicle.cpp
     src/Platform/Native/NativeWorld.cpp
     src/Platform/Native/NativeCollision.cpp
-    src/Platform/Native/NativeAudio.cpp)
+    src/Platform/Native/NativeAudio.cpp
+    src/Platform/Native/NativeEngineSound.cpp)
 target_compile_options(ug2native PRIVATE ${UG2_ARCH_FLAGS} -O2 -Wall
     -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
 

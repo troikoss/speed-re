@@ -6,6 +6,8 @@
 #include "NativeScene.h"
 #include "NativeHud.h"
 #include "NativePause.h"
+#include "NativeAudio.h"
+#include "NativeEngineSound.h"
 #ifdef UG2_ENABLE_MODDING
 #include "NativeModBridge.h"
 #endif
@@ -339,6 +341,8 @@ int main(int argc, char **argv) {
     int cameraOption = 3;       // profile drive camera option: 0 bumper, 1 hood, 2 close, 3 far, 4 super far
     int pauseAt = -1;           // scripted capture: open the pause menu at this frame
     const char *pauseKeys = ""; // scripted L/R/A/B/U/D/S, C=Controls, K=capture Z, M=mouse primary binding
+    const char *engineGin = "GIN_Nissan_Skyline.gin"; // SOUND/ENGINE file of the engine sound (per-car choice not recovered)
+    bool noAudio = false;       // no audio device: the engine sound is skipped and the demo runs silent
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--game") && i + 1 < argc) game = argv[++i];
         else if (!strcmp(argv[i], "--car") && i + 1 < argc) car = argv[++i];
@@ -360,6 +364,8 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--camera") && i + 1 < argc) cameraOption = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--pause-at") && i + 1 < argc) pauseAt = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--pause-keys") && i + 1 < argc) pauseKeys = argv[++i];
+        else if (!strcmp(argv[i], "--engine-gin") && i + 1 < argc) engineGin = argv[++i];
+        else if (!strcmp(argv[i], "--no-audio")) noAudio = true;
     }
     if (width < 320 || height < 240 || width > 8192 || height > 8192) {
         fprintf(stderr, "ug2demo: invalid resolution (320x240 through 8192x8192)\n"); return 1;
@@ -388,9 +394,27 @@ int main(int argc, char **argv) {
         fprintf(stderr, "ug2demo: %s\n", error);
         return 1;
     }
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0) {
-        fprintf(stderr, "ug2demo: %s\n", SDL_GetError());
-        return 1;
+    // Audio is optional: --no-audio, or a system without an audio device, runs the demo silent.
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER | (noAudio ? 0u : SDL_INIT_AUDIO)) != 0) {
+        if (noAudio) {
+            fprintf(stderr, "ug2demo: %s\n", SDL_GetError());
+            return 1;
+        }
+        fprintf(stderr, "ug2demo: audio unavailable (%s); running silent\n", SDL_GetError());
+        if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) != 0) {
+            fprintf(stderr, "ug2demo: %s\n", SDL_GetError());
+            return 1;
+        }
+    }
+    if (!NativeAudioOpen(!noAudio, error, sizeof(error))) {
+        fprintf(stderr, "ug2demo: audio unavailable (%s); running silent\n", error);
+    }
+    NativeEngineSound engineSound;
+    bool haveEngine = false;
+    if (NativeAudioIsOpen()) {
+        haveEngine = engineSound.Load(game, engineGin, error, sizeof(error));
+        if (!haveEngine) fprintf(stderr, "ug2demo: %s; engine sound disabled\n", error);
+        else if (!engineSound.Started()) fprintf(stderr, "ug2demo: engine sound did not start; running silent\n");
     }
 
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
@@ -757,6 +781,7 @@ int main(int argc, char **argv) {
 #endif
         DrivetrainAuxiliary *state = vehicle.owner->State();
         float rpm = vehicle.mover->engine48->state14 * engineValueScale;
+        if (haveEngine && !paused) engineSound.Update(rpm, frame);
         int gear = vehicle.mover->drivetrain4C->ratioIndex;
         char title[160];
         snprintf(title, sizeof(title), "UG2 recovered vehicle demo - %s  %5.1f km/h  %5.0f rpm  gear %s",
@@ -801,6 +826,15 @@ int main(int argc, char **argv) {
 #endif
     driveCamera.Destroy();
     uiInput.Close();
+    // The engine sound stops its player before the device closes; SDL_Quit comes last.
+    if (haveEngine) engineSound.Destroy();
+    if (NativeAudioIsOpen()) {
+        unsigned int callbacks = 0, releases = 0, underrunFrames = 0;
+        NativeAudioStatistics(&callbacks, &releases, &underrunFrames);
+        fprintf(stderr, "ug2demo: audio %u callbacks, %u packets released, %u underrun frames\n", callbacks, releases,
+                underrunFrames);
+    }
+    NativeAudioClose();
     SDL_GL_DeleteContext(context);
     SDL_DestroyWindow(window);
     SDL_Quit();

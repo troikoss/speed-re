@@ -690,8 +690,46 @@ keyboard/mouse/controller UI actions while accepting the scripted input.
   `NativePause.cpp`: pause menu seams (see above); `NativeAssets.cpp`/
   `NativeScene.cpp` read and draw the original car and scenery assets (see above).
   `--placeholder` restores the box car and collision-polygon world.
+- `NativeAudio.cpp`: the snd library seam over SDL2 (a packet player with resampling; see
+  [Ginsu evidence](pc-ginsu.md#native-packet-player-and-engine-sound-scaffold)). The snd
+  library itself is not recovered. `NativeEngineSound.cpp`: the engine sound of the demo
+  (gin binding, the synthesizer and the per-frame RPM feed); the per-car gin choice and the
+  engine controller are not recovered.
 - Unrecovered routines the demo state should never reach stop the program with a
   message instead of being stubbed (`NativeTrap`).
+
+## Engine sound
+
+The demo plays the engine through the recovered Ginsu synthesizer when an audio device is
+open. It reads `<game>/SOUND/ENGINE/<file>` and feeds the speed of the car each frame.
+
+```sh
+build/native/ug2demo --game "$UG2_DIR" --car SKYLINE                       # engine sound on
+build/native/ug2demo --game "$UG2_DIR" --engine-gin GIN_Mazda_Miata.gin    # another gin file
+build/native/ug2demo --game "$UG2_DIR" --no-audio                          # silent run
+UG2_ENGINE_LOG=build/engine-rpm.log build/native/ug2demo --game "$UG2_DIR" # one line per frame
+```
+
+- `--engine-gin` names a file in `SOUND/ENGINE`; the default is `GIN_Nissan_Skyline.gin`, which
+  matches the default `--car SKYLINE`. The per-car choice of the original is not recovered.
+- `--no-audio` skips the device. Without a device (no audio driver, or SDL refuses it) the
+  demo prints a message and runs silent. The engine sound is not created then.
+- `UG2_ENGINE_LOG` writes a header `# audio_start_ticks N` (the device timeline) and one line
+  `ticks frame rpm` per frame. The smoke test pairs the output with this log.
+- At exit the demo prints the audio counters: callbacks, packets released to the
+  synthesizer, and device frames with no packet (underruns).
+
+Headless check with SDL's disk driver, the scripted throttle and no display:
+
+```sh
+build/venv/bin/python tools/smoke_native_engine_audio.py --game "$UG2_DIR" --frames 600
+```
+
+It writes `build/analysis/ginsu/engine.raw` (S16 stereo, 44100 Hz) and checks that the output
+is not silent, that underruns are rare, and that the pitch rises with the rpm. The
+environment is `SDL_VIDEODRIVER=offscreen`, `LIBGL_ALWAYS_SOFTWARE=1`, `SDL_AUDIODRIVER=disk`
+and `SDL_DISKAUDIOFILE` for the raw file; the script removes `DISPLAY` and `WAYLAND_DISPLAY`.
+The disk driver paces output in real time, so the rpm log and the output share a timeline.
 
 ## Build and run
 

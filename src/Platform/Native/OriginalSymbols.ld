@@ -153,6 +153,7 @@ gearboxMinimumWheelLoad = 0x7844f8;
 gearboxShiftWeights = 0x7fbf60;
 gearboxTopMargin = 0x7852a8;
 gearboxUnsetSpeed = 0x7842a0;
+ginsuEngineBlockRate78A5B0 = 0x78a5b0;
 ginsuFilterA7ED92C = 0x7ed92c;
 ginsuFilterB7ED93C = 0x7ed93c;
 ginsuHalf784260 = 0x784260;
