@@ -355,9 +355,7 @@ types, runs the recovered world and other-car pushes `0x444530`/`0x44b040`
 the mover's vtable slots 0x30/0x44, the world car list holding only the player's car, and the
 GL path reading eye/target/up back from the matrix.
 
-Not recovered, left as seams: camera shake (`0x452ed0`, `0x572a50`), Camera object finalisation (`0x447280`), the chase
-heading follower (`0x445c20`) and the slot-0x24-true branch of the car frame `0x445e00` (see
-[cockpit blocked tests](pc-camera.md#cockpit-blocked-tests-2026-10-19)), the replay RPM source and
+Camera shake (`0x452ed0`, `0x572a50`) and finalisation (`0x447280`) are recovered ([camera](pc-camera.md#camera-shake-and-finalisation-2026-10-19)); the Camera object is a zeroed native object and the GL path reads it. Not recovered, left as seams: the replay RPM source and
 HUDINDEX option. The cockpit blocked tests are recovered; the mover's vtable also supplies slot 0x24
 and the car input's slot 0x54 is `NativeControls::GetWheelMode54`.
 
@@ -739,7 +737,7 @@ observations, not equivalence evidence.
   the cylinder constructor (not located), and collision effects/sounds (`0x5a9620`, `0x59fb70`).
 - Recover the car-update reset path (`0x5fbed0`, `0x40f690`, `0x6009a0`) and the world-update
   callees that are still no-op seams (`0x5f6cd0`, `0x5f5580`, `0x5f5730`, `0x602650`, `0x6076d0`, ...).
-- Recover camera shake/finalisation, the remaining car pre/post-update logic
+- Recover the remaining car pre/post-update logic
   beyond the verified acceleration prefixes, remaining HUD inputs/features, and full
   FEng script playback/rendering. Additional HUD
   source recovery requires separate verification and integration evidence.

@@ -227,6 +227,19 @@ extern "C" WheelMatrix *__stdcall D3DXMatrixMultiply(WheelMatrix *output, WheelM
     return output;
 }
 
+// D3DX transpose (statically linked in the original, dispatched via 0x803f00, identified from the
+// use in 0x447280 which reads the result as the transposed matrix). Operands may alias the output.
+extern "C" WheelMatrix *__stdcall D3DXMatrixTranspose(WheelMatrix *output, WheelMatrix *input) {
+    WheelMatrix result;
+    for (int row = 0; row < 4; ++row) {
+        for (int column = 0; column < 4; ++column) {
+            result.elements[row * 4 + column] = input->elements[column * 4 + row];
+        }
+    }
+    *output = result;
+    return output;
+}
+
 unsigned int bGetTicker() {
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);

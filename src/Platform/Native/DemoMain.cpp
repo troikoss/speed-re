@@ -10,6 +10,7 @@
 #include "NativeModBridge.h"
 #endif
 #include "../../Speed/Indep/Src/Camera/DriveCamera.h"
+#include "../../Speed/Indep/Src/Camera/Camera.h"
 #include "../../Speed/Indep/Src/Camera/CameraPush.h"
 
 #include <SDL2/SDL.h>
@@ -39,7 +40,7 @@ void *driveCameraSlots[0x50 / 4];
 // The player's view passed to the mover base constructor (Player +0x18); eView 1 is player one.
 const int kPlayerView = 1;
 
-struct Camera {
+struct EyeCamera {
     float position[3];
     float target[3];
 };
@@ -446,9 +447,17 @@ int main(int argc, char **argv) {
     }
     float lastGood[4] = {spawn[0], spawn[1], spawn[2], spawn[3]};
     int airborneFrames = 0;
-    Camera camera = {{-8.0f, 0.0f, 3.0f}, {0.0f, 0.0f, 0.5f}};
+    EyeCamera camera = {{-8.0f, 0.0f, 3.0f}, {0.0f, 0.0f, 0.5f}};
     InitialiseDriveCameraStatics();
     DriveCameraMover driveCamera;
+    // Platform seam: the Camera object is a member of the view object in the original (view +0x40,
+    // mover +0x1c from 0x44ab90), whose constructor is not recovered. A zeroed object stands in;
+    // the base constructor's far plane 0xc0 is set by DriveCameraMover::Construct. Reset 0x270 is
+    // set so the first finalise does not difference against the empty previous state.
+    static ::Camera nativeCamera;
+    memset(&nativeCamera, 0, sizeof(nativeCamera));
+    nativeCamera.reset270 = 1;
+    driveCamera.camera1C = &nativeCamera;
     driveCameraSlots[0x24 / 4] = reinterpret_cast<void *>(DriveCameraSlot24);
     driveCameraSlots[0x30 / 4] = reinterpret_cast<void *>(DriveCameraSlot30);
     driveCameraSlots[0x44 / 4] = reinterpret_cast<void *>(DriveCameraSlot44);
@@ -686,17 +695,20 @@ int main(int argc, char **argv) {
             camera.target[2] = m[14] + 0.6f;
             up[0] = 0.0f; up[1] = 0.0f; up[2] = 1.0f;
         } else {
-            // Platform seam: the GL path takes eye/target/up, read back from the view matrix the
-            // recovered update leaves for Camera finalisation 0x447280 (columns right, -up,
-            // forward; row 3 the translation). The target keeps the unpushed look distance.
-            const float *v = cameraView.matrix.elements;
-            float look[3] = {cameraView.target[0] - cameraView.eye[0], cameraView.target[1] - cameraView.eye[1],
-                             cameraView.target[2] - cameraView.eye[2]};
-            float distance = sqrtf(look[0] * look[0] + look[1] * look[1] + look[2] * look[2]);
-            if (!(distance > 1e-3f)) distance = 1.0f;
+            // Platform seam: the GL path takes eye/target/up from the finalised Camera object
+            // (0x447280): position +0x40 and direction +0x50 (the target +0x60 is position plus the
+            // direction times the focal distance), up from the matrix's second column.
+            const CameraState *finalState = &nativeCamera.current0;
+            const float *v = finalState->matrix0.elements;
+            float look[3] = {finalState->target60.x - finalState->position40.x, finalState->target60.y - finalState->position40.y,
+                             finalState->target60.z - finalState->position40.z};
+            bool focalValid = look[0] * look[0] + look[1] * look[1] + look[2] * look[2] > 1e-6f;
+            camera.position[0] = finalState->position40.x;
+            camera.position[1] = finalState->position40.y;
+            camera.position[2] = finalState->position40.z;
+            const float *direction = &finalState->direction50.x;
             for (int i = 0; i < 3; ++i) {
-                camera.position[i] = -(v[12] * v[i * 4] + v[13] * v[i * 4 + 1] + v[14] * v[i * 4 + 2]);
-                camera.target[i] = camera.position[i] + v[i * 4 + 2] * distance;
+                camera.target[i] = focalValid ? (&finalState->target60.x)[i] : camera.position[i] + direction[i];
                 up[i] = -v[i * 4 + 1];
             }
             if (getenv("UG2_DEBUG_CAMERA")) {

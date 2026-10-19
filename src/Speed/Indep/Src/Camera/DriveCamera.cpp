@@ -1,4 +1,5 @@
 #include "DriveCamera.h"
+#include "Camera.h"
 #include "../Physics/VehicleMover.h"
 #include "../Physics/Engine.h"
 #include "CameraMatrix.h"
@@ -23,6 +24,18 @@ extern float cameraEyeDurationDivisor787210;
 extern CameraPairCurve cameraHeadingCurve82A4E0;
 extern float cameraHeadingCurvePoints7EC420[];
 extern int cameraCut883E34;
+extern int cameraFinaliseDisabled828640;
+extern float cameraValueB4_78707C;
+extern float cameraValueB8_787078;
+extern float cameraShakeScales7EBE90[6];
+extern float cameraShakeSecond7EBEA8[6];
+extern float cameraShakeMultiplier7870B8;
+extern unsigned char cameraShakeDisabled89E7D8;
+extern int cameraShakeDisabled890108;
+
+double bDistance(WheelVector *a, WheelVector *b);     // 0x43ce10
+unsigned short HudAngleUnits(float x, float y);       // 0x43e6d0
+float EngineSineUnits(unsigned int units);            // 0x43c2b0
 
 // Original 0x401020 / 0x43c370 are recovered in the physics sources.
 float EngineCosineUnits(unsigned int units);
@@ -501,6 +514,9 @@ void DriveCameraMover::Construct(int view, MoverModeOwner *car, const CameraSett
                                  int type, bool disableSwing, bool lookBack, bool noDefaults) {
     // Base constructor 0x44ab90 fields read by the pushes (vtable identity left to the caller).
     view10 = view;
+    if (camera1C) {
+        camera1C->current0.farC0 = 10000.0f;   // immediate 0x461c4000 stored by 0x44ab90
+    }
     player20 = 0;
     car2C = car;
     settings = table;
@@ -593,10 +609,31 @@ void DriveCameraMover::Update(float step, int clock, DriveCameraView *view) {
     if (!chase && (lookBack51 || type != DRIVE_CAMERA_HOOD)) {
         attach = true;
     }
-    view->attachedToCar = attach;
-    view->chase = chase;
-    view->nearPlane = settingType == 3 ? cameraDriverNear7EB5B0 : cameraDefaultNear784260;
-    view->farPlane = 10000.0f;     // immediate 0x461c4000 stored by the base constructor 0x44ab90
+    // Camera writes 0x4538c2..0x453975. The Camera is the platform supplied object at mover +0x1c;
+    // while the global 0x828640 is set the original leaves the guarded fields alone.
+    Camera *camera = camera1C;
+    CameraState *camState = &camera->current0;
+    if (!cameraFinaliseDisabled828640) {
+        camera->attachedCar280 = attach ? car2C : 0;
+    }
+    camState->nearBC = settingType == 3 ? cameraDriverNear7EB5B0 : cameraDefaultNear784260;
+    double distance = bDistance(&camState->position40, &car2C->State()->position20);
+    if (!cameraFinaliseDisabled828640) {
+        camState->focalB0 = (float)distance;
+    }
+    if (flag53) {
+        if (!cameraFinaliseDisabled828640) {
+            camState->valueB4 = 0.0f;
+            if (!cameraFinaliseDisabled828640) {
+                camState->valueB8 = 0.0f;
+            }
+        }
+    } else if (!cameraFinaliseDisabled828640) {
+        camState->valueB4 = cameraValueB4_78707C;
+        if (!cameraFinaliseDisabled828640) {
+            camState->valueB8 = cameraValueB8_787078;
+        }
+    }
 
     WheelMatrix carFrame;
     ComputePose(&carFrame, setting, &key, clock);
@@ -631,10 +668,15 @@ void DriveCameraMover::Update(float step, int clock, DriveCameraView *view) {
     eye.x = deltaX + target.x;
     eye.y = deltaY + target.y;
     eye.z = deltaZ * cameraZoom78721C + target.z;
-    // The field of view goes through 0x43e6d0 with the zoom; the half angle round trip returns the
-    // follower value to within one unit.
+    // Field of view 0x453adc..0x453b26: tangent of the follower's half angle through 0x43e6d0
+    // with the zoom, doubled, stored to Camera +0xc4 unless 0x828640 is set.
     unsigned int half = ((unsigned int)(int)fov34->value0 & 0xffffu) >> 1;
-    view->fov = (unsigned short)(half << 1);
+    float sine = EngineSineUnits(half);
+    float tangent = sine / EngineCosineUnits(half);
+    unsigned short angle = HudAngleUnits(cameraZoom78721C, tangent);
+    if (!cameraFinaliseDisabled828640) {
+        camState->fovC4 = (unsigned short)(angle << 1);
+    }
     view->eye[0] = eye.x;
     view->eye[1] = eye.y;
     view->eye[2] = eye.z;
@@ -646,13 +688,24 @@ void DriveCameraMover::Update(float step, int clock, DriveCameraView *view) {
     view->up[2] = up[2];
     WheelMatrix matrix;
     CameraLookAt(&matrix, &eye, &target, reinterpret_cast<WheelVector *>(up));
-    // Shake 0x572a50 (view +0x10) and 0x452ed0 (table 0x7ebe90/0x7ebea8 indexed by previousType4C)
-    // run here; not recovered.
+    CameraViewShake(view10, &matrix);                                  // 0x572a50
+    float shakeScale = cameraShakeScales7EBE90[previousType4C];
+    float shakeSecond = cameraShakeSecond7EBEA8[previousType4C];
+    if (!cameraShakeDisabled89E7D8 && !cameraShakeDisabled890108) {
+        shakeScale = shakeScale * cameraShakeMultiplier7870B8;
+    }
+    Shake(&matrix, car2C, shakeScale, shakeSecond);                    // 0x452ed0
     if (chase) {
         CameraMoverBase *base = reinterpret_cast<CameraMoverBase *>(this);
         base->PushFromWorld(&matrix, car2C, 0);
         base->PushFromCars(&matrix, car2C, true);
     }
-    // Finalisation 0x447280(Camera, &matrix, 0x865154) stores it; the platform reads it instead.
-    view->matrix = matrix;
+    camera->Finalise(&matrix, step);                                   // 0x447280
+    // Platform output: what the renderer takes from the finalised Camera.
+    view->attachedToCar = camera->attachedCar280 != 0;
+    view->chase = chase;
+    view->nearPlane = camState->nearBC;
+    view->farPlane = camState->farC0;
+    view->fov = camState->fovC4;
+    view->matrix = camState->matrix0;
 }

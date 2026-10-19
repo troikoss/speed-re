@@ -5,12 +5,14 @@
 // (0x5f1fd0), constructor 0x451660, vtable 0x787f28, Update 0x453570.
 //
 // Layouts are partial and offset-based; UG2_CHECK_* pin what was observed in the original.
-// Platform seams (not recovered, named where they are used): camera shake 0x452ed0/0x572a50 and
-// Camera object finalisation 0x447280. The cockpit blocked tests (0x445fc0, 0x5f14f0, 0x43d7a0,
+// Platform seams: the Camera object (Camera.h) is supplied by the platform as a zeroed object
+// (its constructor and the view object that owns it are not recovered), and the D3DX matrix
+// routines are native (NativeVehicle.cpp). The cockpit blocked tests (0x445fc0, 0x5f14f0, 0x43d7a0,
 // 0x5ed290/0x5ed300, vtable slot 0x24 0x445a90 and the Update prefix) are recovered in
 // CameraCockpit.cpp; the chase car frame 0x445e00, the heading follower steering 0x445c20, 0x445ac0 and 0x574cd0 in
-// CameraChase.cpp; the world and other-car pushes 0x444530/0x44b040 in CameraPush.cpp. The car
-// +0x80 acceleration producer is recovered as the guarded prefix of 0x604740
+// CameraChase.cpp; the world and other-car pushes 0x444530/0x44b040 in CameraPush.cpp; the
+// shake 0x452ed0 with 0x572a50 and the Camera finalisation 0x447280 in CameraShake.cpp and
+// Camera.cpp. The car +0x80 acceleration producer is recovered as the guarded prefix of 0x604740
 // (Physics/CarFrameKinematics.cpp).
 
 #include "../Physics/Ug2Layout.h"
@@ -18,6 +20,7 @@
 
 struct MoverModeOwner;
 struct CameraPlayer;
+struct Camera;
 
 // Cubic Hermite follower channel, 0x30 bytes. Original 0x5749e0 advances it; every UG2 camera
 // spring is a set of these. A target change (state 2) restarts the curve from the current value
@@ -141,9 +144,10 @@ struct CameraPairCurve {
     float Lookup(float input);
 };
 
-// Output of the drive camera handed to the platform renderer. `matrix` is the view matrix the
-// original passes to Camera finalisation 0x447280 (after the pushes); eye/target/up are the
-// points it was built from. The other fields are Camera object fields in the original.
+// Output of the drive camera handed to the platform renderer: a copy of what Update leaves in
+// the Camera object (Camera.h) plus the points the matrix was built from (before the shake and
+// the pushes). `matrix` is the view matrix finalised into Camera +0; eye/target/up are platform
+// extras kept for the demo's debug output.
 struct DriveCameraView {
     WheelMatrix matrix;
     float eye[3];
@@ -192,9 +196,11 @@ void InitialiseDriveCameraStatics();
 class DriveCameraMover {
 public:
     void **vtable0;
-    char base4[0xc];                     // camera mover base 0x44ab90 (+0xc mode, +0x18/+0x1c Camera)
+    char base4[0xc];                     // camera mover base 0x44ab90 (+0xc mode)
     int view10;                          // the player's view, base constructor argument
-    char base14[0xc];
+    char base14[4];
+    void *view18;                        // the view object 0x48b1e0 returns for view10
+    Camera *camera1C;                    // view18 +0x40; the platform supplies it (Camera.h)
     CameraPlayer *player20;              // zeroed by the base constructor
     char base24[8];
     MoverModeOwner *car2C;
@@ -248,6 +254,11 @@ public:
     // Slot 0x04 (0x453570). `step` is the global frame time 0x865154, `clock` the tick 0x86518c.
     void Update(float step, int clock, DriveCameraView *view);
 
+    // 0x452ed0 (thiscall, `ret 0x10`, CameraShake.cpp): derives the Camera noise fields from the
+    // car's speed and wheel surfaces and applies them to `matrix` through Camera::ApplyNoise.
+    // `scale` and `secondScale` are the 0x7ebe90 and 0x7ebea8 table entries of Update.
+    void Shake(WheelMatrix *matrix, MoverModeOwner *car, float scale, float secondScale);
+
     // Pose 0x44de90, setting read 0x445eb0 and car frame 0x445e00 (CameraChase.cpp).
     void ComputePose(WheelMatrix *carFrame, const CameraSetting *setting, const CameraDynamicsKey *key,
                      int clock);
@@ -258,6 +269,7 @@ public:
     int viewState;                           // global 0x8707dc
 };
 UG2_CHECK_OFFSET(DriveCameraMover, view10, 0x10);
+UG2_CHECK_OFFSET(DriveCameraMover, camera1C, 0x1c);
 UG2_CHECK_OFFSET(DriveCameraMover, player20, 0x20);
 UG2_CHECK_OFFSET(DriveCameraMover, car2C, 0x2c);
 UG2_CHECK_OFFSET(DriveCameraMover, lookBack51, 0x51);

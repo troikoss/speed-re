@@ -31,7 +31,7 @@ recorded in the section tables below.
 | --- | --- | --- | --- |
 | 1 | Collision: ~~GJK `0x5b3390`, impulse `0x5af0e0`~~ (verified 2026-10-19; one GJK fix), ~~cylinders `0x5a23d0`/`0x5a2780`~~ (recovered 2026-10-19), ~~world objects `0x5b31f0`/`0x5b1390`/`0x5adb20`/`0x5add50`/`0x48bc50`~~ (recovered 2026-10-19; slot `0x8c` and the creation function remain seams) | 3–4 | 4 |
 | 2 | Car wheel draw `0x620ae0` wheel block: placement, side scale, width (see [wheel seams](#car-wheel-rendering-seams)); getters `0x5f6820`/`0x5ec7f0` done | 4 | 4 |
-| 3 | Camera seams: ~~pushes~~, ~~cockpit tests `0x445fc0`/`0x5f14f0`~~ (recovered 2026-10-19), shake `0x572a50`/`0x452ed0`, finalisation `0x447280`, ~~chase frame branch of `0x445e00`~~ (recovered 2026-10-19 with the heading follower steering `0x445c20`) | 2–3 | 3 |
+| 3 | Camera seams: ~~pushes~~, ~~cockpit tests `0x445fc0`/`0x5f14f0`~~ (recovered 2026-10-19), ~~shake `0x572a50`/`0x452ed0`, finalisation `0x447280`~~ (recovered 2026-10-19), ~~chase frame branch of `0x445e00`~~ (recovered 2026-10-19 with the heading follower steering `0x445c20`); item 3 is done | 2–3 | 3 |
 | 4 | CarTypeInfo/tuning chunk loaders | 3 | 3 |
 | 5 | HUD feature construction and mask caller | 3 | 3 |
 | 6 | Frontend classes (IconScroller, options list, dialog, Controls) | 3–4 | 3 |
@@ -96,8 +96,8 @@ recorded in the section tables below.
 | Native piece | Where | Replace with | Diff. | Imp. | Notes |
 | --- | --- | --- | --- | --- | --- |
 | ~~World collision pushes for chase types~~ | `DriveCamera.cpp` update tail | `0x444530`, `0x44b040` | 3 | 3 | Done 2026-10-18 ([camera](pc-camera.md)); vtable slots and car list remain scaffold. |
-| Camera shake | same | `0x452ed0`, `0x572a50` | 2 | 2 | |
-| Camera finalisation | same | `0x447280` | 2 | 2 | |
+| ~~Camera shake~~ | `CameraShake.cpp`, `Camera.cpp` | `0x452ed0`, `0x572a50` (with `0x446d00`, `0x5766e0`, `0x43d100`, `0x5ecdb0`, `0x572860`, `0x5722a0`) | 2 | 2 | Recovered 2026-10-19 ([camera](pc-camera.md#camera-shake-and-finalisation-2026-10-19)): `verify_pc_camera_shake.py` 30,720 comparisons (MSVC), 0 failures, 70 mutations rejected; D3DX transpose is a native seam. |
+| ~~Camera finalisation~~ | `Camera.cpp` | `0x447280`, `0x441340`, `0x5baf80` | 2 | 2 | Recovered 2026-10-19 (same verifier); the Camera object itself is a zeroed native object. |
 | ~~Cockpit blocked tests~~ | `CameraCockpit.cpp` | `0x445fc0`, `0x5f14f0`, `0x43d7a0`, `0x5ed290`/`0x5ed300`, slot 0x24 `0x445a90`, Update prefix `0x453570..0x4536f4` | 2 | 2 | Recovered 2026-10-19 ([camera](pc-camera.md)): `verify_pc_camera_cockpit.py` 24,576 comparisons (clang-cl), 0 failures, 37 mutations rejected; the eye-duration divide at `0x4537c3` and the blocked-adjusted type in `previousType4C` are now original. Player car getter `0x5eac70` is recovered but unreached (native player pointer 0). |
 | ~~Chase car frame from the heading follower~~ | `CameraChase.cpp` `GetCarFrame`, `SteerHeading` | `0x445e00` slot-0x24-true branch (`0x43c780`, `0x43cf10`, `0x43d1e0`), `0x445c20`, `0x445ac0`, `0x574cd0` | 2 | 3 | Done 2026-10-19 ([camera](pc-camera.md)); `0x445c20` reads the tick global `0x86518c` itself. |
 | Acceleration vector at car `+0x80` | `WorldUpdate.cpp` | Producer inside `0x5fbbe0`/`0x604740` | 2 | 3 | Produced by their recovered kinematics prefixes, now called from world update `0x609ce0`; the rest of both routines is not recovered. |

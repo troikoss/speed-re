@@ -212,9 +212,9 @@ Platform seams:
   `0x44ab90` leaves it, so the push depth is 0.7.
 - `NativeVehicle.cpp` lists the player's car in the world car list (`*0x890080` +0x10/+0x1c);
   the search skips it as the mover's own car, so no other-car lift occurs in the demo.
-- Shake `0x572a50`/`0x452ed0` and finalisation `0x447280` are not run; the GL path reads the
-  eye (inverse translation), forward (column 2) and up (minus column 1) back from the matrix
-  and keeps the unpushed look distance for its target.
+- Shake `0x572a50`/`0x452ed0` and finalisation `0x447280` were not run at this point; they are
+  recovered in [Camera shake and finalisation](#camera-shake-and-finalisation-2026-10-19), and
+  the GL path now reads the finalised Camera object.
 
 Native observation (plausibility, not equivalence): the camera's collider query finds the
 world pack and 3 to 6 faces around the eye in the scripted Skyline drive. No push occurs there
@@ -377,3 +377,80 @@ frames static and 600 frames `--scripted`, headless SDL offscreen, ran without t
 and hood cameras stayed at their cockpit offsets (eyeLocal 0.94/0.00/1.01 and 0.58/0.00/1.27)
 throughout, so none of the tests blocked the view in the scripted drive. The far camera (`--camera 3`) runs the new slot `0x24` and the eye-duration expression
 without traps.
+
+## Camera shake and finalisation (2026-10-19)
+
+Recovered: Camera finalisation `0x447280` (`Camera::Finalise`), noise apply `0x441340`
+(`Camera::ApplyNoise`) with `0x441270`, `0x4411b0`, `0x4412e0` and the rotation `0x5bacf0`, the
+transpose wrapper `0x5baf80`, the drive camera shake `0x452ed0` (`DriveCameraMover::Shake`) with
+the sample `0x446d00`, blend `0x5766e0`, scale-add `0x43d100` and car query `0x5ecdb0`, and the
+view shake `0x572a50` with `0x572860` and `0x5722a0`. Sources: `Camera.h`/`Camera.cpp`
+(partial offset-based `Camera`/`CameraState`, 0x288 bytes) and `CameraShake.cpp`.
+
+Evidence worth recording:
+
+- The fourth argument of `0x452ed0` pushed at `0x453b97` (`[ESP+0x5c]`) is the second table value:
+  `0x453b6c` stores `[0x7ebea8 + previousType4C*4]` to `[ESP+0x74]`, which is that slot after
+  `ADD ESP,0x18`. The third argument is `[0x7ebe90 + type*4]`, times `0x7870b8` when the byte
+  `0x89e7d8` and the int `0x890108` are both zero. `0x452ed0` multiplies the noise sums by it
+  (`[EBP+0x14]`).
+- The Camera is `view +0x40` (the base constructor `0x44ab90` takes it from `0x48b1e0` and stores
+  `10000.0` at `+0xc0`); finalisation copies `+0..+0xd0` to `+0xd0`, so the next frame differences
+  the two. Velocities land at `+0x1e0..+0x264`; `+0x270` is a reset flag (state copied again, step 1),
+  `+0x274` the step, `+0x280` the attached car.
+- Update's Camera writes `0x4538c2..0x453975` are now recovered too: `+0x280` (car for non-chase
+  settings unless hood without look-back), `+0xbc` near plane, `+0xb0` distance from the previous
+  Camera position to car `+0x60` (`0x43ce10`), `+0xb4`/`+0xb8` (`0x78707c`/`0x787078`, or 0 with
+  mover `+0x53`), all except `+0xbc` guarded by `0x828640`; `+0xc4` is `2 * 0x43e6d0(zoom,
+  tan(half angle))`, replacing the earlier "half<<1" approximation (the native fov goes from 13020
+  to 13018 for the far camera). `0x43e6d0`/`0x43c490` are `HudAngleUnits`/`HudArcSineUnits`.
+- `0x5baf80` is `cdecl`, calls `0x63d12c` which is `JMP [0x803f00]`. `0x803f00` is a run-time
+  filled function pointer (initial value `0x63d119`, a loader stub, like `0x803e74` for the
+  multiply); it is not in the PE import tables. The name `D3DXMatrixTranspose` is inferred: a
+  two-argument matrix function whose output `0x447280` consumes as the transpose (rows 0..2 give
+  the position and the direction). Native: `D3DXMatrixTranspose` in `NativeVehicle.cpp`.
+- `0x59fa30` (called with car `+0x40`) is `DrivetrainAuxiliary::GetNitrousIndex` (recovered);
+  `0x5ecdb0` returns it when `|input +0x20c| <= 0.001` or `speed * 2.237 < 5`, else 0.
+- The sample curve of `0x452ed0` is built on the stack (count 5, spacing `PhysicsInfo +0x20` or
+  100.0, keys `0x7ec430`, 16 bytes each); bump sums use road surface `+0x18`/`+0x1c` of the four
+  wheel surfaces (car `+0x394..+0x3a0`). The `TEST ECX,ECX` before the `0x59fa30` call tests
+  `car + 0x40`, never null.
+
+Verification: `tools/verify_pc_camera_shake.py --compiler msvc --mutation-checks` (manifest
+`config/SPEED2_EXE_1_2/camera-shake.json`): 30,720 comparisons under 53- and 64-bit x87 precision
+(2,048 each of the 15 targets: `0x447280`, `0x441340`, `0x441270`, `0x4411b0`, `0x4412e0`,
+`0x5bacf0`, `0x5baf80`, `0x452ed0`, `0x446d00`, `0x5766e0`, `0x43d100`, `0x5ecdb0`, `0x5722a0`,
+`0x572860`, `0x572a50`). The whole fixture arena, the camera globals, return value (ST(0) for the
+float functions), ESP, callee-saved registers, FPU control/tag words and the ordered entry events
+(arguments, pointers by content) are compared. Coverage includes the finalise debug branch, the
+disabled global, reset flag set/clear, step positive and not, view shake gate closed and views 0..5,
+curve null and non-null, nitrous stages 0..3. 70 mutations are rejected, none survive.
+`--compiler clang-cl` also passes (1,500 cases, in-range mode, see below). Original code runs for
+`0x43c780`, `0x43cf10`, `0x4012b0`, `0x43c2b0`, `0x43c370`, `0x43c490`, `0x5bada0`, `0x5bae60`,
+`0x59fa30` (with `0x5925b0`, `0x592500`, `0x592480`, `0x5f00f0`) and `_ftol 0x75bed4`. Traced Python
+stubs in both runs: D3DX multiply `0x63cedb` and transpose `0x63d12c`.
+
+Limits and seams:
+
+- The Camera object is a native zeroed object (`DemoMain.cpp`, `reset270` set); its constructor and
+  the view object are not recovered. `Construct` stores `+0xc0 = 10000.0` as `0x44ab90` does; the
+  rest of that constructor (copying `+0x280/+0x284`, `0x444040`) is not.
+- `0x447280` copies `+0..+0xd0` to `+0xd0` before it rewrites the matrix, so every difference except position, direction and target (the focal, near, far, noise and field-of-view velocities, written after Update/Shake already changed those fields) is zero in the original; the verifier cannot observe a mutation of those lines (mutations of them were dropped as equivalent).
+- The noise fields `+0x70..+0xac` are written only by the drive camera shake; other writers are
+  not recovered. The per-view shake states at `0x865360` and `*0x890080 +0x108` are read from the
+  original image (zero/unwritten in the demo), so the view shake is a no-op natively.
+- D3DX transpose: inferred from use; the real routine is not executed (stub in the verifier).
+- `volatile` appears where the original stores a binary32 and reloads it (noise products, bump sums,
+  translation read-back) and to keep the eight noise calls in order; it is a verification-driven
+  spelling, not original source evidence. Verification only: the nitrous recorder state read through
+  `0x5f00f0` is not varied; signalling NaNs are not generated; byte identity is not established.
+- clang-cl converts out-of-range floats to int as `0x80000000` while MSVC's `_ftol` keeps the low
+  32 bits, so `--compiler clang-cl` implies `--in-range` (no overflowing conversions, NaN or zero
+  curve spacing) and uses `-fno-inline` and a `memcpy` stub; MSVC runs the full special values.
+- `GetFieldAngle` returns the arcsine's EAX unchanged in the original (upper half garbage); the
+  verifier compares angle arguments of `0x5bacf0`/`0x5bada0`/`0x5bae60`/`0x43c2b0`/`0x43c370` by
+  their low 16 bits, which every callee masks.
+- Native demo: `UG2_DEBUG_CAMERA=1` still works. Smoke (`--car SKYLINE --frames 300 --scripted`):
+  the pre-shake eye/target/heading lines are identical to the previous build, the final eye differs
+  from the pre-shake eye by about 0.025/-0.008/0.0 m (the shake), no NaNs; the screenshot differs
+  from the old one in 4,563 pixels.

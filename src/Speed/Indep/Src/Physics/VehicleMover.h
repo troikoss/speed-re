@@ -700,6 +700,7 @@ struct MoverModeOwner {
     void GetWheelSpinMatrices(WheelMatrix *output, int view); // 0x5ec7f0 (WheelRenderMatrices.cpp)
     bool HasWheelInputs();  // 0x5ed290 (Camera/CameraPush.cpp)
     bool HasWheelTargets(); // 0x5ed300 (Camera/CameraPush.cpp)
+    int GetCameraNitrousIndex(); // 0x5ecdb0 (Camera/CameraShake.cpp)
     int GetMoverWheelState(int wheel);
     bool IsResetPending();
     int HasContactBodies();
