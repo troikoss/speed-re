@@ -1,0 +1,65 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "Construct": {
+      "address": "0x466750",
+      "size": 29,
+      "sha256": "07a973a6edcba6264b4af46daa0a5484de41a42ae303b91ff5de212fb61b4301"
+    },
+    "BindToData": {
+      "address": "0x466770",
+      "size": 201,
+      "sha256": "68932c885a4bb867038a58f7d65a645b7ed5b68a3c3c4cc7192eeccad9388e89"
+    },
+    "FrequencyToSample": {
+      "address": "0x466840",
+      "size": 200,
+      "sha256": "a249f2ad8ff17291590e22b33cc160c6c70f5e3030648ea2cbe59373a93229e8"
+    },
+    "CycleToSample": {
+      "address": "0x466910",
+      "size": 181,
+      "sha256": "aa0e0e52a83f1f75e9842597bfa018dadd94bf229df0faaf726843c18bd3aab5"
+    },
+    "CyclePeriod": {
+      "address": "0x4669d0",
+      "size": 287,
+      "sha256": "7ae9f5a3cfebfc7ae4d38ae153b61537ea524bb4e1364f7f21c1ec3e7a676730"
+    },
+    "SampleToCycle": {
+      "address": "0x466af0",
+      "size": 357,
+      "sha256": "c2c2bde9b9921755bf7d7098409ac9f3354fee36bd4c89998ee021a17a3011df"
+    },
+    "DecodeBlock": {
+      "address": "0x466590",
+      "size": 442,
+      "sha256": "34b54ca472fc3d931eb6a41acf93c7b54135c8d1634b2a879109a8be94ad034d"
+    },
+    "GetSamples": {
+      "address": "0x466c60",
+      "size": 194,
+      "sha256": "8292ded9ddab98159ed355fb5e849f43f9be5c108f881027c448de329249aa4b"
+    },
+    "CeilToInt": {
+      "address": "0x466560",
+      "size": 38,
+      "sha256": "a27e2f737e3eafd1a3ec88e878ceb0eb3a1e6f32f177d462cabdf800f0b94365"
+    },
+    "SetSynthData": {
+      "address": "0x467160",
+      "size": 201,
+      "sha256": "b81c96c3e23bde0ef483f3dd13a38341ee51c83cb973615c69ca6ab4d8f01bbb"
+    },
+    "UpdateFrequency": {
+      "address": "0x467230",
+      "size": 107,
+      "sha256": "b1fda12882977d76e8d680877cbe9fb09d302ab0b00911d4d920e8a283930114"
+    },
+    "HandlePacketRelease": {
+      "address": "0x466d30",
+      "size": 1058,
+      "sha256": "f8cbbf33c59a6cf86b1541738819e0d84fd4038b918681dc9b095a24da716d36"
+    }
+  }
+}

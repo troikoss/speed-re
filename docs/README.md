@@ -26,6 +26,7 @@
 - [Human steering](pc-human-steering.md): timed-average and rate-helper recovery, constructor integration and remaining physics dependencies.
 - [Camera](pc-camera.md): view-matrix helpers and the drive camera's world/car collision pushes.
 - [Wheel and body physics](pc-wheel-physics.md): vector math, wheel preparation/correction, coupling, and body verification.
+- [Ginsu engine sound](pc-ginsu.md): granular `.gin` data, EA-XA decoding and packet synthesis, with verification under both x87 precisions.
 
 The physics documents preserve the recovery sequence: later findings supersede
 earlier leads. Use the native demo guide for integration status. Source presence,

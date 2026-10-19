@@ -226,6 +226,7 @@ are disassembly leads, not verified boundaries.
 | Native piece | Where | Replace with | Diff. | Imp. | Notes |
 | --- | --- | --- | --- | --- | --- |
 | No sound device (`0x7faaa8 = 0`); collision sound set traps | `NativeVehicle.cpp:193`, `NativeCollision.cpp:93` | Audio system | 5 | 3 | Needs a native audio backend as well. |
+| snd packet lock/unlock/submit traps behind the recovered Ginsu synthesizer | `NativeAudio.cpp` | snd library `0x721f99`, `0x721fa7`, `0x723515` | 4 | 3 | Ginsu `0x466560`–`0x467230` recovered 2026-10-19 ([pc-ginsu.md](pc-ginsu.md)); needs an SDL2 backend and synthesis start `0x4778c0`. |
 | ~~Replay recorder query traps~~ | `ReplayState.cpp` | `0x5efe70` | — | — | Recovered 2026-10-18; reached by the mover update for the human record. |
 | bWare heap uses malloc/free | `NativeWorld.cpp:61` | `0x440390` `bMalloc`, `0x440540` | 2 | 1 | A reasonable permanent seam. |
 | `bGetTicker` and `bSPrintf` | `NativeVehicle.cpp:179`, `NativeCollision.cpp:20` | `bSPrintf` `0x4400d0` | 1 | 1 | |
