@@ -225,8 +225,11 @@ are disassembly leads, not verified boundaries.
 
 | Native piece | Where | Replace with | Diff. | Imp. | Notes |
 | --- | --- | --- | --- | --- | --- |
-| No sound device (`0x7faaa8 = 0`); collision sound set traps | `NativeVehicle.cpp:193`, `NativeCollision.cpp:93` | Audio system | 5 | 3 | Needs a native audio backend as well. |
-| ~~snd packet lock/unlock/submit traps behind the recovered Ginsu synthesizer~~ | `NativeAudio.cpp` | snd library `0x721f99`, `0x721fa7`, `0x723124`, `0x723138`, `0x7231d4`, `0x723515`, `0x72387b`, `0x72366a`, `0x72423e`, `0x721a6b` | 4 | 3 | 2026-10-19: the native build implements these entry points over SDL2 (a packet player with resampling and release callbacks, [pc-ginsu.md](pc-ginsu.md#native-packet-player-and-engine-sound-scaffold)); Ginsu `0x477800`/`0x477870`/`0x4778c0`/`0x4777f0` recovered. Not recovered: the snd library itself (voices, mixer, volume `0x72412a`), the engine controller `0x473e60`, the per-car gin choice and the synthesizer set-up `0x47d740`. |
+| Audio enable flag forced to 0 (`0x7faaa8`) | `NativeVehicle.cpp:534` | Option reads in `0x580130` (one `0x57e2a0` read per flag; `0x7faaa8` is one of them) | 2 | 4 | Keeps every flag-gated audio path in recovered code dead: frontend sounds `0x458520`, HUD sound `0x51de30`, collision sound set `0x483e20`/`0x483e40`, car sound creation `0x4690e0`. The engine sound scaffold below does not read the flag. |
+| Collision sound set traps | `NativeCollision.cpp:77–78` | `0x481cd0` (add), `0x481e50` (remove) | 4 | 2 | Unreachable while `0x7faaa8 = 0`. The collision path uses the CSIS/stitch banks (`MB_Stich_Collision.abk`). |
+| Car sound creation trap | `NativeVehicle.cpp:587` | `0x4690e0` (state managers at EAXSound `+0xac`/`+0xb0`/`+0xb4`) | 5 | 3 | Called from the car constructor `0x604260` when `0x7faaa8 != 0`. Needs the EAXSound object `*0x82b884` and its state managers. |
+| snd library: SDL2 packet player | `NativeAudio.cpp`, `NativeAudio.h` | snd library `0x721f99`/`0x721fa7` (critical section), `0x723124` overhead, `0x723138` create, `0x7231d4` start, `0x723515` submit, `0x72387b` stop, `0x72366a` destroy, `0x72423e`/`0x721a6b` defaults | 5 | 2 | EA middleware, statically linked; it may stay native like D3DX. Modelled: mono packet queues per player (8 players, 32 packets), linear resampling to 44.1 kHz stereo, release callbacks on the audio thread under the recursive SDL device lock, and a fixed gain of 0.5. Not modelled: voices, render modes, the mixer, the volume/pitch/pan setters (`0x72412a`, `0x724093`, `0x723d9b`, `0x72403e`, `0x723c41`, `0x723bc1`), `samplerep`, and the frame callback. Without a device, create/start return -10 and the recovered code stays silent. The defaults match the retail bytes (`verify_native_snd_helpers.py`); the rest is covered only by `smoke_native_engine_audio.py`. |
+| Engine sound scaffold | `NativeEngineSound.cpp`/`.h`; `DemoMain.cpp:412–417`, `:784`, `:830` | Engine SFX setup `0x47d740` and engine controllers `0x473e60`/`0x474030` | 4 | 4 | Fixed gin (`--engine-gin`, default `GIN_Nissan_Skyline.gin`) instead of the per-car table at EAXSound `+0xdc`/`+0xe4`. Memory from `calloc` instead of the bWare pool (`0x440820`); the size follows `0x47d740`. Start at the gin's minimum frequency (`0x47d8f9`). Each unpaused frame, `UpdateFrequency(rpm, 60.0f)` (latency from `0x473fc7`) with RPM read straight from the engine (`engine48->state14`); the controller's own source (vtable `+0x38`, field `+0x104`) is not recovered. Only the accel slot is fed (no decel slot in mode 1), with no volume or pan. |
 | ~~Replay recorder query traps~~ | `ReplayState.cpp` | `0x5efe70` | — | — | Recovered 2026-10-18; reached by the mover update for the human record. |
 | bWare heap uses malloc/free | `NativeWorld.cpp:61` | `0x440390` `bMalloc`, `0x440540` | 2 | 1 | A reasonable permanent seam. |
 | `bGetTicker` and `bSPrintf` | `NativeVehicle.cpp:179`, `NativeCollision.cpp:20` | `bSPrintf` `0x4400d0` | 1 | 1 | |
@@ -236,6 +239,9 @@ are disassembly leads, not verified boundaries.
 
 - SDL2 window, events, game controllers (`DemoMain.cpp`, `NativeUiInput.h`,
   `NativeGamepad.h`).
+- SDL2 audio device: `SDL_INIT_AUDIO`, open/close and statistics (`NativeAudioOpen`/
+  `NativeAudioClose` in `NativeAudio.cpp`, called from `DemoMain.cpp`). `--no-audio` or a
+  missing device runs the demo silent.
 - OpenGL drawing of cars, scenery and FEng (`NativeScene.cpp`, the GL calls in
   `NativeFng.cpp`).
 - File reads and DXT decoding (`NativeAssets.cpp`, `ReadWholeFile`).
