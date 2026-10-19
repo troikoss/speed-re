@@ -32,7 +32,7 @@ still should come from recovered code.
 | 4 | ~~Car constructor `0x604260` and participant setup `0x6065b0` (replace `CreateNativeVehicle`)~~ (done; participant kind `0x5eba30`, mover factory `0x5f46a0` and ground placement `0x5f5010` remain seams) | 4 | 5 |
 | 5 | ~~FEng package/object loader `0x5554a0`/`0x555860`~~ (recovered and verified; load driver `0x555800`/`0x555720` remains a seam and the native loader is not rewired) | 4 | 4 |
 | 6 | Collision: ~~GJK `0x5b3390`, impulse `0x5af0e0`~~ (verified 2026-10-19; one GJK fix), ~~cylinders `0x5a23d0`/`0x5a2780`~~ (recovered 2026-10-19), ~~world objects `0x5b31f0`/`0x5b1390`/`0x5adb20`/`0x5add50`/`0x48bc50`~~ (recovered 2026-10-19; slot `0x8c` and the creation function remain seams) | 3–4 | 4 |
-| 7 | Camera seams: ~~pushes~~, ~~cockpit tests `0x445fc0`/`0x5f14f0`~~ (recovered 2026-10-19), shake `0x572a50`/`0x452ed0`, finalisation `0x447280`, chase frame branch of `0x445e00` | 2–3 | 3 |
+| 7 | Camera seams: ~~pushes~~, ~~cockpit tests `0x445fc0`/`0x5f14f0`~~ (recovered 2026-10-19), shake `0x572a50`/`0x452ed0`, finalisation `0x447280`, ~~chase frame branch of `0x445e00`~~ (recovered 2026-10-19 with the heading follower steering `0x445c20`) | 2–3 | 3 |
 | 8 | CarTypeInfo/tuning chunk loaders | 3 | 3 |
 | 9 | Frontend classes (IconScroller, options list, dialog, Controls) | 3–4 | 3 |
 | 10 | HUD feature construction and mask caller | 3 | 3 |
@@ -99,7 +99,7 @@ still should come from recovered code.
 | Camera shake | same | `0x452ed0`, `0x572a50` | 2 | 2 | |
 | Camera finalisation | same | `0x447280` | 2 | 2 | |
 | ~~Cockpit blocked tests~~ | `CameraCockpit.cpp` | `0x445fc0`, `0x5f14f0`, `0x43d7a0`, `0x5ed290`/`0x5ed300`, slot 0x24 `0x445a90`, Update prefix `0x453570..0x4536f4` | 2 | 2 | Recovered 2026-10-19 ([camera](pc-camera.md)): `verify_pc_camera_cockpit.py` 24,576 comparisons (clang-cl), 0 failures, 37 mutations rejected; the eye-duration divide at `0x4537c3` and the blocked-adjusted type in `previousType4C` are now original. Player car getter `0x5eac70` is recovered but unreached (native player pointer 0). |
-| Chase car frame from the heading follower | `DriveCamera.cpp` `GetCarFrame` | `0x445e00` slot-0x24-true branch (`0x43c780`, `0x43cf10`, `0x43d1e0`) | 2 | 3 | Found 2026-10-19: chase cameras (far, close, super far) build their frame from `heading40` in the original; native uses the car matrix. |
+| ~~Chase car frame from the heading follower~~ | `CameraChase.cpp` `GetCarFrame`, `SteerHeading` | `0x445e00` slot-0x24-true branch (`0x43c780`, `0x43cf10`, `0x43d1e0`), `0x445c20`, `0x445ac0`, `0x574cd0` | 2 | 3 | Done 2026-10-19 ([camera](pc-camera.md)); `0x445c20` reads the tick global `0x86518c` itself. |
 | Acceleration vector at car `+0x80` | `WorldUpdate.cpp` | Producer inside `0x5fbbe0`/`0x604740` | 2 | 3 | Produced by their recovered kinematics prefixes, now called from world update `0x609ce0`; the rest of both routines is not recovered. |
 | Rear-view mirror view not created | `NativeHud.cpp:504` | `0x5f1e10` | 3 | 2 | |
 

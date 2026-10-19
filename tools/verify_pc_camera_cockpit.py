@@ -5,7 +5,7 @@ the wheel input/target queries 0x5ed290/0x5ed300, the player car getter 0x5eac70
 vtable slot 0x24 0x445a90 and the start of Update 0x453570..0x4536f4 (original run from the entry
 to 0x4536f4, rebuilt as DriveCameraMover::SelectUpdateType; the compared value is EBX against EAX).
 
-Four rebuilt objects are linked: CameraCockpit.cpp, CameraPush.cpp (queries 0x5ed290/0x5ed300 and
+Five rebuilt objects are linked: CameraCockpit.cpp, CameraChase.cpp (HumanBlocked 0x445ac0 only), CameraPush.cpp (queries 0x5ed290/0x5ed300 and
 the frame 0x401340), WCollisionRay.cpp (0x43d7a0 and the collider ray 0x5d39f0 with its face test)
 and nothing else. Original code runs for the rigid inverse 0x5baf90, transform 0x441000, scale-add
 0x43d0c0, cross, set-length, ReadSetting 0x445eb0 (a reduced rebuild lives in DriveCamera.cpp),
@@ -36,7 +36,7 @@ BUILD = ROOT / 'build/analysis/camera-cockpit'
 ARENA, ARENA_SIZE, STACK, STOP = 0x2000000, 0x6800, 0x2010000, 0x2100000
 PRESERVED = (xc.UC_X86_REG_EBX, xc.UC_X86_REG_ESI, xc.UC_X86_REG_EDI, xc.UC_X86_REG_EBP)
 SOURCES = {'cockpit': 'src/Speed/Indep/Src/Camera/CameraCockpit.cpp', 'push': 'src/Speed/Indep/Src/Camera/CameraPush.cpp',
-           'ray': 'src/Speed/Indep/Src/World/WCollisionRay.cpp'}
+           'ray': 'src/Speed/Indep/Src/World/WCollisionRay.cpp', 'chase': 'src/Speed/Indep/Src/Camera/CameraChase.cpp'}
 # name: (rebuilt symbol prefix, callee-popped bytes, return mask)
 TARGETS = {'Bounds3Contains': ('?Bounds3Contains@', 0, 0xffffffff), 'AnyCarContains': ('?AnyCarContains@CameraCarList@', 12, 0xff),
            'CarsNearCockpit': ('?CarsNearCockpit@DriveCameraMover@', 0, 0xff), 'UsesChaseSetting': ('?UsesChaseSetting@DriveCameraMover@', 0, 0xff),
@@ -62,7 +62,11 @@ SHARED = {'?ReadSetting@DriveCameraMover@': READ, '?WheelScaleAdd@': 0x43d0c0, '
           '?cameraCarRange7870C8@': 0x7870c8, '?cameraCarHeading7870C0@': 0x7870c0, '?cameraLiftMargin784358@': 0x784358,
           '?carList890080@': 0x890080, '?cameraNearbyCarId7EB5C0@': 0x7eb5c0, '?cameraNearbyCar82A580@': 0x82a580,
           '?cameraNearbyGuard82A590@': 0x82a590, '?cameraCockpitReach7843E8@': 0x7843e8, '?cameraBlockedRayLength78715C@': 0x78715c,
-          '?cameraPlayerWorld890118@': 0x890118, '__fltused': 0}
+          '?cameraPlayerWorld890118@': 0x890118, '__fltused': 0,
+          # CameraChase.cpp (HumanBlocked 0x445ac0 lives there); the other routines in that object are not run here.
+          '?SetTarget@CameraCubicVector@': 0x570ba0, '?Lookup@CameraPairCurve@': 0x576790, '?WheelIdentity@': 0x43c780,
+          '?cameraHeadingCurve82A4E0@': 0x82a4e0, '?cameraReflectScale7855D0@': 0x7855d0, '?cameraHeadingDecay787158@': 0x787158,
+          '?cameraClock86518C@': 0x86518c, '?cameraClockScale784268@': 0x784268}
 (MOVER, PLAYER, WORLD, HOLDER, LIST, SCRATCH, RECORD, FACES, BODIES, CARS, EXTRA) = (ARENA + x for x in (
     0x100, 0xb00, 0xe00, 0x1a00, 0x1a40, 0x1b00, 0x1c00, 0x2400, 0x2800, 0x3100, 0xa000))
 INPUTS, INPUT_STRIDE, INPUT_COUNT = ARENA + 0x200, 0x300, 3
@@ -428,9 +432,9 @@ def main():
             'cockpit-previous-type': (C, 'FindOrDefault(type48, viewState);\n    float offset', 'FindOrDefault(previousType4C, viewState);\n    float offset'),
             'cockpit-margin': (C, 'AnyCarContains(offset, cameraCarHalf787088, own)', 'AnyCarContains(offset, 0.25f, own)'),
             'cockpit-no-transform': (C, '    WheelTransform(reinterpret_cast<WheelVector *>(offset), &frame, reinterpret_cast<WheelVector *>(offset));\n', ''),
-            'human-slot-skipped': (C, 'if (!reinterpret_cast<DriveCameraChaseQuery>(vtable0[0x24 / 4])(this)) {', 'if (0) {'),
-            'human-mode-limit': (C, 'car->mode424 <= 2', 'car->mode424 < 2'),
-            'human-targets-dropped': (C, '    if (car->HasWheelTargets()) return true;\n', ''),
+            'human-slot-skipped': ('chase', 'if (!reinterpret_cast<DriveCameraChaseQuery>(vtable0[0x24 / 4])(this)) {', 'if (0) {'),
+            'human-mode-limit': ('chase', 'car->mode424 <= 2', 'car->mode424 < 2'),
+            'human-targets-dropped': ('chase', '    if (car->HasWheelTargets()) return true;\n', ''),
             'prefix-active54': (C, '    active54 = 0;\n    if (player20)', '    if (player20)'),
             'prefix-player-car': (C, '        car2C = player20->GetCar();', '        ;'),
             'prefix-hood-only': (C, 'type == DRIVE_CAMERA_HOOD || type == DRIVE_CAMERA_BUMPER', 'type == DRIVE_CAMERA_HOOD'),

@@ -666,6 +666,11 @@ int main(int argc, char **argv) {
                     cs->value3F0 * 3.6f, cs->value40.x, cs->value40.y, cs->value40.z,
                     driveCamera.eye38->channels0[0].value0, driveCamera.eye38->channels0[1].value0,
                     driveCamera.eye38->channels0[2].value0, (unsigned)cameraView.fov);
+            fprintf(stderr, "cam f%d heading %.3f %.3f %.3f eye %.2f %.2f %.2f target %.2f %.2f %.2f car %.2f %.2f %.2f\n", frame,
+                    driveCamera.heading40->channels0[0].value0, driveCamera.heading40->channels0[1].value0,
+                    driveCamera.heading40->channels0[2].value0, cameraView.eye[0], cameraView.eye[1], cameraView.eye[2],
+                    cameraView.target[0], cameraView.target[1], cameraView.target[2], cs->origin10.x, cs->origin10.y,
+                    cs->origin10.z);
         }
         float up[3] = {cameraView.up[0], cameraView.up[1], cameraView.up[2]};
         if (orbit >= 0.0f) {

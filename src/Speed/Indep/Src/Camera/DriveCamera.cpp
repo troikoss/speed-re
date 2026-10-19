@@ -380,23 +380,6 @@ void InitialiseDriveCameraStatics() {
     cameraSmallAngle8286E8 = 0x38e;
 }
 
-// Original 0x445e00, slot 0x24 false branch: the car matrix with the car origin as translation
-// (0x401340 on car +0x90 and +0x50). The original calls slot 0x24 (0x445a90, UsesChaseSetting) first
-// and for a chase setting (type 1, 0 or 5) builds the frame from the heading follower heading40
-// instead (0x43c780, 0x43cf10, two 0x43d1e0, origin +0x50); that branch is NOT recovered, so
-// chase cameras use this frame (see docs/pc-camera.md, Cockpit blocked tests).
-void DriveCameraMover::GetCarFrame(WheelMatrix *output) {
-    DrivetrainAuxiliary *state = car2C->State();
-    WheelMatrix *source = &state->matrix50;
-    for (int i = 0; i < 12; ++i) {
-        output->elements[i] = source->elements[i];
-    }
-    output->elements[12] = state->origin10.x;
-    output->elements[13] = state->origin10.y;
-    output->elements[14] = state->origin10.z;
-    output->elements[15] = 1.0f;
-}
-
 // Original 0x445eb0: the camera offset (forward, lateral, height) and pitch angle of a setting.
 // The drift flags (0x89e7e2/0x890100), the rear-view table (0x7ec400, player +0x2b clear) and the
 // override on the car's input slot 0x54 (human input 0x410470: byte +0x2fb) are not reached
@@ -411,7 +394,10 @@ void DriveCameraMover::ReadSetting(float *offset, unsigned short *angle, const C
 // Original 0x44de90: eye, look-at and up targets from the settings and the car's motion.
 void DriveCameraMover::ComputePose(WheelMatrix *carFrame, const CameraSetting *setting,
                                    const CameraDynamicsKey *key, int clock) {
-    // 0x445c20 steers the heading follower, which only 0x445e00 of the chase subclass reads.
+    // The original passes the mover byte +0x52 (snap52) as 0x445c20's snap argument and 0x445c20
+    // reads the tick global 0x86518c itself, where `clock` below is the same value passed in by
+    // the platform (DemoMain.cpp passes drivetrainClock = 0x86518c).
+    SteerHeading(setting, snap52 != 0);
     GetCarFrame(carFrame);
     float accel[3] = {0.0f, 0.0f, 0.0f};
     if (swing50) {

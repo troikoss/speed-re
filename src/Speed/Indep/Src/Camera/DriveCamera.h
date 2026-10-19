@@ -8,7 +8,8 @@
 // Platform seams (not recovered, named where they are used): camera shake 0x452ed0/0x572a50 and
 // Camera object finalisation 0x447280. The cockpit blocked tests (0x445fc0, 0x5f14f0, 0x43d7a0,
 // 0x5ed290/0x5ed300, vtable slot 0x24 0x445a90 and the Update prefix) are recovered in
-// CameraCockpit.cpp; the world and other-car pushes 0x444530/0x44b040 in CameraPush.cpp. The car
+// CameraCockpit.cpp; the chase car frame 0x445e00, the heading follower steering 0x445c20, 0x445ac0 and 0x574cd0 in
+// CameraChase.cpp; the world and other-car pushes 0x444530/0x44b040 in CameraPush.cpp. The car
 // +0x80 acceleration producer is recovered as the guarded prefix of 0x604740
 // (Physics/CarFrameKinematics.cpp).
 
@@ -53,6 +54,7 @@ struct CameraCubicVector {
     void Update(float step);
     void SetValue(float x, float y, float z);
     void SetTarget(float x, float y, float z);
+    void SetTarget(const float *target);   // 0x574cd0 (CameraChase.cpp): x, y, z from three floats
     void SetDurations(const float *durations);
     void SetDuration(float duration);
     void Snap();
@@ -230,9 +232,14 @@ public:
     // 0x445fc0 (thiscall): the point the setting places the camera at, in the car frame, lies in
     // the box of another car (0x5f14f0). CameraCockpit.cpp.
     bool CarsNearCockpit();
-    // The expression the original inlines at 0x4535a9..0x4535e2 and 0x4537c3..0x45380e: slot 0x24
-    // and then 0x5ed290, 0x5ed300 or an unfinished state (car +0x38 set, +0x424 at most 2).
+    // 0x445ac0 (thiscall, CameraChase.cpp): slot 0x24 and then 0x5ed290, 0x5ed300 or an unfinished
+    // state (car +0x38 set, +0x424 at most 2). Update inlines the same expression at
+    // 0x4535a9..0x4535e2 and 0x4537c3..0x45380e.
     bool HumanBlocked();
+    // 0x445c20 (thiscall, `ret 8`, CameraChase.cpp): steers the heading follower heading40 for
+    // the chase frame 0x445e00. `snap` is the mover byte +0x52. The original reads the tick
+    // global 0x86518c itself; the native demo's global is the same one passed to Update.
+    void SteerHeading(const CameraSetting *setting, bool snap);
     // 0x453570..0x4536f4, the start of Update (not a function of its own): refreshes the car from
     // the player, sets active54 = 0 and for the hood and bumper types decides whether the cockpit
     // view is blocked, returning the type to sample (0, the far camera, when blocked). The
@@ -241,7 +248,7 @@ public:
     // Slot 0x04 (0x453570). `step` is the global frame time 0x865154, `clock` the tick 0x86518c.
     void Update(float step, int clock, DriveCameraView *view);
 
-    // Pose 0x44de90, setting read 0x445eb0 and car frame 0x445e00.
+    // Pose 0x44de90, setting read 0x445eb0 and car frame 0x445e00 (CameraChase.cpp).
     void ComputePose(WheelMatrix *carFrame, const CameraSetting *setting, const CameraDynamicsKey *key,
                      int clock);
     void ReadSetting(float *offset, unsigned short *angle, const CameraSetting *setting);

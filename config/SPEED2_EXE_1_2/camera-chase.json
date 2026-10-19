@@ -1,0 +1,25 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "SteerHeading": {
+      "address": "0x445c20",
+      "size": 473,
+      "sha256": "9f2a4bc5a71d7d88065e484af62872311cbd76d9794dbf3b1898c8efc29f19ed"
+    },
+    "GetCarFrame": {
+      "address": "0x445e00",
+      "size": 176,
+      "sha256": "bad7a913d4b961473360e05131f1922dbdb139055411558350257e4d6ca22712"
+    },
+    "HumanBlocked": {
+      "address": "0x445ac0",
+      "size": 66,
+      "sha256": "5b24466796fddd2f3667fa424006e1770d04fd4f2639f072407b66b7c24cdfca"
+    },
+    "SetTargetPointer": {
+      "address": "0x574cd0",
+      "size": 23,
+      "sha256": "35e89048b9e808446b0cacd0e93afad79ec3622c25f1beebbf275efd282c8a97"
+    }
+  }
+}

@@ -297,12 +297,80 @@ not called in the demo. `CameraSettingsTable::FindOrDefault(type, viewState)` an
 `settings`/`viewState` stay platform stand-ins for `0x5ecca0` on the car and the global
 `0x8707dc`.
 
-Discrepancy found, not fixed: `0x445e00` (the car frame) calls slot `0x24`; when true (every chase
-setting, type 1, 0 or 5, so the far, close and super far cameras) it builds the frame from the
-heading follower (`0x43c780`, `0x43cf10`, two `0x43d1e0`, origin `+0x50`) instead of the car
-matrix. `DriveCameraMover::GetCarFrame` still implements only the false branch, so the chase
-cameras use the car matrix. Unblocked cockpit types are unaffected (slot `0x24` is false for
-them); after a block previousType4C is 0 and the query is true.
+## Chase car frame and heading follower (recovered 2026-10-19)
+
+`Camera/CameraChase.cpp` (the discrepancy noted earlier, where the chase cameras used the car
+matrix, is fixed):
+
+- `0x445e00` (`GetCarFrame`, thiscall `ret 4`): vtable slot `0x24` (`0x445a90`) true (every chase
+  setting, type 1, 0 or 5): `0x43c780` identity, row 0 = `0x43cf10` of the three heading follower
+  values (`heading40` channel `value0` at `+0x00`, `+0x30`, `+0x60`), row 1 = `0x43d1e0`
+  (row 2, row 0), row 2 = `0x43d1e0` (row 0, row 1), translation the car origin (`+0x50`), w = 1.0.
+  Slot false: `0x401340` on car `+0x90` and `+0x50`, as before.
+- `0x445c20` (`SteerHeading`, thiscall `ret 8`, called first by `0x44de90` with the setting and the
+  mover byte `+0x52`): a non-chase setting sets the target to row 0 of the car matrix through
+  `0x574cd0` and resets the follower. A chase setting returns early when `!snap` and `0x445ac0`
+  holds; otherwise the target is the car velocity (`+0x70`), reflected through matrix row 0 with
+  `dot * -2.0` when the dot (accumulated z, y, x, unrounded) is negative, normalised, scaled by
+  the heading curve `0x82a4e0` at car `+0x430`, scale-added with row 0 and `1.0 - s`, with z
+  scaled by `1.0 - ((clock - groundTime58) * 0.00025) / 2.0` clamped to 0..1 (not above 0, NaN
+  included, gives 0). With `snap`, the reset block `0x445dbb` runs: per channel
+  `value0 = target8`, `velocity4 = targetVelocityC`, `state2C = 0`.
+- `0x445ac0` is `DriveCameraMover::HumanBlocked` (moved from `CameraCockpit.cpp`; `Update` still
+  inlines the same expression at `0x4535a9`/`0x4537c3`). `0x574cd0` is
+  `CameraCubicVector::SetTarget(const float *)`, a thunk to `0x570ba0`.
+- `ComputePose` now calls `SteerHeading(setting, snap52)` before `GetCarFrame`.
+
+Verification: `tools/verify_pc_camera_chase.py --compiler msvc --mutation-checks` (manifest
+`config/SPEED2_EXE_1_2/camera-chase.json`): 8,192 comparisons under 53- and 64-bit x87 precision
+(2,048 each of `0x445ac0`, `0x574cd0`, `0x445e00`, `0x445c20`), whole fixture arena compared
+bitwise (the output matrix, the 0x90 bytes of `heading40`, car and mover), return/ESP/preserved
+registers/FPU control and tag words, the globals `0x86518c` and `0x82a4e0`, and the ordered entry
+events (callee and arguments, stack pointers by content). Coverage: 956 chase and 1,092 non-chase
+settings for `0x445c20`, snap and no snap, 593 computed targets (243 reflected, clamp at 0, 1 and
+mid), 363 early returns through `0x445ac0`, slot `0x24` false for 400 of the frame cases;
+dot-product cancellation and binary32 underflow cases are generated on purpose. 31 mutations are
+rejected (type list, early return, dot order, reflect test/scale, curve input, per-component
+scaling, blend, clamp, ground time, z scaling, snap stores, frame cross order, w, origin).
+Also passes with `--compiler clang-cl`. Original code runs for `0x43c780`, `0x43cf10`, `0x43d1e0`,
+`0x43d0c0`, `0x570ba0` and the curve lookup `0x576790`; `0x401340`, `0x5ed290` and `0x5ed300` run
+as rebuilt; slot `0x24` is a 6-byte fixture stub returning an arena byte in both runs.
+`verify_pc_camera_cockpit.py` (24,576 comparisons, 37 mutations; the `HumanBlocked` mutations now
+target `CameraChase.cpp`), matrix, push, cars and wheel-math verifiers are unchanged.
+
+Limits and seams:
+
+- `0x445c20` reads the tick global `0x86518c` itself. Native: `DemoMain.cpp` passes `drivetrainClock`
+  (`0x86518c`, advanced by `WorldClock.cpp`) to `Update`, so the global and the `clock` argument
+  are the same value; `ComputePose` keeps the `clock` parameter (used for `groundTime58`) and
+  `SteerHeading` reads the global through `cameraClock86518C` (alias in `OriginalSymbols.ld`).
+  `DriveCameraMover::Construct` calls `ComputePose` with `clock` 0 but `SteerHeading` sees the
+  global's current value, as the original does (z of the heading is scaled by that elapsed time).
+- The curve static initialiser `0x77be00` is a native function; the verifier writes the curve.
+  `0x576790` is recovered in `DriveCamera.cpp` but ran as original code here, so that rebuild is
+  not compared against `0x445c20`'s use of it.
+- The `t` clamp value is a binary32 spill in the original (`FST` at `0x445d58`, reloaded at
+  `0x445d69`); MSVC 7.1 without `/Op` keeps it in ST0 and clang-cl ignores casts, so the source
+  uses a `volatile float` for it (the dot product, by contrast, must stay unrounded, so `/Op`
+  cannot be used). `volatile` is a verification-driven spelling, not original source evidence.
+- MSVC 7.1 rejects the `__thiscall` keyword (C4234); the verifier defines it as `__fastcall`,
+  which is the same call for the zero-argument slot `0x24`. The cockpit verifier still needs
+  `--compiler clang-cl`.
+- Signalling NaNs are not generated (the original copies x through integer registers and y, z
+  through the x87; compiled copies may quieten them). Byte identity is not established.
+  `Snap` on the follower is spelled inline in `SteerHeading`, not with
+  `CameraCubicVector::Snap`, to keep the object linkable in isolation; the stores are identical.
+- `UG2_DEBUG_CAMERA=1` in `DemoMain.cpp` now also prints `heading40`, the eye, target and car
+  origin every 30 frames.
+
+Native observation (chase cameras, plausibility, not equivalence): `ug2demo --camera 3`, `2`, `4`
+and `0`, 420 frames static and 600 frames `--scripted`, headless SDL offscreen
+(`UG2_DEBUG_CAMERA=1`, `--car SKYLINE`), all exit 0 with no traps. Static, `heading40` stays at
+the car's forward (0.984, -0.177, 0.000) and the far eye sits 5.7 m behind the car origin at
++1.7 m (eye 1689.25/-882.52/25.71 for a car at 1694.96/-883.55/24.01); close 4.6 m behind, super
+far 5.7 m behind and 3.4 m up. Scripted, the heading follows the car's velocity (0.984/-0.175
+at frame 210, 0.988/0.154 at 390, 0.682/0.731 at 570) and the far eye stays 5.7 to 5.8 m behind
+the car.
 
 Native observation (plausibility, not equivalence): `ug2demo --camera 0` and `--camera 1`, 420
 frames static and 600 frames `--scripted`, headless SDL offscreen, ran without traps; the bumper

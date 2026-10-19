@@ -949,3 +949,9 @@ carKinds89CE00 = 0x89ce00;
 carParticipants89CE58 = 0x89ce58;
 carInputs89CEB0 = 0x89ceb0;
 replayValue864FAC = 0x864fac;
+
+/* Drive camera chase heading follower 0x445c20. */
+cameraReflectScale7855D0 = 0x7855d0;
+cameraHeadingDecay787158 = 0x787158;
+cameraClock86518C = 0x86518c;
+cameraClockScale784268 = 0x784268;

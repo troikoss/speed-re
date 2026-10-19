@@ -10,8 +10,6 @@ extern float cameraBlockedRayLength78715C;  // 2.0, length of the ray along the 
 extern char *cameraPlayerWorld890118;       // object whose +0xbd0 holds the player's car holder
 extern CameraCarList *carList890080;
 
-typedef bool (__thiscall *DriveCameraChaseQuery)(DriveCameraMover *);
-
 // Original 0x5eac70 (thiscall on the player object at mover +0x20): the car at +4, unless the
 // byte +0x24a is set and the holder at *0x890118 +0xbd0 is non-null, then that holder's first
 // dword.
@@ -90,18 +88,7 @@ bool DriveCameraMover::CarsNearCockpit() {
     return carList890080->AnyCarContains(offset, cameraCarHalf787088, own);
 }
 
-// Inlined at 0x4535a9 (the blocked test) and 0x4537c7 (the eye duration): slot 0x24, then the
-// car's wheel inputs (0x5ed290), wheel targets (0x5ed300), or an unfinished state (car +0x38
-// set and mode +0x424 at most 2, signed).
-bool DriveCameraMover::HumanBlocked() {
-    if (!reinterpret_cast<DriveCameraChaseQuery>(vtable0[0x24 / 4])(this)) {
-        return false;
-    }
-    MoverModeOwner *car = car2C;
-    if (car->HasWheelInputs()) return true;
-    if (car->HasWheelTargets()) return true;
-    return car->state38 != 0 && car->mode424 <= 2;
-}
+// HumanBlocked (0x445ac0, the expression Update inlines at 0x4535a9 and 0x4537c7) is in CameraChase.cpp.
 
 // Original 0x453570..0x4536f4. The hood (4) and bumper (2) types fall back to the far camera (0)
 // when the input object's slot 0x54 reports true, when HumanBlocked or 0x445fc0 hold, or when the
