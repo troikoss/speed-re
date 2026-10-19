@@ -102,14 +102,7 @@ void WheelSineCosine(float *sine, float *cosine, unsigned short angle) {
 }
 
 // Original car-object methods used by the mover.
-bool MoverModeOwner::HasWheelInputs() {
-    for (int i = 0; i < 4; ++i) {
-        if (input30->wheelInputs1EC[i] > 0.0f) {
-            return true;
-        }
-    }
-    return false;
-}
+// HasWheelInputs (0x5ed290) lives in Camera/CameraPush.cpp with its sibling 0x5ed300.
 
 int MoverModeOwner::GetMoverWheelState(int wheel) {
     if (moverType28 == 1) {

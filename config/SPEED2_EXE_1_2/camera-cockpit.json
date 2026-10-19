@@ -1,0 +1,45 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "GetPlayerCar": {
+      "address": "0x5eac70",
+      "size": 32,
+      "sha256": "e6809190f436b22452e8ffa8b743fefb5a04025a2c539e8aa57f780b1c4d411d"
+    },
+    "AnyCarContains": {
+      "address": "0x5f14f0",
+      "size": 335,
+      "sha256": "e15ba35b76b7ed3f349e89fe0d4721107c3c7dadb8e5da2cc949d7f52de4385b"
+    },
+    "Bounds3Contains": {
+      "address": "0x43d7a0",
+      "size": 122,
+      "sha256": "c0d684824824b18d73f45d353bd7f72adb27e2ea8974f53622ff1ad1d47f29c4"
+    },
+    "HasWheelInputs": {
+      "address": "0x5ed290",
+      "size": 105,
+      "sha256": "3826d1664965c2dd1c070b62aedc91a86b7fd9811864cd28a7f032dcfd897688"
+    },
+    "HasWheelTargets": {
+      "address": "0x5ed300",
+      "size": 256,
+      "sha256": "4d3af738e0c04763ef7fd1878933f589fddb17aaab954bf0079eb0694afcf281"
+    },
+    "UsesChaseSetting": {
+      "address": "0x445a90",
+      "size": 41,
+      "sha256": "0ae4d7f743cc474ee8eb278e370ae0ca388ba5530799ea1018bbc4f56235627e"
+    },
+    "CarsNearCockpit": {
+      "address": "0x445fc0",
+      "size": 124,
+      "sha256": "f6d71fe8220c28741f51173ae4acbbe2a3b3d5871ff8aa474764f8c09d30e0bd"
+    },
+    "SelectUpdateType": {
+      "address": "0x453570",
+      "size": 388,
+      "sha256": "022e7416db3bba57f0ce63a6713cf1b9be5fc2f86635e648a20b8c24fbbead4e"
+    }
+  }
+}

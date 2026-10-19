@@ -897,6 +897,10 @@ carList890080 = 0x890080;
 cameraNearbyCarId7EB5C0 = 0x7eb5c0;
 cameraNearbyCar82A580 = 0x82a580;
 cameraNearbyGuard82A590 = 0x82a590;
+cameraCockpitReach7843E8 = 0x7843e8;
+cameraBlockedRayLength78715C = 0x78715c;
+cameraPlayerWorld890118 = 0x890118;
+cameraEyeDurationDivisor787210 = 0x787210;
 /* Car update 0x6012b0 and leaves. */
 carContactHold7A565C = 0x7a565c;
 carSmoothingStep7A5654 = 0x7a5654;

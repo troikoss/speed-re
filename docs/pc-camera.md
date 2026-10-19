@@ -221,3 +221,91 @@ world pack and 3 to 6 faces around the eye in the scripted Skyline drive. No pus
 (the eye never comes within 0.7 of a face). With `UG2_STEER=1 --camera 3` the far camera pushes
 off a wall for frames 375 to 403 (up to 0.68 m sideways); before integration that frame showed
 the camera inside the wall. `UG2_DEBUG_CAMERA=1` prints the pushed offsets.
+
+## Cockpit blocked tests (2026-10-19)
+
+`Camera/CameraCockpit.cpp` recovers the start of drive camera update `0x453570` (up to
+`0x4536f4`) and its callees. Everything below is UG2 PC v1.2 only.
+
+- `0x453570..0x4536f4` (`DriveCameraMover::SelectUpdateType`, a region of Update, not a
+  function): clears `active54`; with a player at mover `+0x20`, `car2C = 0x5eac70(player)`.
+  For type48 4 (hood) or 2 (bumper): `HumanBlocked` (below) and then `0x445fc0` are both
+  evaluated; the view is blocked when the car's input object (`car +0x30`, non-null) reports
+  slot `0x54` true (human input `0x410470`: byte `+0x2fb`), or `HumanBlocked`, or `0x445fc0`, or
+  the collider (`car +0x5c4`) ray `0x5d39f0` (mode 1, two-sided, margin 0.5, scale 1.0, immediate
+  pushes) from the camera point to that point plus `2.0` (`0x78715c`) times the car's `+0xb0`
+  row (`0x43d0c0`) hits. The camera point is car `+0x60..+0x68`, replaced when the body (`+0x3c`)
+  exists by the body centre (`+0x110`) through the car matrix (`+0x90`, `0x43c9c0`) plus the
+  origin (`+0x50`) added x, y, z (the `+0x60` copy is kept only without a body). Blocked: type
+  becomes 0 (the far camera) and `snap52 |= (previousType4C != 0)`; clear: `snap52 |=
+  (previousType4C == 0)`. Other types leave the type unchanged. The value is stored to
+  previousType4C at `0x45370d` and EVERY later read of the type in the original reads
+  previousType4C, so the dynamics curve sample, the settings lookup and the hood test
+  (`0x4538b3`) use the blocked-adjusted type (the previous recovery used type48 there).
+- Inlined twice, at `0x4535a9..0x4535e2` and `0x4537c3..0x45380e` (`HumanBlocked`): vtable
+  slot `0x24`, then `0x5ed290` || `0x5ed300` || (car `+0x38` non-null and car `+0x424` <= 2,
+  signed). The second use divides the eye duration `key[0]` by `1.3` (`0x787210`, rounded once)
+  for all three eye channels; the previous recovery omitted it.
+- Slot `0x24` of vtable `0x787f28` is `0x445a90` (not `xor al, al` as an earlier comment said):
+  true when the settings entry for previousType4C (else type 0) has setting type 1, 0 or 5.
+- `0x445fc0` (thiscall, no arguments): setting for type48 (`0x5ecca0`), `0x445eb0` offsets
+  (forward `x4`, lateral `zC`, height `y8`), frame `0x401340` from car `+0x90`/`+0x50`,
+  `0x43c9c0`, own car by slot `0x44`, then `0x5f14f0` on the world list with margin 0.5
+  (`0x787088`).
+- `0x5f14f0` (thiscall `ret 0xc`; `this` unused, the list is `*0x890080`): for each car other
+  than the skipped one with byte `+0x550` set and `(dx*dx + dz*dz) + dy*dy` (unrounded) of the
+  point from the car origin below `margin + 5.0` (`0x7843e8`, unrounded): box corners
+  (`+0x3c` body `+0xe0`/`+0xf0`), frame `0x401340`, inverted in place with `0x5baf90`, point
+  transformed `0x43c9c0`, then `0x43d7a0` with the margin; true on the first containing car.
+- `0x43d7a0` (cdecl, `Bounds3Contains` in `World/WCollisionRay.cpp`): per axis it rejects when
+  `minimum - margin > point` (flags `0x41`) or `margin + maximum < point` (flags 5, `jnp`); an
+  unordered comparison passes both, so NaN never rejects.
+- `0x5ed290` (`HasWheelInputs`) and `0x5ed300` (`HasWheelTargets`) in `Camera/CameraPush.cpp`:
+  any of the input object's `+0x1ec..+0x1f8`, respectively the interleaved car `+0x3f8..+0x404`
+  and input `+0x1fc..+0x208`, is above zero (`0x7d7d3c`); NaN is not above. Both loops run once
+  in the original. `0x5ed290` moved from `PhysicsMoverController.cpp` unchanged in behaviour.
+- `0x5eac70` (`CameraPlayer::GetCar`): car `+4`, or when byte `+0x24a` is set and
+  `*(*0x890118 + 0xbd0)` is non-null, that holder's first dword.
+
+Verification: `tools/verify_pc_camera_cockpit.py --compiler clang-cl --mutation-checks`
+(manifest `config/SPEED2_EXE_1_2/camera-cockpit.json`): 24,576 comparisons under 53- and 64-bit
+precision (2,048 each of `0x43d7a0`, `0x5f14f0`, `0x445fc0`, `0x445a90`, `0x5eac70` and the
+prefix, 6,144 each of `0x5ed290` and `0x5ed300`) with NaN, infinity, signed zeros and boundary
+values; both outcomes of every test occur (for example 342 containments, 522 car hits, 107
+cockpit hits, 63 ray hits and 128 ray misses in the prefix). The prefix is compared as the
+original run from `0x453570` to `0x4536f4` (EBX) against the rebuilt function (EAX), with the
+mover state, globals, the x87 tag word, the ordered entry events with their arguments (including
+the ray's `from`/`to`/margin/scale) and the D3DX trace. Original code runs for `0x5baf90`,
+`0x441000`, `0x43d0c0`, `0x445eb0`, `0x410470` and slot `0x44` (`0x44ba70`); the rebuilt
+`0x401340`, `0x5d39f0` and `0x5d35b0` run as rebuilt. Stubs: the D3DX multiply `0x63cedb`, and a
+38-byte shim for the platform call `FindOrDefault(type, viewState)` that stores `viewState` to
+the global `0x8707dc` (compared) and runs original `0x441140` twice as `0x5ecca0` does. 37
+mutations rejected. Camera push and cars verifiers still pass (`camera-push` 12,288 comparisons
+and 23 mutations, `camera-cars` 12,288 and 22), as does `verify_pc_collision_ray.py` (32,768).
+
+Limits: finite and special generated values only, no signalling-NaN copies through the x87
+(`0x401340`, the `+0x60` copy, the body box); the prefix is compared as a region (the original
+frame and registers are not); `0x445eb0` ran as original, so the reduced rebuild in
+`DriveCamera.cpp` is not compared; MSVC 7.1 does not compile `CameraPush.cpp` (the `__thiscall`
+pointer typedefs, already before this change), so only clang-cl was used; byte identity is not
+established.
+
+Platform seams: `DemoMain.cpp` supplies slot `0x24` (`0x445a90`) beside `0x30` and `0x44` in the
+mover's native vtable; `NativeControls::GetWheelMode54` is the input object's slot `0x54`
+(`0x410470`, previously a trap). The player pointer at mover `+0x20` stays 0, so `0x5eac70` is
+not called in the demo. `CameraSettingsTable::FindOrDefault(type, viewState)` and the mover's
+`settings`/`viewState` stay platform stand-ins for `0x5ecca0` on the car and the global
+`0x8707dc`.
+
+Discrepancy found, not fixed: `0x445e00` (the car frame) calls slot `0x24`; when true (every chase
+setting, type 1, 0 or 5, so the far, close and super far cameras) it builds the frame from the
+heading follower (`0x43c780`, `0x43cf10`, two `0x43d1e0`, origin `+0x50`) instead of the car
+matrix. `DriveCameraMover::GetCarFrame` still implements only the false branch, so the chase
+cameras use the car matrix. Unblocked cockpit types are unaffected (slot `0x24` is false for
+them); after a block previousType4C is 0 and the query is true.
+
+Native observation (plausibility, not equivalence): `ug2demo --camera 0` and `--camera 1`, 420
+frames static and 600 frames `--scripted`, headless SDL offscreen, ran without traps; the bumper
+and hood cameras stayed at their cockpit offsets (eyeLocal 0.94/0.00/1.01 and 0.58/0.00/1.27)
+throughout, so none of the tests blocked the view in the scripted drive. The far camera (`--camera 3`) runs the new slot `0x24` and the eye-duration expression
+without traps.

@@ -234,7 +234,8 @@ public:
     virtual void UnknownSlot38() = 0;
     virtual void UnknownSlot3C() = 0; virtual void UnknownSlot40() = 0; virtual void UnknownSlot44() = 0;
     virtual void UnknownSlot48() = 0; virtual void UnknownSlot4C() = 0; virtual void UnknownSlot50() = 0;
-    virtual void UnknownSlot54() = 0; virtual void UnknownSlot58() = 0; virtual void UnknownSlot5C() = 0;
+    virtual bool GetWheelMode54() = 0; // slot 0x54 (human input 0x410470: byte +0x2fb is set)
+    virtual void UnknownSlot58() = 0; virtual void UnknownSlot5C() = 0;
     virtual void UnknownSlot60() = 0; virtual void UnknownSlot64() = 0; virtual void UnknownSlot68() = 0;
     virtual void UnknownSlot6C() = 0; virtual void UnknownSlot70() = 0; virtual void UnknownSlot74() = 0;
     virtual void UnknownSlot78() = 0; virtual void UnknownSlot7C() = 0; virtual void UnknownSlot80() = 0;
@@ -695,7 +696,8 @@ struct MoverModeOwner {
     DrivetrainAuxiliary *State() {
         return reinterpret_cast<DrivetrainAuxiliary *>(unidentified40);
     }
-    bool HasWheelInputs();
+    bool HasWheelInputs();  // 0x5ed290 (Camera/CameraPush.cpp)
+    bool HasWheelTargets(); // 0x5ed300 (Camera/CameraPush.cpp)
     int GetMoverWheelState(int wheel);
     bool IsResetPending();
     int HasContactBodies();

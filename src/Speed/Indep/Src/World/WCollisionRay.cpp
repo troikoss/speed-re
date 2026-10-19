@@ -58,6 +58,19 @@ int Bounds3Overlap(float *minimumA, float *maximumA, float *minimumB, float *max
     return 1;
 }
 
+// Original 0x43d7a0 (cdecl): `point` lies within the bounds widened by `margin` on every axis.
+// A NaN comparison does not reject: the original tests `minimum - margin > point` and
+// `margin + maximum < point` (flags 0x41 and 5) and rejects only on those orderings.
+int Bounds3Contains(float *minimum, float *maximum, float *point, float margin) {
+    if (minimum[0] - margin > point[0]) return 0;
+    if (margin + maximum[0] < point[0]) return 0;
+    if (minimum[1] - margin > point[1]) return 0;
+    if (margin + maximum[1] < point[1]) return 0;
+    if (minimum[2] - margin > point[2]) return 0;
+    if (margin + maximum[2] < point[2]) return 0;
+    return 1;
+}
+
 // Original 0x5d35b0: the point lies inside the prism over the face when no edge cross
 // product points against the normal (a NaN dot passes); `distance` receives the signed
 // distance of the point below the plane.

@@ -224,5 +224,6 @@ void Bounds3Set(float *minimum, float *maximum, float *point);                  
 void Bounds3Add(float *minimum, float *maximum, float *point);                       // 0x43d570
 void Bounds3AddSphere(float *minimum, float *maximum, float *center, float radius);  // 0x43d610
 int Bounds3Overlap(float *minimumA, float *maximumA, float *minimumB, float *maximumB); // 0x43d820
+int Bounds3Contains(float *minimum, float *maximum, float *point, float margin);        // 0x43d7a0
 
 #endif

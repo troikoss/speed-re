@@ -11,6 +11,7 @@ struct WCollider;
 // The player object at camera mover +0x20 (layout not recovered).
 struct CameraPlayer {
     bool Query5EB520();  // 0x5eb520: byte +0x2b is clear
+    MoverModeOwner *GetCar();  // 0x5eac70: the player's car (CameraCockpit.cpp)
 };
 
 // Camera mover prefix read by the pushes; the drive camera mover (DriveCamera.h) starts with it.
@@ -36,6 +37,9 @@ struct CameraCarList {
     int count10;
     char unidentified14[8];
     MoverModeOwner *cars1C[1];
+    // 0x5f14f0 (thiscall, `ret 0xc`; the list itself is read from *0x890080, `this` is unused):
+    // true when `point` lies in the box of any active car other than `skip`. CameraCockpit.cpp.
+    bool AnyCarContains(float *point, float margin, MoverModeOwner *skip);
 };
 
 void WheelFrameAt(WheelMatrix *output, WheelMatrix *rotation, WheelVector *position);    // 0x401340

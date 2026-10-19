@@ -339,9 +339,11 @@ types, runs the recovered world and other-car pushes `0x444530`/`0x44b040`
 the mover's vtable slots 0x30/0x44, the world car list holding only the player's car, and the
 GL path reading eye/target/up back from the matrix.
 
-Not recovered, left as seams: camera shake (`0x452ed0`, `0x572a50`), Camera object finalisation (`0x447280`), the cockpit blocked
-tests (`0x445fc0`, `0x5d39f0`), the chase heading follower (`0x445c20`, only read by a subclass), the
-replay RPM source and HUDINDEX option.
+Not recovered, left as seams: camera shake (`0x452ed0`, `0x572a50`), Camera object finalisation (`0x447280`), the chase
+heading follower (`0x445c20`) and the slot-0x24-true branch of the car frame `0x445e00` (see
+[cockpit blocked tests](pc-camera.md#cockpit-blocked-tests-2026-10-19)), the replay RPM source and
+HUDINDEX option. The cockpit blocked tests are recovered; the mover's vtable also supplies slot 0x24
+and the car input's slot 0x54 is `NativeControls::GetWheelMode54`.
 
 ## Pause menu (sixth pass)
 

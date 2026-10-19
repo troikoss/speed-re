@@ -78,6 +78,35 @@ float *MoverModeOwner::GetOrigin() {
     return reinterpret_cast<float *>(reinterpret_cast<char *>(this) + 0x50);
 }
 
+// Original 0x5ed290: any of the four wheel inputs of the car's input object (+0x30, floats
+// +0x1ec..+0x1f8) is above zero; a NaN counts as not above. The original steps a loop over
+// +0x1f0 in 0x10 bytes up to 0x200, which runs once.
+bool MoverModeOwner::HasWheelInputs() {
+    for (int i = 0; i < 4; ++i) {
+        if (input30->wheelInputs1EC[i] > fengZero7D7D3C) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Original 0x5ed300: any of eight floats above zero, read alternately from the car (+0x3f8,
+// +0x3fc, +0x400, +0x404) and its input object (+0x1fc..+0x208); a NaN counts as not above. The
+// car fields are offset-based. The original's outer loop runs once.
+bool MoverModeOwner::HasWheelTargets() {
+    float *own = reinterpret_cast<float *>(reinterpret_cast<char *>(this) + 0x3f8);
+    float *wanted = input30->wheelTargets1FC;
+    for (int i = 0; i < 4; ++i) {
+        if (own[i] > fengZero7D7D3C) {
+            return true;
+        }
+        if (wanted[i] > fengZero7D7D3C) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Original 0x5eb520.
 bool CameraPlayer::Query5EB520() {
     return reinterpret_cast<char *>(this)[0x2b] == 0;

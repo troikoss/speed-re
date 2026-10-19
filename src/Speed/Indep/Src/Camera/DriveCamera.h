@@ -5,10 +5,12 @@
 // (0x5f1fd0), constructor 0x451660, vtable 0x787f28, Update 0x453570.
 //
 // Layouts are partial and offset-based; UG2_CHECK_* pin what was observed in the original.
-// Platform seams (not recovered, named where they are used): camera shake 0x452ed0/0x572a50,
-// Camera object finalisation 0x447280, the cockpit blocked test 0x445fc0/0x5d39f0. The world
-// and other-car pushes 0x444530/0x44b040 are recovered in CameraPush.cpp. The car +0x80 acceleration producer is
-// recovered as the guarded prefix of 0x604740 (Physics/CarFrameKinematics.cpp).
+// Platform seams (not recovered, named where they are used): camera shake 0x452ed0/0x572a50 and
+// Camera object finalisation 0x447280. The cockpit blocked tests (0x445fc0, 0x5f14f0, 0x43d7a0,
+// 0x5ed290/0x5ed300, vtable slot 0x24 0x445a90 and the Update prefix) are recovered in
+// CameraCockpit.cpp; the world and other-car pushes 0x444530/0x44b040 in CameraPush.cpp. The car
+// +0x80 acceleration producer is recovered as the guarded prefix of 0x604740
+// (Physics/CarFrameKinematics.cpp).
 
 #include "../Physics/Ug2Layout.h"
 #include "../Physics/WheelMath.h"
@@ -181,9 +183,10 @@ int DriveCameraTypeForOption(int option);
 // Original static initialisers 0x77be00 (0x82a4e0 curve) and 0x77be70/0x77be80/0x77be60.
 void InitialiseDriveCameraStatics();
 
-// The mover, 0x60 bytes in the original (vtable 0x787f28). Slot 0x24 is `xor al, al` for this
-// class and is a direct call here; the recovered pushes dispatch slots 0x30 (0x445a60) and 0x44
-// (0x44ba70) through `vtable0`, which the platform supplies.
+// The mover, 0x60 bytes in the original (vtable 0x787f28). The recovered code dispatches slots
+// 0x24 (0x445a90), 0x30 (0x445a60) and 0x44 (0x44ba70) through `vtable0`, which the platform
+// supplies as native thiscall entries (the table holds x86 addresses). Slot 0x54 is dispatched
+// on the car's input object (car +0x30), whose vtable the platform class provides.
 class DriveCameraMover {
 public:
     void **vtable0;
@@ -221,6 +224,20 @@ public:
     void SetLookBack(bool lookBack);
     // Slot 0x44 (0x44ba70).
     MoverModeOwner *GetCar();
+    // Slot 0x24 (0x445a90): the setting for previousType4C is a chase type (setting type 1, 0
+    // or 5). CameraCockpit.cpp.
+    bool UsesChaseSetting();
+    // 0x445fc0 (thiscall): the point the setting places the camera at, in the car frame, lies in
+    // the box of another car (0x5f14f0). CameraCockpit.cpp.
+    bool CarsNearCockpit();
+    // The expression the original inlines at 0x4535a9..0x4535e2 and 0x4537c3..0x45380e: slot 0x24
+    // and then 0x5ed290, 0x5ed300 or an unfinished state (car +0x38 set, +0x424 at most 2).
+    bool HumanBlocked();
+    // 0x453570..0x4536f4, the start of Update (not a function of its own): refreshes the car from
+    // the player, sets active54 = 0 and for the hood and bumper types decides whether the cockpit
+    // view is blocked, returning the type to sample (0, the far camera, when blocked). The
+    // caller stores it in previousType4C.
+    int SelectUpdateType();
     // Slot 0x04 (0x453570). `step` is the global frame time 0x865154, `clock` the tick 0x86518c.
     void Update(float step, int clock, DriveCameraView *view);
 
@@ -237,5 +254,9 @@ UG2_CHECK_OFFSET(DriveCameraMover, view10, 0x10);
 UG2_CHECK_OFFSET(DriveCameraMover, player20, 0x20);
 UG2_CHECK_OFFSET(DriveCameraMover, car2C, 0x2c);
 UG2_CHECK_OFFSET(DriveCameraMover, lookBack51, 0x51);
+UG2_CHECK_OFFSET(DriveCameraMover, averager5C, 0x5c);
+// The platform tail follows the original's 0x60 bytes; the cockpit verifier places it there.
+UG2_CHECK_OFFSET(DriveCameraMover, settings, 0x60);
+UG2_CHECK_OFFSET(DriveCameraMover, viewState, 0x64);
 
 #endif

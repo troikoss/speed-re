@@ -19,6 +19,7 @@ extern unsigned short cameraOverrideAngle82A4D0;
 extern unsigned short cameraReverseAngle82A4DC;
 extern unsigned short cameraSmallAngle8286E8;
 extern float cameraZoom78721C;
+extern float cameraEyeDurationDivisor787210;
 extern CameraPairCurve cameraHeadingCurve82A4E0;
 extern float cameraHeadingCurvePoints7EC420[];
 extern int cameraCut883E34;
@@ -379,8 +380,11 @@ void InitialiseDriveCameraStatics() {
     cameraSmallAngle8286E8 = 0x38e;
 }
 
-// Original 0x445e00 for a mover whose slot 0x24 is false: the car matrix with the car origin as
-// translation (0x401340 on car +0x90 and +0x50).
+// Original 0x445e00, slot 0x24 false branch: the car matrix with the car origin as translation
+// (0x401340 on car +0x90 and +0x50). The original calls slot 0x24 (0x445a90, UsesChaseSetting) first
+// and for a chase setting (type 1, 0 or 5) builds the frame from the heading follower heading40
+// instead (0x43c780, 0x43cf10, two 0x43d1e0, origin +0x50); that branch is NOT recovered, so
+// chase cameras use this frame (see docs/pc-camera.md, Cockpit blocked tests).
 void DriveCameraMover::GetCarFrame(WheelMatrix *output) {
     DrivetrainAuxiliary *state = car2C->State();
     WheelMatrix *source = &state->matrix50;
@@ -395,8 +399,8 @@ void DriveCameraMover::GetCarFrame(WheelMatrix *output) {
 
 // Original 0x445eb0: the camera offset (forward, lateral, height) and pitch angle of a setting.
 // The drift flags (0x89e7e2/0x890100), the rear-view table (0x7ec400, player +0x2b clear) and the
-// non-human input override (input slot 0x54) are not reachable in free drive: the drift flags and
-// slot are false, and the player's +0x2b byte is set.
+// override on the car's input slot 0x54 (human input 0x410470: byte +0x2fb) are not reached
+// here: the drift flags are false, the slot is false and the player's +0x2b byte is set.
 void DriveCameraMover::ReadSetting(float *offset, unsigned short *angle, const CameraSetting *setting) {
     offset[0] = setting->x4;
     offset[1] = setting->zC;
@@ -567,16 +571,11 @@ MoverModeOwner *DriveCameraMover::GetCar() {
     return car2C;
 }
 
-// Original 0x453570 (vtable slot 0x04).
+// Original 0x453570 (vtable slot 0x04). The start (0x453570..0x4536f4, SelectUpdateType in
+// CameraCockpit.cpp) picks the type to sample; every later read of the type in the original is
+// previousType4C, which is stored from it at 0x45370d.
 void DriveCameraMover::Update(float step, int clock, DriveCameraView *view) {
-    active54 = 0;
-    int type = type48;
-    if (type == DRIVE_CAMERA_HOOD || type == DRIVE_CAMERA_BUMPER) {
-        // The cockpit types fall back to the far camera when the input is not human (slot 0x54),
-        // when 0x445fc0 reports the view blocked or when the 0x5d39f0 world ray from the car to
-        // the camera hits geometry. Those world queries are not recovered and report clear.
-        snap52 = snap52 | (previousType4C == 0);
-    }
+    int type = SelectUpdateType();
     previousType4C = type;
     CameraDynamicsKey key;
     cameraDynamicsCurves7EC610[type].Sample(&key, cameraSampleParameter787154);
@@ -588,7 +587,13 @@ void DriveCameraMover::Update(float step, int clock, DriveCameraView *view) {
     fov34->duration24 = key.durations0[2];
     target3C->SetDuration(key.durations0[1]);
     heading40->SetDurations(key.headingDurationsA0);
-    eye38->SetDuration(key.durations0[0]);
+    // The eye duration is divided by 1.3 (0x787210) when the cockpit blocked expression holds
+    // (0x4537c3..0x45380e); the division is rounded once and stored to all three channels.
+    if (HumanBlocked()) {
+        eye38->SetDuration(key.durations0[0] / cameraEyeDurationDivisor787210);
+    } else {
+        eye38->SetDuration(key.durations0[0]);
+    }
     up44->Update(step);
     fov34->Update(step, 0.0f, 0.0f);
     eye38->Update(step);
@@ -655,7 +660,8 @@ void DriveCameraMover::Update(float step, int clock, DriveCameraView *view) {
     view->up[2] = up[2];
     WheelMatrix matrix;
     CameraLookAt(&matrix, &eye, &target, reinterpret_cast<WheelVector *>(up));
-    // Shake 0x572a50 (view +0x10) and 0x452ed0 (table 0x7ebe90/0x7ebea8) run here; not recovered.
+    // Shake 0x572a50 (view +0x10) and 0x452ed0 (table 0x7ebe90/0x7ebea8 indexed by previousType4C)
+    // run here; not recovered.
     if (chase) {
         CameraMoverBase *base = reinterpret_cast<CameraMoverBase *>(this);
         base->PushFromWorld(&matrix, car2C, 0);

@@ -364,10 +364,12 @@ bool NativeControls::SetTransmission(int mode) { return ApplyTransmission(mode);
 NATIVE_TRAP_SLOT(UnknownSlot38)
 NATIVE_TRAP_SLOT(UnknownSlot3C) NATIVE_TRAP_SLOT(UnknownSlot40) NATIVE_TRAP_SLOT(UnknownSlot44)
 NATIVE_TRAP_SLOT(UnknownSlot48) NATIVE_TRAP_SLOT(UnknownSlot4C) NATIVE_TRAP_SLOT(UnknownSlot50)
-NATIVE_TRAP_SLOT(UnknownSlot54) NATIVE_TRAP_SLOT(UnknownSlot58) NATIVE_TRAP_SLOT(UnknownSlot5C)
+NATIVE_TRAP_SLOT(UnknownSlot58) NATIVE_TRAP_SLOT(UnknownSlot5C)
 NATIVE_TRAP_SLOT(UnknownSlot60) NATIVE_TRAP_SLOT(UnknownSlot64) NATIVE_TRAP_SLOT(UnknownSlot68)
 NATIVE_TRAP_SLOT(UnknownSlot6C) NATIVE_TRAP_SLOT(UnknownSlot70) NATIVE_TRAP_SLOT(UnknownSlot74)
 NATIVE_TRAP_SLOT(UnknownSlot78) NATIVE_TRAP_SLOT(UnknownSlot7C) NATIVE_TRAP_SLOT(UnknownSlot80)
+// Slot 0x54 as the human input's 0x410470 (the drive camera's cockpit test reads it through car +0x30).
+bool NativeControls::GetWheelMode54() { return wheelMode2FB != 0; }
 unsigned short NativeControls::GetGuideHeading() { return 0; }
 
 // 0x578e90 event dispatch remains unrecovered. Native intentionally drops the

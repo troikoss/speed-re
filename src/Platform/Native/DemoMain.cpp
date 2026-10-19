@@ -27,7 +27,10 @@ extern int drivetrainClock;
 namespace {
 
 // Platform seam: the drive camera vtable 0x787f28 holds original code addresses, so the slots
-// the recovered pushes dispatch are native thiscall entries (0x30 = 0x445a60, 0x44 = 0x44ba70).
+// the recovered code dispatches are native thiscall entries (0x24 = 0x445a90, 0x30 = 0x445a60,
+// 0x44 = 0x44ba70). Slot 0x54 is dispatched on the car's input object, which NativeControls
+// provides (NativeVehicle.cpp).
+bool __thiscall DriveCameraSlot24(DriveCameraMover *mover) { return mover->UsesChaseSetting(); }
 float __thiscall DriveCameraSlot30(CameraMoverBase *mover) { return mover->NearRadius(); }
 MoverModeOwner *__thiscall DriveCameraSlot44(CameraMoverBase *mover) {
     return reinterpret_cast<DriveCameraMover *>(mover)->GetCar();
@@ -444,6 +447,7 @@ int main(int argc, char **argv) {
     Camera camera = {{-8.0f, 0.0f, 3.0f}, {0.0f, 0.0f, 0.5f}};
     InitialiseDriveCameraStatics();
     DriveCameraMover driveCamera;
+    driveCameraSlots[0x24 / 4] = reinterpret_cast<void *>(DriveCameraSlot24);
     driveCameraSlots[0x30 / 4] = reinterpret_cast<void *>(DriveCameraSlot30);
     driveCameraSlots[0x44 / 4] = reinterpret_cast<void *>(DriveCameraSlot44);
     driveCamera.vtable0 = driveCameraSlots;
