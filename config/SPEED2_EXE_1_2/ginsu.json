@@ -310,6 +310,86 @@
       "address": "0x5ecd70",
       "size": 26,
       "sha256": "fd119cbf1a5034fac7ed2db7feda4b2ecffe71c5c80be5c521f5ea9ec347bdf8"
+    },
+    "PhysicsConstruct": {
+      "address": "0x45d210",
+      "size": 231,
+      "sha256": "ca3da931325913c493222479f896ffe4141090db42d7fceca783af44074d5a61"
+    },
+    "PhysicsBind": {
+      "address": "0x45d4f0",
+      "size": 55,
+      "sha256": "261e7b7678d48cd313920b98c01956bd1c876d4569f0556d84a6e3a6a31094a2"
+    },
+    "PhysicsActivate": {
+      "address": "0x45d370",
+      "size": 90,
+      "sha256": "adaf60360794fdce50644335e25723886575135b7bc2bfcb2a9f15438d13b8e4"
+    },
+    "PhysicsUpdate": {
+      "address": "0x484c50",
+      "size": 715,
+      "sha256": "448e4cc23dc44822a20994fc350c4dea1476ea67ee8d65a01f5de795adc98567"
+    },
+    "PhysicsOverride": {
+      "address": "0x46fa30",
+      "size": 1329,
+      "sha256": "4f13b9619a4a71e83c3bcd4934677c494e59cc078547863ce7c3f1b9f8d25986"
+    },
+    "PhysicsNotify": {
+      "address": "0x45d360",
+      "size": 16,
+      "sha256": "23e84d4103fcfd4716651426acb17d56f631796af3810264a76a9d3568d14ef0"
+    },
+    "PhysicsMode40": {
+      "address": "0x430560",
+      "size": 11,
+      "sha256": "fd5fb3fa8973e8de0382a60a173a6c783e3196cd1bd712e4664fa1bed70929fb"
+    },
+    "PhysicsMode28": {
+      "address": "0x430420",
+      "size": 11,
+      "sha256": "b131d79d081215e3ee93ec98144b3d46bee614463d964e333e6844df922aef3d"
+    },
+    "PhysicsMode10": {
+      "address": "0x430350",
+      "size": 11,
+      "sha256": "1fbbd0c35a4e3bdeebd1941aa37c9df99e57ca94e913a3c673a8ecac20d026c5"
+    },
+    "PhysicsRampConstruct": {
+      "address": "0x46b240",
+      "size": 82,
+      "sha256": "0c6479b3aa00d4ae5749ab4ed08cb8786a2d8acff2976199d4f15267bb4f85f9"
+    },
+    "PhysicsRampEvaluate": {
+      "address": "0x4599e0",
+      "size": 107,
+      "sha256": "26acf68f26e55d8e624396f230d668a95c237a65b352ca6bbcb2ba1edd777623"
+    },
+    "PhysicsSpecMaximum": {
+      "address": "0x591090",
+      "size": 148,
+      "sha256": "51e8f8d3f852ecf3bebd64df673aec5f373aba89754a1f2e8ff8e014d90e02b6"
+    },
+    "PhysicsEngineMaximum": {
+      "address": "0x5928d0",
+      "size": 13,
+      "sha256": "b92ef60874eb661a45db41dfb581a6e1cb65d546104d6111cec0d983da2c996c"
+    },
+    "SampleConstruct": {
+      "address": "0x579f20",
+      "size": 83,
+      "sha256": "2494ec5cdc31221159869177f1ef19b6644b0719a3003caefc2d6971b8214527"
+    },
+    "PhysicsHash": {
+      "address": "0x43db50",
+      "size": 33,
+      "sha256": "c5798f0490c6fc265ff0ebd063a7c536e8281fb2789eb4434900ebb3d3896808"
+    },
+    "PhysicsFactory": {
+      "address": "0x470a00",
+      "size": 64,
+      "sha256": "2c6cd98c07fc9ec0d85f709c3b5296bd7d74d576de2ed81b8d0c4ce78f8c2c71"
     }
   }
 }

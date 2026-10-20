@@ -173,6 +173,7 @@ public:
 
 // Vehicle state shared with gameplay; it starts at owner +0x40 (see MoverModeOwner).
 struct DrivetrainAuxiliary {
+    float EngineMaximum5928D0();
     CarPhysicsRecord *record0;
     WCollider *collider4;
     char unidentified8[8];

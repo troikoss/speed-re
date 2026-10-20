@@ -15,6 +15,7 @@ struct EngineCurve {
 };
 
 struct EngineSpec {
+    float Maximum591090();
     float value0;
     float value4;
     float value8;

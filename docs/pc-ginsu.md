@@ -1343,3 +1343,103 @@ UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets Sa
 UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_timed_average.py
 UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 256
 ```
+
+## Physics audio input component (2026-10-20)
+
+`EngineSoundPhysics.cpp` recovers component construction `0x45d210` (231 bytes),
+binding `0x45d4f0` (55), activation `0x45d370` (90), normal update `0x484c50`
+(715), complete scripted override `0x46fa30` (1329), completion callback
+`0x45d360` (16), three mode-query leaves `0x430560`/`0x430420`/`0x430350`
+(11 each), and the override's ramp constructor/evaluator `0x46b240` (82) /
+`0x4599e0` (107). This supersedes the Physics-component analysis lead above.
+These are UG2-only layouts and observations, without a cross-title claim.
+
+Construction preserves unwritten bytes, initializes the embedded two-sample
+average, and installs original table word `0x78a008`. Binding stores the supplied
+car state, recognizes kinds 1..3, and publishes the component at car `+0x40`.
+The invalid-kind path still contains the original null write; recovery does
+not add a fallback. Activation queries the owner `+0x40` subobject and physics
+record, retaining call/read order. `EngineRecordMaximum.cpp` recovers query
+`0x591090` (148 bytes) and wrapper `0x5928d0` (13), selecting the maximum of
+zero and nine engine-spec samples at `+0x10`; this differs from the existing
+`0x457b00` query over samples at `+0x34`.
+
+The normal update retains the three short-circuited mode queries and override
+gates. It copies gear state, takes throttle input times 100, advances and
+recalculates the throttle-delta average, tracks throttle edge times, limits
+the filtered throttle's per-update change, and normalizes engine speed using
+the activated endpoints. It publishes car `+0x44`/`+0x48`/`+0x4c`/`+0x50`/
+`+0x54` in original order. The extended throttle product survives the first
+binary32 store before subtraction; the filtered throttle survives its store
+before later publication. The global engine-speed override is re-used at
+`0x7fbed8`, with sentinel 100 at `0x784258`.
+
+The blown-engine branch retains exact byte/kind/mode gates, query order,
+receiver offsets, callback identity and post-call re-reads, including the
+null audio-owner check after hashing. It executes the existing recovered
+`cshash` (`0x43db50`), rather than scripting the hash. Engine-blown detection,
+notification queries/play/clear, and `PhysicsParameters::GetRecord` are logged
+subsystem boundaries in this verifier; GetRecord has separate recovered
+source and coverage. These boundaries are not native replacement bodies.
+
+The override retains both countdown and sequence states, all fourteen explicit
+sequence selections plus the default, four-update segment advancement,
+low-byte throttle extraction from packed words, and the RPM/throttle clamps.
+Its duration argument is passed/popped but unused. The original frame-based
+advancement is retained. Ramp evaluation preserves the extended quotient for
+its first comparison and rounds a copy for the upper clamp/interpolation.
+Original sequence tables remain addressed retail data; they are not copied
+into this repository.
+
+The registered factory `0x470a00` requests `0xf4` bytes only when heap headroom
+is strictly greater than `0x4f3`, uses the recovered allocator wrapper, and
+calls the component constructor only after allocation succeeds. Its body is
+in `EngineSoundPhysicsFactory.cpp`. This also confirms the component size.
+
+The fixture arena and ordered call logs compare at both x87 precisions.
+One quarter of normal-update fixtures prepend actual construction, binding
+and activation. The constructed average's raw vtable slot is explicitly
+relocated to each side's recovered recalculation body; no retail routine is
+executed as the rebuilt implementation. Independent cases retain dirty
+unwritten bytes and control over direct state. Carried trajectories cover
+normal driving, complete sequence playback, countdown overrides and returns
+to normal input. Allocation failure/exception unwinding, invalid-kind writes,
+concurrent interleavings and full notification/manager composition remain
+outside these finite checks. Standalone sample-constructor fixtures use nonnegative
+capacities; failure of its separate array allocation is not exercised.
+
+This component is compiled into the native recovery archive but is not yet
+on the demo's control-input path. Auxiliary RPM/throttle producers, shift/
+accel components, HybridMotor lifecycle/binding, manager construction and
+notification consumers are still needed. The demo's raw-RPM/full-level seam
+remains documented; source recovery does not establish its replacement.
+
+Final regression passed 20,480 original/rebuilt comparisons across 78 targets:
+256 independent cases per target, 384 carried Physics updates and 128 existing
+HybridMotor control steps. All states/calls compared without failures. Coverage
+includes all three mode-suppression values (2, 3, 4), insufficient heap,
+allocation failure, actual factory-to-constructor composition, callback-time
+owner/flag changes and the subsequent null-owner gate. All 15 component, three
+factory and two record-query mutants were rejected by state/call mismatches,
+with no survivors or compile-only rejections. The four previously matched
+packed/auxiliary query leaves retain their separate MSVC byte identity; no new
+byte-matching claim is made for this component.
+
+Native build and the three asset-free audio tests passed. Separate 30-frame
+SKYLINE and 350Z checks produced 245 / 492 packet releases and zero underruns.
+These runs check the existing playback integration after the layout additions;
+they do not execute the new Physics component or establish its native wiring.
+The audio goal and remaining inventory entries stay open.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets PhysicsConstruct,PhysicsBind,PhysicsActivate,PhysicsUpdate,PhysicsOverride,PhysicsNotify,PhysicsMode40,PhysicsMode28,PhysicsMode10,PhysicsRampConstruct,PhysicsRampEvaluate,PhysicsSpecMaximum,PhysicsEngineMaximum,PhysicsHash,SampleConstruct --cases 64 --mutation-checks --mutation-source physics
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets PhysicsFactory --cases 64 --mutation-checks --mutation-source physics_factory
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets PhysicsSpecMaximum,PhysicsEngineMaximum,PhysicsActivate --cases 64 --mutation-checks --mutation-source physics_max
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 256
+cmake --build build/native
+ctest --test-dir build/native -R 'audio_playback_native|audio_dispatch_native|engine_bank_io_native' --output-on-failure
+```
+
+The corrected factory coverage counter records 84 allocation attempts: 42
+constructed components and 42 null allocation results, plus 172 insufficient-heap
+cases. The final comparison run retains zero failures after that reporting fix.

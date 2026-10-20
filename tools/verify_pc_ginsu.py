@@ -39,7 +39,12 @@ from probe_pc_race_reward import ROOT, EXE, GAME_DIR
 
 BUILD = ROOT / 'build/analysis/ginsu'
 SOURCE_DIR = 'src/Speed/Indep/Src/EAXSound/Ginsu'
-SOURCES = {'data': SOURCE_DIR + '/GinsuData.cpp', 'synth': SOURCE_DIR + '/GinsuSynth.cpp',
+SOURCES = {'physics_factory': SOURCE_DIR + '/EngineSoundPhysicsFactory.cpp',
+           'physics': SOURCE_DIR + '/EngineSoundPhysics.cpp',
+           'physics_max': 'src/Speed/Indep/Src/Physics/EngineRecordMaximum.cpp',
+           'physics_hash': 'src/Speed/Indep/Libs/bWare/Strings.cpp',
+           'average_construct': 'src/Speed/Indep/Libs/bWare/TimedAverage.cpp',
+           'data': SOURCE_DIR + '/GinsuData.cpp', 'synth': SOURCE_DIR + '/GinsuSynth.cpp',
            'setup': SOURCE_DIR + '/EngineSoundSetup.cpp',
            'construction': SOURCE_DIR + '/EngineSoundConstruct.cpp',
            'gains': SOURCE_DIR + '/EngineSoundControlGains.cpp',
@@ -88,6 +93,23 @@ GIN_MAGIC = b'Gnsu2'
 # return kinds: 'al' (bool), 'eax' (int), 'st0' (float left in ST0), None. argument kinds: 'w' raw word,
 # 'p' pointer (identity: arena address or the stack), ('c', n) pointer whose n bytes are logged by value.
 ROUTINES = {
+    'PhysicsFactory': (0x470a00, '?CreateEngineSoundPhysics470A00@', 0, 'eax', None, []),
+    'PhysicsHash': (0x43db50, '_cshash', 0, 'eax', None, ['z']),
+    'PhysicsConstruct': (0x45d210, '?Construct45D210@EngineSoundPhysicsView@', 0, 'eax', 'arena', []),
+    'PhysicsBind': (0x45d4f0, '?Bind45D4F0@EngineSoundPhysicsView@', 4, None, 'arena', ['p']),
+    'PhysicsActivate': (0x45d370, '?Activate45D370@EngineSoundPhysicsView@', 0, None, 'arena', []),
+    'PhysicsUpdate': (0x484c50, '?Update484C50@EngineSoundPhysicsView@', 4, None, 'arena', ['w']),
+    'PhysicsOverride': (0x46fa30, '?Override46FA30@EngineSoundPhysicsView@', 4, None, 'arena', ['w']),
+    'PhysicsNotify': (0x45d360, '?Notify45D360@EngineSoundPhysicsView@', 0, None, None, []),
+    'PhysicsMode40': (0x430560, '?Is430560@EngineSoundModeQueries@', 0, 'al', 'arena', []),
+    'PhysicsMode28': (0x430420, '?Is430420@EngineSoundModeQueries@', 0, 'al', 'arena', []),
+    'PhysicsMode10': (0x430350, '?Is430350@EngineSoundModeQueries@', 0, 'al', 'arena', []),
+    'PhysicsRampConstruct': (0x46b240, '?Construct46B240@EngineSoundRamp@', 16, 'eax', 'arena', ['w', 'w', 'w', 'w']),
+    'PhysicsRampEvaluate': (0x4599e0, '?Evaluate4599E0@EngineSoundRamp@', 0, None, 'arena', []),
+    'PhysicsSpecMaximum': (0x591090, '?Maximum591090@EngineSpec@', 0, 'st0', 'arena', []),
+    'PhysicsEngineMaximum': (0x5928d0, '?EngineMaximum5928D0@DrivetrainAuxiliary@', 0, 'st0', 'arena', []),
+    'SampleConstruct': (0x579f20, '?Construct@SampleAverage@', 4, 'eax', 'arena', ['w']),
+
     'ControlPrepare': (0x45d0a0, '?Prepare45D0A0@EngineSoundControl@', 0, None, 'arena', []),
     'ControlOne': (0x4701a0, '?ModeOne4701A0@EngineSoundControl@', 4, None, 'arena', ['w']),
     'ControlTwo': (0x470540, '?ModeTwo470540@EngineSoundControl@', 4, None, 'arena', ['w']),
@@ -155,6 +177,15 @@ ROUTINES = {
 # mode 'stub': an event with a scripted EAX (see RETURNS); 'retail': a pure leaf run as retail bytes on both sides.
 # 'f' is a function pointer, logged by the name of the routine it names on that side.
 SND = {
+    'PhysicsRecord': (0x5b5350, '?GetRecord@PhysicsParameters@', ['w'], 'PhysicsRecord', 'stub'),
+    'PhysicsBlown': (0x5ece00, '?EngineSoundBlown5ECE00@', [], 'PhysicsBlown', 'stub'),
+    'PhysicsQuery': (0x46c9a0, '?Query46C9A0@EngineSoundNotificationView@', [], 'PhysicsQuery', 'stub'),
+    'PhysicsReady': (0x46c790, '?Ready46C790@EngineSoundNotificationView@', [], 'PhysicsReady', 'stub'),
+    'PhysicsPlay': (0x484510, '?Play484510@EngineSoundNotificationView@', ['w', 'w', 'w', 'f', 'w'], 'PhysicsPlay', 'stub'),
+    'PhysicsClear': (0x45ad40, '?Clear45AD40@EngineSoundNotificationView@', ['w'], 'PhysicsClear', 'stub'),
+    'AverageMalloc': (7718600, '_malloc', ['w'], 'AverageMalloc', 'stub'),
+    'AverageFree': (7718618, '_free', ['p'], 'AverageFree', 'stub'),
+
     'BankFileSize': (0x57d900, '?EngineBankFileSize57D900@', ['z'], 'BankFileSize', 'stub'),
     'BankRead': (0x57b4a0, '?EngineBankRead57B4A0@', ['p', 'z', 'w', 'w', 'f', 'p'], 'BankRead', 'stub'),
     'ParameterRegister': (0x7358c0, '?EngineParameterRegister7358C0@', ['p', ('c', 0x68), 'p'], 'ParameterRegister', 'stub'),
@@ -183,6 +214,22 @@ SND = {
 }
 STUB = {'BankFileSize': STUBS + 0x150, 'BankRead': STUBS + 0x160, 'ParameterRegister': STUBS + 0x130, 'ParameterBind': STUBS + 0x140, 'DispatchWait': STUBS + 0x110, 'DispatchRelease': STUBS + 0x120, 'VoiceVolume': STUBS + 0xa0, 'VoiceValue': STUBS + 0xb0, 'VoiceValue2': STUBS + 0xc0, 'VoiceValue3': STUBS + 0xd0, 'VoiceValue4': STUBS + 0xe0, 'VoiceValue5': STUBS + 0xf0, 'HeapAvailable': STUBS + 0x80, 'Malloc': STUBS + 0x90, 'Lock': STUBS, 'Unlock': STUBS + 0x10, 'Overhead': STUBS + 0x20, 'Create': STUBS + 0x30,
         'Start': STUBS + 0x40, 'Submit': STUBS + 0x50, 'Stop': STUBS + 0x60, 'Destroy': STUBS + 0x70}
+STUB.update({
+    'PhysicsRecord': 0x2122300,
+    'PhysicsBlown': 0x2122310,
+    'PhysicsQuery': 0x2122320,
+    'PhysicsReady': 0x2122330,
+    'PhysicsPlay': 0x2122340,
+    'PhysicsClear': 0x2122350,
+    'AverageMalloc': 0x2122370,
+    'AverageFree': 0x2122380,
+})
+SND_THIS = {'ParameterBind', 'PhysicsRecord', 'PhysicsBlown', 'PhysicsQuery', 'PhysicsReady', 'PhysicsPlay', 'PhysicsClear'}
+SND_CLEANUP = {'DispatchWait': 8, 'DispatchRelease': 4, 'ParameterBind': 4, 'PhysicsRecord': 4, 'PhysicsClear': 4, 'PhysicsPlay': 20}
+def snd_ret(key):
+    cleanup = SND_CLEANUP.get(key, 0)
+    return b'\xc2' + struct.pack('<H', cleanup) if cleanup else b'\xc3'
+
 # Retail address of each pure leaf (its bytes run on both sides): SND_attrsetdef 0x72423e..0x72428b and
 # SNDplaysetdef 0x721a6b..0x721aae (both end in RET and call nothing).
 PURE_RANGES = ((0x75bed4, 0x75bf49), (0x72423e, 0x72428b), (0x721a6b, 0x721aae))
@@ -198,12 +245,46 @@ SHARED = {'?sampleAverageZero7D7D3C@': 0x7d7d3c, '?sampleAverageOne784250@': 0x7
           '?ginsuRateScaleB788894@': 0x788894, '?ginsuRateScaleC788898@': 0x788898,
           '?ginsuFilterA7ED92C@': 0x7ed92c, '?ginsuFilterB7ED93C@': 0x7ed93c,
           '?ginsuStepTable7ED950@': 0x7ed950, '__fltused': 0}
+SHARED.update({
+    '?engineSpecMaximumZero7D7D3C@': 0x7d7d3c,
+    '?sampleAverageVtable@': 0x7a0608,
+    '?timedAverageVtable@': 0x7a0610,
+    '?averageBaseVtable@': 0x787584,
+    '?engineSoundModes827E88@': 0x827e88,
+    '?engineSoundMode890118@': 0x890118,
+    '?engineSoundMode8900D8@': 0x8900d8,
+    '?engineSoundOverride82A3A4@': 0x82a3a4,
+    '?engineSoundPercent784258@': 0x784258,
+    '?engineSoundStep784478@': 0x784478,
+    '?engineSoundRange78C194@': 0x78c194,
+    '?engineSpeedOverride@': 0x7fbed8,
+    '?engineSoundOverrideStep788608@': 0x788608,
+    '?engineSoundOverrideDecay78860C@': 0x78860c,
+    '?engineSoundThrottleStep787AF4@': 0x787af4,
+    '?engineSoundBlownName78C154@': 0x78c154,
+    '?engineSoundSequence7F0070@': 0x7f0070,
+    '?engineSoundSequence7F0198@': 0x7f0198,
+    '?engineSoundSequence7F0238@': 0x7f0238,
+    '?engineSoundSequence7F02A8@': 0x7f02a8,
+    '?engineSoundSequence7F0328@': 0x7f0328,
+    '?engineSoundSequence7F0398@': 0x7f0398,
+    '?engineSoundSequence7F03F8@': 0x7f03f8,
+    '?engineSoundSequence7F0448@': 0x7f0448,
+    '?engineSoundSequence7F0558@': 0x7f0558,
+    '?engineSoundSequence7F0640@': 0x7f0640,
+    '?engineSoundSequence7F06D0@': 0x7f06d0,
+    '?engineSoundSequence7F0750@': 0x7f0750,
+    '?engineSoundSequence7F07C8@': 0x7f07c8,
+    '?engineSoundSequence7F0888@': 0x7f0888,
+    '?engineSoundSequence7F08F8@': 0x7f08f8,
+})
 # Retail addresses of the E branch (fz1 == fz2) and of the SampleToCycle found path (0x466c2f).
 E_BRANCH_HOOK, FOUND_HOOK = 0x466e98, 0x466c2f
-TARGETS = ('ControlPrepare', 'ControlOne', 'ControlTwo', 'SampleAdvance', 'SampleFill', 'SampleRecalculate', 'GainCurveLookup', 'GainPendingShift', 'EngineDependency', 'EngineAttach', 'AuxFrequency', 'AuxGain', 'ControlScale', 'ControlUpdate', 'CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
+TARGETS = ('PhysicsFactory', 'PhysicsHash') + ('PhysicsConstruct', 'PhysicsBind', 'PhysicsActivate', 'PhysicsUpdate', 'PhysicsOverride', 'PhysicsNotify', 'PhysicsMode40', 'PhysicsMode28', 'PhysicsMode10', 'PhysicsRampConstruct', 'PhysicsRampEvaluate', 'PhysicsSpecMaximum', 'PhysicsEngineMaximum', 'SampleConstruct') + ('ControlPrepare', 'ControlOne', 'ControlTwo', 'SampleAdvance', 'SampleFill', 'SampleRecalculate', 'GainCurveLookup', 'GainPendingShift', 'EngineDependency', 'EngineAttach', 'AuxFrequency', 'AuxGain', 'ControlScale', 'ControlUpdate', 'CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
            'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt',
            'PacketReleaseCallback', 'SynthesisConstruct', 'SynthesisDestruct', 'StartSynthesis')
 LIMITATIONS = [
+    "physics audio: actual component construction/binding/activation/update, overrides, ramps, mode queries, sample averages and record maximum execute; GetRecord, engine-blown detection and notification methods remain scripted; actual recovered string hash executes subsystem boundaries; constructor SEH normal return only, invalid-kind null writes excluded; actual average vtable +4 is relocated to each side\'s recovered recalculation body",
     'control gains: prepare, ring updates/recalculation, pending-shift query, curve lookup and both gain producers execute recovered code; virtual +0x38 alternates recovered float getter and scripted binary64 values with pointer/tuning mutations; fixture gain words and engine normalization values stay within 0..32767; input-state/component producers, invalid pointers and native wiring remain open; two 64-step sequences carry ring/smoothing state under changing fixture inputs',
     'car sound selection: original constant tables are used on both sides; flags and upgrade levels are actual recovered queries, with the original CRT conversion helper; tested car types cover 0..30 and the default arm, not exhaustive 32-bit values; the source participant setup remains supplied by native race scaffolding',
     'bank loading: file size and queued reads are scripted; actual completion callbacks execute after return for a selected queue prefix; filesystem/queue implementation equivalence is not claimed; record indices 0..2 (including count aliasing record 0) and bank indices 0..1 are fixtures, not inferred valid bounds; filenames fit the original 64-byte local buffer',
@@ -216,7 +297,7 @@ LIMITATIONS = [
     'the arena is compared byte for byte; the stack is compared through the events, the return values and the x87 image only',
     'the MSVC 7.1 build passes no /GS flag: this cl.exe reads /GS- as /GS (security cookies appear), and the default compile has none',
     'car sound creation: fixtures alternate scripted manager entries with composed lookup/enqueue bodies; sound-object context/bind queries remain scripted; pool creation, device setup and a composed car constructor remain outside this comparison; queue indexes are limited to 0..15',
-    'engine update: one quarter compose recovered dependency attachment, outer HybridMotor update, float queries and conversion tail before the actual engine caller/controllers; prepare, both gain producers, average/curve and pending-shift query now run as recovered bodies, while other fixtures retain direct control inputs; auxiliary query alternates binary64 scripted values and recovered float getter; native controller wiring remains open',
+    'engine update: one quarter compose recovered dependency attachment, outer HybridMotor update, float queries and conversion tail before the actual engine caller/controllers; prepare, both gain producers, average/curve and pending-shift query now run as recovered bodies, while other fixtures retain direct control inputs; auxiliary query alternates binary64 scripted values and recovered float getter; native playback controllers are wired, while outer-control/input production remains open',
     'engine controllers: virtual slots +0x38/+0x3c alternate recovered query bodies and scripted thiscall boundaries; snd setters are logged stubs, not middleware equivalence; the original CRT conversion helper 0x75bed4 runs on both sides',
     'engine setup: heap capacity and bMalloc are scripted boundaries; packet/synth allocation-failure cases use invalid gin magic and a successfully allocated or existing data object to avoid the original null dereference; failure of the data allocation is not exercised',
     'engine setup: the bank table producer remains a fixture; one quarter of setup/initialization fixtures prepend actual engine construction then the native adapter temporary car binding; table indexes 0 and 1 are tested without establishing the table bounds',
@@ -394,7 +475,7 @@ def fx_state(uc):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--compiler', choices=('msvc', 'clang-cl'), default='msvc')
-    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, construction, controller, caller, dispatch, values, initialize, lifecycle, audio, banks, bank_path, selection, upgrade_queries, control, gains, sample_update, gain_curve, gain_shift)')
+    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, construction, controller, caller, dispatch, values, initialize, lifecycle, audio, banks, bank_path, selection, upgrade_queries, control, gains, sample_update, gain_curve, gain_shift, physics, physics_factory, physics_max, physics_hash, average_construct)')
     parser.add_argument('--clang-flag', action='append', default=[], help='extra clang option (via /clang:)')
     parser.add_argument('--cases', type=int, default=1024)
     parser.add_argument('--targets', default='', help='comma separated subset of targets')
@@ -456,7 +537,7 @@ def main():
     exports = linked['exports']
 
     def entry_of(prefix):
-        found = {a for s, a in exports.items() if s.startswith(prefix) and s not in externals}
+        found = {a for s, a in exports.items() if (s == prefix if prefix.startswith('_') else s.startswith(prefix)) and s not in externals}
         assert len(found) == 1, ('entry symbol', prefix, len(found))
         return found.pop()
     rebuilt_entry = {name: entry_of(spec[1]) for name, spec in ROUTINES.items()}
@@ -467,7 +548,7 @@ def main():
     linked_ranges = linked['ranges']
     stub_retail = [spec[0] for spec in SND.values() if spec[4] == 'stub']
     original_allowed = original_ranges + [(a, a + 1) for a in stub_retail] + list(PURE_RANGES) + [(STOP, STOP + 7), (STUBS + 0x200, STUBS + 0x2b0)]
-    rebuilt_allowed = linked_ranges + [(STUBS, STUBS + 0x2b0), (STOP, STOP + 7)] + list(PURE_RANGES)
+    rebuilt_allowed = linked_ranges + [(STUBS, STUBS + 0x400), (STOP, STOP + 7)] + list(PURE_RANGES)
     inside = lambda ranges, a: any(lo <= a < hi for lo, hi in ranges)
 
     # Gin files: sorted by name, five fixed positions and the last one.
@@ -484,7 +565,7 @@ def main():
     labels = {False: {retail_entry['PacketReleaseCallback']: 'PacketReleaseCallback'},
               True: {rebuilt_entry['PacketReleaseCallback']: 'PacketReleaseCallback'}}
     for rebuilt, entries in ((False, retail_entry), (True, rebuilt_entry)):
-        for name in ('BankReadPrimary', 'BankReadSecondary'):
+        for name in ('BankReadPrimary', 'BankReadSecondary', 'PhysicsNotify'):
             labels[rebuilt][entries[name]] = name
     machines = {}
     for rebuilt in (False, True):
@@ -513,10 +594,13 @@ def main():
             uc.mem_map(linked['address'], max(0x1000, linked['allocation']))
             for address, body in linked['blocks']: uc.mem_write(address, body)
             for key, address in STUB.items():
-                uc.mem_write(address, b'\xc2\x08\x00' if key == 'DispatchWait' else b'\xc2\x04\x00' if key in ('DispatchRelease', 'ParameterBind') else b'\xc3')
+                uc.mem_write(address, snd_ret(key))
         else:
             for key, spec in SND.items():
-                if spec[4] == 'stub': uc.mem_write(spec[0], b'\xc2\x08\x00' if key == 'DispatchWait' else b'\xc2\x04\x00' if key in ('DispatchRelease', 'ParameterBind') else b'\xc3')
+                if spec[4] == 'stub': uc.mem_write(spec[0], snd_ret(key))
+
+        # Explicit vtable relocation for averages constructed by actual recovered code.
+        uc.mem_write(0x7a060c, struct.pack('<I', rebuilt_entry['SampleRecalculate'] if rebuilt else retail_entry['SampleRecalculate']))
 
         # Original WaitForSingleObject/ReleaseMutex IAT entries; both sides use
         # the same stdcall stand-ins and record the exact arguments.
@@ -540,7 +624,7 @@ def main():
             uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], name, spec[4], spec[5], labels[rebuilt]), begin=address, end=address)
         for key, spec in SND.items():
             address = rebuilt_entry[key] if rebuilt else spec[0]
-            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], spec[3], 'arena' if key == 'ParameterBind' else None, spec[2], labels[rebuilt], returns, key, callback_writes),
+            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], spec[3], 'arena' if key in SND_THIS else None, spec[2], labels[rebuilt], returns, key, callback_writes),
                         begin=address, end=address)
         def enqueue_bank_read(uc, address, size, user, rebuilt=rebuilt):
             esp = uc.reg_read(xc.UC_X86_REG_ESP)
@@ -590,6 +674,16 @@ def main():
             uc.reg_write(xc.UC_X86_REG_FPTAG, 0xffff)
             for reg, value in zip(PRESERVED, PRESERVED_VALUES): uc.reg_write(reg, value)
             try:
+                if prephysics:
+                    for target, arguments in (('PhysicsConstruct', []), ('PhysicsBind', [CAR]), ('PhysicsActivate', [])):
+                        uc.mem_write(STACK, struct.pack('<I', STOP) + b''.join(struct.pack('<I', w) for w in arguments))
+                        uc.reg_write(xc.UC_X86_REG_ESP, STACK)
+                        uc.reg_write(xc.UC_X86_REG_ECX, this)
+                        uc.emu_start(rebuilt_entry[target] if rebuilt else retail_entry[target], STOP + 7, count=MAX_INSTRUCTIONS)
+                        assert uc.reg_read(xc.UC_X86_REG_ESP) == STACK + 4 + ROUTINES[target][2], ('state or call order mismatch', 'physics prelude stack', target)
+                    uc.mem_write(STACK, struct.pack('<I', STOP) + b''.join(struct.pack('<I', w & 0xffffffff) for w in words))
+                    uc.reg_write(xc.UC_X86_REG_ESP, STACK)
+                    uc.reg_write(xc.UC_X86_REG_ECX, this)
                 if preselect:
                     for target, receiver, arguments in (
                             ('CarStateConstruct', CAR, []),
@@ -897,6 +991,7 @@ def main():
             else: note('gain-queries-recovered')
         return owner
 
+    physics_sequence_seed = None
     for trial in range(args.cases):
         precision = rng.choice(PRECISIONS)
         gin = gins[rng.randrange(len(gins))]
@@ -909,9 +1004,98 @@ def main():
             preconstruct = False
             preselect = False
             precontrol = False
+            prephysics = name == 'PhysicsUpdate' and trial % 4 == 0
             observe_gains = name in ('ControlOne', 'ControlTwo', 'ControlUpdate', 'EngineUpdate')
             complete_reads = 0
-            if name in ('ControlPrepare', 'ControlOne', 'ControlTwo', 'SampleAdvance', 'SampleFill', 'SampleRecalculate', 'GainCurveLookup', 'GainPendingShift'):
+            if name.startswith('Physics') or name == 'SampleConstruct':
+                physics, owner, record = ARENA + 0x3a000, ARENA + 0x3a200, ARENA + 0x3b500
+                info, inputs, samples = ARENA + 0x3b800, ARENA + 0x3b000, ARENA + 0x3bc00
+                mode, root, notification = ARENA + 0x3bd00, ARENA + 0x3be00, ARENA + 0x3be40
+                pk(memory, CAR + 0x14, '<i', rng.choice((1,2,3)))
+                pk(memory, CAR + 0x30, '<I', owner)
+                pk(memory, CAR + 0x34, '<f', rng.uniform(-100.,100.))
+                pk(memory, CAR + 0xb4, '<B', trial % 2)
+                pk(memory, CAR + 0xb8, '<ff', rng.choice((-1.,0.,1.,5.,100.,float('nan'),float('inf'))), rng.uniform(-100.,100.))
+                pk(memory, CAR + 0xc0, '<B', trial % 3 == 0)
+                pk(memory, CAR + 0xc4, '<i', (trial % 18) - 1)
+                pk(memory, owner + 0x10, '<I', info)
+                pk(memory, owner + 0x30, '<I', inputs)
+                pk(memory, owner + 0x40, '<I', record)
+                pk(memory, owner + 0x434, '<i', rng.randrange(-1,8))
+                pk(memory, owner + 0x440, '<f', rng.uniform(0.,10000.))
+                pk(memory, inputs + 0x20c, '<f', rng.choice((0.,0.01,0.05,0.1,1.,rng.uniform(-1.,2.))))
+                for i in range(9): pk(memory, record + 0x200 + 4*i, '<f', rng.choice((0.,-0.,float('nan'),rng.uniform(-100.,100.))))
+                if trial % 6 in (0,1):
+                    for i in range(9): pk(memory,record + 0x200 + i*4,'<f',-float(i+1) if trial%6==0 else float('nan'))
+                pk(memory, record + 0x1f0, '<fff', 800., 6500., 10000.)
+                pk(memory, physics + 0x44, '<I', CAR)
+                pk(memory, physics + 0x58, '<B', trial % 2)
+                pk(memory, physics + 0x5c, '<ff', rng.uniform(-100.,100.),rng.uniform(-100.,100.))
+                pk(memory, physics + 0x68, '<I', CAR)
+                pk(memory, physics + 0x6c, '<B', 1 if trial % 5 == 0 else 0)
+                pk(memory, physics + 0x70, '<9f', 1000., 9000., 800., 10000., 6500., rng.uniform(0.,100.), 0.,rng.uniform(0.,100.),rng.uniform(0.,100.))
+                vtable = ARENA + 0x3bfc0
+                pk(memory, physics + 0x94, '<IBBBBffI', vtable, 4, 2, 2, trial % 2, 0.,0.,samples)
+                fixture_code_fields[vtable + 4] = 'SampleRecalculate'
+                for i in range(5): pk(memory, samples + 4*i, '<f', rng.uniform(-100.,100.))
+                pk(memory, physics + 0xbc, '<B', trial % 2)
+                pk(memory, physics + 0xc0, '<ffiiB', 0.,0., rng.randrange(-1,8),rng.randrange(-1,8), trial % 2)
+                pk(memory, physics + 0xd4, '<i', rng.choice((-2**31,-1,0,1,2,5,2**31-1)))
+                pk(memory, physics + 0xdc, '<iiiIff', (trial % 4), trial % 4, rng.choice((1,2,3,72)), 0x7f0070,
+                   rng.choice((900.,1000.,9500.,10000.,11000.)), rng.choice((-1.,0.,0.1,1.,50.,100.,110.)))
+                if trial % 2:
+                    sequence = ARENA + 0x3bc80
+                    for i in range(8): pk(memory, sequence + i*4, '<HH', 1500+i*1000, 0xff00 | (i*17)%101)
+                    pk(memory, physics + 0xe8, '<I', sequence)
+                case = trial % 8
+                flags = {0x827e98: int(case in (3,4,7)), 0x827eb0: int(case == 2), 0x827ec8: int(case == 1)}
+                fixture_globals.update({a: struct.pack('<i',v) for a,v in flags.items()})
+                if case == 7: pk(memory,physics + 0xd0,'<B',1)
+                pk(memory, mode, '<ii', rng.choice((2,3,4)) if case in (4,7) else 1, rng.choice((1,2,3,4,7)))
+                fixture_globals[0x890118] = struct.pack('<I', mode)
+                fixture_globals[0x8900d8] = struct.pack('<I', mode + 4)
+                fixture_globals[0x82a3a4] = struct.pack('<i', int(case == 5))
+                fixture_globals[0x7fbed8] = struct.pack('<f', 100. if trial % 2 else rng.uniform(0.,10000.))
+                fixture_globals[0x82ba30] = struct.pack('<I', root)
+                pk(memory, root + 8, '<I', notification)
+                pk(memory, root + 0x28, '<I', root + 0xc0)
+                pk(memory, notification + 0x34, '<I', root + 0x80)
+                returns.update(PhysicsRecord=record, PhysicsBlown=trial % 3 != 0, PhysicsQuery=int(trial % 5 == 0),
+                               PhysicsReady=int(trial % 2), AverageMalloc=ALLOC)
+                if case in (6,7):
+                    pk(memory, CAR + 0x14, '<i', 1)
+                    pk(memory, physics + 0x6c, '<B', 0)
+                    pk(memory, mode + 4, '<i', 1)
+                    returns.update(PhysicsBlown=1, PhysicsQuery=0, PhysicsReady=int(case == 6))
+                    if trial % 16 == 14:
+                        callback_writes['PhysicsQuery'] = {0x82ba30: bytes(4), physics + 0x6c: b'\x01'}
+                callback_writes['PhysicsRecord'] = {record + 0x1f0: struct.pack('<fff',rng.uniform(300.,1200.),rng.uniform(4000.,7000.),rng.uniform(8000.,12000.))}
+                words, this = [], physics
+                if name == 'PhysicsFactory':
+                    this = 0
+                    returns['HeapAvailable'] = (-1,0,0x4f2,0x4f3,0x4f4,2**31-1)[trial % 6]
+                    returns['Malloc'] = 0 if (trial // 6) % 2 else ALLOC
+                    fixture_globals[0x7ec840] = struct.pack('<i',rng.randrange(32))
+                    callback_writes['HeapAvailable'] = {0x7ec840: struct.pack('<i',rng.randrange(32))}
+                elif name == 'PhysicsHash':
+                    text = rng.choice((b'',b'BLOWNENGINE',bytes(rng.randrange(1,256) for _ in range(20))))
+                    memory[0x3b900:0x3b900+len(text)+1] = text + b'\0'
+                    words, this = [ARENA + 0x3b900], 0
+                elif name in ('PhysicsUpdate','PhysicsOverride'): words = [fw(rng.uniform(-1.,1.))]
+                elif name == 'PhysicsBind': words = [CAR]
+                elif name == 'PhysicsNotify': this = 0
+                elif name.startswith('PhysicsMode'):
+                    this = root
+                    for offset in (0x10,0x28,0x40): pk(memory, root + offset, '<I', rng.choice((0,rng.getrandbits(32))))
+                elif name == 'PhysicsRampConstruct':
+                    start = rng.choice((0.,1.,100.))
+                    words = [fw(rng.uniform(-100.,100.)),fw(rng.uniform(-100.,100.)),fw(start),fw(rng.choice((start, start+1e-8, start+1.,float('nan'))))]
+                elif name == 'PhysicsRampEvaluate':
+                    pk(memory, physics, '<6f', rng.uniform(-100.,100.),rng.uniform(-100.,100.),0.,4.,rng.choice((-1.,0.,1.,4.,5.,float('nan'))),0.)
+                elif name == 'PhysicsSpecMaximum': this = record + 0x1f0
+                elif name == 'PhysicsEngineMaximum': this = owner + 0x40
+                elif name == 'SampleConstruct': words = [rng.choice((0,1,2,5,6,12))]
+            elif name in ('ControlPrepare', 'ControlOne', 'ControlTwo', 'SampleAdvance', 'SampleFill', 'SampleRecalculate', 'GainCurveLookup', 'GainPendingShift'):
                 owner = seed_gain_inputs(memory, trial)
                 if name == 'ControlPrepare': words, this = [], CONTROL
                 elif name in ('ControlOne', 'ControlTwo'): words, this = [fw(rng.uniform(0.,1.))], CONTROL
@@ -1436,6 +1620,8 @@ def main():
                                     -0.0, float('nan'), float('inf'), -float('inf'), 1e30, -1e30, 0.5, -0.5, 1e-40)) if k < 0.95 else float('nan')
                 words, this = [fw(value)], 0
 
+            if name == 'PhysicsUpdate' and trial == 0:
+                physics_sequence_seed = (bytes(memory), dict(fixture_globals), dict(fixture_code_fields), dict(returns))
             attempts[name] += 1
             try:
                 a, b = run(name, memory, words, precision, this)
@@ -1455,6 +1641,21 @@ def main():
                 else:
                     chosen = [key for key in ('ManagerAC', 'ManagerB0', 'ManagerB4') if key in names]
                     note('create-called-' + (chosen[0] if chosen else 'none'))
+            if name == 'PhysicsFactory':
+                note('physics-factory-constructed' if 'PhysicsConstruct' in names else 'physics-factory-null')
+                note('physics-factory-allocated' if 'bMalloc' in names else 'physics-factory-insufficient-heap')
+                if 'bMalloc' in names and 'PhysicsConstruct' not in names: note('physics-factory-allocation-failed')
+            if name == 'PhysicsUpdate':
+                note('physics-composed' if prephysics else 'physics-direct-input')
+                note('physics-override' if 'PhysicsOverride' in names else 'physics-normal')
+                if 'PhysicsMode10' in names and fixture_globals.get(0x827e98) == struct.pack('<i',1) and 'PhysicsOverride' not in names:
+                    state = struct.unpack_from('<i',memory,0x3bd00)[0]
+                    note('physics-suppressed-mode-%d' % state)
+                if 'PhysicsPlay' in names: note('physics-notification-play')
+                if 'PhysicsQuery' in names: note('physics-notification-query')
+                if 'PhysicsHash' in names: note('physics-notification-hash')
+            if name == 'PhysicsOverride':
+                note('physics-sequence-kind-%d' % struct.unpack_from('<i', memory, CAR - ARENA + 0xc4)[0])
             for label, count_value in a['counters'].items():
                 if label.startswith('gain-'): paths[label] = paths.get(label, 0) + count_value
             if name == 'ControlUpdate':
@@ -1522,7 +1723,7 @@ def main():
         for precision in PRECISIONS:
             memory = random_memory()
             fixture_globals.clear(); fixture_code_fields.clear(); callback_writes.clear(); returns.clear()
-            preconstruct = preselect = precontrol = False
+            preconstruct = preselect = precontrol = prephysics = False
             complete_reads = 0; observe_gains = True
             seed_gain_inputs(memory, 0)
             callback_writes.clear()
@@ -1564,6 +1765,42 @@ def main():
                 memory = bytearray(a['arena'])
         paths['control-sequence-steps'] = sequence_steps
 
+    if physics_sequence_seed is not None:
+        name = 'PhysicsUpdate'
+        steps = 0
+        for precision in PRECISIONS:
+            memory = bytearray(physics_sequence_seed[0])
+            fixture_globals.clear(); fixture_globals.update(physics_sequence_seed[1])
+            fixture_code_fields.clear(); fixture_code_fields.update(physics_sequence_seed[2])
+            returns.clear(); returns.update(physics_sequence_seed[3])
+            callback_writes.clear()
+            preconstruct = preselect = precontrol = observe_gains = False
+            for frame in range(192):
+                prephysics = frame == 0
+                physics, owner, inputs = ARENA + 0x3a000, ARENA + 0x3a200, ARENA + 0x3b000
+                fixture_globals[0x827ec8] = struct.pack('<i', int(8 <= frame < 112 or 128 <= frame < 160))
+                fixture_globals[0x827eb0] = bytes(4); fixture_globals[0x827e98] = bytes(4)
+                fixture_globals[0x82a3a4] = bytes(4); fixture_globals[0x7fbed8] = struct.pack('<f',100.)
+                pk(memory, CAR + 0x14, '<i', 2)
+                pk(memory, CAR + 0x34, '<f', frame / 60.)
+                pk(memory, CAR + 0xb4, '<B', int(frame == 128))
+                pk(memory, CAR + 0xb8, '<ff', 5., 2000.)
+                pk(memory, CAR + 0xc0, '<B', int(frame == 8))
+                pk(memory, CAR + 0xc4, '<i', 6)
+                pk(memory, owner + 0x434, '<i', (frame // 32) % 6)
+                pk(memory, owner + 0x440, '<f', 850. + (frame % 32) * 250.)
+                pk(memory, inputs + 0x20c, '<f', (0.,0.25,1.,0.5)[(frame // 8) % 4])
+                attempts[name] += 1
+                try:
+                    a,b = run(name,memory,[fw(1/60.)],precision,physics)
+                    check(name,precision,a,b)
+                except AssertionError as error:
+                    record_failure(name,frame,precision,AssertionError(('state or call order mismatch','physics sequence',error)))
+                    break
+                counts[name] += 1; steps += 1
+                memory = bytearray(a['arena'])
+        paths['physics-sequence-steps'] = steps
+
     report_counts = dict(counts)
     total = sum(counts.values())
     failed_counts = {name: sum(1 for f in failures if f[0] == name) for name in selected}
@@ -1592,7 +1829,41 @@ def main():
         def gain_mutation(before, after):
             assert before in gain_source, before
             return ('gains', gain_source, gain_source.replace(before, after))
+        physics_source = (ROOT / SOURCES['physics']).read_text()
+        def physics_mutation(before, after):
+            assert physics_source.count(before) == 1, before
+            return ('physics', physics_source, physics_source.replace(before,after,1))
+        def factory_mutation(before,after):
+            text = (ROOT / SOURCES['physics_factory']).read_text()
+            assert text.count(before) == 1
+            return ('physics_factory',text,text.replace(before,after,1))
+        def maximum_mutation(before,after):
+            text = (ROOT / SOURCES['physics_max']).read_text()
+            assert text.count(before) == 1
+            return ('physics_max',text,text.replace(before,after,1))
         mutations = {
+            'physics-factory-boundary': factory_mutation('> 0x4f3', '>= 0x4f3'),
+            'physics-factory-size': factory_mutation('(0xf4,', '(0xf0,'),
+            'physics-factory-heap-mask': factory_mutation('& 7)', '& 15)'),
+            'physics-maximum-zero': maximum_mutation('float maximum = engineSpecMaximumZero7D7D3C;', 'float maximum = samples10[0];'),
+            'physics-maximum-record-offset': maximum_mutation('record0->engine1F0', 'reinterpret_cast<char *>(record0) + 0x1f4'),
+
+            'physics-mode-word': physics_mutation('return value40 != 0;', 'return value28 != 0;'),
+            'physics-constructor-capacity': physics_mutation('average94.Construct(2);', 'average94.Construct(4);'),
+            'physics-constructor-unwritten': physics_mutation('    flagD0 = 0;', '    flagD0 = 0; flag6C = 0;'),
+            'physics-bind-destination': physics_mutation('    car68->value40 = this;', '    car->value40 = 0;'),
+            'physics-activation-endpoint': physics_mutation('    value7C = engine[2];', '    value7C = engine[1];'),
+            'physics-force-override': physics_mutation('engineSoundOverride82A3A4 > 0', 'engineSoundOverride82A3A4 >= 0'),
+            'physics-throttle-scale': physics_mutation('input30->throttle20C * engineSoundPercent784258', 'input30->throttle20C * ginsuOne784250'),
+            'physics-normalized-range': physics_mutation('engineSoundRange78C194 + engineControlMinimum784550', 'engineSoundRange78C194 + ginsuZero7D7D3C'),
+            'physics-published-throttle': physics_mutation('    car68->value54 = value8C;\n    if (flag6C', '    car68->value54 = value84;\n    if (flag6C'),
+            'physics-notification-query': physics_mutation('Notification8()->Query46C9A0() == 0', 'Notification8()->Query46C9A0() != 0'),
+            'physics-notification-completion': physics_mutation('Clear45AD40(8);', 'Clear45AD40(9);'),
+            'physics-sequence-step': physics_mutation('if (valueE0 == 4)', 'if (valueE0 == 3)'),
+            'physics-sequence-next-pair': physics_mutation('else valueE8 += 2;', 'else valueE8 += 1;'),
+            'physics-sequence-countdown': physics_mutation('if (valueD4 == 0) valueDC = 1;', 'if (valueD4 == 1) valueDC = 1;'),
+            'physics-ramp-clamp': physics_mutation('fraction = ginsuOne784250;', 'fraction = ginsuZero7D7D3C;'),
+
             'gain-prepare-delta': gain_mutation('engine6C->value128 - engine6C->value12C', 'engine6C->value12C - engine6C->value128'),
             'gain-prepare-fill': gain_mutation('averageC4.FillSamples(', 'averageC4.AdvanceSample('),
             'gain-prepare-recalculate': gain_mutation('    static_cast<EngineAverageVtable *>(averageC4.vtable0)->recalculate4(&averageC4);', ''),
