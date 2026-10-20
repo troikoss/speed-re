@@ -33,22 +33,70 @@ struct EngineSoundVtable {
 };
 
 struct EngineSoundControl {
-    char unidentified0[0x80];
+    char unidentified0[0x7c];
+    int value7C;
     int value80;
     int value84;
-    char unidentified88[0x34];
+    char unidentified88[0x30];
+    int valueB8;
     float valueBC;
+    unsigned char flagC0;
+    char unidentifiedC1[0x37];
+    float frequencyF8;
+};
+
+struct EngineParameterDispatcher {
+    int Dispatch735580(void *values); // snd callback dispatch, not recovered
+};
+
+struct EngineSoundParameters {
+    EngineParameterDispatcher *dispatcher0;
+    int value4;
+    int value8;
+    int valueC;
+    int value10;
+    int value14;
+    int value18;
+    char unidentified1C[0x1c];
+    int value38;
+    int value3C;
+    int value40;
+    int value44;
+    int value48;
+    char unidentified4C[0xc];
+    int value58;
+    int value5C;
+    int value60;
+    int value64;
+    int value68;
+};
+
+struct EngineSoundAuxiliary;
+struct EngineSoundAuxiliaryVtable {
+    void *unidentified0[14];
+    float (__fastcall *value38)(EngineSoundAuxiliary *);
+};
+
+struct EngineSoundAuxiliary {
+    EngineSoundAuxiliaryVtable *vtable0;
+    char unidentified4[0x130];
+    int value134;
+    int value138;
 };
 
 struct EngineSound {
     void Setup47D740();
     void Update473E60();
     void Update474030();
+    void Update474310();
 
     EngineSoundVtable *vtable0;
     char unidentified4[0x98];
     EngineSoundCar *car9C;
-    char unidentifiedA0[0x1c];
+    char unidentifiedA0[0x10];
+    EngineSoundParameters *parametersB0;
+    int valueB4;
+    EngineSoundAuxiliary *auxiliaryB8;
     float valueBC;
     EngineSoundControl *controlC0;
     int valueC4;
@@ -65,6 +113,8 @@ typedef char EngineSoundViewSizeCheck[sizeof(EngineSound) == 0x110 ? 1 : -1];
 
 UG2_CHECK_OFFSET(EngineSound, car9C, 0x9c);
 UG2_CHECK_OFFSET(EngineSound, valueBC, 0xbc);
+UG2_CHECK_OFFSET(EngineSound, parametersB0, 0xb0);
+UG2_CHECK_OFFSET(EngineSound, auxiliaryB8, 0xb8);
 UG2_CHECK_OFFSET(EngineSound, controlC0, 0xc0);
 UG2_CHECK_OFFSET(EngineSound, activeC8, 0xc8);
 UG2_CHECK_OFFSET(EngineSound, slotsCC, 0xcc);
@@ -74,6 +124,14 @@ UG2_CHECK_OFFSET(EngineSound, volume10C, 0x10c);
 UG2_CHECK_OFFSET(EngineSoundControl, value80, 0x80);
 UG2_CHECK_OFFSET(EngineSoundControl, value84, 0x84);
 UG2_CHECK_OFFSET(EngineSoundControl, valueBC, 0xbc);
+UG2_CHECK_OFFSET(EngineSoundControl, value7C, 0x7c);
+UG2_CHECK_OFFSET(EngineSoundControl, valueB8, 0xb8);
+UG2_CHECK_OFFSET(EngineSoundControl, flagC0, 0xc0);
+UG2_CHECK_OFFSET(EngineSoundControl, frequencyF8, 0xf8);
+UG2_CHECK_SIZE(EngineSoundParameters, 0x6c);
+UG2_CHECK_OFFSET(EngineSoundParameters, value38, 0x38);
+UG2_CHECK_OFFSET(EngineSoundParameters, value68, 0x68);
+UG2_CHECK_OFFSET(EngineSoundAuxiliary, value134, 0x134);
 
 // bWare allocation wrapper 0x440820; available-byte query 0x43e910 remains a heap seam.
 void *EngineSoundAllocate440820(int size, int flags);
@@ -84,6 +142,10 @@ extern int engineSoundValue82A998;
 extern int engineSoundValue82B078;
 extern float engineSoundScale78A2E0; // 4096.0f
 extern float engineSoundScale78AF80; // 120.0f
+extern int engineSoundValue82B070;
+extern int engineSoundValue82B880;
+extern float engineSoundScale78AF84; // -16383.0f
+extern float engineSoundScale78A1C8; // binary32 approximation of 10.24
 
 // Stateful snd boundaries reached by the controllers. Names stay address-based
 // until the middleware parameter semantics are established from its consumers.

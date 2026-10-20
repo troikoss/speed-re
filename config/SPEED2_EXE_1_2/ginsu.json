@@ -125,6 +125,11 @@
       "address": "0x463f10",
       "size": 19,
       "sha256": "96678ecee4f068486158c31d3d5d5c37f95428a1277dc4737850b91889b8660f"
+    },
+    "EngineUpdate": {
+      "address": "0x474310",
+      "size": 658,
+      "sha256": "378386cc5c1b256e686c9ea2c9d087b15d24607141dbf35af71a59f9d82ff504"
     }
   }
 }

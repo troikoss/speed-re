@@ -10,7 +10,7 @@ retail copy checked; header `Gnsu20`, little-endian). The `GinsuSynthData` layou
 `SND_attrsetdef` writes `platformver` 0 and `rendermode` 0.
 
 Sources: `src/Speed/Indep/Src/EAXSound/Ginsu/{Ginsu.h,GinsuData.cpp,GinsuSynth.cpp}`.
-Engine setup: `src/Speed/Indep/Src/EAXSound/Ginsu/{EngineSound.h,EngineSoundSetup.cpp,EngineSoundController.cpp}`.
+Engine setup: `src/Speed/Indep/Src/EAXSound/Ginsu/{EngineSound.h,EngineSoundSetup.cpp,EngineSoundController.cpp,EngineSoundUpdate.cpp}`.
 Native seams: `src/Platform/Native/{NativeAudio.cpp,NativeAudio.h,NativeEngineSound.cpp,NativeEngineSound.h}`.
 
 ## Recovered routines
@@ -42,6 +42,7 @@ Native seams: `src/Platform/Native/{NativeAudio.cpp,NativeAudio.h,NativeEngineSo
 | `0x47d740` | `EngineSound::Setup47D740` | one/two-slot setup; native demo calls mode 0 with a scaffold bank view |
 | `0x473e60` | `EngineSound::Update473E60` | one-slot controller; recovered and verified, native integration open |
 | `0x474030` | `EngineSound::Update474030` | two-slot controller; recovered and verified, native integration open |
+| `0x474310` | `EngineSound::Update474310` | control frequency source, one/two-slot selection and parameter-block tail; recovered and verified, native integration open |
 
 The frequency range in the `.gin` header is engine RPM: `GIN_Mazda_Miata_DCL.gin`
 spans about 2171 to 6852.
@@ -207,7 +208,7 @@ Limitations (see the verifier's report for the full list):
   recovered. The native player applies no volume, so the controller's volume is absent.
 - The controllers `0x473e60` and `0x474030` are recovered and behaviorally checked,
   including the second slot's feed. Native integration remains open: the control-state
-  producer, the rest of caller `0x474310`, the producer of the per-car gin table
+  producer, virtual queries, parameter callback dispatch `0x735580`, the producer of the per-car gin table
   at `0x82b884`, virtual gain/spatial queries and snd setters. The demo still feeds
   one synthesizer directly with engine RPM.
 - Not yet located in UG2: a stop or current-pitch routine of the synthesizer,
@@ -331,8 +332,8 @@ Caller lead: original bytes `0x474310..0x47434b`, read through Ghidra MCP and
 independently decoded with Capstone, copy control `+0xf8` to `+0x104`, set `+0xbc`
 to 1, and call one-slot mode when the car mode at `+0x78` is zero, two-slot
 otherwise. At the controller checkpoint Ghidra had no function defined for this code.
-Its later decompilation is recorded below; the caller's remainder and the
-producer of control `+0xf8` are still not recovered
+The full caller is now recovered and compared below; the producer of
+control `+0xf8` remains open
 or covered by the controller verifier. This corrects the earlier lead that
 virtual `+0x38` supplied engine RPM.
 
@@ -419,9 +420,8 @@ Construction leads from original initialization `0x4853c0`: the selected
 manager vtables are `0x78a3b0`, `0x78a418` and `0x78a3e0`. Their slot `+0x10`
 words, read through Ghidra MCP, point to `0x463cc0`, `0x463cc0` and `0x463f10`.
 Ghidra decompilation and original instruction listings of the two manager
-entries confirm the lookup/queue recovery above. Controller caller `0x474310` was also decompiled; its body
-extends the known prefix with additional sound-parameter updates and remains
-unrecovered. Manager pool creation and sound-object context/bind implementations
+entries confirm the lookup/queue recovery above. Controller caller `0x474310` was also decompiled and subsequently recovered
+as described below, including its additional sound-parameter updates. Manager pool creation and sound-object context/bind implementations
 remain separate dependencies.
 
 The extended Ginsu verifier compares the constructor over randomized object
@@ -486,3 +486,84 @@ UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_car_construction.py -
 
 MSVC/wibo checks ran sequentially. Byte matching and enabled-audio runtime
 integration remain unestablished.
+
+
+## Engine controller caller recovery (2026-10-20)
+
+`EngineSoundUpdate.cpp` recovers the full `0x474310..0x4745a1` body (658 bytes),
+pinned in `ginsu.json`. Ghidra decompilation and original disassembly were
+inspected. Unknown meanings of the parameter block remain offset-based; the
+source does not assign guessed volume/pan semantics to those fields.
+
+The caller copies the raw word at control `+0xf8` to engine sound `+0x104`,
+sets sound `+0xbc` to float 1, and calls `0x473e60` for car mode 0 or `0x474030`
+for every nonzero mode. The raw copy preserves NaN payloads. The parameter
+block at sound `+0xb0` is optional; the tail runs independently of the child
+controllers' active-byte gate. Its additional integer gain comes from another
+virtual `+0x38(0)` call, after the child controller has updated frequency.
+
+Let `mul32(a,b)` retain the low 32 product bits, and `sar` denote signed right
+shift. The complete tail writes:
+
+| Parameter offset | Original input/operation | Clamp |
+| --- | --- | --- |
+| `+0x14`, `+0x18` | `sar(mul32(control[+0x7c], gain), 15) - 32767` | -32767..0 |
+| `+0x68` | `sar(mul32(control[+0xb8], gain), 15)` | 0..32767 |
+| `+0x08` | truncation of **post-controller** sound frequency `+0x104` | 0..10000 |
+| `+0x44` | wrapped `-16383 - trunc(sound[+0xbc] * float[0x78af84])`; scale is -16383 | -16383..16383 |
+| `+0x10` | truncation of auxiliary `+0xb8` object's virtual `+0x38()` float result times float `0x78a1c8` (binary32 10.24 approximation) | 0..1024 |
+| `+0x48` | auxiliary object word `+0x134`, read after its virtual query | 0..1024 |
+| `+0x40` | sound object's virtual `+0x3c(0)` | 0..65536 |
+| `+0x38` | wrapped `saved global[0x82b880] - 32767` | -32767..0 |
+| `+0x3c` | saved `sar(mul32(global[0x82b070], gain), 15)` | 0..32767 |
+| `+0x58` | auxiliary object word `+0x138` | 0..25000 |
+| `+0x5c` | 11000 when control byte `+0xc0` is set, otherwise 0 | — |
+| `+0x64` | 0 | — |
+
+The two saved global values are captured before later virtual calls. The float
+return stays in ST0 until multiplication and truncation; adding a float store
+changes boundary results. If parameter word `+0` is nonzero, it becomes the
+receiver of middleware method `0x735580`, with the payload pointer at parameter
+`+4` as its single stack argument. The original callback-dispatch body is a
+separate mutex/callback-list routine and remains unrecovered here. Its body
+and native synchronization are not validated by this caller comparison.
+
+The extended verifier executes the caller together with the actual recovered
+one/two-slot controller and Ginsu frequency/cycle bodies. Virtual integer/float
+queries, snd setters and `0x735580` remain traced boundaries; CRT `0x75bed4`
+runs as retail code on both sides. The auxiliary query returns binary64 fixture
+values directly in ST0, including conversion boundaries, infinities and NaNs.
+Scripted callbacks change `+0xbc` after synthesis, update auxiliary/control
+fields before their subsequent reads, and overwrite both globals after the
+caller has saved their values. This tests the captured values and read order,
+not just a static object snapshot. Inactive synthesis cases include signalling
+and quiet NaN words in the frequency source to check bit-preserving copying.
+
+Compared: complete arena and selected globals, ordered calls and payload bytes,
+stack cleanup, preserved registers, and logical x87 stack/control word under
+both precisions. This remains bounded evidence; it does not establish the real
+virtual-query implementations, the producer of control `+0xf8`, native setter
+behavior, or enabled car-audio runtime integration. Byte identity is not claimed.
+The native demo still uses the direct-RPM scaffold; this caller is compiled
+into the recovery library and is not wired into playback yet.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets EngineUpdate --cases 1024
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets EngineUpdate --cases 384 --mutation-checks --mutation-source caller
+```
+
+All 13 caller mutants were rejected with state or call-order mismatches at 384
+cases; none survived or failed merely to compile. Mutations cover controller
+selection, factor reset, clamp endpoints, wrapped product, pre/post-controller
+frequency, both captured globals, float-return rounding, auxiliary field
+selection, the flag-controlled value, the zero store and the callback payload.
+
+
+Final full-suite result: 26 targets, 26,624 original/rebuilt comparisons (1,024
+per target), zero failures. Caller cases selected one/two slots in 269/755 runs,
+used a parameter block in 778 runs and dispatched its payload in 395. There
+were 848 active and 176 inactive synthesis cases, with 543 at 53-bit and 481
+at 64-bit x87 precision. The native build passed; playback smoke reported
+699 released packets, zero underrun frames and pitch/RPM Spearman correlation
+0.868. Native smoke still exercises the direct-RPM scaffold, not this caller's
+parameter/virtual/snd seams.
