@@ -78,6 +78,7 @@ struct EngineSoundPhysicsView {
     void Bind45D4F0(EngineSoundCar *car);
     void Activate45D370();
     void Update484C50(float duration);
+    void Post470A60();
     void Override46FA30(float duration);
     static void __cdecl Notify45D360();
 };
@@ -98,8 +99,11 @@ struct EngineSoundAccelView {
     char unidentifiedC4[4]; int valueC8;
 };
 
+struct EngineSoundScheduledNode;
 struct EngineSoundCarVtable {
-    void *unidentified0[17];
+    void *unidentified0[13];
+    void (__fastcall *pre34)(EngineSoundCar *);
+    void *unidentified38[3];
     int (__fastcall *value44)(EngineSoundCar *);
 };
 struct EngineSoundCar {
@@ -107,10 +111,13 @@ struct EngineSoundCar {
     char unidentified4[0xc];
     int bankIndex10;
     int kind14;
-    char unidentified18[0x18];
+    char unidentified18[4];
+    EngineSoundScheduledNode *first1C, *first20;
+    int value24, value28, count2C;
     MoverModeOwner *car30;
     float time34;
-    char unidentified38[8];
+    float delta38;
+    char unidentified3C[4];
     EngineSoundPhysicsView *value40;
     float value44;
     float value48;
@@ -143,6 +150,11 @@ struct EngineSoundCar {
     char unidentifiedC8[4];
     int Value479700();
     EngineSoundCar *Construct479660();
+    void Bind464BA0(MoverModeOwner *owner);
+    void Sort464A10();
+    void Update464C10(float duration);
+    void Update469CF0(float duration);
+    void Post469CB0();
     void Select4593B0(MoverContext *context);
 };
 
@@ -159,12 +171,18 @@ struct EngineSoundSlot {
 
 struct EngineSound;
 struct EngineSoundVtable {
-    void *unidentified0[14];
+    void *unidentified0[9];
+    void (__fastcall *value24)(EngineSound *, void *, float);
+    void (__fastcall *value28)(EngineSound *);
+    void *unidentified2C[2];
+    void (__fastcall *value34)(EngineSound *);
     // MSVC 7.1 cannot spell a free __thiscall pointer. This ABI view keeps
     // this in ECX and the one stack argument; the dummy EDX is not an argument
     // of the retail callee. Both calls and RET 4 are checked by the verifier.
     int (__fastcall *value38)(EngineSound *, void *, int);
     int (__fastcall *value3C)(EngineSound *, void *, int);
+    void *unidentified40[2];
+    void (__fastcall *value48)(EngineSound *);
 };
 
 struct EngineSoundAuxiliary;
@@ -204,7 +222,9 @@ struct EngineSoundControl {
     float value108;
     EngineSoundControl *Construct45CE20();
     void Bind45CF90(EngineSoundCar *car);
+    void Activate45D050();
     void Update47C3D0(float duration);
+    void Post470940();
     void Scale45D190();
     void Prepare45D0A0();
     void ModeOne4701A0(float duration);
@@ -416,6 +436,7 @@ struct EngineSound {
     void Update473E60();
     void Update474030();
     void Update474310();
+    void Forward460FF0();
 
     EngineSoundVtable *vtable0;
     char unidentified4[0x44];

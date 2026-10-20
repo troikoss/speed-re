@@ -675,6 +675,71 @@
       "address": "0x43e6d0",
       "size": 326,
       "sha256": "ae1a41c8e94daa3da152dd4309072465dd0befee482363f79703f959c5ae5ca2"
+    },
+    "CarBind": {
+      "address": "0x464ba0",
+      "size": 10,
+      "sha256": "396b31693515cb75cdf9173465c8199f0fd5acb695d04b0d980f5707d6686b6f"
+    },
+    "CarSort": {
+      "address": "0x464a10",
+      "size": 184,
+      "sha256": "f212e42d9fba9be2bcc063d214486dadf8869148d7286f0f2ee7fd5de203ea4e"
+    },
+    "CarSchedule": {
+      "address": "0x464c10",
+      "size": 111,
+      "sha256": "d191cc4d1788be2de86b17580bc2b15f54d20100cdd9d13cfbfdffcf89c282d1"
+    },
+    "CarFrame": {
+      "address": "0x469cf0",
+      "size": 38,
+      "sha256": "fac757be083ad59052b1a354cd769485587b5a0cfbe5721ce50203a3fd0d2a9a"
+    },
+    "CarPlayback": {
+      "address": "0x469cb0",
+      "size": 32,
+      "sha256": "462991f7cddbd7c8e144e771d56d00360831da06220ef30e26d24425fd70836e"
+    },
+    "EngineForward": {
+      "address": "0x460ff0",
+      "size": 5,
+      "sha256": "e6f4891f4845e094413049e3bf793f2b19c1a51fa1bc608157059df4eff9e038"
+    },
+    "ScheduleNoop": {
+      "address": "0x4022c0",
+      "size": 1,
+      "sha256": "ae3f4619b0413d70d3004b9131c3752153074e45725be13b9a148978895e359e"
+    },
+    "ScheduleNoopArg": {
+      "address": "0x4031c0",
+      "size": 3,
+      "sha256": "e598d0c3ba86d917b177d7adde0556aa99bc355543c57aee0a3e50b684dd7e99"
+    },
+    "PhysicsPost": {
+      "address": "0x470a60",
+      "size": 617,
+      "sha256": "e5590951ee7f2cac8c2411898b25ffa50e8782296c7fafc8d5c32aefcb119bd2"
+    },
+    "ControlPost": {
+      "address": "0x470940",
+      "size": 186,
+      "sha256": "e99c8a4c7a8523820ef37e8924efc3947a6b57f081cb471171a1681f78f1434c"
+    },
+    "PhysicsFraction": {
+      "address": "0x5ec1f0",
+      "size": 73,
+      "sha256": "c4f523f469ddac6bef85c5f6ec28e2b0de44896f55ff58af4e26632395308f12"
+    },
+    "ApproachInt": {
+      "address": "0x468e70",
+      "size": 32,
+      "sha256": "e598d90ec75e8f7b505c76e0b9c8b7114245483a90e5e0d5e783830b51c3a609"
+    },
+    "ControlActivate": {
+      "address": "0x45d050",
+      "size": 22,
+      "sha256": "b6ddc4340da2da51b2d6820409338eca69a757532665324120488dc3f1f0fbdc"
     }
   }
 }

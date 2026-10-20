@@ -1,5 +1,13 @@
 #include "EngineSound.h"
 
+// 0x45d050: activate timing and clear only the three packed gain words.
+void EngineSoundControl::Activate45D050() {
+    active58 = 1;
+    value7C = 0;
+    value80 = 0;
+    value84 = 0;
+}
+
 // 0x45ce20: normal-return construction; Windows SEH scaffolding is not authored.
 // Preserve the original unwritten fields, including links +0x6c/+0x70/+0x74.
 EngineSoundControl *EngineSoundControl::Construct45CE20() {

@@ -1932,3 +1932,146 @@ those links calling `+0x24(duration)` then `+0x34()`. `0x469cf0` and derived
 These routines have been inspected in Ghidra but are not yet recovered/verified;
 the linked-list construction/order and the remaining virtual bodies are needed
 to replace the current manual native schedule faithfully.
+
+## Component sort, scheduler and post passes (2026-10-20)
+
+`EngineSoundSchedule.cpp` recovers input sorting `0x464a10` (184 bytes),
+car binding `0x464ba0` (10), the two-list scheduler `0x464c10` (111), its
+owner-gated wrapper `0x469cf0` (38), separate playback pass `0x469cb0` (32),
+playback tail-dispatch `0x460ff0` (5) and shared empty `RET`/`RET 4` leaves
+`0x4022c0`/`0x4031c0`. The sort collects into the original 64-entry scratch,
+uses `(key4C >> 4) & 127`, retains the initial comparison ceiling of 64,
+and preserves the strict tie comparison. It changes only the first list and
+its links. Counts, list lengths and keys remain unchecked; the recovery adds
+no bounds or clamping not present in the binary.
+
+The scheduler stores the raw duration at car `+0x38` and advances `+0x34`
+when the root's `+0x13` byte is clear; otherwise it zeroes `+0x38` only.
+That gate does not replace the duration passed to components. Each input
+receives `+0x14(duration)` followed by a freshly loaded table's `+0x18()`.
+The second head is read after that entire pass; each playback node receives
+`+0x24(duration)` and then `+0x34()`. Each next link is read after callbacks.
+The owner-gated wrapper checks its owner once, calls car virtual `+0x34`,
+runs that scheduler, then clears only byte `+0xc0`. The separate owner-gated
+playback pass calls each node's `+0x28`; the engine's implementation tail-calls
+its actual update at virtual `+0x48` (`0x474310`). This preserves the original
+phase boundary between component production and playback consumption.
+
+`EngineSoundSchedulePost.cpp` recovers Physics post-update `0x470a60`
+(617 bytes), HybridMotor post-update `0x470940` (186), four-flag fraction
+`0x5ec1f0` (73), and integer approach `0x468e70` (32). Physics post-update
+reloads owner speed for four independent extended product/conversion/clamp
+chains, emits the fifth packed value from car `+0x48`, queries the four
+owner flags at `+0x390..+0x393`, ramps prefix `+0x1c` by the original wrapped
+integer steps according to car `+0xa8`, produces player/camera flags, and
+retains the race-count/participant branch. That branch keeps signed bytes,
+wrapping additions, exact integer loading, the original conversion boundary,
+and the 491-step integer approach. The original CRT conversion remains the
+analysis dependency already documented above.
+
+HybridMotor post-update checks the converted owner speed and absolute
+sample-average delta, retains the raw-word last-time copy, and checks the
+extended last-time-plus-delay expression. An active path consumes a bounded
+random value only when its unsigned 16-bit countdown is zero, adds 60, requests
+auxiliary `+0x152`, and decrements the countdown. Prefix `+4` ramps by 983 or
+196 using wrapped arithmetic. The random seed and deferred request are shared
+with the already recovered auxiliary pulse producer; this call was previously
+absent from native frames. Unknown packed fields remain offset-based.
+
+Native ownership still supplies the four recovered input objects and one
+playback object. The key encoding is traced to factory selector `0x476890`;
+the original sort now places Physics (ID 0), auxiliary (5), HybridMotor (6)
+and spatial (8) in that order. The original registry, dependency resolver and
+list construction (`0x476890`, `0x476f80`, `0x47f710`) remain unrecovered, as do
+shift and accel producers. Their neutral fixture inputs remain explicit.
+Native ABI bridges supply original virtual methods; both newly recovered
+post-updates now run. Spatial consumes the auxiliary snapshot from the same
+frame, replacing the previously documented one-frame snapshot seam. Manager
+allocation/dispatch and the complete game-wide audio frame remain open.
+
+The native frame calls listener production, the actual car update wrapper,
+and the actual separate playback pass. It no longer manually increments car
+time or schedules Physics/auxiliary/HybridMotor/spatial/playback itself.
+Overall level/pan remains the native packed-source fixture, and parameter and
+notification ownership remain incomplete. Recovering packed prefix producers
+does not establish all consumers or complete positional/filter DSP.
+
+The first 512-case standalone check passed 6144 comparisons over the twelve
+new targets. Scripted callback cases cover changed vtables, next links and
+second-list heads, the root clock gate, owner changes during the pre-callback,
+raw duration and byte cleanup, stable ties, zero/negative/short counts, full
+32-bit approach inputs, fractional flag combinations and the independent post
+branches. Sort fixtures use at most six nodes, scratch counts through seven,
+and keys 0..63; cycles, overlong lists and invalid-key original faults are
+excluded. Constructed engine cases supply the valid kind-1/2 binding inputs. Explicit
+vtable relocations make every recovered virtual callee execute rebuilt code;
+the execution guard rejects entry into its retail body. The composed baseline
+passed 2048 comparisons, including 512 carried car frames at both x87 precisions. Playback is inactive in those binary
+compositions; its controllers and active native GIN playback are checked
+separately. These claims are behavioral evidence, not a full byte match.
+
+The native build and all six CTest checks pass. The 600-frame SKYLINE smoke
+has RMS 2006 LSB, 656 releases, zero underruns and pitch/RPM correlation 0.836
+(pass). The 350Z has RMS 7595 LSB, 1170 releases and zero underruns, but its
+correlation 0.497 still fails the unchanged 0.50 gate. Neither profile enters
+the high-RPM gate. Retail acoustic equivalence is not established.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets CarBind,CarSort,CarSchedule,CarFrame,CarPlayback,EngineForward,ScheduleNoop,ScheduleNoopArg,PhysicsPost,ControlPost,PhysicsFraction,ApproachInt --cases 512
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets CarBind,CarSort,CarSchedule,CarFrame,CarPlayback,EngineForward,ScheduleNoop,ScheduleNoopArg,PhysicsPost,ControlPost,PhysicsFraction,ApproachInt --cases 128 --mutation-checks --mutation-source schedule --mutation-source schedule_post
+```
+
+The strengthened carried run holds filtered RPM steady for a bounded interval
+and keeps the original average producer active. It reaches the delayed
+HybridMotor pulse request once per x87 precision (two total), then carries
+that request into the actual auxiliary pulse producer on the following frame.
+All nine scheduler/post mutations fail by state/call mismatches, with no
+survivors or compile-only rejections: clock-duration substitution, cached
+vtable, unstable ties, key mask, owner gate, fraction equality, race-count
+sign, countdown threshold and packed ramp. The mutation baseline passed 2048
+comparisons, including all 512 carried frames.
+
+Final integration follow-up recovers HybridMotor activation `0x45d050`
+(22 bytes): set `+0x58` and clear only `+0x7c`, `+0x80`, `+0x84`. The native
+session now calls this original body after binding, so its component clock
+advances and the post-update can reach the original delayed request. Composed
+scheduler fixtures likewise call actual activation instead of writing its flag.
+The four added scheduling leaves (car bind, engine tail and both empty leaves)
+match their complete 10/5/1/3-byte original bodies in the strict MSVC check.
+Before that activation addition, the full 147-target regression passed 40192
+comparisons with zero failures; the final activation-inclusive run follows.
+
+Native sorted spatial diagnostics begin at `distance4=0`, `distance8=6`,
+with unity average. Over the 600-frame SKYLINE run the ranges are 0, 6..7 and
+1 respectively. This removes the previous first-frame 1905-distance artifact
+through the recovered component ordering rather than a coordinate override.
+
+Next component descriptors are confirmed in the binary: `SFXCTL_Shifting`
+(type 3, descriptor `0x7ed2a4`, factory `0x46ebd0`, size `0x15c`, constructor
+`0x45c0d0`, vtable `0x789f28`) and `SFXCTL_AccelTrans` (type 4, descriptor
+`0x7ed2d4`, factory `0x46ffa0`, size `0xdc`, constructor `0x45c9c0`, table
+`0x789fb8`). Engine dependency 7 is `SFXCTL_Tunnel` (`0x7ed314`, factory
+`0x471000`, size `0xe0`, constructor `0x45d950`, table `0x78a064`). These
+remain investigation targets, not recovered source. `SFXCTL_MasterVol`
+(`0x7ed334`, factory `0x471930`, constructor `0x45dc80`) also remains open.
+
+Final activation-inclusive full regression passed 40448 comparisons across
+148 targets with zero failures, including 2560 carried steps. After aligning
+the three activation stores with their binary order, a focused rerun passed
+896 comparisons (including 512 complete car frames), and both activation
+mutations were rejected by state/call mismatches. Activation now matches its
+complete 22-byte original body; together with the four new scheduling leaves
+and nine existing leaves, fourteen strict byte checks pass. The comparison
+commands above remain separate from the active native audio observations.
+
+On the final native build, all six CTest checks pass. The last 600-frame
+SKYLINE run has RMS 1794 LSB, 904 packet releases, zero underruns and
+correlation 0.808 (pass); 350Z has RMS 7378 LSB, 1150 releases and zero
+underruns, but correlation 0.390 remains below 0.50. Earlier smoke numbers
+in this section describe the preceding integration stages. All profiles
+still miss the high-RPM gate. The complete audio objective remains open.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 256
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets ControlActivate,CarFrame,CarSchedule --cases 128 --mutation-checks --mutation-source control_lifecycle --mutation-name schedule-control-activate --mutation-name schedule-control-gains
+```

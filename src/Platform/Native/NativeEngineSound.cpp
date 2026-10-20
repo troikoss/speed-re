@@ -1,5 +1,6 @@
 // Native adapter around recovered engine construction, bank loading and Ginsu setup.
-// Component scheduling/lifecycle, shift/effect inputs, file I/O and heap remain seams.
+// Registry/list ownership, shift/accel inputs, file I/O and heap remain seams.
+// Recovered sort, component scheduling and post passes execute through ABI bridges.
 #include "NativeEngineSound.h"
 #include "NativeAudio.h"
 #include "NativeEngineBankIO.h"
@@ -8,6 +9,7 @@
 #include "../../Speed/Indep/Src/Physics/VehicleMover.h"
 #include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSoundPhysics.h"
 #include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSoundSpatial.h"
+#include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSoundSchedule.h"
 
 #include <SDL2/SDL.h>
 #include <stdlib.h>
@@ -32,6 +34,7 @@ struct NativeEnginePlayback {
     EngineSoundAuxiliaryVtable auxiliaryVtable;
     EngineSoundSpatialComponent spatial;
     EngineSoundSpatialVtable spatialVtable;
+    EngineSoundScheduleVtable physicsVtable, controlVtable;
 };
 
 // Notification ownership is still absent. Normal native playback explicitly
@@ -63,6 +66,61 @@ void __fastcall AuxiliaryOffsets(EngineSoundAuxiliary *value, void *, float dura
 void __fastcall SpatialSelect(EngineSoundSpatialComponent *value, void *, int listener) {
     value->Select45E100(listener);
 }
+void __fastcall PhysicsUpdate(EngineSoundScheduledNode *value, void *, float duration) {
+    reinterpret_cast<EngineSoundPhysicsView *>(value)->Update484C50(duration);
+}
+void __fastcall PhysicsPost(EngineSoundScheduledNode *value) { reinterpret_cast<EngineSoundPhysicsView *>(value)->Post470A60(); }
+void __fastcall AuxiliaryUpdate(EngineSoundScheduledNode *value, void *, float duration) {
+    reinterpret_cast<EngineSoundAuxiliary *>(value)->Update47C010(duration);
+}
+void __fastcall ControlUpdate(EngineSoundScheduledNode *value, void *, float duration) {
+    reinterpret_cast<EngineSoundControl *>(value)->Update47C3D0(duration);
+}
+void __fastcall ControlPost(EngineSoundScheduledNode *value) { reinterpret_cast<EngineSoundControl *>(value)->Post470940(); }
+void __fastcall SpatialUpdate(EngineSoundScheduledNode *value, void *, float duration) {
+    reinterpret_cast<EngineSoundSpatialComponent *>(value)->Update471DC0(duration);
+}
+void __fastcall EmptyPost(EngineSoundScheduledNode *value) { EngineSoundNoop4022C0(value); }
+void __fastcall CarPre(EngineSoundCar *value) { EngineSoundNoop4022C0(value); }
+void __fastcall EngineTick(EngineSound *value, void *, float duration) { EngineSoundNoop4031C0(value, 0, duration); }
+void __fastcall EngineNoop(EngineSound *value) { EngineSoundNoop4022C0(value); }
+void __fastcall EngineForward(EngineSound *value) { value->Forward460FF0(); }
+void __fastcall EngineFrame(EngineSound *value) { value->Update474310(); }
+
+void InitialiseSchedule(NativeEnginePlayback *session) {
+    EngineSoundScheduledNode *inputs[] = {
+        reinterpret_cast<EngineSoundScheduledNode *>(&session->physics),
+        reinterpret_cast<EngineSoundScheduledNode *>(&session->spatial),
+        reinterpret_cast<EngineSoundScheduledNode *>(&session->auxiliary),
+        reinterpret_cast<EngineSoundScheduledNode *>(&session->control)};
+    const unsigned int ids[] = {0, 8, 5, 6};
+    // Registry/factory ownership remains native. 0x476890 supplies this key
+    // encoding; 0x464a10 sorts the original low-seven-bit component IDs.
+    for (int i = 0; i < 4; ++i) {
+        inputs[i]->key4C = ((((unsigned int)session->car.kind14 << 5) |
+                             (unsigned int)session->car.bankIndex10) << 7 | ids[i]) << 4;
+        inputs[i]->next50 = i == 3 ? 0 : inputs[i+1];
+    }
+    session->car.first1C = inputs[0];
+    session->car.count2C = 4;
+    session->car.first20 = reinterpret_cast<EngineSoundScheduledNode *>(&session->engine);
+    session->car.Sort464A10();
+    session->physicsVtable.update14 = PhysicsUpdate;
+    session->physicsVtable.post18 = PhysicsPost;
+    inputs[0]->vtable0 = &session->physicsVtable;
+    session->controlVtable.update14 = ControlUpdate;
+    session->controlVtable.post18 = ControlPost;
+    inputs[3]->vtable0 = &session->controlVtable;
+    inputs[1]->vtable0->update14 = SpatialUpdate;
+    inputs[1]->vtable0->post18 = EmptyPost;
+    inputs[2]->vtable0->update14 = AuxiliaryUpdate;
+    inputs[2]->vtable0->post18 = EmptyPost;
+    session->carVtable.pre34 = CarPre;
+    session->vtable.value24 = EngineTick;
+    session->vtable.value28 = EngineForward;
+    session->vtable.value34 = EngineNoop;
+    session->vtable.value48 = EngineFrame;
+}
 // The original callbacks retain pointers into auxiliary/vehicle storage.
 void __fastcall SpatialPosition(EngineSoundSpatialComponent *value, void *, float *position) {
     value->SetPosition45E1D0(position);
@@ -76,6 +134,7 @@ void InitialiseControlSession(NativeEnginePlayback *session) {
     EngineSoundControl &control = session->control;
     control.Construct45CE20();
     control.Bind45CF90(&car);
+    control.Activate45D050();
     // Registry attachment/scheduling remain a native session seam.
     control.engine6C = &session->auxiliary;
     control.value70 = &session->shift;
@@ -110,7 +169,7 @@ bool NativeEngineSound::Load(const char *gameDirectory, MoverModeOwner *owner, c
     car.Construct479660();
     // Manager ownership/index allocation is still a native session seam.
     car.kind14 = owner->context14->value4;
-    car.car30 = owner;
+    car.Bind464BA0(owner);
     car.Select4593B0(owner->context14);
     if (ginOverride) {
         playback_->overrideRecord = *car.value80;
@@ -215,6 +274,7 @@ bool NativeEngineSound::Load(const char *gameDirectory, MoverModeOwner *owner, c
     engine.activeC8 = slots == 1 ? engine.slotsCC[0].startResult14 >= 0 :
         engine.slotsCC[0].startResult14 >= 0 && engine.slotsCC[1].startResult14 >= 0;
     started_ = engine.activeC8 != 0;
+    InitialiseSchedule(playback_);
 
     if (const char *logPath = getenv("UG2_ENGINE_LOG")) {
         log_ = fopen(logPath, "w");
@@ -232,19 +292,13 @@ void NativeEngineSound::Update(float rpm, float duration, int frame) {
     // ExportState 0x5a5540 already publishes the filtered engine value at
     // state +0x400 / owner +0x440. Consume that original field directly;
     // the raw RPM argument is used only by the diagnostic log.
-    playback_->car.time34 += duration;
     Audio82B884 *previous = audio82B884;
     audio82B884 = &playback_->audio;
     // Original audio frame 0x483b40 produces listeners before manager updates.
     // The native player points at the same finalized Camera used for rendering.
     EngineSoundUpdateListeners46D7E0();
-    playback_->physics.Update484C50(duration);
-    // Parent manager ordering remains a native scheduling seam. The retained
-    // position pointer addresses the auxiliary's most recent position snapshot.
-    playback_->spatial.Update471DC0(duration);
-    playback_->auxiliary.Update47C010(duration);
-    playback_->control.Update47C3D0(duration);
-    playback_->engine.Update474310();
+    playback_->car.Update469CF0(duration);
+    playback_->car.Post469CB0();
     audio82B884 = previous;
     if (log_ != 0) {
         fprintf(log_, "%u %d %.2f\n", (unsigned int)SDL_GetTicks(), frame, rpm);
