@@ -9,6 +9,7 @@ struct EngineSoundModeQueries {
     int value28;
     char unidentified2C[0x14];
     int value40;
+    unsigned char Is435950();
     bool Is430560();
     bool Is430420();
     bool Is430350();

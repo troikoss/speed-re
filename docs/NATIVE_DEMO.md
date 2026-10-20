@@ -703,16 +703,18 @@ keyboard/mouse/controller UI actions while accepting the scripted input.
 The demo plays the engine through the recovered Ginsu synthesizer when an audio device is
 open. Recovered participant selection chooses one or two files under
 `<game>/SOUND/ENGINE` from the car type and upgrades. Recovered construction,
-binding, bank loading and setup initialize the slots. Each unpaused frame runs
+binding, bank loading and setup initialize the slots. Each frame runs
 the recovered car scheduler: Physics and its post-update, shifting and its post-update, acceleration transitions, complete auxiliary,
 HybridMotor and its post-update, spatial, then the separate playback pass for
 both selected banks. The original component sort determines input order. Physics consumes the recovered vehicle export at owner
 `+0x440`. Listener producer `0x46d7e0` reads the same finalized camera used
 for rendering, then the spatial component computes distances, angles and
-Doppler averaging. The native session supplies its one-car manager list;
+Doppler averaging. Recovered global MasterVol runs before per-car inputs and
+shares the audio options mix record. Paused frames use the original zero time
+step for the component updates. The native session supplies its one-car manager list;
 registry/list construction, full manager dispatch, overall level/pan,
 notifications and parameter consumers remain seams. See
-[recovery and integration evidence](pc-ginsu.md#shifting-component-and-native-input-2026-10-20).
+[recovery and integration evidence](pc-ginsu.md#audio-mix-and-global-mastervol-2026-10-20).
 
 ```sh
 build/native/ug2demo --game "$UG2_DIR" --car SKYLINE                       # engine sound on
@@ -727,7 +729,7 @@ UG2_ENGINE_LOG=build/engine-rpm.log build/native/ug2demo --game "$UG2_DIR" # one
 - `--no-audio` skips the device. Without a device (no audio driver, or SDL refuses it) the
   demo prints a message and runs silent. The engine sound is not created then.
 - `UG2_ENGINE_LOG` writes a header `# audio_start_ticks N` (the device timeline) and one line
-  `ticks frame rpm` per frame, plus playback/control/auxiliary/spatial/acceleration/shifting diagnostics.
+  `ticks frame rpm` per frame, plus playback/control/auxiliary/spatial/acceleration/shifting/mix diagnostics.
   The smoke test pairs the output with this log.
 - At exit the demo prints the audio counters: callbacks, packets released to the
   synthesizer, and device frames with no packet (underruns).

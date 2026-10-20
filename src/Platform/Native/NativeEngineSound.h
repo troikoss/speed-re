@@ -19,7 +19,8 @@ public:
     // then construction, binding, bank loading and setup. Missing/invalid banks report an error.
     bool Load(const char *gameDirectory, MoverModeOwner *owner, const char *ginOverride, char *error, int errorSize);
     // Recovered physics, shifting, acceleration, spatial and auxiliary/control updates feed both banks.
-    void Update(float rpm, float duration, int frame);
+    // Paused frames still update original producers, with their audio flag and zero step.
+    void Update(float rpm, float duration, int frame, bool paused = false);
     void Destroy();
     bool Started() const { return started_; }
 

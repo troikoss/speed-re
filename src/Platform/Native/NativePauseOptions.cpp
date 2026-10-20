@@ -366,7 +366,6 @@ void UIProgressBar::SetValue(float v) { previous2C = value30; value30 = v; if (v
 
 // Game/platform interfaces. Audio settings are not connected to packet playback;
 // registry/profile persistence and force feedback also remain native seams.
-void Audio82B884::Apply(float *) {}
 void SetPresetDisplayLevelFromLevelOfDetailAndLimit() {} // native renderer has no retail quality presets
 void SaveRegistrySettings() { fprintf(stderr, "ug2demo: display settings are session-only; registry persistence is not recovered\n"); }
 void Value5CEC90() { fprintf(stderr, "ug2demo: retail display reset is not recovered; native renderer unchanged\n"); }
@@ -398,6 +397,7 @@ void NativePauseOptionsLoad(const char *gameDirectory) {
     nativeAudio.Construct4585A0(); // initialization only; device/state-manager setup is still a seam
     audio82B884 = &nativeAudio;
     for (int i = 0; i < 7; ++i) volumes83AA28[i] = 1.0f;
+    nativeAudio.Apply(volumes83AA28);
     levelOfDetail87099C = 3; resolution870D1C = 1;
     for (int i = 0; i < 6; ++i) resolutions86E880[i] = 1;
     for (int i = 0; i < 2; ++i) {

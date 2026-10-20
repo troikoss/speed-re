@@ -56,7 +56,8 @@ struct CollisionSoundSet {
 };
 
 struct Audio82B884 {
-    char unidentified0[0x3c];
+    char unidentified0[0x38];
+    float *mix38;
     CollisionSoundSet *collisions3C;
     char unidentified40[0x6c];
     AudioCarSoundManager *managerAC;
@@ -74,6 +75,7 @@ struct Audio82B884 {
 };
 
 UG2_CHECK_SIZE(Audio82B884, 0xec);
+UG2_CHECK_OFFSET(Audio82B884, mix38, 0x38);
 UG2_CHECK_OFFSET(Audio82B884, managerAC, 0xac);
 UG2_CHECK_OFFSET(Audio82B884, managerB0, 0xb0);
 UG2_CHECK_OFFSET(Audio82B884, managerB4, 0xb4);

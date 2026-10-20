@@ -12,15 +12,18 @@
 #include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSoundSchedule.h"
 #include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSoundAccel.h"
 #include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSoundShift.h"
+#include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSoundMaster.h"
 
 #include <SDL2/SDL.h>
 #include <stdlib.h>
 #include <string.h>
 
 extern Audio82B884 *audio82B884;
+extern float volumes83AA28[7];
 
 struct NativeEnginePlayback {
     Audio82B884 audio;
+    EngineSoundMaster master;
     AudioCarSoundManager listenerManager;
     EngineSoundCar car;
     EngineSoundCarValue overrideRecord;
@@ -301,6 +304,12 @@ bool NativeEngineSound::Load(const char *gameDirectory, MoverModeOwner *owner, c
         engine.slotsCC[0].startResult14 >= 0 && engine.slotsCC[1].startResult14 >= 0;
     started_ = engine.activeC8 != 0;
     InitialiseSchedule(playback_);
+    playback_->audio.Apply(volumes83AA28);
+    playback_->master.Construct45DC80();
+    Audio82B884 *mixPrevious = audio82B884;
+    audio82B884 = &playback_->audio;
+    playback_->master.Activate45DCC0();
+    audio82B884 = mixPrevious;
 
     if (const char *logPath = getenv("UG2_ENGINE_LOG")) {
         log_ = fopen(logPath, "w");
@@ -311,7 +320,7 @@ bool NativeEngineSound::Load(const char *gameDirectory, MoverModeOwner *owner, c
     return true;
 }
 
-void NativeEngineSound::Update(float rpm, float duration, int frame) {
+void NativeEngineSound::Update(float rpm, float duration, int frame, bool paused) {
     if (synth_[0] == 0) {
         return;
     }
@@ -320,10 +329,15 @@ void NativeEngineSound::Update(float rpm, float duration, int frame) {
     // the raw RPM argument is used only by the diagnostic log.
     Audio82B884 *previous = audio82B884;
     audio82B884 = &playback_->audio;
+    *reinterpret_cast<unsigned char *>(reinterpret_cast<char *>(&playback_->audio) + 0x13) = paused ? 1 : 0;
+    const float step = paused ? 0.0f : duration;
     // Original audio frame 0x483b40 produces listeners before manager updates.
     // The native player points at the same finalized Camera used for rendering.
     EngineSoundUpdateListeners46D7E0();
-    playback_->car.Update469CF0(duration);
+    // MasterVol belongs to global manager kind 0, before the per-car managers.
+    // Ownership is native until original manager construction is integrated.
+    playback_->master.Update471970(step);
+    playback_->car.Update469CF0(step);
     playback_->car.Post469CB0();
     audio82B884 = previous;
     if (log_ != 0) {
@@ -353,6 +367,10 @@ void NativeEngineSound::Update(float rpm, float duration, int frame) {
                 playback_->shift.value78, playback_->shift.value7C, playback_->shift.valueDC,
                 playback_->shift.valueC0, (unsigned int)playback_->shift.flag70,
                 (unsigned int)playback_->shift.flag71, (unsigned int)playback_->shift.flag72);
+        fprintf(log_, "# mix %d %.4f %.4f %d %d %d %d\n", frame,
+                playback_->audio.mix38[0], playback_->audio.mix38[2],
+                playback_->master.values4[0], playback_->master.values4[1],
+                playback_->master.values4[6], playback_->master.values4[14]);
         fflush(log_);
     }
 }

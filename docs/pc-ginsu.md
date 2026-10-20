@@ -2360,3 +2360,124 @@ frontend integration; supplying guessed gain behavior would not close it.
 UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 256
 UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets ShiftConstruct,ShiftFactory,ShiftBind,ShiftActivate,ShiftDependency,ShiftAttach,ShiftReset,ShiftUp,ShiftDown,ShiftRpm,ShiftThrottle,ShiftEffects,ShiftConfigureEffects,ShiftAdvance,ShiftUpdate,ShiftPost,PhysicsThrottle,SoundClamp,CarFrame,CarSchedule --cases 128 --mutation-checks --mutation-name shift-notify-equality --mutation-name shift-up-unordered --mutation-name shift-down-neutral --mutation-name shift-effect-reset --mutation-name shift-clock-inactive --mutation-name shift-step-order --mutation-name shift-throttle-snapshot --mutation-name shift-gear-state
 ```
+
+## Audio mix and global MasterVol (2026-10-20)
+
+Recovered options mix application `0x469050` (91 bytes), replacing the native
+`Audio82B884::Apply` no-op. It stores the supplied pointer at audio `+0x38`;
+when both the original enable flag and audio `+0xa0` are nonzero, it calls the
+current objects at `0x82b974` then `0x82b978` through virtual `+0x14`. The second
+pointer is reloaded after the first callback. Callback completion is followed
+by a raw copy of mix `+0x1c` to `0x7ec848` and integer conversion after scaling
+by `0x789cf4` into `0x7ec84c`. Neither the final copy nor conversion is gated
+on audio enable. The first seven floats are the existing UI slider values;
+`+0x1c` is an additional original settings field, not an invented eighth slider.
+
+Recovered complete global `SFXCTL_MasterVol` construction `0x45dc80` (54),
+factory `0x471930` (61), activation `0x45dcc0` (32) and frame `0x471970` (807).
+Its descriptor `0x7ed334` has word 0: kind 0, component ID 0. It belongs to the
+global manager, rather than the per-car ID-0 Physics component. Construction
+preserves unwritten fields. Activation requires the original non-null mix
+pointer and writes only the first packed output; it does not set `active58`.
+The frame pops an unused duration argument and does not advance its clock.
+
+MasterVol's first six packed outputs retain the curve-derived shared extended
+scale, original channel order 2/3/1/4/6/5 and integer conversion boundaries.
+The following six direct outputs reload the current mix pointer for every
+conversion. Its selected output at `+0x3c` follows original race/player gates
+and writes `0x7ed344`, consumed by the already recovered shifting post-update.
+A null mix preserves these outputs and the global; it does not clear them.
+The pause/frontend/race outputs still execute in that case.
+
+Its actual query graph is recovered: mode-list lookup `0x432490` (64), mode
+timing query `0x435950` (43) and frontend query `0x4fe4a0` (11). Mode-list links
+point to record `+0x10`, including the sentinel; the source retains this layout,
+lookup order and unchecked invalid-link behavior. The timing query returns
+true for a zero mode key or a found record with `+0x34 < +0x2c`; unordered
+comparisons return false. Only AL is compared for the byte queries.
+
+The native engine session owns a global MasterVol object and runs its frame
+before its six per-car inputs, following the global-before-car manager order
+in `0x483b40`. The options audio object and the engine audio object share the
+existing `volumes83AA28` record. Native options initialization calls the recovered
+Apply method; UI changes then reach MasterVol and shifting's packed post-update.
+`UG2_ENGINE_LOG` includes `# mix frame master0 channel2 packed4 packed8
+pause1C selected3C`. Global manager ownership, original initialization and
+registry construction are still native seams.
+
+Initial verification passed 2048 comparisons across all eight new targets at
+256 cases each. Fixtures include valid intrusive lists, missing/found keys,
+equal/unordered timing, mix-null retention, finite curve inputs, mode and
+frontend bounds, heap/allocation failures and callback changes to the second
+music object, enable flag and final copied value. Mix `+0x1c` also includes
+nonfinite conversion cases. Whole-arena/global state, calls, returns, stack
+cleanup, preserved registers and logical x87 state are compared. Original
+mode helpers and shared curve execute actual recovered code, rather than
+scripted replacement algorithms.
+
+The native build and all six CTests pass. A 350-frame offscreen/dummy-audio
+options sequence `RAALDLS` changes Master Volume and Menu Music Volume to
+0.95 and resumes. It yields 350 mix records (210 paused, 140 unpaused):
+initial 1.0/1.0 and packed 1/1 change to 0.95/0.95 and packed 3283/1731
+while the menu is open. The pause output is 1 for exactly the 210 paused frames. The selected output equals the
+second packed output throughout this fixture. It reaches no trap and has zero
+underruns. This establishes settings-to-producer integration, not audible
+volume equivalence: engine overall packed gain is still the explicit 32767
+fixture and its pan word remains centered pending original mixer binding.
+
+Latest 600-frame SKYLINE smoke passes (pitch/RPM correlation 0.820); 350Z
+still fails (0.417 < the unchanged 0.50 gate, and high-RPM pitch below low-RPM
+pitch). Both have zero underruns. This checkpoint does not close that acoustic
+issue, music playback, parameter consumers, original global/car manager
+ownership, Tunnel, collision audio or the forced enable flag.
+
+The original gain-pointer producer has now been located. Mixer-channel setup
+`0x480420` (1081 bytes), called by `0x483900` (93) after `0x478120`, writes sound
+`+0x58 + 4*index` at `0x480698` and `0x4807b6`. Packed input-map words select
+both the pointer-table index and an offset within mixer channel `+0x4c`.
+It uses original object resolvers `0x468f70`/`0x468fe0` and multiple channel
+records, including 3D connections. These inspected bodies still require
+recovery, asset/map evidence and verification; directly substituting a chosen
+MasterVol field for the engine's gain pointer would skip this original path.
+The complete audio goal remains active.
+
+Expanded mix/car verification passed 1792 comparisons at 128 cases, including
+512 carried car frames. The global MasterVol producer runs before the six-input
+car update in these comparisons, with changing mix values feeding shifting's
+packed post-update. All seven mutations were rejected with no survivors or
+compile-only rejections: callback enable gate, enable recheck between callbacks,
+final mix field, channel order, null-mix retention, unordered timing and frontend
+upper bound. Master construction, mode lookup and frontend query have no new
+byte-identity claim; the existing nineteen strict leaf checks remain separate.
+The affected recovered options caller regression also passes 5730 comparisons
+across 89 routines and 510 vtable slots. It retains an Apply interface boundary;
+the mix verifier and the native UI sequence provide the composed-method and
+integration evidence described here.
+
+The gain-map graph continues through sub-channel input allocation `0x478120`
+(278) and the master-channel mapping method `0x480420`. Original sound lookup
+`0x468f70` and input lookup `0x468fe0` select a manager by packed kind, a car by
+index through `0x463c50` (30), and its playback/input node by component key via
+`0x464cd0` (38) / `0x464d00` (36). These methods and the mixer-channel data
+still need recovery; the fixed native gain pointer is explicitly retained.
+
+The native loop now calls audio on paused frames too, writes the audio object's
+pause byte, and passes zero duration to MasterVol and the per-car managers,
+following the local-step selection in original audio frame `0x483b40`.
+Previously it skipped the whole audio update while paused. Packet rendering
+continues through the native backend; recovered pause/mix outputs still need
+the original mixer/parameter consumers to establish retail mute behavior.
+Final native build and all six CTests pass after this integration change.
+
+Final full audio regression passed 53120 comparisons across 193 targets with
+zero failures and nineteen strict leaf byte matches. The carried scheduler
+includes global MasterVol and changing options mixes before the six per-car
+inputs. These bounded results, the separate options regression and the native
+integration checks leave the broader audio goal active.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 256
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_pause_options.py
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets AudioMixApply,MasterConstruct,MasterFactory,MasterActivate,MasterUpdate,MasterModeFind,MasterModeQuery,MasterFrontend,CarFrame,CarSchedule --cases 128 --mutation-checks --mutation-name mix-callback-gate --mutation-name mix-callback-order --mutation-name mix-copy-index --mutation-name master-channel-order --mutation-name master-null-retain --mutation-name master-mode-unordered --mutation-name master-frontend-bound
+SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy LIBGL_ALWAYS_SOFTWARE=1 UG2_ENGINE_LOG=build/analysis/ginsu/master-options-rpm.log build/native/ug2demo --game "$UG2_DIR" --car SKYLINE --frames 350 --scripted --pause-at 20 --pause-keys RAALDLS
+```

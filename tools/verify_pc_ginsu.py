@@ -39,7 +39,11 @@ from probe_pc_race_reward import ROOT, EXE, GAME_DIR
 
 BUILD = ROOT / 'build/analysis/ginsu'
 SOURCE_DIR = 'src/Speed/Indep/Src/EAXSound/Ginsu'
-SOURCES = {'shift_lifecycle': SOURCE_DIR + '/EngineSoundShiftLifecycle.cpp',
+SOURCES = {'audio_mix': 'src/Speed/Indep/Src/Audio/AudioMix.cpp',
+           'master': 'src/Speed/Indep/Src/EAXSound/Ginsu/EngineSoundMaster.cpp',
+           'master_lifecycle': 'src/Speed/Indep/Src/EAXSound/Ginsu/EngineSoundMasterLifecycle.cpp',
+           'master_queries': 'src/Speed/Indep/Src/EAXSound/Ginsu/EngineSoundMasterQueries.cpp',
+           'shift_lifecycle': SOURCE_DIR + '/EngineSoundShiftLifecycle.cpp',
 'shift_producers': SOURCE_DIR + '/EngineSoundShiftProducers.cpp',
 'shift_transitions': SOURCE_DIR + '/EngineSoundShiftTransitions.cpp',
 'shift': SOURCE_DIR + '/EngineSoundShift.cpp',
@@ -130,10 +134,20 @@ GIN_MAGIC = b'Gnsu2'
 # name: (retail address, rebuilt symbol prefix, callee-popped bytes, return kind, `this` kind, argument kinds)
 # return kinds: 'al' (bool), 'eax' (int), 'st0' (float left in ST0), None. argument kinds: 'w' raw word,
 # 'p' pointer (identity: arena address or the stack), ('c', n) pointer whose n bytes are logged by value.
+MASTER_TARGETS = ('AudioMixApply', 'MasterConstruct', 'MasterFactory', 'MasterActivate', 'MasterUpdate', 'MasterModeFind', 'MasterModeQuery', 'MasterFrontend')
 SHIFT_TARGETS = ('ShiftConstruct', 'ShiftFactory', 'ShiftBind', 'ShiftActivate', 'ShiftDependency', 'ShiftAttach', 'ShiftReset', 'ShiftUp', 'ShiftDown', 'ShiftRpm', 'ShiftThrottle', 'ShiftEffects', 'ShiftConfigureEffects', 'ShiftAdvance', 'ShiftUpdate', 'ShiftPost', 'PhysicsThrottle', 'SoundClamp')
 ACCEL_TARGETS = ('AccelConstruct', 'AccelFactory', 'AccelBind', 'AccelActivate', 'AccelDependency', 'AccelAttach', 'AccelConfigure', 'AccelLaunch', 'AccelQueryLaunch', 'AccelQuery', 'AccelRelease', 'AccelRpm', 'AccelThrottle', 'AccelAdvance', 'AccelUpdate', 'ShiftActive', 'OwnerShiftPoint', 'GearShiftPoint', 'EnvelopeTarget')
 AUX_TARGETS = ('SpatialBaseConstruct', 'SpatialConstruct', 'SpatialFactory', 'SpatialBind', 'SpatialActivate', 'SpatialAngle', 'SpatialCompute', 'SpatialSelect', 'SpatialDoppler', 'SpatialUpdate', 'SpatialLimit', 'SpatialValue', 'SpatialDistance2D', 'SpatialNormalize2D', 'SpatialArcSine', 'SampleDefault', 'SampleAllocate', 'SpatialPosition','SpatialOrientation', 'AuxOffsets', 'AuxBackfire', 'AuxCutoff', 'AuxFrame', 'SoundInverse', 'SoundRandom', 'SoundRandomFloat', 'SoundSine', 'SoundNormalize', 'AuxLevel', 'AuxEffects', 'AuxIdle', 'EnvelopeConfigure', 'EnvelopeStep', 'SequenceReset', 'SequenceStep', 'SoundCurve', 'SoundCurveConvert', 'ControlConstruct', 'ControlBind', 'GainCurveConstruct', 'AuxConstruct', 'AuxFactory', 'AuxBind', 'AuxActivate', 'AuxAttach', 'AuxRpm', 'AuxThrottle', 'AuxDependency', 'AuxDescriptor', 'AuxCarValue', 'AuxApproach', 'AuxSequenceConstruct', 'AuxSequenceAppend')
 ROUTINES = {
+    'AudioMixApply': (4624464, '?Apply@Audio82B884@', 4, None, 'arena', ['p']),
+    'MasterConstruct': (4578432, '?Construct45DC80@EngineSoundMaster@', 0, 'eax', 'arena', []),
+    'MasterFactory': (4659504, '?CreateEngineSoundMaster471930@', 0, 'eax', None, []),
+    'MasterActivate': (4578496, '?Activate45DCC0@EngineSoundMaster@', 0, None, 'arena', []),
+    'MasterUpdate': (4659568, '?Update471970@EngineSoundMaster@', 4, None, 'arena', ['w']),
+    'MasterModeFind': (4400272, '?Find432490@EngineSoundModeList@', 4, 'eax', 'arena', ['w']),
+    'MasterModeQuery': (4413776, '?Is435950@EngineSoundModeQueries@', 0, 'al', 'arena', []),
+    'MasterFrontend': (5235872, '?EngineSoundFrontend4FE4A0@', 0, 'al', None, []),
+
     'ShiftConstruct': (4571344, '?Construct45C0D0@EngineSoundShiftView@', 0, 'eax', 'arena', []),
     'ShiftFactory': (4647888, '?CreateEngineSoundShift46EBD0@', 0, 'eax', None, []),
     'ShiftBind': (4571952, '?Bind45C330@EngineSoundShiftView@', 4, None, 'arena', ['p']),
@@ -390,6 +404,22 @@ def snd_ret(key):
 PURE_RANGES = ((0x75bed4, 0x75bf49), (0x72423e, 0x72428b), (0x721a6b, 0x721aae))
 # Retail globals read by the recovered code, by MSVC symbol prefix; __fltused is a null symbol.
 SHARED = {
+    '?audioMixFirst82B974@': 0x82b974,
+    '?audioMixSecond82B978@': 0x82b978,
+    '?audioMixValue7EC848@': 0x7ec848,
+    '?audioMixPacked7EC84C@': 0x7ec84c,
+    '?audioMixScale789CF4@': 0x789cf4,
+    '?engineSoundModeList827B88@': 0x827b88,
+    '?engineSoundMasterScale78A6C8@': 0x78a6c8,
+    '?engineSoundMasterFlag89E7D8@': 0x89e7d8,
+    '?engineSoundMasterFlag89E7D9@': 0x89e7d9,
+    '?engineSoundMasterMode890108@': 0x890108,
+    '?engineSoundMasterMode890104@': 0x890104,
+    '?engineSoundMasterOwner82B9C8@': 0x82b9c8,
+    '?engineSoundMasterReplay8650B8@': 0x8650b8,
+    '?engineSoundMasterFrontend8383A4@': 0x8383a4,
+    '?engineSoundMasterFrontend8383AC@': 0x8383ac,
+
     '?engineSoundShiftTuning7F2860@': 0x7f2860,
     '?engineSoundShiftTuning7F2EC0@': 0x7f2ec0,
     '?engineSoundShiftSelection7F2234@': 0x7f2234,
@@ -566,7 +596,7 @@ SHARED.update({
 })
 # Retail addresses of the E branch (fz1 == fz2) and of the SampleToCycle found path (0x466c2f).
 E_BRANCH_HOOK, FOUND_HOOK = 0x466e98, 0x466c2f
-TARGETS = SHIFT_TARGETS + ACCEL_TARGETS + ('ControlActivate',) + ('CarBind','CarSort','CarSchedule','CarFrame','CarPlayback','EngineForward','ScheduleNoop','ScheduleNoopArg','PhysicsPost','ControlPost','PhysicsFraction','ApproachInt') + ('ListenerUpdate','ListenerFind','ListenerDistance','ListenerAngle') + AUX_TARGETS + ('PhysicsFactory', 'PhysicsHash') + ('PhysicsConstruct', 'PhysicsBind', 'PhysicsActivate', 'PhysicsUpdate', 'PhysicsOverride', 'PhysicsNotify', 'PhysicsMode40', 'PhysicsMode28', 'PhysicsMode10', 'PhysicsRampConstruct', 'PhysicsRampEvaluate', 'PhysicsSpecMaximum', 'PhysicsEngineMaximum', 'SampleConstruct') + ('ControlPrepare', 'ControlOne', 'ControlTwo', 'SampleAdvance', 'SampleFill', 'SampleRecalculate', 'GainCurveLookup', 'GainPendingShift', 'EngineDependency', 'EngineAttach', 'AuxFrequency', 'AuxGain', 'ControlScale', 'ControlUpdate', 'CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
+TARGETS = MASTER_TARGETS + SHIFT_TARGETS + ACCEL_TARGETS + ('ControlActivate',) + ('CarBind','CarSort','CarSchedule','CarFrame','CarPlayback','EngineForward','ScheduleNoop','ScheduleNoopArg','PhysicsPost','ControlPost','PhysicsFraction','ApproachInt') + ('ListenerUpdate','ListenerFind','ListenerDistance','ListenerAngle') + AUX_TARGETS + ('PhysicsFactory', 'PhysicsHash') + ('PhysicsConstruct', 'PhysicsBind', 'PhysicsActivate', 'PhysicsUpdate', 'PhysicsOverride', 'PhysicsNotify', 'PhysicsMode40', 'PhysicsMode28', 'PhysicsMode10', 'PhysicsRampConstruct', 'PhysicsRampEvaluate', 'PhysicsSpecMaximum', 'PhysicsEngineMaximum', 'SampleConstruct') + ('ControlPrepare', 'ControlOne', 'ControlTwo', 'SampleAdvance', 'SampleFill', 'SampleRecalculate', 'GainCurveLookup', 'GainPendingShift', 'EngineDependency', 'EngineAttach', 'AuxFrequency', 'AuxGain', 'ControlScale', 'ControlUpdate', 'CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
            'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt',
            'PacketReleaseCallback', 'SynthesisConstruct', 'SynthesisDestruct', 'StartSynthesis')
 LIMITATIONS = [
@@ -806,7 +836,7 @@ def main():
     # These leaves have no relocations. Only claim complete byte identity
     # when COFF places a single function in the section and its size agrees.
     query_byte_matching = {}
-    for name, source_key in (('EngineGain', 'values'), ('EngineValue', 'values'), ('AuxFrequency', 'control'), ('AuxGain', 'control'), ('AuxCarValue', 'auxiliary'), ('AuxApproach', 'aux_sequence'), ('GainCurveConstruct', 'gain_curve_construct'), ('SpatialPosition','spatial_position'), ('SpatialOrientation','spatial_orientation'), ('CarBind','schedule'), ('EngineForward','schedule'), ('ScheduleNoop','schedule'), ('ScheduleNoopArg','schedule'), ('ControlActivate','control_lifecycle'), ('GearShiftPoint','accel_shiftpoint'), ('ShiftActive','accel_lifecycle'), ('AccelActivate','accel_lifecycle'), ('AccelDependency','accel_lifecycle'), ('PhysicsThrottle','shift_producers'), ('ShiftReset','shift_lifecycle'), ('ShiftActivate','shift_lifecycle'), ('ShiftDependency','shift_lifecycle')):
+    for name, source_key in (('EngineGain', 'values'), ('EngineValue', 'values'), ('AuxFrequency', 'control'), ('AuxGain', 'control'), ('AuxCarValue', 'auxiliary'), ('AuxApproach', 'aux_sequence'), ('GainCurveConstruct', 'gain_curve_construct'), ('SpatialPosition','spatial_position'), ('SpatialOrientation','spatial_orientation'), ('CarBind','schedule'), ('EngineForward','schedule'), ('ScheduleNoop','schedule'), ('ScheduleNoopArg','schedule'), ('ControlActivate','control_lifecycle'), ('GearShiftPoint','accel_shiftpoint'), ('ShiftActive','accel_lifecycle'), ('AccelActivate','accel_lifecycle'), ('AccelDependency','accel_lifecycle'), ('PhysicsThrottle','shift_producers'), ('ShiftReset','shift_lifecycle'), ('ShiftActivate','shift_lifecycle'), ('ShiftDependency','shift_lifecycle'), ('MasterConstruct','master_lifecycle'), ('MasterModeFind','master_queries'), ('MasterFrontend','master_queries')):
         spec = ROUTINES[name]
         symbol = next(s for s in parsed[source_key]['symbols'].values() if s['name'].startswith(spec[1]))
         section = parsed[source_key]['sections'][symbol['section'] - 1]
@@ -1136,6 +1166,19 @@ def main():
                     uc.reg_write(xc.UC_X86_REG_ESP, STACK)
                     uc.reg_write(xc.UC_X86_REG_ECX, SETUP)
                     uc.reg_write(xc.UC_X86_REG_EAX, 0)
+                if name in ('CarFrame','CarSchedule') and (composedcar or cartrajectory):
+                    calls=[]
+                    if precarinit:calls.append(('MasterConstruct',ARENA+0x31c00,[]))
+                    calls.append(('AudioMixApply',ARENA+0x34000,[ARENA+0x31d00]))
+                    if precarinit:calls.append(('MasterActivate',ARENA+0x31c00,[]))
+                    calls.append(('MasterUpdate',ARENA+0x31c00,words))
+                    for target,receiver,arguments in calls:
+                        uc.mem_write(STACK,struct.pack('<I',STOP)+b''.join(struct.pack('<I',w&0xffffffff) for w in arguments))
+                        uc.reg_write(xc.UC_X86_REG_ESP,STACK);uc.reg_write(xc.UC_X86_REG_ECX,receiver)
+                        uc.emu_start(rebuilt_entry[target] if rebuilt else retail_entry[target],STOP+7,count=MAX_INSTRUCTIONS)
+                        assert uc.reg_read(xc.UC_X86_REG_ESP)==STACK+4+ROUTINES[target][2],('state or call order mismatch','master prelude stack',target)
+                    uc.mem_write(STACK,struct.pack('<I',STOP)+b''.join(struct.pack('<I',w&0xffffffff) for w in words))
+                    uc.reg_write(xc.UC_X86_REG_ESP,STACK);uc.reg_write(xc.UC_X86_REG_ECX,this)
                 uc.emu_start(rebuilt_entry[name] if rebuilt else retail_entry[name], STOP + 7, count=MAX_INSTRUCTIONS)
                 if name=='CarFrame' and (composedcar or cartrajectory):
                     outer_esp=uc.reg_read(xc.UC_X86_REG_ESP)
@@ -1582,7 +1625,12 @@ def main():
         pk(memory,ARENA+0x3a078,'<i',0);pk(memory,ARENA+0x3a200+0xc8,'<i',0)
         fixture_code_fields[ARENA+0x3bb34]='ScheduleNoop'
         fixture_globals[0x82b884]=struct.pack('<I',ARENA+0x34000)
-        pk(memory,ARENA+0x34038,'<I',0)
+        pk(memory,ARENA+0x34038,'<I',ARENA+0x31d00)
+        pk(memory,ARENA+0x340a0,'<i',0)
+        pk(memory,ARENA+0x31d00,'<8f',1.,0.5,0.75,1.,0.75,0.5,1.,0.25)
+        for address in (0x7ec848,0x7ec84c,0x7ed344,0x82bc88,0x82b974,0x82b978,0x890104,0x890108,0x82b9c8,0x8650b8,0x8383a4,0x8383ac,0x8900d8):fixture_globals[address]=bytes(4)
+        fixture_globals[0x89e7d8]=bytes(1);fixture_globals[0x89e7d9]=bytes(1)
+
         pk(memory,ARENA+0x34013,'<B',int(trial%3==0));pk(memory,ARENA+0x34084,'<i',trial%2)
         fixture_globals[0x89e7b0]=bytes(4);fixture_globals[0x89e7c0]=bytes(16)
         fixture_globals[0x82bb40]=struct.pack('<II',1,1)
@@ -1632,6 +1680,53 @@ def main():
             cartrajectory=False
             preshiftinit=name=='ShiftUpdate' and trial%4==0
             preaccelinit=name=='AccelUpdate' and trial%4==0
+            if name in MASTER_TARGETS:
+                this=ARENA+0x35000;words=[];mix=ARENA+0x35100;mode=ARENA+0x35200
+                fixture_globals[0x82b884]=struct.pack('<I',AUDIO)
+                pk(memory,AUDIO+0x38,'<I',0 if name=='MasterUpdate' and trial%5==0 else mix)
+                pk(memory,AUDIO+0x13,'<B',int(trial%7==0));pk(memory,AUDIO+0xa0,'<i',trial%2)
+                pk(memory,mix,'<8f',rng.choice((0.,0.01,0.25,0.5,0.75,1.)),*[rng.uniform(-2.,2.) for _ in range(6)],rng.choice((0.,1.,-1.,1e30,float('nan'))))
+                for a in (0x7ec848,0x7ec84c,0x7ed344,0x82bc88):fixture_globals[a]=struct.pack('<I',rng.getrandbits(32))
+                fixture_globals[0x7faaa8]=struct.pack('<i',trial%3)
+                for a in (0x89e7d8,0x89e7d9):fixture_globals[a]=bytes([rng.choice((0,0,0,1,255))])
+                for a in (0x890108,0x890104):fixture_globals[a]=struct.pack('<i',rng.choice((0,0,0,1,-1)))
+                fixture_globals[0x82b9c8]=struct.pack('<I',0 if trial%3==0 else ARENA+0x35300)
+                pk(memory,ARENA+0x35398,'<i',trial%2)
+                fixture_globals[0x8900d8]=struct.pack('<I',0 if trial%9==0 else mode)
+                pk(memory,mode,'<i',(0,1,2,3,4,5,6,7,8)[trial%9])
+                fixture_globals[0x8650b8]=struct.pack('<I',0 if trial%3==0 else ARENA+0x35400)
+                pk(memory,ARENA+0x35414,'<i',(trial//3)%2)
+                fixture_globals[0x8383a4]=struct.pack('<I',0 if trial%5==0 else ARENA+0x35500)
+                pk(memory,ARENA+0x35500,'<i',(29,30,31,34,35)[trial%5])
+                fixture_globals[0x8383ac]=struct.pack('<I',rng.choice((0,1,0x100,0xdeadbeef)))
+                fixture_globals[0x89e7b0]=struct.pack('<i',rng.choice((0,1,8)))
+                fixture_globals[0x890118]=struct.pack('<I',0 if trial%5==0 else ARENA+0x35600)
+                pk(memory,ARENA+0x35600,'<i',rng.choice((0,2,4)))
+                for a in (0x827ec8,0x827eb0,0x827e98):fixture_globals[a]=struct.pack('<i',rng.choice((0,0,0,1)))
+                # Intrusive sentinel list: links point to node +0x10, including its end.
+                nodes=[ARENA+0x35700+i*0x40 for i in range(trial%4)]
+                fixture_globals[0x827b8c]=struct.pack('<I',nodes[0]+0x10 if nodes else 0x827b8c)
+                for i,node in enumerate(nodes):
+                    pk(memory,node+0x10,'<I',nodes[i+1]+0x10 if i+1<len(nodes) else 0x827b8c)
+                    pk(memory,node+0x18,'<i',i+1)
+                    pk(memory,node+0x2c,'<f',rng.choice((0.,1.,2.,float('nan'))))
+                    pk(memory,node+0x34,'<f',rng.choice((0.,1.,2.,float('nan'))))
+                fixture_globals[0x827eb0]=struct.pack('<i',trial%5)
+                for a in (0x82b974,0x82b978):fixture_globals[a]=bytes(4)
+                if name=='AudioMixApply':
+                    this=AUDIO;words=[mix]
+                    for i,a in enumerate((0x82b974,0x82b978)):
+                        obj=ARENA+0x35900+i*0x20;vt=ARENA+0x35a00+i*0x20
+                        pk(memory,obj,'<I',vt);pk(memory,vt+0x14,'<I',VIRTUAL['Schedule18'])
+                        fixture_globals[a]=struct.pack('<I',obj if (trial//3)%4&(1<<i) else 0)
+                    callback_writes['Schedule18']=[{0x82b978:struct.pack('<I',ARENA+0x35920),mix+0x1c:struct.pack('<f',0.375),0x7faaa8:bytes(4)}, {mix+0x1c:struct.pack('<f',0.625)}]
+                elif name=='MasterFactory':
+                    this=0;returns['HeapAvailable']=(-1,0,0x46a,0x46b,0x46c,2**31-1)[trial%6];returns['Malloc']=0 if (trial//6)%2 else ALLOC
+                    fixture_globals[0x7ec840]=struct.pack('<i',trial%32)
+                elif name=='MasterUpdate':words=[fw(rng.choice((0.,0.016,-1.,float('nan'))))]
+                elif name=='MasterModeFind':this=0x827b88;words=[trial%5]
+                elif name=='MasterModeQuery':this=0x827e88
+                elif name=='MasterFrontend':this=0
             if name in SHIFT_TARGETS:
                 seed_auxiliary(memory,trial)
                 this=ARENA+0x3a000;words=[]
@@ -3165,6 +3260,8 @@ def main():
                 precarinit=frame==0
                 pk(memory,ARENA+0x34013,'<B',int(224<=frame<232))
                 pk(memory,ARENA+0x34084,'<i',(frame//32)%2)
+                pk(memory,ARENA+0x31d00,'<f',(0.,0.25,0.5,0.75,1.)[(frame//32)%5])
+                pk(memory,ARENA+0x31d0c,'<f',(0.,0.5,1.)[(frame//24)%3])
                 pk(memory,CAR+0x78,'<i',(frame//64)%2)
                 pk(memory,ARENA+0x3a600+0x430,'<f',20.)
                 pk(memory,ARENA+0x3a600+0x434,'<i',2 if frame<30 or frame>=200 else 3 if frame<60 or frame>=160 else 4)
@@ -3178,6 +3275,7 @@ def main():
                 except AssertionError as error:
                     record_failure(name,frame,precision,AssertionError(('state or call order mismatch','car scheduler sequence',error)));break
                 counts[name]+=1;steps+=1
+                note('car-carried-master-%d'%struct.unpack_from('<i',a['arena'],0x31c08)[0])
                 note('car-carried-shift-state-%d'%struct.unpack_from('<i',a['arena'],0x3a078)[0])
                 for event in a['events']:
                     if event[0]=='SoundRandom' and event[2]==(150,):note('car-sequence-control-pulse')
@@ -3283,6 +3381,14 @@ def main():
             assert text.count(before)==1,(key,before)
             return (key,text,text.replace(before,after,1))
         mutations = {
+            'mix-callback-gate': frame_mutation('audio_mix','if (audioEnabled7FAAA8 && *reinterpret_cast<int *>','if (!audioEnabled7FAAA8 && *reinterpret_cast<int *>'),
+            'mix-callback-order': frame_mutation('audio_mix','if (audioMixSecond82B978) audioMixSecond82B978->vtable0->update14(audioMixSecond82B978);','if (audioEnabled7FAAA8 && audioMixSecond82B978) audioMixSecond82B978->vtable0->update14(audioMixSecond82B978);'),
+            'mix-copy-index': frame_mutation('audio_mix','&volumes[7]','&volumes[6]'),
+            'master-channel-order': frame_mutation('master','values4[0] = (int)((ginsuOne784250 - ((double)mix[2] * mix[0])','values4[0] = (int)((ginsuOne784250 - ((double)mix[1] * mix[0])'),
+            'master-null-retain': frame_mutation('master','    if (audio->mix38) {','    values4[14] = 0;\n    if (audio->mix38) {'),
+            'master-mode-unordered': frame_mutation('master_queries','record->value34 < record->value2C','!(record->value34 >= record->value2C)'),
+            'master-frontend-bound': frame_mutation('master','*engineSoundMasterFrontend8383A4 <= 34','*engineSoundMasterFrontend8383A4 < 34'),
+
             'shift-notify-equality': frame_mutation('shift','time5C > valueA0 && flag98','time5C >= valueA0 && flag98'),
             'shift-up-unordered': frame_mutation('shift_transitions','aux->physics74->value70 < engineSoundShiftGate7885C0','!(aux->physics74->value70 >= engineSoundShiftGate7885C0)'),
             'shift-down-neutral': frame_mutation('shift_transitions','if (aux->physics74->valueC8 == 1) return;','if (false) return;'),

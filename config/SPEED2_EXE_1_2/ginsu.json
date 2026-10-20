@@ -925,6 +925,46 @@
       "address": "0x401090",
       "size": 45,
       "sha256": "0bbc0be0d446e0bca0d5cc1d9ff3682ac001f6bf36f61fd3957cf28a57c7d4c0"
+    },
+    "AudioMixApply": {
+      "address": "0x469050",
+      "size": 91,
+      "sha256": "2edbdcb32a225b811482d9b3dc5beb8ee3a60b84f50532c266c1c1b87372d6df"
+    },
+    "MasterConstruct": {
+      "address": "0x45dc80",
+      "size": 54,
+      "sha256": "274de3cebc206fc34a2f6f81f0c77346f88d58f2faaf462e8fe26506d68cab58"
+    },
+    "MasterFactory": {
+      "address": "0x471930",
+      "size": 61,
+      "sha256": "63df42ef09d1274234e23efb9c8e86328f9a63234e27ccb2d9176d1af7ee2b07"
+    },
+    "MasterActivate": {
+      "address": "0x45dcc0",
+      "size": 32,
+      "sha256": "d9bc0d0f61d1e7bc176c7e27aa92708fa22c9e8faed53b77bff45f75547c8914"
+    },
+    "MasterUpdate": {
+      "address": "0x471970",
+      "size": 807,
+      "sha256": "7a6bfc553be3ff103208eb8fde3ba8ca4f26312d3dbc4fe2ce3cad53b8b5ae5e"
+    },
+    "MasterModeFind": {
+      "address": "0x432490",
+      "size": 64,
+      "sha256": "d8b3b0891d285f6c1b7986c63c2a783de81cc44abba13b02bee0127c8610edcd"
+    },
+    "MasterModeQuery": {
+      "address": "0x435950",
+      "size": 43,
+      "sha256": "6a8918c0a5c58d5d2dc8f53a3b00c03f07fa647215d52499962d218cc7a3dccc"
+    },
+    "MasterFrontend": {
+      "address": "0x4fe4a0",
+      "size": 11,
+      "sha256": "42426d695e9d9040f31f96b9d3684fa94a5b72a288f8dc3fec4a625ae450dc7d"
     }
   }
 }

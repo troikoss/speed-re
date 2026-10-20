@@ -1180,3 +1180,20 @@ engineSoundShiftFirst7ED29C = 0x7ed29c;
 engineSoundShiftTime7ED2A0 = 0x7ed2a0;
 engineSoundShiftTimeScale7844D8 = 0x7844d8;
 engineSoundShiftLow784550 = 0x784550;
+
+/* Recovered audio mix/MasterVol globals. */
+audioMixFirst82B974 = 0x82b974;
+audioMixSecond82B978 = 0x82b978;
+audioMixValue7EC848 = 0x7ec848;
+audioMixPacked7EC84C = 0x7ec84c;
+audioMixScale789CF4 = 0x789cf4;
+engineSoundModeList827B88 = 0x827b88;
+engineSoundMasterScale78A6C8 = 0x78a6c8;
+engineSoundMasterFlag89E7D8 = 0x89e7d8;
+engineSoundMasterFlag89E7D9 = 0x89e7d9;
+engineSoundMasterMode890108 = 0x890108;
+engineSoundMasterMode890104 = 0x890104;
+engineSoundMasterOwner82B9C8 = 0x82b9c8;
+engineSoundMasterReplay8650B8 = 0x8650b8;
+engineSoundMasterFrontend8383A4 = 0x8383a4;
+engineSoundMasterFrontend8383AC = 0x8383ac;
