@@ -274,14 +274,17 @@ lighting is fixed-function OpenGL. The wheels, brakes and the third-set solids a
 (`CarWheelDraw`, original `0x62700e`..`0x62df66` of the car draw `0x620ae0`; see
 [car wheel block](#car-wheel-block-recovered)). `DrawCarModel` passes the car-local frames of
 `MoverModeOwner::GetWheelRenderMatrices` (`0x5f6820`, tyres and brakes) and
-`GetWheelSpinMatrices` (`0x5ec7f0`, third set), view 0, and `NativeCarModel::Draw` passes the body frame
+`GetWheelSpinMatrices` (`0x5ec7f0`, third set), the body LOD and view clamp of the recovered selection (`CarLodSelect`),
+and `NativeCarModel::Draw` passes the body frame
 (`matrixD0` with `origin10`) as the block's body matrix. The old mirror (`glScalef(1,-1,1)`), the
 centring translation and the `mirrored[]` choice are gone. The fallback `DrawWheel` (no model
 loaded) still composes `DrivetrainWheel` `matrix30`/`matrix70` natively.
 
 ## Car wheel block (recovered)
 
-Recovered in `src/Speed/Indep/Src/World/CarRenderWheels.cpp` (routines `CarRenderWheelLayout` = `0x61fe10`,
+Recovered in `src/Speed/Indep/Src/World/CarRenderWheels.cpp` (the pixel size and the LOD selection that feed it are in
+`CarRenderLod.cpp`, see [pixel size and LOD selection](#pixel-size-and-lod-selection-recovered)). Routines of the wheel
+block: `CarRenderWheelLayout` = `0x61fe10`,
 `CarWheelDraw` = `0x62700e`..`0x62df66`, with the generated chain stages). Verifier:
 `tools/verify_pc_wheel_draw.py` with `config/SPEED2_EXE_1_2/wheel-draw.json`. Behaviour and byte matching are
 reported separately: the verifier compares the callee event sequence and the arena bytes of the original and of the
@@ -312,6 +315,79 @@ not part of the repository. Blocks 2, 4, 6 and 8 use the `set3` frames: element 
 The block's native seams are listed in
 [the replacement inventory](NATIVE_REPLACEMENT_INVENTORY.md#car-wheel-rendering-seams).
 
+### Pixel size and LOD selection (recovered)
+
+Recovered in `src/Speed/Indep/Src/World/CarRenderLod.cpp` (header `CarRenderLod.h`). Verifier:
+`tools/verify_pc_car_draw_lod.py` with `config/SPEED2_EXE_1_2/car-draw-lod.json`.
+
+- `CarViewPixelRadius` (`0x48acb0`, `__thiscall` on the view, two stack arguments): the projected radius in pixels of a
+  sphere of radius 3.0 at the car origin. It is 0 when the sphere lies behind the view (depth below minus the radius),
+  `2 * focal` when the distance minus the radius is at most half the radius, and otherwise `(focal / (distance - radius))
+  * radius`, truncated. The view fields are `view+0xc` (focal length in pixels) and `view+0x40` (the frame: origin at
+  `+0x40`, depth axis at `+0x50`).
+- `CarLodPixelSize` (`0x620c6b`..`0x620cc0`): the pixel is `CarViewPixelRadius(view, car origin, 3.0)`. When the view mode
+  (`0x5b98a0`, dword `0x8707dc`) is 3 and the gate `0x8654a4` is not 3, the pixel is multiplied by `0.7` (`0x7a6700`,
+  truncated) and the caller's LOD inputs `[EBP+0x34]` and `[EBP+0x30]` are set to 1. The car draw leaves when the pixel is
+  below 4 (`0x620cba`).
+- `CarLodSelect` (`0x62107e`..`0x621230`): the owner words (`frame+0x180` = `owner+0x958`; `frame+0x14c` = the owner and
+  that word are non-zero); the car record search (`0x6210bb`..`0x62110b`: the first record of the table at `0x8a1cd4`, count
+  `0x8a1cd8`, whose key dword equals `[row+0x840]` and whose value dword equals the sign-extended byte `[car+7]`; the index is
+  kept in `frame+0x68`); the wheel flags (`frame+0xe8` and `frame+0x1ac` are 1 when `0x7fee4c` is zero or the pixel is below
+  `0x7a66fc` = 18.0, strict); the body LOD and clamp (incremented while the pixel is below `0x7a66dc[lod]`, strict, with the
+  float pixel after the first test; the table is `{40, 30, 20, 0, 40, 20, 10, 0}`); a non-zero result of `0x499db0`
+  (byte `0x836352`) forces both to 0; otherwise the LOD is limited to 3, and a LOD of 3 becomes 2 when the owner has no
+  `+0x424` word and `ri+0x2eb8` is non-zero; the overrides `0x802728` (LOD) and `0x80272c` (clamp) replace the values when
+  they are not -1; both -1 leaves the draw (`0x62121c`); `arg8` gets `0x800` for a LOD of 1 or more (`0x621229`).
+
+Evidence and limits:
+
+- The body LOD `frame+0x6c` is read as an index into the car's solid table `ri+0x1ba8` at `0x626f80` (`lod + j`, `j` = 0,
+  1) and the block reads it as `lod6C`. The car+0x610 branch (`0x626438`..`0x62646a`) stores an allocation pointer in
+  `frame+0x6c` (`0x626466`). The native path does not run the car draw, so it never reaches that branch.
+- Writers before the wheel block: `frame+0x6c`: `0x621153`, `0x62118b`, `0x62119a`, `0x6211b5`, `0x6211e8`, `0x6211f9`,
+  `0x622184` (float), `0x626466`. `frame+0xf4`: `0x62115b`, `0x621184`, `0x62119e`, `0x621208`; the block itself clamps it to
+  2 at `0x627653`. `frame+0x1ac`: `0x62111c`, `0x621142`. `frame+0xe8`: `0x621115`, `0x62113b`; the block overwrites it with
+  its record allocation at `0x6274ea`.
+- The view mode `0x8707dc` and the zero flag `0x836352` are image globals (both 0 in the image). They are the seams
+  `UG2CarViewModeGlobal` and `UG2CarLodZeroFlag`; the gate `0x8654a4` is the block's gate.
+- Open, slot index `k` (`frame+0xd8`, the block's `slotD8`): at `0x626476`..`0x626486` the car draw loads `k = [obj+0x2c10]`
+  with `obj` = `frame+0x60`, which holds an object pointer on that path (stores of `ESI` at `0x622455`, `0x6243f7` and
+  `0x622551`). `ri+0x2c10` is also written by `0x634800` (`ri+0x2c04`..`+0x2c10`, the results of four hashed lookups in
+  `0x488fa0`, keys `0x90c81258`, `0x9b971511`, `0x0ee87ec4` and one earlier key). None of the candidate part names I tried
+  hashes to these keys, so the value of `k` is not established. The demo uses 0.
+- Open, `frame+0xcc` (`flagsCC`): `0x621b9e` stores the result of `0x60d1b0` applied to the previous value. Not recovered;
+  the demo uses 0.
+- Open, LOD B and C solids: the wheel solids are the part-table entries `ri+0x1b48` (part `0x1d`) and `ri+0x1b68`
+  (part `0x1e`), filled by `0x634800`. The letter-to-LOD mapping is not evidenced, so the demo keeps LOD A for every LOD
+  index (the fallback).
+- Native seams: the view is the native camera (position, unit view direction) with the focal length `0.5 * height /
+  tangentY` in pixels (the original's focal length is set by the camera code, which is not recovered). Without a view the
+  pixel is taken as 1000 (LOD 0). The owner `ri+0` is null in the demo, so the clamp of LOD 3 to 2 does not apply: at a
+  distance the body LOD is 3, and the block's own `lod6C > 2` rule draws no wheels.
+- Debug output: `UG2_DEBUG_CAR_LOD=1` prints the pixel, body LOD, clamp, `flags1AC` and `arg8` once per car draw.
+
+### Verification (pixel size and LOD)
+
+- `build/venv/bin/python tools/verify_pc_car_draw_lod.py --mutation-checks`, with `UG2_DIR` set. The executable's SHA-256
+  and the manifest bytes are checked first. Results in `build/analysis/car-draw-lod/verification.json`: 512 producer cases
+  (`0x620c6b`..`0x620cc0`, which runs `0x48acb0` inside: 123 behind, 107 near and 282 far by the same tests, 142 with the
+  view-mode scale, 398 leaving the draw) and 2048 selection cases (`0x62107e`..`0x621230`: 303 leaving through `0x630d1b`,
+  1088 with LOD 1 or more, 1526 with an override, 708 at the exact thresholds 4, 18, 20, 30 and 40). The frame cells
+  `+0x64`, `+0x68`, `+0x6c`, `+0xe8`, `+0xf4`, `+0x14c`, `+0x180` and `+0x1ac`, the arguments `arg8`/clamp/LOD and the exit
+  are compared. The original runs the image bytes; the rebuilt routines are MSVC 7.1 `/Ox /Ob0 /EHsc` objects linked to the
+  same image addresses. Both x87 precision settings (`0x027f`, `0x037f`) are used.
+- Mutation checks: 14 of 14 wrong variants rejected with the "state or call order mismatch" message (table threshold `<=`,
+  wheel flag `<=`, float loop compare, owner rule, arg8 threshold, exit condition, override order, zero-flag clamp, search past
+  the count, owner flag, scale gate, scale value, near result, behind test).
+- Limits: random and special values only; byte identity is not claimed; the car records, the owner and the view-mode
+  globals are fixture values.
+- Native check (log and screenshots): `UG2_DEBUG_CAR_LOD=1 build/native/ug2demo --game "$UG2_DIR" --car SKYLINE --frames 60
+  --orbit 90 --orbit-distance D --screenshot build/wheels_lod_orbit90_dD.ppm`. `--orbit-distance` (default 5 m) moves the
+  inspection camera. Measured (focal about 743 pixels): 5 m: LOD 0, wheels in the arches (`build/wheels_lod_orbit90.png`);
+  40 m: pixel 61, LOD 0; 60 m: pixel 39, LOD 1; 80 m: pixel 29, LOD 2; 100 m: pixel 23, LOD 2; 130 m: pixel 17, LOD 3 and
+  `flags1AC` 1. At 60 m and 130 m (90 degrees) and 130 m (180 degrees) the scenery blocks the view, so those screenshots show
+  no car; the log is the evidence for them. `--camera 4` keeps the drive camera about 6 m from the car, so it stays at LOD 0.
+
 ### Verification (wheel block)
 
 - `build/venv/bin/python tools/verify_pc_wheel_draw.py --mutation-checks`, with `UG2_DIR` set to the game directory (or
@@ -320,9 +396,9 @@ The block's native seams are listed in
   2048 block cases (`0x62700e`..`0x62df66`), with 28869 compared callee events (`Alloc4` 3062, `Alloc700` 3062, `D3DX`
   3320, `SetSlot` 5460, `Visible` 6804, `DrawSolid` 4963, `Fn60d700` 1586, `Fn620600` 612), the four set frames compared
   with the original frame cells, and the whole arena.
-  Case coverage: 899 with non-zero spin bytes for views 0 and 1 (spin pre-rotation), 324 with LOD gate 6 at view clamp 0
+  Case coverage: 899 with non-zero spin bytes at body LOD 0 and 1 (spin pre-rotation), 324 with LOD gate 6 at view clamp 0
   (the rear LOD substitution is reachable; it applies when the `Fn60d700` result is below the threshold), and 352 with
-  LOD gate 3 (the tail, views 0 to 2).
+  LOD gate 3 (the tail, body LOD 0 to 2).
 - Mutation checks: 12 of 12 wrong variants rejected. Each variant runs 128 block cases and 64 layout cases and must fail
   with the "state or call order mismatch" message: `tyre-flag-cc-dropped`, `spin-sign-wheel1`,
   `spin-translation-not-restored`, `stage-result-rounding`, `lod-threshold-direction`, `tail-gate-value`,
@@ -332,8 +408,9 @@ The block's native seams are listed in
   explicit input; the spin values produced by the image constants are only 0, 637 and 1274; byte identity of the
   compiled code is not established.
 - Behaviour (native, visual check only): `build/native/ug2demo --game "$UG2_DIR" --car SKYLINE --frames 60 --orbit 90
-  --screenshot build/wheels_orbit90.ppm`, converted to PNG. The tyres sit in the arches and the brake discs show inside
-  the rims. This is not a pixel comparison, and the spin is zero in the demo.
+  --screenshot build/wheels_lod_orbit90.ppm`, converted to PNG (`build/wheels_lod_orbit90.png`). The wheels and brake discs
+  sit in the arches at LOD 0, with the spin zero in the demo. This is not a pixel comparison. The LOD 1 to 3 distances are
+  listed in the pixel size section above.
 
 ### Remaining seams and limitations
 
@@ -342,10 +419,17 @@ The block's native seams are listed in
 - Visibility `0x48f660` (native: visible; the block ignores its result), LOD helpers `0x60d700`/`0x620600` (the demo
   gate is 0, so neither is called), solid slots `0x48d860` (no slot tables; the link values `ri+0x390`/`0x3ac` are zero
   in the demo), rim-part records `0x60fef0` (none in the demo; the `SPINNEROFFSET` offsets stay zero).
-- The spin term reads the car's sub-object bytes `+0x353`/`+0x354` (`0x59a420`). The demo has no such state, so the
-  spin is zero and the tyres do not turn. The layout inputs of the wheel block `ri+0x400..0x43c` come from `CarTypeInfo`
-  and the parts. The caller inputs of `0x620ae0` are not recovered: the demo passes slot index 0 (frame `+0xd8`), view
-  clamp 0 (frame `+0xf4`), flags `+0xcc` and `+0x1ac` of 0, and `arg8` 0x401.
+- The spin term reads the car's sub-object bytes `+0x353`/`+0x354` (`0x59a420`). The block applies it only to wheels 0
+  and 1 (tyre and brake frames, as a rotation about x; the table above). The demo has no such state, so the spin is zero
+  and the block pre-rotates no front wheel; the rear wheels are never pre-rotated by the block. The tyre roll is not in the
+  block either. `GetWheelRenderMatrices` (`0x5f6820`) copies the state frames `wheelMatricesF0[w]` (car `+0x130`), which
+  `0x5921b0` builds with `RotateMatrixY` (called at `0x5922fb`); `GetWheelSpinMatrices` (`0x5ec7f0`) builds the third set
+  with `RotateMatrixY` (called at `0x5eca3a`). The tyres therefore turn through the state frames and the third set, not
+  through the block's spin term.
+- The layout inputs of the wheel block `ri+0x400..0x43c` come from `CarTypeInfo` and the parts. The other caller inputs
+  are the body LOD (`frame+0x6c`), the view clamp (`frame+0xf4`) and the wheel flags (`frame+0x1ac`, with `arg8` `|0x800`)
+  from the recovered selection; the slot index `k` (`frame+0xd8`) is zero in the demo, its source open (see above); and
+  `frame+0xcc` is zero in the demo (producer `0x60d1b0` not recovered).
 - Widths `ri+0x430`/`ri+0x434` (the `MARKER_BRAKE` values, see the replacement inventory) are zero in the demo. They only
   feed `set2`, which no draw reads, so they do not change the drawn wheels.
 - Constants of the image are checked by the verifier (`IMAGE_CONSTANTS`). The LOD gate and threshold globals

@@ -41,6 +41,10 @@ struct NativeDrawSolid {
 void NativeRunCarWheelBlock(CarRenderWheelInfo *ri, const unsigned char *carTypeRow, const float *body,
                             WheelMatrix tires[4], WheelMatrix brakes[4], WheelMatrix third[4], bool translucent);
 
+// Sets the car draw's view for the pixel size (0x48acb0) and the wheel LOD: the camera origin, the unit view direction and
+// the focal length in pixels. Call it before NativeCarModel::Draw of each frame.
+void NativeSetCarView(const float eye[3], const float forward[3], float focalPixels);
+
 class NativeCarModel {
 public:
     bool Load(const char *gameDirectory, const char *carName, NativeTextureCache *textures, char *error,

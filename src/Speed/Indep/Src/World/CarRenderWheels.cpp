@@ -689,7 +689,7 @@ void CarWheelDraw(CarWheelDrawInputs *in) {
     // Spin term (0x62708a..0x627102): views 0 and 1 only. Angle is 16-bit: 65536 units per turn.
     int spin = 0;
     double frontTerm = 0.0;                                   // A (0x62712c): S3 * S1 for views 0 and 1
-    if (in->viewIndex <= 1) {
+    if (in->lod6C <= 1) {
         const double term = (kSpinS1 != kZeroFloat) ? static_cast<double>(kSpinS1) : SpinTerm(car + 0x10);
         const double product = static_cast<double>(kSpinS2) * term * static_cast<double>(kSpinScale);
         spin = static_cast<int>(product) / 360;               // _ftol2 then division by 360
@@ -705,7 +705,7 @@ void CarWheelDraw(CarWheelDrawInputs *in) {
     // Per-wheel sets (0x62731..0x627497): set0 (scale and translation), set1, set2 and set3 frames, and
     // element 13 of the tyre, brake and third frames is zeroed (0x627470..0x627481).
     WheelMatrix set0[4], set1[4], set2[4], set3[4];
-    const int k = in->slotIndex;
+    const int k = in->slotD8;
     for (int w = 0; w < 4; ++w) {
         const float c = ri->pivot400[2 * w + k];             // C (ri+0x400 + 8w + 4k)
         const float d = ri->offset438[2 * w + k];            // D (ri+0x438 + 8w + 4k)
@@ -765,7 +765,7 @@ void CarWheelDraw(CarWheelDrawInputs *in) {
         return;
     }
     // 0x62750a: views above 2 draw no wheels.
-    if (in->viewIndex > 2) {
+    if (in->lod6C > 2) {
         return;
     }
     // 0x627515..0x62758c: four allocations; a NULL result leaves the block.
@@ -782,7 +782,7 @@ void CarWheelDraw(CarWheelDrawInputs *in) {
     const int f64 = WheelPresence(ri, ri->wheelPresent2DB8, 2);
     const int fAc = WheelPresence(ri, ri->wheelPresent2DD8, 3);
     // 0x627640: the view clamp (frame+0xf4) is limited to 2.
-    int L = in->viewClamp;
+    int L = in->lodF4;
     if (L > 2) {
         L = 2;
     }
@@ -814,8 +814,8 @@ void CarWheelDraw(CarWheelDrawInputs *in) {
     }
 
     // Visible seam arguments (frame scratch, the view and the extra record of each draw).
-    const unsigned int flagsTyre = in->flagsCC | in->flagsAC | in->flagsArg8;   // 0x6286ea..0x628706
-    const unsigned int flagsBrake = in->flagsAC | in->flagsArg8;                // 0x629571..0x629584
+    const unsigned int flagsTyre = in->flagsCC | in->flags1AC | in->flagsArg8;   // 0x6286ea..0x628706
+    const unsigned int flagsBrake = in->flags1AC | in->flagsArg8;                // 0x629571..0x629584
     const float *body = in->body->elements;
     const float *rot180 = r180.elements;
     WheelMatrix rot, scratchA, scratchB;

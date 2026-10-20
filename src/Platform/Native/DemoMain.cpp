@@ -319,6 +319,7 @@ int main(int argc, char **argv) {
     bool scripted = false;
     bool placeholder = false;
     float orbit = -1.0f;
+    float orbitDistance = 5.0f;  // inspection camera distance in metres (--orbit-distance)
     bool metric = false;
     bool noHud = false;
     int hudSkin = 0;
@@ -341,6 +342,7 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--scripted")) scripted = true;
         else if (!strcmp(argv[i], "--placeholder")) placeholder = true;
         else if (!strcmp(argv[i], "--orbit") && i + 1 < argc) orbit = (float)atof(argv[++i]);
+        else if (!strcmp(argv[i], "--orbit-distance") && i + 1 < argc) orbitDistance = (float)atof(argv[++i]);
         else if (!strcmp(argv[i], "--metric")) metric = true;
         else if (!strcmp(argv[i], "--no-hud")) noHud = true;
         else if (!strcmp(argv[i], "--hud-skin") && i + 1 < argc) hudSkin = atoi(argv[++i]);
@@ -702,8 +704,8 @@ int main(int argc, char **argv) {
         if (orbit >= 0.0f) {
             // Inspection camera for screenshots: fixed angle around the car.
             float a = atan2f(forward[1], forward[0]) + orbit * 3.14159265f / 180.0f;
-            camera.position[0] = m[12] + cosf(a) * 5.0f;
-            camera.position[1] = m[13] + sinf(a) * 5.0f;
+            camera.position[0] = m[12] + cosf(a) * orbitDistance;
+            camera.position[1] = m[13] + sinf(a) * orbitDistance;
             camera.position[2] = m[14] + 1.6f;
             camera.target[0] = m[12];
             camera.target[1] = m[13];
@@ -761,6 +763,14 @@ int main(int argc, char **argv) {
         if (cameraView.attachedToCar && orbit < 0.0f) {
             // Camera +0x280 holds the car for the bumper and driver types: the car is not drawn.
         } else if (haveModel) {
+            // The car draw's view for the pixel size and the wheel LOD: this frame's camera origin, its unit view direction,
+            // and the focal length in pixels (half the viewport height over the vertical tangent of the projection).
+            float forwardView[3] = {camera.target[0] - camera.position[0], camera.target[1] - camera.position[1],
+                                    camera.target[2] - camera.position[2]};
+            const float forwardNorm = sqrtf(forwardView[0] * forwardView[0] + forwardView[1] * forwardView[1] +
+                                            forwardView[2] * forwardView[2]);
+            for (int i = 0; i < 3; ++i) forwardView[i] /= forwardNorm > 1e-6f ? forwardNorm : 1.0f;
+            NativeSetCarView(camera.position, forwardView, 0.5f * float(height) / projection.tangentY);
             DrawCarModel(&carModel, &vehicle);
         } else {
             DrawBody(&vehicle);

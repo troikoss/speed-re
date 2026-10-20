@@ -13,6 +13,7 @@
 struct CarRenderSolid;     // drawable solid object (a platform type; receiver of SetSlot)
 struct CarRenderView;      // view object (arg1 of the car draw; receiver of DrawSolid)
 struct CarRenderPart;      // rim part object (ri+4 +0x604/+0x608; receiver of FindRecord)
+struct CarRenderFrame;     // view frame (view+0x40): origin and depth axis of the projection (CarRenderLod.h)
 struct CarRenderWheelInfo;
 
 // 0x48d860 (__thiscall, RET 8): stores value under key in the solid's slot table.
@@ -23,8 +24,14 @@ struct CarRenderSolid {
 // 0x5c5930 (__thiscall on the view, RET 0x14): solid draw. Arguments: solid, world matrix, extra
 // record, flags, zero.
 struct CarRenderView {
+    unsigned char pad00[0x0C];
+    float focal0C;                  // +0x0c: focal length in pixels (0x48acb0 divides by it)
+    unsigned char pad10[0x40 - 0x10];
+    const CarRenderFrame *frame40;  // +0x40: view frame (origin +0x40 and depth axis +0x50)
     void DrawSolid(CarRenderSolid *solid, WheelMatrix *world, void *extra, unsigned int flags, unsigned int zero);
 };
+UG2_CHECK_OFFSET(CarRenderView, focal0C, 0x0c);
+UG2_CHECK_OFFSET(CarRenderView, frame40, 0x40);
 
 // 0x60fef0 (__thiscall on the part, RET 8): record with the given hash after `previous` (0 = first).
 // A record is 8 bytes: u32 hash at +0, float value at +4.
@@ -60,6 +67,8 @@ struct CarRenderWheelInfo {
     unsigned char wheelPresent2DB8;         // +0x2db8: wheel 2
     unsigned char pad2DB9[0x2DD8 - 0x2DB9];
     unsigned char wheelPresent2DD8;         // +0x2dd8: wheel 3
+    unsigned char pad2DD9[0x2EB8 - 0x2DD9];
+    unsigned char flag2EB8;                 // +0x2eb8: non-zero allows the LOD clamp to 2 (0x6211d9; CarRenderLod.cpp)
 
     // 0x620600 (__thiscall on ri, RET 8): secondary draw of a tyre matrix for the view (tail, LOD gate 3).
     void Fn620600(CarRenderView *view, WheelMatrix *world);
@@ -80,6 +89,7 @@ UG2_CHECK_OFFSET(CarRenderWheelInfo, wheelPresent2D78, 0x2d78);
 UG2_CHECK_OFFSET(CarRenderWheelInfo, wheelPresent2D98, 0x2d98);
 UG2_CHECK_OFFSET(CarRenderWheelInfo, wheelPresent2DB8, 0x2db8);
 UG2_CHECK_OFFSET(CarRenderWheelInfo, wheelPresent2DD8, 0x2dd8);
+UG2_CHECK_OFFSET(CarRenderWheelInfo, flag2EB8, 0x2eb8);
 
 // Original 0x61fe10 (__thiscall on ri, no stack arguments): wheel layout from the CarTypeInfo row
 // (ri+8) and the rim parts of the car object (ri+4). Fills ri+0x400..0x43c and ri+0x420..0x42c.
@@ -95,11 +105,11 @@ struct CarWheelDrawInputs {
     WheelMatrix *tyre;               // arg5 [ebp+0x18]: four car-local tyre frames (GetWheelRenderMatrices)
     WheelMatrix *brake;              // arg6 [ebp+0x1c]: four car-local brake frames
     WheelMatrix *third;              // arg7 [ebp+0x20]: four third-set frames (GetWheelSpinMatrices)
-    int viewIndex;                   // frame+0x6c
-    int slotIndex;                   // frame+0xd8 (0 or 1): selects the ri+0x400 / ri+0x438 column
-    int viewClamp;                   // frame+0xf4: raw value, clamped to 0..2 by the block
-    unsigned int flagsCC;            // frame+0xcc: DrawSolid flags, first part (tyre blocks)
-    unsigned int flagsAC;            // frame+0x1ac: DrawSolid flags, second part (all blocks)
+    int lod6C;                       // frame+0x6c: body LOD index (CarLodSelect). Above 2 draws no wheels; <= 1 enables the spin
+    int slotD8;                      // frame+0xd8 (k, 0 or 1): selects the ri+0x400 / ri+0x438 column (k source: see docs)
+    int lodF4;                       // frame+0xf4: view clamp, raw value, limited to 2 by the block
+    unsigned int flagsCC;            // frame+0xcc: DrawSolid flags, first part (tyre blocks; producer 0x60d1b0 not recovered)
+    unsigned int flags1AC;           // frame+0x1ac: DrawSolid flags, second part (all blocks; CarLodSelect)
     WheelMatrix *setDump;            // verification output: set0[0..3], set1[0..3], set2[0..3], set3[0..3] (0 in the game)
 };
 

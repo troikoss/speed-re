@@ -1,0 +1,50 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "scope": "Car draw pixel size 0x620c6b..0x620cc0, LOD selection 0x62107e..0x621230 and CarViewPixelRadius 0x48acb0 (speed2.exe PC v1.2)",
+  "functions": {
+    "CarViewPixelRadius48acb0": {
+      "address": "0x48acb0",
+      "size": 148,
+      "sha256": "84c478f9c67f331b1ed3a1080ffa51029eda7cc9ba3c8292a310c1a262a4297c"
+    },
+    "CarLodPixelSize620c6b": {
+      "address": "0x620c6b",
+      "size": 85,
+      "sha256": "7e50ecb9da90686186f8e2c159c3091c9a7cd99d4bead6ebcf1f2e01775cb5f6"
+    },
+    "CarLodSelect62107e": {
+      "address": "0x62107e",
+      "size": 434,
+      "sha256": "ed6537a858081a6d2f94c4c84c1bf95649c06931eb74be504fd30c6a4c6b4a8c"
+    },
+    "UG2CarViewModeGlobal5b98a0": {
+      "address": "0x5b98a0",
+      "size": 6,
+      "sha256": "7abff7f02f6b82b6cca39e742b254bad1aab99939a39645f060f43b460af0f57"
+    },
+    "UG2CarLodZeroFlag499db0": {
+      "address": "0x499db0",
+      "size": 6,
+      "sha256": "a6ab27e6fdb311a6a17aebad8da9903f82f7f0c3550871bb7d5a8f1980d29850"
+    }
+  },
+  "constants": {
+    "0x7a66dc": "000020420000f0410000a04100000000000020420000a0410000204100000000",
+    "0x7a66fc": "00009041",
+    "0x7a6700": "3333333f",
+    "0x7fee4c": "01000000",
+    "0x802728": "ffffffffffffffff",
+    "0x8a1cd4": "0000000000000000",
+    "0x836352": "00",
+    "0x8707dc": "00000000",
+    "0x8654a4": "00000000"
+  },
+  "notes": {
+    "0x7a66dc": "eight floats: pixel thresholds 40, 30, 20, 0, 40, 20, 10, 0 indexed by the body LOD",
+    "0x7a66fc": "18.0: pixel threshold of the wheel flags (strict)",
+    "0x7a6700": "0.7: pixel scale when the view mode is 3 and the gate is not 3",
+    "0x802728": "two -1 dwords (0x802728 and 0x80272c): image values, no override",
+    "0x8a1cd4": "record pointer and count (0x8a1cd8) are runtime values; zero in the image",
+    "0x836352": "byte read by 0x499db0 (zero flag), zero in the image"
+  }
+}

@@ -1,18 +1,21 @@
-// Platform seams for the recovered car wheel block (src/Speed/Indep/Src/World/CarRenderWheels.cpp).
-// The unrecovered callees that the original draw 0x620ae0 calls from the wheel block are implemented for
-// the native demo here. Each seam keeps the argument order of the original; the native behaviour is
-// listed per seam. Globals of the block are fixed to the demo's values (see below).
+// Platform seams for the recovered car wheel block (src/Speed/Indep/Src/World/CarRenderWheels.cpp) and the recovered
+// pixel size and LOD selection (src/Speed/Indep/Src/World/CarRenderLod.cpp). The unrecovered callees that the original
+// draw 0x620ae0 calls are implemented for the native demo here. Each seam keeps the argument order of the original; the
+// native behaviour is listed per seam. Globals of the block are fixed to the demo's values (see below).
 #include "NativeScene.h"
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include <GL/gl.h>
 
-#include "../../Speed/Indep/Src/World/CarRenderWheels.h"
+#include "../../Speed/Indep/Src/World/CarRenderLod.h"
 
-// Globals of the block at their original addresses (0x8654a4, 0x8a1c5c, 0x7a668c, 0x7a6690, 0x784250,
-// 0x8026c4). The demo selects: no LOD substitution and no secondary draws (gate 0), no width override
-// (the widths only feed set2, which no draw reads), and the division constants of the 0.184 scale.
+// Globals of the block and of the LOD selection at their original addresses. The demo selects: no LOD gate (gate 0, so
+// no special path and no tail draw), no width override (the widths only feed set2, which no draw reads), the division
+// constants of the 0.184 scale, and the image values of the LOD globals (0x7fee4c = 1, overrides -1, the pixel
+// thresholds of 0x7a66dc and 0x7a66fc, the scale of 0x7a6700). The car record table (0x8a1cd4, 0x8a1cd8) is empty.
 extern "C" {
 int ug2WheelLodGate = 0;
 float ug2WheelLodThreshold = 0.0f;
@@ -20,7 +23,47 @@ float ug2WheelWidthOverrideFront = 0.0f;
 float ug2WheelWidthOverrideRear = 0.0f;
 volatile float ug2WheelOneRuntime = 1.0f;
 volatile float ug2WheelBetaRuntime = 0.184f;
+int ug2CarLodFlag7FEE4C = 1;
+int ug2CarLodOverride802728 = -1;
+int ug2CarLodOverride80272C = -1;
+float ug2CarLodTable7A66DC[8] = {40.0f, 30.0f, 20.0f, 0.0f, 40.0f, 20.0f, 10.0f, 0.0f};
+float ug2CarLodPixelLimit7A66FC = 18.0f;
+float ug2CarLodScale7A6700 = 0.7f;
+void *ug2CarLodRecords8A1CD4 = 0;
+int ug2CarLodRecordCount8A1CD8 = 0;
 }
+
+// 0x5b98a0 (RET 0): the view mode global. The demo's view is mode 0, so the pixel size is not scaled.
+extern "C" int UG2CarViewModeGlobal(void) {
+    return 0;
+}
+
+// 0x499db0 (RET 0): the zero flag of the LOD selection. The demo leaves it clear.
+extern "C" unsigned char UG2CarLodZeroFlag(void) {
+    return 0;
+}
+
+// The car draw's view (arg1 of 0x620ae0) for the pixel size and the DrawSolid receiver. The frame holds the camera origin
+// (+0x40) and the depth axis (+0x50) that 0x48acb0 reads; the focal length (+0xc) is set by NativeSetCarView.
+static CarRenderFrame gCarViewFrame;
+static CarRenderView gCarView;
+static bool gCarViewSet = false;
+
+// Sets the view of the car draw from the camera: `eye` is the camera position, `forward` the unit view direction, and
+// `focalPixels` the focal length in pixels. The original focal length is set by the camera code, which is not recovered:
+// the native value is half the viewport height over the vertical tangent of the projection (docs/NATIVE_DEMO.md).
+void NativeSetCarView(const float eye[3], const float forward[3], float focalPixels) {
+    for (int i = 0; i < 3; ++i) {
+        gCarViewFrame.position40[i] = eye[i];
+        gCarViewFrame.axis50[i] = forward[i];
+    }
+    gCarView.frame40 = &gCarViewFrame;
+    gCarView.focal0C = focalPixels;
+    gCarViewSet = true;
+}
+
+// Without a view (no NativeSetCarView call) the pixel size is taken as large: LOD 0, no skip of the car draw.
+static const int kNativeNoViewPixel = 1000;
 
 // Pass of the current draw: the solids are drawn from their opaque list or their translucent list.
 static bool gWheelPassTranslucent = false;
@@ -108,30 +151,56 @@ extern "C" void *UG2WheelAllocRecords(unsigned int bytes) {
     return gScratchRecords[(gScratchRecordCount++) & 1];
 }
 
-// Runs the layout 0x61fe10 and the wheel block on the render info. `tires`, `brakes` and `third` are the
-// arg5, arg6 and arg7 frames of 0x620ae0: the block zeroes their element 13 (as the original does).
+// Runs the layout 0x61fe10, the pixel size and LOD selection, and the wheel block on the render info. `tires`, `brakes`
+// and `third` are the arg5, arg6 and arg7 frames of 0x620ae0: the block zeroes their element 13 (as the original does).
+// `body` is the body frame of the car draw; its translation (elements 12..14) is the car origin that 0x48acb0 measures.
 void NativeRunCarWheelBlock(CarRenderWheelInfo *ri, const unsigned char *carTypeRow, const float *body,
                             WheelMatrix tires[4], WheelMatrix brakes[4], WheelMatrix third[4], bool translucent) {
-    static CarRenderView view;   // receiver of DrawSolid; the demo keeps no view state
     ri->carTypeRow = const_cast<unsigned char *>(carTypeRow);
     CarRenderWheelLayout(ri);    // 0x61fe10 (recovered)
     gWheelPassTranslucent = translucent;
     gScratchMatrixCount = 0;
     gScratchRecordCount = 0;
+
+    // Pixel size (0x620c6b..0x620cc0): the caller's LOD inputs [EBP+0x34] and [EBP+0x30] start at 0 in the demo.
+    int lodArg = 0;
+    int clampArg = 0;
+    const int pixel = gCarViewSet ? CarLodPixelSize(&gCarView, body + 12, &lodArg, &clampArg) : kNativeNoViewPixel;
+    if (pixel < 4) {
+        return;                  // 0x620cba: the car draw leaves before the wheels
+    }
+
+    // LOD selection (0x62107e..0x621230). arg8 is 0x401 as in the original's captured calls; the selection ORs 0x800.
+    CarLodInputs lod;
+    memset(&lod, 0, sizeof(lod));
+    lod.ri = ri;
+    lod.pixel = pixel;
+    lod.lodIn = lodArg;
+    lod.clampIn = clampArg;
+    lod.arg8 = 0x401;
+    CarLodSelect(&lod);
+    if (getenv("UG2_DEBUG_CAR_LOD")) {
+        fprintf(stderr, "car lod: pixel %d body lod %d clamp %d flags1AC %u arg8 %x\n", pixel, lod.lod, lod.clamp,
+                lod.flag1AC, lod.arg8Out);
+    }
+    if (lod.exitDraw) {
+        return;                  // 0x62121c: both LOD values are -1
+    }
+
     CarWheelDrawInputs in;
     memset(&in, 0, sizeof(in));
     in.ri = ri;
-    in.view = &view;
-    in.flagsArg8 = 0x401;        // arg8 of the car draw in the original's captured calls
+    in.view = &gCarView;
+    in.flagsArg8 = lod.arg8Out;  // 0x401, plus 0x800 for LOD 1 or more
     in.body = reinterpret_cast<WheelMatrix *>(const_cast<float *>(body));
     in.tyre = tires;
     in.brake = brakes;
     in.third = third;
-    in.viewIndex = 0;            // view 0: the demo draws the view it renders
-    in.slotIndex = 0;            // the caller's column of the wheel offsets (0x6316d0 / 0x631250), not recovered
-    in.viewClamp = 0;
-    in.flagsCC = 0;
-    in.flagsAC = 0;
+    in.lod6C = lod.lod;          // frame+0x6c: body LOD
+    in.slotD8 = 0;               // frame+0xd8 (k) = [obj+0x2c10] in the original; not modelled, see docs/NATIVE_DEMO.md
+    in.lodF4 = lod.clamp;        // frame+0xf4: view clamp
+    in.flagsCC = 0;              // frame+0xcc: producer 0x60d1b0 not recovered, see docs/NATIVE_DEMO.md
+    in.flags1AC = lod.flag1AC;   // frame+0x1ac: CarLodSelect
     in.setDump = 0;
     CarWheelDraw(&in);           // 0x62700e..0x62df66 (recovered)
 }

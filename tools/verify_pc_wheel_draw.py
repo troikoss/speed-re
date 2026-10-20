@@ -76,11 +76,11 @@ IMAGE_CONSTANTS = {0x7d7d3c: 0x00000000, 0x8026c4: 0x3e3c6a7f, 0x8026c0: 0x3f000
                    0x784238: 0x47800000}
 
 # Input struct layout (CarWheelDrawInputs, 32-bit): 13 dwords.
-INPUT_FIELDS = ['ri', 'view', 'flagsArg8', 'body', 'tyre', 'brake', 'third', 'viewIndex', 'slotIndex',
-                'viewClamp', 'flagsCC', 'flagsAC', 'setDump']
+INPUT_FIELDS = ['ri', 'view', 'flagsArg8', 'body', 'tyre', 'brake', 'third', 'lod6C', 'slotD8',
+                'lodF4', 'flagsCC', 'flags1AC', 'setDump']
 # Frame cells the original reads before writing, filled from the inputs (S-relative offsets).
-FRAME_INPUTS = {0x58: 'ri', 0x6c: 'viewIndex', 0xd8: 'slotIndex', 0xf4: 'viewClamp', 0xcc: 'flagsCC',
-                0x1ac: 'flagsAC'}
+FRAME_INPUTS = {0x58: 'ri', 0x6c: 'lod6C', 0xd8: 'slotD8', 0xf4: 'lodF4', 0xcc: 'flagsCC',
+                0x1ac: 'flags1AC'}
 
 STUB_ADDRESSES = {0x5c5930: 'DrawSolid', 0x48f660: 'Visible', 0x48d860: 'SetSlot', 0x60d700: 'Fn60d700',
                   0x620600: 'Fn620600', 0x401e80: 'Alloc4', 0x401e30: 'Alloc700', D3DX: 'D3DX'}
@@ -337,11 +337,11 @@ def random_case(rng, layout=False):
     case['tyre'] = TYRE
     case['brake'] = BRAKE
     case['third'] = THIRD
-    case['viewIndex'] = rng.choice((0, 0, 1, 1, 2, 3))
-    case['slotIndex'] = rng.choice((0, 1))
-    case['viewClamp'] = rng.choice((0, 0, 1, 2, 3))
+    case['lod6C'] = rng.choice((0, 0, 1, 1, 2, 3))
+    case['slotD8'] = rng.choice((0, 1))
+    case['lodF4'] = rng.choice((0, 0, 1, 2, 3))
     case['flagsCC'] = rng.choice((0, 0x1, 0x400, rng.getrandbits(16)))
-    case['flagsAC'] = rng.choice((0, 0x2, 0x800, rng.getrandbits(16)))
+    case['flags1AC'] = rng.choice((0, 0x2, 0x800, rng.getrandbits(16)))
     case['flagsArg8'] = rng.choice((0x401, 0, rng.getrandbits(16)))
     case['setDump'] = SETDUMP
     case['fpcw'] = rng.choice((0x027f, 0x037f))
@@ -617,11 +617,11 @@ def main():
         for e in orig.events:
             key = 'event_' + e[0]
             counts[key] = counts.get(key, 0) + 1
-        if case['viewIndex'] <= 1 and case['spin353'] | case['spin354']:
+        if case['lod6C'] <= 1 and case['spin353'] | case['spin354']:
             counts['case_spin_nonzero'] = counts.get('case_spin_nonzero', 0) + 1
-        if min(case['viewClamp'], 2) == 0 and case['lod_gate'] == 6:
+        if min(case['lodF4'], 2) == 0 and case['lod_gate'] == 6:
             counts['case_lod6_at_clamp0'] = counts.get('case_lod6_at_clamp0', 0) + 1
-        if case['lod_gate'] == 3 and case['viewIndex'] <= 2:
+        if case['lod_gate'] == 3 and case['lod6C'] <= 2:
             counts['case_lod3_tail'] = counts.get('case_lod3_tail', 0) + 1
     report = dict(comparisons=counts, cases=args.cases, layout_cases=args.layout_cases,
                   compiler='MSVC 7.1 /Ox /Ob0 /EHsc', compared=['callee events (normalised)', 'whole arena bytes'],
@@ -635,8 +635,8 @@ def main():
         text0 = (ROOT / SOURCE).read_text()
         rejected = []
         mutations = {
-            'tyre-flag-cc-dropped': ('const unsigned int flagsTyre = in->flagsCC | in->flagsAC | in->flagsArg8;',
-                                     'const unsigned int flagsTyre = in->flagsAC | in->flagsArg8;'),
+            'tyre-flag-cc-dropped': ('const unsigned int flagsTyre = in->flagsCC | in->flags1AC | in->flagsArg8;',
+                                     'const unsigned int flagsTyre = in->flags1AC | in->flagsArg8;'),
             'spin-sign-wheel1': ('SpunFrame(&rot, &in->tyre[1], -spin, spin)', 'SpunFrame(&rot, &in->tyre[1], spin, spin)'),
             'spin-translation-not-restored': ('    copy->elements[12] = tx;\n', ''),
             'stage-result-rounding': ('volatile float stored = static_cast<float>(f * static_cast<double>(width));',
