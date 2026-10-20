@@ -1,12 +1,12 @@
 // Native adapter around recovered engine construction, bank loading and Ginsu setup.
-// Participant/control production, file I/O and heap backend remain seams.
+// Component scheduling/lifecycle, shift/effect inputs, file I/O and heap remain seams.
 #include "NativeEngineSound.h"
 #include "NativeAudio.h"
 #include "NativeEngineBankIO.h"
 #include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSoundBanks.h"
 #include "../../Speed/Indep/Src/Audio/AudioSystem.h"
 #include "../../Speed/Indep/Src/Physics/VehicleMover.h"
-#include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSound.h"
+#include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSoundPhysics.h"
 
 #include <SDL2/SDL.h>
 #include <stdlib.h>
@@ -21,9 +21,55 @@ struct NativeEnginePlayback {
     EngineSoundControl control;
     EngineSoundVtable vtable;
     unsigned int level;
+    EngineSoundPhysicsView physics;
+    EngineSoundAuxiliary auxiliary;
+    EngineSoundShiftView shift;
+    EngineSoundAccelView accel;
+    EngineSoundCarVtable carVtable;
+    EngineSoundAuxiliaryVtable auxiliaryVtable;
+    EngineSoundSpatialComponent spatial;
+    EngineSoundSpatialVtable spatialVtable;
 };
 
+// Notification ownership is still absent. Normal native playback explicitly
+// bypasses this branch with physics.flag6C; unexpected entry must stay visible.
+void NativeTrap(const char *what);
+unsigned char __fastcall EngineSoundBlown5ECE00(MoverModeOwner *) { NativeTrap("audio blown-engine query"); return 0; }
+int EngineSoundNotificationView::Query46C9A0() { NativeTrap("audio notification query"); return 0; }
+unsigned char EngineSoundNotificationView::Ready46C790() { NativeTrap("audio notification ready"); return 0; }
+void EngineSoundNotificationView::Play484510(int, unsigned int, int, void (__cdecl *)(), int) { NativeTrap("audio notification play"); }
+void EngineSoundNotificationView::Clear45AD40(int) { NativeTrap("audio notification clear"); }
+void EngineSoundDiagnostic4691C0(int, const char *) { NativeTrap("audio component attachment"); }
+
 namespace {
+
+struct NativeAverageVtable {
+    void *unidentified0;
+    void (__fastcall *recalculate4)(SampleAverage *);
+};
+void __fastcall RecalculateAverage(SampleAverage *average) { average->RecalculateSamples(); }
+NativeAverageVtable averageVtable = {0, RecalculateAverage};
+int __fastcall CarValue(EngineSoundCar *car) { return car->Value479700(); }
+float __fastcall AuxiliaryFrequency(EngineSoundAuxiliary *auxiliary) { return auxiliary->Value45C530(); }
+float __fastcall AuxiliaryThrottle(EngineSoundAuxiliary *auxiliary) { return auxiliary->Value45C540(); }
+// Spatial rendering remains centered. Activation's outputs are retained locally;
+// the missing spatial component does not supply attenuation/pan to playback.
+void __fastcall SpatialPosition(EngineSoundSpatialComponent *, void *, float *position) {
+    position[0] = position[1] = position[2] = 0.0f;
+}
+void __fastcall SpatialDirection(EngineSoundSpatialComponent *, void *, void *) {}
+
+void InitialiseControlSession(NativeEnginePlayback *session) {
+    EngineSoundCar &car = session->car;
+    EngineSoundControl &control = session->control;
+    control.Construct45CE20();
+    control.Bind45CF90(&car);
+    // Registry attachment/scheduling remain a native session seam.
+    control.engine6C = &session->auxiliary;
+    control.value70 = &session->shift;
+    control.value74 = &session->accel;
+    control.averageC4.vtable0 = &averageVtable;
+}
 
 int __fastcall PlaybackGain(EngineSound *engine, void *, int index) {
     return engine->Value45E390(index);
@@ -44,15 +90,16 @@ NativeEngineSound::~NativeEngineSound() {
     Destroy();
 }
 
-bool NativeEngineSound::Load(const char *gameDirectory, MoverContext *context, const char *ginOverride,
+bool NativeEngineSound::Load(const char *gameDirectory, MoverModeOwner *owner, const char *ginOverride,
                              char *error, int errorSize) {
     Destroy();
     playback_ = new NativeEnginePlayback();
     EngineSoundCar &car = playback_->car;
     car.Construct479660();
     // Manager ownership/index allocation is still a native session seam.
-    car.kind14 = context->value4;
-    car.Select4593B0(context);
+    car.kind14 = owner->context14->value4;
+    car.car30 = owner;
+    car.Select4593B0(owner->context14);
     if (ginOverride) {
         playback_->overrideRecord = *car.value80;
         playback_->overrideRecord.fileC = ginOverride;
@@ -103,18 +150,44 @@ bool NativeEngineSound::Load(const char *gameDirectory, MoverContext *context, c
         memblock_[i] = engine.slotsCC[i].memory8;
         if (engine.slotsCC[i].startResult14 >= 0) started_ = true;
     }
-    // Session/registry seam: preserve the previous native full-level, centered
-    // playback until the original component producers and registry are recovered.
-    // These are inputs to the recovered playback routines, not HybridMotor gains.
+    // Native session ownership and vtable ABI bridges into recovered routines.
     playback_->level = 32767;
     *reinterpret_cast<unsigned int **>(reinterpret_cast<char *>(&engine) + 0x58) = &playback_->level;
     playback_->vtable.value38 = PlaybackGain;
     playback_->vtable.value3C = PlaybackPan;
     engine.vtable0 = &playback_->vtable;
+    playback_->carVtable.value44 = CarValue;
+    car.vtable0 = &playback_->carVtable;
+    EngineSoundPhysicsView &physics = playback_->physics;
+    physics.Construct45D210();
+    physics.Bind45D4F0(&car);
+    physics.Activate45D370();
+    physics.average94.vtable0 = &averageVtable;
+    // Notification subsystem remains a seam; do not reach its unavailable owner.
+    physics.flag6C = 1;
+    EngineSoundAuxiliary &auxiliary = playback_->auxiliary;
+    auxiliary.Construct46F1B0();
+    playback_->auxiliaryVtable.value34 = AuxiliaryFrequency;
+    playback_->auxiliaryVtable.value38 = AuxiliaryThrottle;
+    auxiliary.vtable0 = &playback_->auxiliaryVtable;
+    auxiliary.average90.vtable0 = auxiliary.averageB8.vtable0 = &averageVtable;
+    auxiliary.Bind45C550(&car);
+    // Neutral shift/accel components are explicit fixtures until their producers
+    // are recovered. No guessed shift or accel transition is synthesized.
+    auxiliary.shift6C = &playback_->shift;
+    auxiliary.accel70 = &playback_->accel;
+    auxiliary.physics74 = &physics;
+    playback_->spatialVtable.value2C = SpatialPosition;
+    playback_->spatialVtable.value30 = SpatialDirection;
+    playback_->spatial.vtable0 = &playback_->spatialVtable;
+    auxiliary.spatial78 = &playback_->spatial;
+    auxiliary.Activate45C5A0();
+    // Full auxiliary frame 0x47c010 remains open: retain neutral offset/ramp
+    // state and a full base level in place of its random/effect producers.
+    auxiliary.valueE0 = 32767;
+    InitialiseControlSession(playback_);
+    engine.auxiliaryB8 = &auxiliary;
     engine.controlC0 = &playback_->control;
-    playback_->control.value80 = 32767;
-    playback_->control.value84 = 32767;
-    playback_->control.valueBC = 24000.0f;
     engine.activeC8 = slots == 1 ? engine.slotsCC[0].startResult14 >= 0 :
         engine.slotsCC[0].startResult14 >= 0 && engine.slotsCC[1].startResult14 >= 0;
     started_ = engine.activeC8 != 0;
@@ -128,13 +201,18 @@ bool NativeEngineSound::Load(const char *gameDirectory, MoverContext *context, c
     return true;
 }
 
-void NativeEngineSound::Update(float rpm, int frame) {
+void NativeEngineSound::Update(float rpm, float duration, int frame) {
     if (synth_[0] == 0) {
         return;
     }
-    // The original control producer remains open. Retain the existing raw-RPM
-    // input seam, then execute the actual caller and mode-specific controllers.
-    playback_->control.frequencyF8 = rpm;
+    // ExportState 0x5a5540 already publishes the filtered engine value at
+    // state +0x400 / owner +0x440. Consume that original field directly;
+    // the raw RPM argument is used only by the diagnostic log.
+    playback_->car.time34 += duration;
+    playback_->physics.Update484C50(duration);
+    playback_->auxiliary.ProduceRpm46F7D0(duration);
+    playback_->auxiliary.ProduceThrottle45C710(duration);
+    playback_->control.Update47C3D0(duration);
     playback_->engine.Update474310();
     if (log_ != 0) {
         fprintf(log_, "%u %d %.2f\n", (unsigned int)SDL_GetTicks(), frame, rpm);
@@ -142,6 +220,11 @@ void NativeEngineSound::Update(float rpm, int frame) {
                 playback_->car.mode78, playback_->engine.frequency104,
                 playback_->engine.volume108, playback_->engine.volume10C,
                 synth_[0]->targetPos34, synth_[1] ? synth_[1]->targetPos34 : 0);
+        fprintf(log_, "# control %d %.2f %.2f %.2f %.2f %d %d %d %.2f\n", frame,
+                playback_->car.value48, playback_->auxiliary.value128,
+                playback_->auxiliary.value130, playback_->control.frequencyF8,
+                playback_->control.value7C, playback_->control.value80,
+                playback_->control.value84, playback_->control.valueBC);
         fflush(log_);
     }
 }
@@ -157,6 +240,12 @@ void NativeEngineSound::Destroy() {
         free(gin_[i]); gin_[i] = 0;
     }
     started_ = false;
+    if (playback_) {
+        if (playback_->physics.average94.samples10) playback_->physics.average94.Destroy();
+        if (playback_->auxiliary.average90.samples10) playback_->auxiliary.average90.Destroy();
+        if (playback_->auxiliary.averageB8.samples10) playback_->auxiliary.averageB8.Destroy();
+        if (playback_->control.averageC4.samples10) playback_->control.averageC4.Destroy();
+    }
     delete playback_;
     playback_ = 0;
     if (log_ != 0) {

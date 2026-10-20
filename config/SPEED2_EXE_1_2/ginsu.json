@@ -390,6 +390,86 @@
       "address": "0x470a00",
       "size": 64,
       "sha256": "2c6cd98c07fc9ec0d85f709c3b5296bd7d74d576de2ed81b8d0c4ce78f8c2c71"
+    },
+    "AuxConstruct": {
+      "address": "0x46f1b0",
+      "size": 518,
+      "sha256": "0c7cda82e514d45f4c340065297203a70e64fc66ff6b843a978b64966f1de79b"
+    },
+    "AuxFactory": {
+      "address": "0x47bfd0",
+      "size": 64,
+      "sha256": "ed271c6ea6956d8259b90df9d3996f03bf7b7e8460698bd51213194de9cf7e85"
+    },
+    "AuxBind": {
+      "address": "0x45c550",
+      "size": 68,
+      "sha256": "dcc676817fac2e7230ed075d206cc2aaca5aecc403d64973ebdf3366a18747e7"
+    },
+    "AuxActivate": {
+      "address": "0x45c5a0",
+      "size": 194,
+      "sha256": "0235d78931d4e831ba436f834492676b4894163e1669dec777cf37d87d78102e"
+    },
+    "AuxAttach": {
+      "address": "0x46f3e0",
+      "size": 89,
+      "sha256": "f06e834f8bc446daad0b448e9832ce34a7cfe3d57da32c76dfc6d3d1b1ccb2e0"
+    },
+    "AuxRpm": {
+      "address": "0x46f7d0",
+      "size": 504,
+      "sha256": "88eaecf30393e89f8a2f21ce0a2ae83327907cca2af57d2818d24ad6e91d35b7"
+    },
+    "AuxThrottle": {
+      "address": "0x45c710",
+      "size": 130,
+      "sha256": "eb90a166978ab26b9b2aea1d111a065246e86ff73ec0747c342513f1fccc76fb"
+    },
+    "AuxDependency": {
+      "address": "0x45c670",
+      "size": 51,
+      "sha256": "f529a3931fe7cf3c6cc5fd900bd6515c57a233e7b82ee9e966de9b8a0a75af83"
+    },
+    "AuxDescriptor": {
+      "address": "0x45c4b0",
+      "size": 6,
+      "sha256": "b3a05bdf0b31b9c263a79c9b61a370dfd0bfb35db70e19798e3805ba472b2770"
+    },
+    "AuxCarValue": {
+      "address": "0x479700",
+      "size": 7,
+      "sha256": "b8daa47a1e2c23c0d84bc9ac1de08473d93f8b72166ba2ff5b06db32826f2236"
+    },
+    "AuxApproach": {
+      "address": "0x468e30",
+      "size": 51,
+      "sha256": "828a62d3328119aedfaf5c7e10baf7048c7fdb54eaa7c8914bf07666aa64dd7d"
+    },
+    "AuxSequenceConstruct": {
+      "address": "0x46af20",
+      "size": 78,
+      "sha256": "195329adfbea30dbaa7360046b7808bce543da90d5f767f58795b5683ec6a6a7"
+    },
+    "AuxSequenceAppend": {
+      "address": "0x4598f0",
+      "size": 123,
+      "sha256": "43e9547e7738a3524d4a54d570eb190e4a79e73c89dd85210f1be86a8e489f47"
+    },
+    "ControlConstruct": {
+      "address": "0x45ce20",
+      "size": 275,
+      "sha256": "fa7c6969b309ac5d87373790fa89736916e9bd1dcf42339440fb547e110023d9"
+    },
+    "ControlBind": {
+      "address": "0x45cf90",
+      "size": 190,
+      "sha256": "a76b95e634ed6e0768927975406b9881b1123817aaa858ab2245af1d6f168a38"
+    },
+    "GainCurveConstruct": {
+      "address": "0x576770",
+      "size": 18,
+      "sha256": "0d4641e22a94bf3e3d952540cba846c6865d42df80cd139af0ea42c5333f9379"
     }
   }
 }

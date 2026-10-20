@@ -412,7 +412,7 @@ int main(int argc, char **argv) {
     NativeEngineSound engineSound;
     bool haveEngine = false;
     if (NativeAudioIsOpen()) {
-        haveEngine = engineSound.Load(game, vehicle.owner->context14, engineGin, error, sizeof(error));
+        haveEngine = engineSound.Load(game, vehicle.owner, engineGin, error, sizeof(error));
         if (!haveEngine) fprintf(stderr, "ug2demo: %s; engine sound disabled\n", error);
         else if (!engineSound.Started()) fprintf(stderr, "ug2demo: engine sound did not start; running silent\n");
     }
@@ -781,7 +781,7 @@ int main(int argc, char **argv) {
 #endif
         DrivetrainAuxiliary *state = vehicle.owner->State();
         float rpm = vehicle.mover->engine48->state14 * engineValueScale;
-        if (haveEngine && !paused) engineSound.Update(rpm, frame);
+        if (haveEngine && !paused) engineSound.Update(rpm, duration, frame);
         int gear = vehicle.mover->drivetrain4C->ratioIndex;
         char title[160];
         snprintf(title, sizeof(title), "UG2 recovered vehicle demo - %s  %5.1f km/h  %5.0f rpm  gear %s",

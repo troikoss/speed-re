@@ -2,6 +2,7 @@
 #define UG2_EAXSOUND_ENGINE_SOUND_H
 
 #include "Ginsu.h"
+#include "EngineSoundSequence.h"
 #include "../../../Libs/bWare/TimedAverage.h"
 #include "../../Physics/DriveFeedbackCurve.h"
 #include "../../Physics/Ug2Layout.h"
@@ -83,11 +84,25 @@ struct EngineSoundPhysicsView {
 UG2_CHECK_OFFSET(EngineSoundPhysicsView, flagD8, 0xd8);
 UG2_CHECK_OFFSET(EngineSoundPhysicsView, average94, 0x94);
 UG2_CHECK_SIZE(EngineSoundPhysicsView, 0xf4);
-struct EngineSoundShiftView { char unidentified0[0x78]; int value78; int value7C; };
-struct EngineSoundAccelView { char unidentified0[0xc8]; int valueC8; };
+struct EngineSoundShiftView {
+    char unidentified0[0x78]; int value78, value7C;
+    char unidentified80[0x40]; float valueC0;
+    char unidentifiedC4[0x18]; float valueDC;
+    char unidentifiedE0[0x74]; float value154;
+};
+struct EngineSoundAccelView {
+    char unidentified0[0x88]; float value88;
+    char unidentified8C[0x34]; float valueC0;
+    char unidentifiedC4[4]; int valueC8;
+};
 
+struct EngineSoundCarVtable {
+    void *unidentified0[17];
+    int (__fastcall *value44)(EngineSoundCar *);
+};
 struct EngineSoundCar {
-    char unidentified0[0x10];
+    EngineSoundCarVtable *vtable0;
+    char unidentified4[0xc];
     int bankIndex10;
     int kind14;
     char unidentified18[0x18];
@@ -101,7 +116,8 @@ struct EngineSoundCar {
     char unidentified4D[3];
     int value50;
     float value54;
-    char unidentified58[0x1c];
+    float value58;
+    char unidentified5C[0x18];
     MoverContext *context74;
     int mode78;
     int value7C;
@@ -123,6 +139,7 @@ struct EngineSoundCar {
     char unidentifiedC1[3];
     int valueC4;
     char unidentifiedC8[4];
+    int Value479700();
     EngineSoundCar *Construct479660();
     void Select4593B0(MoverContext *context);
 };
@@ -183,6 +200,8 @@ struct EngineSoundControl {
     float value100;
     float value104;
     float value108;
+    EngineSoundControl *Construct45CE20();
+    void Bind45CF90(EngineSoundCar *car);
     void Update47C3D0(float duration);
     void Scale45D190();
     void Prepare45D0A0();
@@ -241,23 +260,80 @@ struct EngineSoundAuxiliaryVtable {
     float (__fastcall *value38)(EngineSoundAuxiliary *);
 };
 
+struct EngineSoundSpatialComponent;
+struct EngineSoundSpatialVtable {
+    void *unidentified0[11];
+    void (__fastcall *value2C)(EngineSoundSpatialComponent *, void *, float *);
+    void (__fastcall *value30)(EngineSoundSpatialComponent *, void *, void *);
+};
+struct EngineSoundSpatialComponent { EngineSoundSpatialVtable *vtable0; };
+
+struct EngineSoundComponent;
 struct EngineSoundAuxiliary {
     EngineSoundAuxiliaryVtable *vtable0;
-    char unidentified4[0xdc];
+    char unidentified4[0x40];
+    EngineSoundCar *state44;
+    char unidentified48[0x10];
+    unsigned char active58;
+    char unidentified59[3];
+    float time5C, delta60;
+    int value64;
+    EngineSoundCar *car68;
+    EngineSoundShiftView *shift6C;
+    EngineSoundAccelView *accel70;
+    EngineSoundPhysicsView *physics74;
+    EngineSoundSpatialComponent *spatial78;
+    char unidentified7C[4];
+    float value80, value84, value88;
+    char unidentified8C[4];
+    SampleAverage average90;
+    SampleAverage averageB8;
     int valueE0;
-    char unidentifiedE4[0x18];
-    float valueFC;
-    char unidentified100[0x18];
-    float value118;
-    char unidentified11C[0xc];
-    float value128;
-    float value12C;
-    float value130;
-    int value134;
-    int value138;
+    unsigned char flagE4;
+    char unidentifiedE5[3];
+    float valueE8, valueEC, valueF0, valueF4, valueF8, valueFC;
+    unsigned char flag100;
+    char unidentified101[3];
+    float value104, value108, value10C, value110, value114, value118;
+    unsigned char flag11C;
+    char unidentified11D[3];
+    unsigned char flag120;
+    char unidentified121[3];
+    float value124;
+    float value128, value12C, value130;
+    int value134, value138;
+    unsigned char flag13C;
+    char unidentified13D[3];
+    float value140, value144, value148;
+    unsigned short value14C, value14E, value150;
+    unsigned char flag152;
+    char unidentified153;
+    EngineSoundSequence sequence154;
+    float value1D0, value1D4, value1D8, value1DC, value1E0, value1E4;
+    unsigned char flag1E8;
+    char unidentified1E9[7];
     float Value45C530();
     float Value45C540();
+    unsigned int *Descriptor45C4B0();
+    int Dependency45C670(int index);
+    EngineSoundAuxiliary *Construct46F1B0();
+    void Bind45C550(EngineSoundCar *car);
+    void Attach46F3E0(EngineSoundComponent *component);
+    void Activate45C5A0();
+    void ProduceRpm46F7D0(float duration);
+    void ProduceThrottle45C710(float duration);
 };
+UG2_CHECK_SIZE(EngineSoundAuxiliary, 0x1f0);
+UG2_CHECK_OFFSET(EngineSoundAuxiliary, average90, 0x90);
+UG2_CHECK_OFFSET(EngineSoundAuxiliary, averageB8, 0xb8);
+UG2_CHECK_OFFSET(EngineSoundAuxiliary, sequence154, 0x154);
+UG2_CHECK_OFFSET(EngineSoundShiftView, value154, 0x154);
+UG2_CHECK_OFFSET(EngineSoundAccelView, valueC0, 0xc0);
+EngineSoundAuxiliary *CreateEngineSoundAuxiliary47BFD0();
+extern unsigned int engineSoundAuxDescriptor7ED2C4[];
+extern float engineSoundRpmDecrease7885CC, engineSoundRpmIncrease78AAB0, engineSoundOscillatorLimit78AAAC;
+extern char engineSoundAttachDiagnostic78AA74[];
+void EngineSoundDiagnostic4691C0(int level, const char *text);
 
 struct EngineSoundComponentVtable {
     void *unidentified0;

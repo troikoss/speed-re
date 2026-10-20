@@ -178,6 +178,26 @@ def main():
             failures.append('secondary playback target never changes in two-bank mode')
         if any(not (0 <= int(row[3]) <= 127 and 0 <= int(row[4]) <= 127) for row in playback):
             failures.append('playback volume outside the controller bounds')
+    controls = [line.split()[2:] for line in log_path.read_text().splitlines()
+                if line.startswith('# control ')]
+    if len(controls) != len(playback) or not controls:
+        failures.append('missing recovered input/gain frame records')
+    else:
+        primary_gains = {int(row[6]) for row in controls}
+        secondary_gains = {int(row[7]) for row in controls}
+        print('input/gain chain: %d primary / %d secondary gains, throttle %.2f .. %.2f'
+              % (len(primary_gains), len(secondary_gains),
+                 min(float(row[3]) for row in controls), max(float(row[3]) for row in controls)))
+        if not all(math.isfinite(float(value)) for row in controls for value in row[1:]):
+            failures.append('non-finite input/gain state')
+        if len(primary_gains) < 2:
+            failures.append('primary gain never changes')
+        if 1 in modes and len(secondary_gains) < 2:
+            failures.append('secondary gain never changes in two-bank mode')
+        if not any(abs(float(row[4]) - rpm) > 0.5 for row, rpm in zip(controls, rpms)):
+            failures.append('frequency still follows the direct raw-RPM seam')
+        if max(float(row[3]) for row in controls) <= min(float(row[3]) for row in controls):
+            failures.append('filtered throttle never changes')
     if overall_rms <= RMS_THRESHOLD:
         failures.append('output is silent (RMS %.1f <= %.1f)' % (overall_rms, RMS_THRESHOLD))
     if releases is None or releases == 0:

@@ -1,14 +1,14 @@
 // Native adapter around recovered car selection, binding, bank loading and engine setup.
 // Default records come from the participant car type and upgrade state; --engine-gin is an
 // explicit one-bank override. Recovered playback controllers update both slots.
-// Control-state/input production, parameter registration and cleanup remain seams.
+// Shift/effect inputs, component lifecycle, parameter registration and cleanup remain seams.
 #ifndef UG2_NATIVE_ENGINE_SOUND_H
 #define UG2_NATIVE_ENGINE_SOUND_H
 
 #include <stdio.h>
 #include "../../Speed/Indep/Src/EAXSound/Ginsu/Ginsu.h"
 
-struct MoverContext;
+struct MoverModeOwner;
 struct NativeEnginePlayback;
 
 class NativeEngineSound {
@@ -17,9 +17,9 @@ public:
     ~NativeEngineSound();
     // Uses participant state through selection 0x4593b0, or the explicit filename override,
     // then construction, binding, bank loading and setup. Missing/invalid banks report an error.
-    bool Load(const char *gameDirectory, MoverContext *context, const char *ginOverride, char *error, int errorSize);
-    // Native RPM/constant-level input seam into recovered one/two-bank playback.
-    void Update(float rpm, int frame);
+    bool Load(const char *gameDirectory, MoverModeOwner *owner, const char *ginOverride, char *error, int errorSize);
+    // Recovered physics, auxiliary input and gain updates feed both playback banks.
+    void Update(float rpm, float duration, int frame);
     void Destroy();
     bool Started() const { return started_; }
 

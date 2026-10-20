@@ -223,10 +223,10 @@ Limitations (see the verifier's report for the full list):
 
 - Native volume and Q12 pitch adapters now reach SDL output. The retail voice
   registry, pan vectors, filters, effects and output callback consumers remain open.
-- Both recovered playback controllers run natively. The newly recovered
-  prepare/gain/outer-control layer still needs original component construction,
-  initialization and auxiliary/physics/shift/accel input production before wiring.
-  Raw RPM and fixed full-level/centered session inputs remain explicit scaffolding.
+- Recovered Physics, auxiliary RPM/throttle and prepare/gain/outer-control code
+  now feed both native playback controllers. Shift/accel and auxiliary effect
+  producers remain neutral fixtures; spatial attenuation/pan and manager
+  lifecycle/registry are still native seams. See the latest wiring checkpoint below.
 - Parameter callback dispatch is recovered, while registry behavior and actual
   consumers remain open. Manager pools, forced audio disable, collision and
   frontend/HUD audio remain inventoried gaps.
@@ -1443,3 +1443,117 @@ ctest --test-dir build/native -R 'audio_playback_native|audio_dispatch_native|en
 The corrected factory coverage counter records 84 allocation attempts: 42
 constructed components and 42 null allocation results, plus 172 insufficient-heap
 cases. The final comparison run retains zero failures after that reporting fix.
+
+## Auxiliary input production and native gain wiring (2026-10-20)
+
+`EngineSoundAuxiliary.cpp` recovers `SFXCTL_Engine` construction `0x46f1b0`
+(518 bytes), factory `0x47bfd0` (64), binding `0x45c550` (68), activation
+`0x45c5a0` (194), dependency attachment `0x46f3e0` (89 contiguous bytes before
+its jump table), descriptor/dependency queries `0x45c4b0` (6) / `0x45c670`
+(51), car query `0x479700` (7), RPM production `0x46f7d0` (504), and throttle
+production `0x45c710` (130). The component occupies `0x1f0` bytes. Constructor
+and activation writes are distinct: the constructor does not initialize all
+fields later consumed by a complete frame update. Dirty padding and unwritten
+fields are retained in the recovered code.
+
+RPM production selects shift, accel-transition or car input in that order.
+The optional clamp saves the car input and lower margin before virtual `+0x34`,
+then uses its extended return and a rounded copy differently. The upper margin
+is read after the query; the old `+0x128` word is copied to `+0x12c` afterward,
+including signaling-NaN payload bits. Publication adds `+0x144` twice, with the
+sequence contribution between those additions. A separate averaging path uses
+shift/accel inputs or a carried oscillator, recalculates the two-sample ring,
+then re-reads the car and Physics links to map the result into car `+0x58`.
+Throttle production fills the three-sample ring for shift/accel overrides and
+advances it for normal car input, recalculates, then adds the current `+0x148`.
+
+`EngineSoundSequence.cpp` recovers approach `0x468e30` (51 bytes), sequence
+construction `0x46af20` (78), and append `0x4598f0` (123). Approach retains the
+extended return for the caller's comparison. Append uses exact integer duration
+conversion, a minimum duration only at the original comparison, and the exact
+`count == 5` capacity gate. Sequence stepping and the complete auxiliary frame
+`0x47c010` remain open.
+
+The input verifier compares independent dirty-state fixtures, callback-time
+pointer/global changes, allocation/headroom cases, both gain modes, and actual
+Physics → auxiliary → HybridMotor composition. Carried trajectories add 256
+updates across both x87 precisions, including complete NIS override playback
+and a return to normal input. Shift/accel inputs, idle/oscillator gates and
+spatial callbacks remain controlled fixtures; these checks do not establish the
+complete original component graph or exception unwinding.
+
+`EngineSoundControlLifecycle.cpp` also recovers HybridMotor constructor
+`0x45ce20` (275 bytes) and bind `0x45cf90` (190). The constructor creates the
+four-sample average and five-point curve, clears only the observed fields,
+and preserves the dependency links and other unwritten words. Binding calls
+car virtual `+0x44` before re-reading the car, computes its wrapping integer
+curve span, and retains the exact FILD value through both interior-point
+calculations. Pair-curve constructor `0x576770` (18 bytes) is moved unchanged
+from the static-initializer file to `PairCurveConstruct.cpp` for independent
+verification and reuse. Full HybridMotor activation/manager lifecycle remains
+open.
+
+`NativeEngineSound` now owns persistent Physics and auxiliary components. Load
+runs their recovered construction/binding/activation, HybridMotor construction/
+binding, and installs native ABI
+bridges to the recovered car, float-query and sample-recalculation methods.
+The recovered vehicle export `0x5a5540` already publishes filtered engine
+state at owner `+0x440` (the embedded state `+0x400`). Each unpaused audio frame
+consumes that field directly and runs Physics `0x484c50`, auxiliary RPM/throttle, HybridMotor `0x47c3d0`, and
+engine playback `0x474310`. Frequency mapping, throttle filtering, both mode
+gain producers and both bank controllers execute recovered code. `# control`
+records in `UG2_ENGINE_LOG` expose the intermediate normalized RPM, filtered
+throttle, mapped frequency, gains and cutoff. The smoke check requires changing
+gains and throttle and rejects the previous direct-RPM feed.
+
+Remaining native seams are explicit: the session still schedules and links the
+components, supplies neutral shift/accel fixtures, keeps idle/oscillator/effect
+offsets at neutral values, supplies base auxiliary level 32767, and retains
+constructor ramp state. Spatial callbacks remain centered, notifications are
+bypassed with Physics `+0x6c = 1`, and unexpected notification entry traps.
+Parameter registry/consumers, manager pools, original activation/cleanup,
+backfire/cutoff/random and ramp producers still need recovery/integration.
+`parametersB0` remains null. This is partial native integration of recovered
+input/gain code, not recovery of the complete auxiliary frame or audio manager.
+
+Native validation after consuming the recovered vehicle export directly:
+SKYLINE ran 600 frames with RMS 1898 LSB, 828 packet releases, zero underruns,
+152 distinct primary gain values and pitch correlation 0.848 (pass). The 350Z
+ran 600 frames with RMS 7886 LSB, 1312 releases, zero underruns, 158 primary
+and 11 secondary gain values. Its pitch correlation was 0.418, below the
+unchanged 0.50 smoke threshold (failure). These are native observations, not
+original/rebuilt acoustic comparisons. The one/two-bank gain and frequency
+checks passed, but the two-bank pitch heuristic remains an unresolved native
+validation failure. All three asset-free audio/backend tests passed, as did
+30-frame no-audio and missing-bank cleanup checks.
+
+Focused verification first passed 3584 comparisons for the 13 auxiliary/helper
+targets, including 256 carried input/gain steps. The initial mutation batch
+rejected 22 auxiliary errors. Two nominal float-cast mutations survived; the
+final variants explicitly force binary32 stores, and the frequency fixture
+isolates rounding from subsequent offsets. A second run passed a 576-comparison
+baseline for constructor/binding, curve construction, RPM and sequence append,
+then rejected all six selected mutations by state/call mismatches: four new
+lifecycle errors and both corrected rounding errors. No compile-only rejection
+or surviving final mutation remains in those batches. These are finite,
+controlled comparisons, separate from native sound fidelity.
+
+The strict MSVC leaf check confirms complete byte identity for packed engine
+queries `0x45e390` / `0x45e3b0`, auxiliary float queries `0x45c530` / `0x45c540`,
+car query `0x479700`, approach `0x468e30`, and curve construction `0x576770`.
+No byte-identity claim is made for the larger recovered routines.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 256
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets ControlConstruct,ControlBind,GainCurveConstruct,AuxRpm,AuxSequenceAppend --cases 64 --mutation-checks --mutation-source control_lifecycle --mutation-source auxiliary --mutation-source aux_sequence --mutation-name control-constructor-average --mutation-name control-constructor-unwritten --mutation-name control-bind-distance --mutation-name control-bind-query --mutation-name aux-rpm-query-rounding --mutation-name aux-sequence-integer
+ctest --test-dir build/native -R 'audio_playback_native|audio_dispatch_native|engine_bank_io_native' --output-on-failure
+build/venv/bin/python tools/smoke_native_engine_audio.py --game /path/to/UG2 --car SKYLINE --frames 600
+build/venv/bin/python tools/smoke_native_engine_audio.py --game /path/to/UG2 --car 350Z --frames 600
+```
+
+Final regression passed 24832 original/rebuilt comparisons across 94 targets:
+256 independent cases each, 128 carried control updates, 384 carried Physics
+updates and 256 carried auxiliary/input/gain steps. Both gain modes occurred
+in 32 composed RPM fixtures each. All seven leaf byte matches remain intact.
+The audio goal remains open; the native integration and remaining seams above
+are not evidence of complete audio recovery.
