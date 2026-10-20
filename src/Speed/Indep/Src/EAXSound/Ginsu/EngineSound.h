@@ -242,6 +242,8 @@ struct EngineSoundCar {
     char unidentifiedC1[3];
     int valueC4;
     char unidentifiedC8[4];
+    EngineSoundScheduledNode *FindPlayback464CD0(unsigned int id);
+    EngineSoundScheduledNode *FindInput464D00(unsigned int id);
     int Value479700();
     EngineSoundCar *Construct479660();
     void Bind464BA0(MoverModeOwner *owner);
@@ -503,7 +505,7 @@ EngineSoundAuxiliary *CreateEngineSoundAuxiliary47BFD0();
 extern unsigned int engineSoundAuxDescriptor7ED2C4[];
 extern float engineSoundRpmDecrease7885CC, engineSoundRpmIncrease78AAB0, engineSoundOscillatorLimit78AAAC;
 extern char engineSoundAttachDiagnostic78AA74[];
-void EngineSoundDiagnostic4691C0(int level, const char *text);
+void EngineSoundDiagnostic4691C0(int level, const char *text, ...);
 
 struct EngineSoundComponentVtable {
     void *unidentified0;

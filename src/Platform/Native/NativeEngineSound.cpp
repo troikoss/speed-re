@@ -50,7 +50,7 @@ int EngineSoundNotificationView::Query46C9A0() { NativeTrap("audio notification 
 unsigned char EngineSoundNotificationView::Ready46C790() { NativeTrap("audio notification ready"); return 0; }
 void EngineSoundNotificationView::Play484510(int, unsigned int, int, void (__cdecl *)(), int) { NativeTrap("audio notification play"); }
 void EngineSoundNotificationView::Clear45AD40(int) { NativeTrap("audio notification clear"); }
-void EngineSoundDiagnostic4691C0(int, const char *) { NativeTrap("audio component attachment"); }
+void EngineSoundDiagnostic4691C0(int level, const char *, ...) { if (level) NativeTrap("audio component attachment"); }
 
 namespace {
 

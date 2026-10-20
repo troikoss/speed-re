@@ -965,6 +965,46 @@
       "address": "0x4fe4a0",
       "size": 11,
       "sha256": "42426d695e9d9040f31f96b9d3684fa94a5b72a288f8dc3fec4a625ae450dc7d"
+    },
+    "MixerBind": {
+      "address": "0x480420",
+      "size": 1081,
+      "sha256": "9c1eb1a8b4af749175aecef4007a9fd05997d5ea458a937a7bd17fccb91f5ab3"
+    },
+    "MixerAllocate": {
+      "address": "0x478120",
+      "size": 278,
+      "sha256": "72785da68ba06f7670286fb3b2c878d5daa48d1dd0de2882c2dd26d0301ff988"
+    },
+    "MixerSetup": {
+      "address": "0x483900",
+      "size": 93,
+      "sha256": "f78d8a5594fb2af2046c2309d71be53d7101443e09b6f9ce5dca87be6bed1007"
+    },
+    "AudioResolveSound": {
+      "address": "0x468f70",
+      "size": 107,
+      "sha256": "58582d66b103f939268eb3efbd4ad2db0764d34f46ed665a18efe4875dda21a0"
+    },
+    "AudioResolveInput": {
+      "address": "0x468fe0",
+      "size": 108,
+      "sha256": "507858f6a8eacbaec7c4bb85ce8196fe11f96c71805d52a51384b964aff46922"
+    },
+    "AudioFindIndex": {
+      "address": "0x463c50",
+      "size": 33,
+      "sha256": "934562080519cddcefcb89a2a812a6989c886a966593d81ada5e914621712500"
+    },
+    "CarFindPlayback": {
+      "address": "0x464cd0",
+      "size": 41,
+      "sha256": "f8bd600a65d9a89afecbc55c87e8d74dac7b25f5d5d2735a706d04bd79e6ab67"
+    },
+    "CarFindInput": {
+      "address": "0x464d00",
+      "size": 39,
+      "sha256": "978d7ac9d460f9f86c00c0e41c742f65170e21b23ed13c2c86ecc447cb7dc20a"
     }
   }
 }

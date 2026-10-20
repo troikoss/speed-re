@@ -1197,3 +1197,12 @@ engineSoundMasterOwner82B9C8 = 0x82b9c8;
 engineSoundMasterReplay8650B8 = 0x8650b8;
 engineSoundMasterFrontend8383A4 = 0x8383a4;
 engineSoundMasterFrontend8383AC = 0x8383ac;
+
+/* Original mixer diagnostics. */
+engineSoundMixerSubCount78B7C8 = 0x78b7c8;
+engineSoundMixerSubSpatial78B7A0 = 0x78b7a0;
+engineSoundMixerMasterCount78BDC4 = 0x78bdc4;
+engineSoundMixerMasterSpatial78BD98 = 0x78bd98;
+engineSoundMixerLookup78BD74 = 0x78bd74;
+engineSoundMixerMap78BD4C = 0x78bd4c;
+engineSoundMixerMissing78BD24 = 0x78bd24;

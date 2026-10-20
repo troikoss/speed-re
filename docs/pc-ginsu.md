@@ -2481,3 +2481,114 @@ UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_pause_options.py
 UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets AudioMixApply,MasterConstruct,MasterFactory,MasterActivate,MasterUpdate,MasterModeFind,MasterModeQuery,MasterFrontend,CarFrame,CarSchedule --cases 128 --mutation-checks --mutation-name mix-callback-gate --mutation-name mix-callback-order --mutation-name mix-copy-index --mutation-name master-channel-order --mutation-name master-null-retain --mutation-name master-mode-unordered --mutation-name master-frontend-bound
 SDL_VIDEODRIVER=offscreen SDL_AUDIODRIVER=dummy LIBGL_ALWAYS_SOFTWARE=1 UG2_ENGINE_LOG=build/analysis/ginsu/master-options-rpm.log build/native/ug2demo --game "$UG2_DIR" --car SKYLINE --frames 350 --scripted --pause-at 20 --pause-keys RAALDLS
 ```
+
+## Mixer pointer maps and object resolution (2026-10-20)
+
+Recovered the original master-channel binder and its complete direct graph:
+
+| Routine | Address | Verification span |
+|---|---:|---:|
+| Master-channel pointer-map binding | `0x480420` | 1081 |
+| Sub-channel fixed/3D span allocation | `0x478120` | 278 |
+| Group/instance binding caller | `0x483900` | 93 |
+| Sound resolver / input resolver | `0x468f70` / `0x468fe0` | 107 / 108 |
+| Manager index lookup | `0x463c50` | 33 |
+| Car playback/input key lookup | `0x464cd0` / `0x464d00` | 41 / 39 |
+
+The last three spans include three alignment bytes beyond Ghidra's reported
+30/38/36 code-byte counts. Their original branches reach returns after those
+gaps, so the verifier fingerprints and permits the full contiguous spans.
+No new byte-identity claim is made for these routines.
+
+The bind method retains initial channel/input snapshots, repeated virtual key
+queries, group-index selection, master output groups of sixteen words, and the
+low-nibble map record count. Each mapping selects sound pointer-table slot
+`(word >> 16) & 15` and packed output word `(word >> 24) & 15`; both fixed and
+3D paths write sound `+0x58 + 4*slot`. The fixed path copies channel metadata
+to sound `+0x98`; the 3D path clears that word. A missing sound clears the
+initial channel's output pointer after its original diagnostic query.
+
+Sub-channel allocation recognizes 3D entries only when their kind matches the
+current kind. Master-channel binding counts every class-`0x80000000` entry as
+3D, including foreign kinds. Other foreign inputs expand using owner counts.
+Both paths reload owner/storage/channel pointers after diagnostics, establish
+fixed and 3D spans and zero their contents. The 3D binder searches virtual IDs,
+falls back to the low-byte table index, preserves the null-entry break,
+resolves the original input object and invokes its attachment boundary. It
+then advances the original input cursor, maps output pointers and stores that
+cursor back into the current channel. The outer caller reloads group/session
+arrays and counts between allocation and binding.
+
+Resolvers retain their initial manager/car scan and then call the separate
+manager index helper again. Sound/input tags are checked before resolving the
+low-seven-bit component key against the car's playback/input list. No bounds,
+null defenses or replacement selection rules are added to invalid original
+paths. Fixture kinds are 0..2, primary car indices 0..3 (secondary/missing indices through 5), component keys 0..3 (plus
+missing keys), channel counts -1..4 and bounded valid map/storage arrays.
+Cycles, malformed assets, arbitrary indices, overlapping storage and concurrent
+mutation remain excluded.
+
+Expanded verification passed 1024 comparisons across eight targets at 128
+cases each, including actual allocation/binding/resolver composition. Query,
+attachment and diagnostic callbacks mutate bank indices, owner storage and
+current channel pointers to distinguish snapshots from reloads. Diagnostics
+now use a variadic declaration; the verifier records every argument identified
+by each original format address, rather than comparing only the level/text.
+Native level-zero diagnostics are discarded by the platform boundary;
+unexpected level-one component attachments still trap. The original missing-
+sound key query has an unused extra caller stack word; the declared query
+interface compares its receiver/result, not that unused word.
+
+Six initial mutations were rejected, but an output-mask mutation survived
+because those fixtures used only output slots below 8. Expanded slots now
+include values above 7; the same mutation is rejected in a separate run with a passing
+1024-comparison baseline. All seven intended errors are therefore rejected by
+state/call mismatches, with no compile-only rejections. They cover master 3D
+kind handling, sub-channel foreign input handling, output-slot masks, stored
+cursor advancement, copied metadata, the key-query snapshot and resolver tags.
+Native compilation and all six CTests pass.
+
+`tools/probe_pc_audio_mixmap.py` is a bounded data-inspection reader based on
+`0x4837c0`, `0x480320`, `0x479030` and `0x480420`; it is not recovered runtime
+parsing. It reports fingerprints, group/channel counts and engine input/map
+records without copying assets into the repository. All four installed
+`MAPOUTPUT{,DFT,DRG,URL}.mxb` files have 5320 bytes, nine groups and 43 master
+channels. In each, kind 1's first master channel has key `0xc0050100`, output
+ID `0x40010000`, five input words and map `0xe0000000` (pointer slot 0,
+output slot 0, 3D slot 0, bias 0). The engine descriptor at `0x7ed454`, reached
+by `0x461470`, confirms kind 1/component 0. These are asset observations, not
+whole-pipeline runtime verification.
+
+The recovered binder is compiled but not yet called by the native demo. Its
+live gain/pan values still require original channel construction, fixed-input
+binding and runtime mixing. The demo's explicit overall-gain/centered-pan
+fixture remains until that graph is recovered; no guessed MasterVol field
+replaces the retail mixer output. The goal remains active.
+
+Next original graph: `0x485fa0` drives group setup `0x4837c0`, the recovered
+binding caller, then `0x485e90`. Group setup calls `0x477f80`, `0x477eb0`,
+`0x477df0`, `0x480270` and `0x480320`; channel record decoding is `0x479030`
+and base setup is `0x477a50`. Runtime packed level/pan production `0x477aa0`
+calls `0x467460` then recovered inverse curve `0x467ff0`, adds the map's signed
+16-bit bias and selected 3D values, and packs the upper pan word. Its input
+setter/getter/fixed-span append boundaries are `0x467400`, `0x467410` and
+`0x467440`. Remaining whole-group binding passes are `0x4809e0`, `0x483960`,
+`0x485340`, `0x480860` and `0x478240`. These inspected bodies still need
+recovery and verification before replacing native mixer ownership/fixtures.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets MixerBind,MixerAllocate,MixerSetup,AudioResolveSound,AudioResolveInput,AudioFindIndex,CarFindPlayback,CarFindInput --cases 128
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/probe_pc_audio_mixmap.py
+```
+
+Final full regression passed 55168 comparisons across 201 targets with zero
+failures. The existing nineteen strict byte-matched leaves remain unchanged;
+the new binder/resolver routines have bounded behavioral evidence only.
+The current native gain/pan fixture and the previously documented 350Z pitch
+failure remain open. No retail map files, executables or generated disassembly
+are included in the checkpoint.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 256
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets MixerBind,MixerAllocate,MixerSetup,AudioResolveSound,AudioResolveInput,AudioFindIndex,CarFindPlayback,CarFindInput --cases 128 --mutation-checks --mutation-name mixer-master-spatial-kind --mutation-name mixer-sub-foreign --mutation-name mixer-map-output --mutation-name mixer-cursor-store --mutation-name mixer-metadata --mutation-name mixer-key-snapshot --mutation-name resolver-sound-tag
+```

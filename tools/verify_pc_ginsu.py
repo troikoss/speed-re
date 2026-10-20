@@ -39,7 +39,10 @@ from probe_pc_race_reward import ROOT, EXE, GAME_DIR
 
 BUILD = ROOT / 'build/analysis/ginsu'
 SOURCE_DIR = 'src/Speed/Indep/Src/EAXSound/Ginsu'
-SOURCES = {'audio_mix': 'src/Speed/Indep/Src/Audio/AudioMix.cpp',
+SOURCES = {'mixer': 'src/Speed/Indep/Src/EAXSound/Ginsu/EngineSoundMixer.cpp',
+           'mixer_allocate': 'src/Speed/Indep/Src/EAXSound/Ginsu/EngineSoundMixerAllocate.cpp',
+           'audio_resolve': 'src/Speed/Indep/Src/Audio/AudioResolve.cpp',
+           'audio_mix': 'src/Speed/Indep/Src/Audio/AudioMix.cpp',
            'master': 'src/Speed/Indep/Src/EAXSound/Ginsu/EngineSoundMaster.cpp',
            'master_lifecycle': 'src/Speed/Indep/Src/EAXSound/Ginsu/EngineSoundMasterLifecycle.cpp',
            'master_queries': 'src/Speed/Indep/Src/EAXSound/Ginsu/EngineSoundMasterQueries.cpp',
@@ -121,6 +124,7 @@ VIRTUAL = {'Gain38': STUBS + 0x200, 'Value3C': STUBS + 0x210,
            'SoundBind': STUBS + 0x250, 'SoundContext': STUBS + 0x260, 'AuxValue38': STUBS + 0x270,
            'ParameterCallback': STUBS + 0x280,
            'ParameterAllocate': STUBS + 0x290, 'ParameterFree': STUBS + 0x2a0}
+VIRTUAL.update(MixerKey10=STUBS+0x2e0,MixerKey8=STUBS+0x2f0,MixerKeyC=STUBS+0x3a0,MixerValue18=STUBS+0x3b0,MixerAttach=STUBS+0x3c0)
 VIRTUAL.update(AuxPosition=STUBS + 0x2b0, AuxDirection=STUBS + 0x2c0, AuxAverage=STUBS + 0x2d0)
 VIRTUAL.update({key:STUBS+0x400+i*16 for i,key in enumerate(('Schedule14','Schedule18','Schedule24','Schedule34','Schedule28','SchedulePre'))})
 FXSAVE_AT_STOP = b'\x0f\xae\x05' + struct.pack('<I', FXAREA)
@@ -134,11 +138,21 @@ GIN_MAGIC = b'Gnsu2'
 # name: (retail address, rebuilt symbol prefix, callee-popped bytes, return kind, `this` kind, argument kinds)
 # return kinds: 'al' (bool), 'eax' (int), 'st0' (float left in ST0), None. argument kinds: 'w' raw word,
 # 'p' pointer (identity: arena address or the stack), ('c', n) pointer whose n bytes are logged by value.
+MIXER_TARGETS = ('MixerBind', 'MixerAllocate', 'MixerSetup', 'AudioResolveSound', 'AudioResolveInput', 'AudioFindIndex', 'CarFindPlayback', 'CarFindInput')
 MASTER_TARGETS = ('AudioMixApply', 'MasterConstruct', 'MasterFactory', 'MasterActivate', 'MasterUpdate', 'MasterModeFind', 'MasterModeQuery', 'MasterFrontend')
 SHIFT_TARGETS = ('ShiftConstruct', 'ShiftFactory', 'ShiftBind', 'ShiftActivate', 'ShiftDependency', 'ShiftAttach', 'ShiftReset', 'ShiftUp', 'ShiftDown', 'ShiftRpm', 'ShiftThrottle', 'ShiftEffects', 'ShiftConfigureEffects', 'ShiftAdvance', 'ShiftUpdate', 'ShiftPost', 'PhysicsThrottle', 'SoundClamp')
 ACCEL_TARGETS = ('AccelConstruct', 'AccelFactory', 'AccelBind', 'AccelActivate', 'AccelDependency', 'AccelAttach', 'AccelConfigure', 'AccelLaunch', 'AccelQueryLaunch', 'AccelQuery', 'AccelRelease', 'AccelRpm', 'AccelThrottle', 'AccelAdvance', 'AccelUpdate', 'ShiftActive', 'OwnerShiftPoint', 'GearShiftPoint', 'EnvelopeTarget')
 AUX_TARGETS = ('SpatialBaseConstruct', 'SpatialConstruct', 'SpatialFactory', 'SpatialBind', 'SpatialActivate', 'SpatialAngle', 'SpatialCompute', 'SpatialSelect', 'SpatialDoppler', 'SpatialUpdate', 'SpatialLimit', 'SpatialValue', 'SpatialDistance2D', 'SpatialNormalize2D', 'SpatialArcSine', 'SampleDefault', 'SampleAllocate', 'SpatialPosition','SpatialOrientation', 'AuxOffsets', 'AuxBackfire', 'AuxCutoff', 'AuxFrame', 'SoundInverse', 'SoundRandom', 'SoundRandomFloat', 'SoundSine', 'SoundNormalize', 'AuxLevel', 'AuxEffects', 'AuxIdle', 'EnvelopeConfigure', 'EnvelopeStep', 'SequenceReset', 'SequenceStep', 'SoundCurve', 'SoundCurveConvert', 'ControlConstruct', 'ControlBind', 'GainCurveConstruct', 'AuxConstruct', 'AuxFactory', 'AuxBind', 'AuxActivate', 'AuxAttach', 'AuxRpm', 'AuxThrottle', 'AuxDependency', 'AuxDescriptor', 'AuxCarValue', 'AuxApproach', 'AuxSequenceConstruct', 'AuxSequenceAppend')
 ROUTINES = {
+    'MixerBind': (4719648, '?Bind480420@EngineSoundMixer@', 0, None, 'arena', []),
+    'MixerAllocate': (4686112, '?Allocate478120@EngineSoundMixer@', 0, None, 'arena', []),
+    'MixerSetup': (4733184, '?Bind483900@EngineSoundMixerSetup@', 0, None, 'arena', []),
+    'AudioResolveSound': (4624240, '?ResolveSound468F70@Audio82B884@', 4, 'eax', 'arena', ['w']),
+    'AudioResolveInput': (4624352, '?ResolveInput468FE0@Audio82B884@', 4, 'eax', 'arena', ['w']),
+    'AudioFindIndex': (4602960, '?FindIndex463C50@AudioCarSoundManager@', 4, 'eax', 'arena', ['w']),
+    'CarFindPlayback': (4607184, '?FindPlayback464CD0@EngineSoundCar@', 4, 'eax', 'arena', ['w']),
+    'CarFindInput': (4607232, '?FindInput464D00@EngineSoundCar@', 4, 'eax', 'arena', ['w']),
+
     'AudioMixApply': (4624464, '?Apply@Audio82B884@', 4, None, 'arena', ['p']),
     'MasterConstruct': (4578432, '?Construct45DC80@EngineSoundMaster@', 0, 'eax', 'arena', []),
     'MasterFactory': (4659504, '?CreateEngineSoundMaster471930@', 0, 'eax', None, []),
@@ -404,6 +418,14 @@ def snd_ret(key):
 PURE_RANGES = ((0x75bed4, 0x75bf49), (0x72423e, 0x72428b), (0x721a6b, 0x721aae))
 # Retail globals read by the recovered code, by MSVC symbol prefix; __fltused is a null symbol.
 SHARED = {
+    '?engineSoundMixerSubCount78B7C8@': 0x78b7c8,
+    '?engineSoundMixerSubSpatial78B7A0@': 0x78b7a0,
+    '?engineSoundMixerMasterCount78BDC4@': 0x78bdc4,
+    '?engineSoundMixerMasterSpatial78BD98@': 0x78bd98,
+    '?engineSoundMixerLookup78BD74@': 0x78bd74,
+    '?engineSoundMixerMap78BD4C@': 0x78bd4c,
+    '?engineSoundMixerMissing78BD24@': 0x78bd24,
+
     '?audioMixFirst82B974@': 0x82b974,
     '?audioMixSecond82B978@': 0x82b978,
     '?audioMixValue7EC848@': 0x7ec848,
@@ -596,10 +618,11 @@ SHARED.update({
 })
 # Retail addresses of the E branch (fz1 == fz2) and of the SampleToCycle found path (0x466c2f).
 E_BRANCH_HOOK, FOUND_HOOK = 0x466e98, 0x466c2f
-TARGETS = MASTER_TARGETS + SHIFT_TARGETS + ACCEL_TARGETS + ('ControlActivate',) + ('CarBind','CarSort','CarSchedule','CarFrame','CarPlayback','EngineForward','ScheduleNoop','ScheduleNoopArg','PhysicsPost','ControlPost','PhysicsFraction','ApproachInt') + ('ListenerUpdate','ListenerFind','ListenerDistance','ListenerAngle') + AUX_TARGETS + ('PhysicsFactory', 'PhysicsHash') + ('PhysicsConstruct', 'PhysicsBind', 'PhysicsActivate', 'PhysicsUpdate', 'PhysicsOverride', 'PhysicsNotify', 'PhysicsMode40', 'PhysicsMode28', 'PhysicsMode10', 'PhysicsRampConstruct', 'PhysicsRampEvaluate', 'PhysicsSpecMaximum', 'PhysicsEngineMaximum', 'SampleConstruct') + ('ControlPrepare', 'ControlOne', 'ControlTwo', 'SampleAdvance', 'SampleFill', 'SampleRecalculate', 'GainCurveLookup', 'GainPendingShift', 'EngineDependency', 'EngineAttach', 'AuxFrequency', 'AuxGain', 'ControlScale', 'ControlUpdate', 'CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
+TARGETS = MIXER_TARGETS + MASTER_TARGETS + SHIFT_TARGETS + ACCEL_TARGETS + ('ControlActivate',) + ('CarBind','CarSort','CarSchedule','CarFrame','CarPlayback','EngineForward','ScheduleNoop','ScheduleNoopArg','PhysicsPost','ControlPost','PhysicsFraction','ApproachInt') + ('ListenerUpdate','ListenerFind','ListenerDistance','ListenerAngle') + AUX_TARGETS + ('PhysicsFactory', 'PhysicsHash') + ('PhysicsConstruct', 'PhysicsBind', 'PhysicsActivate', 'PhysicsUpdate', 'PhysicsOverride', 'PhysicsNotify', 'PhysicsMode40', 'PhysicsMode28', 'PhysicsMode10', 'PhysicsRampConstruct', 'PhysicsRampEvaluate', 'PhysicsSpecMaximum', 'PhysicsEngineMaximum', 'SampleConstruct') + ('ControlPrepare', 'ControlOne', 'ControlTwo', 'SampleAdvance', 'SampleFill', 'SampleRecalculate', 'GainCurveLookup', 'GainPendingShift', 'EngineDependency', 'EngineAttach', 'AuxFrequency', 'AuxGain', 'ControlScale', 'ControlUpdate', 'CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
            'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt',
            'PacketReleaseCallback', 'SynthesisConstruct', 'SynthesisDestruct', 'StartSynthesis')
 LIMITATIONS = [
+    'mixer mapping: recovered span allocation, master pointer maps, group binding and sound/input resolvers compose with scripted virtual query/attachment and diagnostic callbacks; kinds 0..2, bounded valid lists/maps/storage, found/missing objects and callback-time pointer/index changes are fixtures; invalid pointers, cycles, malformed assets, allocation overflow, overlapping storage and concurrency are excluded; the native demo does not yet invoke this graph because channel construction, fixed-input binding and runtime mixing remain open; the unused extra stack word on a missing-sound key query is outside the declared no-argument query interface',
     'shifting: complete lifecycle, up/down setup, seven-state advancement, six envelopes, packed post-update and Physics query run as recovered bodies; carried frames and six-input car scheduling compose them; query callbacks test snapshot/reload boundaries with scripted binary64 results; dependent pointers, player table selectors and kinds 1..3 are valid fixtures, with finite envelope inputs and a quiet NaN at the upshift gate/clamp; invalid dereferences, component/tuning aliasing, exceptions and concurrency are excluded; native mix ownership, full registry/manager and other audio seams remain open',
     'acceleration transitions: complete construction/bind/activation, queries, envelope producers, update and owner/gear shift-point helpers execute recovered code; callbacks can change kind/car/tuning/level at query boundaries; valid kinds 1..3 and gear indices 0..7, separate tuning storage, finite envelope inputs and selected quiet-NaN query inputs are covered; launch/general/return/release states are carried, and actual acceleration runs in composed car scheduling; shifting production, registry/list construction, invalid-kind dereferences, exceptions and concurrency remain outside this evidence',
     'car scheduling: actual sort, owner-gated wrapper, clock handling, component/post and separate playback passes execute, with callback-time table/link/head changes in scripted cases; constructed and carried frames compose the six recovered inputs and actual inactive engine caller, while active retail GIN playback is a native smoke; registry/list creation and full manager dispatch remain seams; sort fixtures have at most six nodes, counts through seven and keys 0..63, excluding cycles, overlong scratch writes and invalid-key original faults; post-update comparisons include full integer wrapping, flag fractions, player/camera and race-count branches, with finite floating inputs and valid dependent pointers',
@@ -767,8 +790,13 @@ def entry_hook(log, name, this_kind, kinds, labels, scripted=None, key=None, eff
     def hook(uc, address, size, user):
         esp = uc.reg_read(xc.UC_X86_REG_ESP)
         this = pointer_view(uc, uc.reg_read(xc.UC_X86_REG_ECX), 0) if this_kind else None
-        words = struct.unpack('<%dI' % len(kinds), bytes(uc.mem_read(esp + 4, 4 * len(kinds)))) if kinds else ()
-        log.append((name, this, tuple(argument_view(uc, w, k, labels, bool(log and log[0][0] in ('EngineSetup', 'EngineInitialize', 'EngineConstruct'))) for w, k in zip(words, kinds))))
+        active_kinds=kinds
+        if name=='AuxDiagnostic':
+            fmt=struct.unpack('<I',bytes(uc.mem_read(esp+8,4)))[0]
+            extra={0x78b7c8:2,0x78b7a0:2,0x78bdc4:3,0x78bd98:2,0x78bd74:2,0x78bd4c:2,0x78bd24:1}.get(fmt,0)
+            active_kinds=list(kinds)+['w']*extra
+        words = struct.unpack('<%dI' % len(active_kinds), bytes(uc.mem_read(esp + 4, 4 * len(active_kinds)))) if active_kinds else ()
+        log.append((name, this, tuple(argument_view(uc, w, k, labels, bool(log and log[0][0] in ('EngineSetup', 'EngineInitialize', 'EngineConstruct'))) for w, k in zip(words, active_kinds))))
         if scripted is not None and key in scripted:
             value = scripted[key]
             if isinstance(value, list):
@@ -921,7 +949,7 @@ def main():
                               (xc.UC_X86_REG_ES, 16), (xc.UC_X86_REG_FS, 24)):
             uc.reg_write(reg, selector)
         for key, address in VIRTUAL.items():
-            body = b'\xdd\x05' + struct.pack('<I', AUX_RESULT) + b'\xc3' if key == 'AuxValue38' else b'\xc3' if key in ('SoundContext', 'ParameterCallback', 'AuxAverage','Schedule18','Schedule34','Schedule28','SchedulePre') else b'\xc2\x08\x00' if key in ('ParameterAllocate', 'ParameterFree') else b'\xc2\x04\x00'
+            body = b'\xdd\x05' + struct.pack('<I', AUX_RESULT) + b'\xc3' if key == 'AuxValue38' else b'\xc2\x0c\x00' if key=='MixerAttach' else b'\xc3' if key in ('MixerKey10','MixerKey8','MixerKeyC','MixerValue18','SoundContext', 'ParameterCallback', 'AuxAverage','Schedule18','Schedule34','Schedule28','SchedulePre') else b'\xc2\x08\x00' if key in ('ParameterAllocate', 'ParameterFree') else b'\xc2\x04\x00'
             uc.mem_write(address, body)
         if rebuilt:
             uc.mem_map(linked['address'], max(0x1000, linked['allocation']))
@@ -984,7 +1012,7 @@ def main():
         address = rebuilt_entry['BankRead'] if rebuilt else SND['BankRead'][0]
         uc.hook_add(UC_HOOK_CODE, enqueue_bank_read, begin=address, end=address)
         for key, address in VIRTUAL.items():
-            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], 'AllocatorFree' if key == 'ParameterFree' else key, None if key == 'ParameterCallback' else 'arena', [('c', 0x68), 'w'] if key == 'ParameterCallback' else ['w', ('c', 12)] if key == 'ParameterAllocate' else ['p', 'w'] if key == 'ParameterFree' else [] if key in ('SoundContext', 'AuxValue38', 'AuxAverage','Schedule18','Schedule34','Schedule28','SchedulePre') else ['p'] if key.startswith('Manager') or key in ('SoundBind', 'AuxPosition', 'AuxDirection') else ['w'], labels[rebuilt], returns, key, callback_writes),
+            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], 'AllocatorFree' if key == 'ParameterFree' else key, None if key == 'ParameterCallback' else 'arena', [('c', 0x68), 'w'] if key == 'ParameterCallback' else ['p','p','p'] if key=='MixerAttach' else ['w', ('c', 12)] if key == 'ParameterAllocate' else ['p', 'w'] if key == 'ParameterFree' else [] if key in ('MixerKey10','MixerKey8','MixerKeyC','MixerValue18','SoundContext', 'AuxValue38', 'AuxAverage','Schedule18','Schedule34','Schedule28','SchedulePre') else ['p'] if key.startswith('Manager') or key in ('SoundBind', 'AuxPosition', 'AuxDirection') else ['w'], labels[rebuilt], returns, key, callback_writes),
                         begin=address, end=address)
         def observe_gain(uc, address, size, user, rebuilt=rebuilt):
             if observe_gains:
@@ -1680,6 +1708,82 @@ def main():
             cartrajectory=False
             preshiftinit=name=='ShiftUpdate' and trial%4==0
             preaccelinit=name=='AccelUpdate' and trial%4==0
+            if name in MIXER_TARGETS:
+                context,owner,asset,arrays=(ARENA+x for x in (0x30000,0x30200,0x30400,0x30600))
+                manager,car,other,sound,inputnode=(ARENA+x for x in (0x35000,0x35200,0x35300,0x35700,0x35500))
+                kind=trial%3;instance=trial%4;component=(trial//4)%4
+                count=(0,1,2,3,4,-1)[trial%6]
+                this=context;words=[]
+                fixture_globals[0x82b884]=struct.pack('<I',AUDIO)
+                for i in range(9):pk(memory,AUDIO+0xa8+i*4,'<I',manager if i==kind else 0)
+                pk(memory,manager+0x10,'<I',car)
+                pk(memory,car+4,'<I',other);pk(memory,other+4,'<I',0)
+                pk(memory,car+0x10,'<i',instance);pk(memory,other+0x10,'<i',instance+1)
+                pk(memory,car+0x1c,'<II',inputnode,sound);pk(memory,other+0x1c,'<II',0,0)
+                for node in (sound,inputnode):pk(memory,node+0x4c,'<II',component<<4,0)
+                pk(memory,context+4,'<II',owner,asset)
+                pk(memory,context+0x24,'<I',arrays+0x80)
+                pk(memory,context+0x30,'<II',arrays+0x40,arrays)
+                pk(memory,context+0x40,'<II',ARENA+0x32000,kind)
+                pk(memory,context+0x50,'<I',instance)
+                pk(memory,context+0x60,'<i',0 if trial%11==0 else 3);pk(memory,context+0x68,'<ii',count,count)
+                for i in range(9):pk(memory,owner+4+i*4,'<i',(i+trial)%3)
+                pk(memory,owner+0x78,'<II',ARENA+0x33000,ARENA+0x34000)
+                pk(memory,owner+0xa4,'<ii',trial%3,trial%3)
+                pk(memory,asset+0x14,'<i',0x40)
+                map_cursor=asset+0x40
+                for key in ('MixerKey10','MixerKey8','MixerKeyC','MixerValue18'):returns[key]={}
+                table=ARENA+0x31000
+                for offset,key in ((8,'MixerKey8'),(12,'MixerKeyC'),(16,'MixerKey10'),(20,'MixerAttach'),(24,'MixerValue18')):pk(memory,table+offset,'<I',VIRTUAL[key])
+                for i in range(4):
+                    channel=ARENA+0x30800+i*0x100;inputs=ARENA+0x31800+i*0x80
+                    pk(memory,arrays+i*4,'<I',channel);pk(memory,arrays+0x40+i*4,'<I',channel)
+                    pk(memory,channel,'<I',table);pk(memory,channel+8,'<II',0xc0000000|i,0xface0000|i)
+                    pk(memory,channel+0x18,'<I',rng.getrandbits(32))
+                    pk(memory,channel+0x4c,'<I',ARENA+0x32800+i*0x40)
+                    n=(trial+i)%4;spatial=min(n,trial%3)
+                    pk(memory,channel+0x30,'<iI',n,inputs)
+                    for j in range(n):
+                        value=(0x80000000|(((kind+1)%3 if trial%7==0 else kind)<<16)|j) if j<spatial else (0x60000000|((kind if j%2 else (kind+1)%3)<<16)|((component&0x7f)<<4))
+                        pk(memory,inputs+j*4,'<I',value)
+                    pk(memory,inputs+n*4,'<I',0x12340000+i)
+                    maps=(trial+i)%4;pk(memory,map_cursor,'<I',0xf0000000|maps)
+                    for j in range(maps):pk(memory,map_cursor+4+j*4,'<I',((j*5+i*3)%16)<<24|((j*3+i)%16)<<16|0x1234)
+                    map_cursor+=4*(maps+1)
+                    returns['MixerKey10'][channel]=0x40000000|(kind<<16)|(((component+i//2)%4)<<4)|i%2
+                    for key in ('MixerKey8','MixerKeyC','MixerValue18'):returns[key][channel]=0
+                for i in range(3):
+                    entry=ARENA+0x30c00+i*0x80
+                    pk(memory,arrays+0x80+i*4,'<I',entry if not(trial%11==0 and i==1) else 0)
+                    pk(memory,entry,'<I',table)
+                    returns['MixerKey8'][entry]=0x80000000|(kind<<16)|(instance<<11)|i
+                    returns['MixerKeyC'][entry]=0x60000000|(kind<<16)|(instance<<11)|(component<<4)
+                    returns['MixerValue18'][entry]=0x11110000+i
+                    returns['MixerKey10'][entry]=0
+                if trial%4==1:
+                    callback_writes['AuxDiagnostic']=[{owner+0x78:struct.pack('<I',ARENA+0x33400),owner+0x7c:struct.pack('<I',ARENA+0x34400)},{}]
+                    # The bank index is captured before the final virtual key query.
+                    pk(memory,car+0x10,'<i',1)
+                    callback_writes['MixerKey10']=[{context+0x50:struct.pack('<I',1)},{},{},{context+0x50:struct.pack('<I',2)}]
+                if trial%16==1:
+                    pk(memory,context+0x68,'<ii',1,1)
+                    callback_writes['MixerAttach']={arrays:struct.pack('<I',ARENA+0x30900)}
+                if trial%5==0:pk(memory,car+0x20,'<I',0)
+                if trial%7==0:pk(memory,car+0x1c,'<I',0)
+                root,tab,groups,group,sessions=(ARENA+x for x in (0x36000,0x36100,0x36200,0x36300,0x36400))
+                pk(memory,root+0x28,'<I',tab);pk(memory,root+0x38,'<I',groups)
+                pk(memory,tab+4,'<i',1);pk(memory,groups,'<I',group)
+                pk(memory,group+0x48,'<i',1);pk(memory,group+0x78,'<I',sessions);pk(memory,sessions,'<I',context)
+                if name=='MixerSetup':this=root
+                elif name in ('AudioResolveSound','AudioResolveInput'):
+                    this=AUDIO;words=[(0x40000000 if name=='AudioResolveSound' else 0x60000000)|(kind<<16)|(instance<<11)|(component<<4)]
+                    if trial%8==0:words[0]^=0x20000000
+                    if trial%8==1:words[0]^=1<<16
+                    if trial%8==2:words[0]^=1<<11
+                    if trial%8==3:words[0]^=1<<4
+                elif name=='AudioFindIndex':this=manager;words=[instance if trial%3 else instance+2]
+                elif name=='CarFindPlayback':this=car;words=[component if trial%3 else component+1]
+                elif name=='CarFindInput':this=car;words=[component if trial%3 else component+1]
             if name in MASTER_TARGETS:
                 this=ARENA+0x35000;words=[];mix=ARENA+0x35100;mode=ARENA+0x35200
                 fixture_globals[0x82b884]=struct.pack('<I',AUDIO)
@@ -3381,6 +3485,14 @@ def main():
             assert text.count(before)==1,(key,before)
             return (key,text,text.replace(before,after,1))
         mutations = {
+            'mixer-master-spatial-kind': frame_mutation('mixer','if ((id & 0xe0000000) == 0x80000000) ++spatial;','if ((id & 0xe0000000) == 0x80000000 && ((id >> 16) & 0xff) == kind44) ++spatial;'),
+            'mixer-sub-foreign': frame_mutation('mixer_allocate','if (inputKind == kind) {','if (inputKind == kind || (id & 0xe0000000) == 0x80000000) {'),
+            'mixer-map-output': ('mixer',(ROOT / SOURCES['mixer']).read_text(),(ROOT / SOURCES['mixer']).read_text().replace('((value >> 24) & 0xf)','((value >> 24) & 7)')),
+            'mixer-cursor-store': frame_mutation('mixer','            master34[index]->inputs34 = cursor;',''),
+            'mixer-metadata': frame_mutation('mixer','const unsigned int metadata = master34[index]->value18;','const unsigned int metadata = 0;'),
+            'mixer-key-snapshot': frame_mutation('mixer','(soundKey & 0xe0ffffff) | (instance << 11)','(soundKey & 0xe0ffffff) | (index50 << 11)'),
+            'resolver-sound-tag': frame_mutation('audio_resolve','if ((id & 0xe0000000) == 0x40000000)','if (true)'),
+
             'mix-callback-gate': frame_mutation('audio_mix','if (audioEnabled7FAAA8 && *reinterpret_cast<int *>','if (!audioEnabled7FAAA8 && *reinterpret_cast<int *>'),
             'mix-callback-order': frame_mutation('audio_mix','if (audioMixSecond82B978) audioMixSecond82B978->vtable0->update14(audioMixSecond82B978);','if (audioEnabled7FAAA8 && audioMixSecond82B978) audioMixSecond82B978->vtable0->update14(audioMixSecond82B978);'),
             'mix-copy-index': frame_mutation('audio_mix','&volumes[7]','&volumes[6]'),
