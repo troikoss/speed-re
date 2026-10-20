@@ -39,7 +39,16 @@ from probe_pc_race_reward import ROOT, EXE, GAME_DIR
 
 BUILD = ROOT / 'build/analysis/ginsu'
 SOURCE_DIR = 'src/Speed/Indep/Src/EAXSound/Ginsu'
-SOURCES = {'aux_effects': SOURCE_DIR + '/EngineSoundAuxiliaryEffects.cpp', 'envelope': SOURCE_DIR + '/EngineSoundEnvelope.cpp',
+SOURCES = {'spatial_position': SOURCE_DIR + '/EngineSoundSpatialPosition.cpp',
+           'spatial_orientation': SOURCE_DIR + '/EngineSoundSpatialOrientation.cpp',
+           'aux_producers': SOURCE_DIR + '/EngineSoundAuxiliaryProducers.cpp',
+           'aux_frame': SOURCE_DIR + '/EngineSoundAuxiliaryUpdate.cpp',
+           'sound_inverse': SOURCE_DIR + '/EngineSoundCurveInverse.cpp',
+           'random_float': 'src/Speed/Indep/Libs/bWare/Random.cpp',
+           'random_integer': 'src/Speed/Indep/Src/Physics/Collision/CollisionShape.cpp',
+           'sound_sine': 'src/Speed/Indep/Src/Physics/EngineMath.cpp',
+           'sound_normalize': 'src/Speed/Indep/Src/Physics/WheelMath.cpp',
+           'aux_effects': SOURCE_DIR + '/EngineSoundAuxiliaryEffects.cpp', 'envelope': SOURCE_DIR + '/EngineSoundEnvelope.cpp',
            'sound_curve': SOURCE_DIR + '/EngineSoundCurve.cpp',
            'sequence_update': SOURCE_DIR + '/EngineSoundSequenceUpdate.cpp',
            'aux_idle': SOURCE_DIR + '/EngineSoundAuxiliaryIdle.cpp',
@@ -101,8 +110,20 @@ GIN_MAGIC = b'Gnsu2'
 # name: (retail address, rebuilt symbol prefix, callee-popped bytes, return kind, `this` kind, argument kinds)
 # return kinds: 'al' (bool), 'eax' (int), 'st0' (float left in ST0), None. argument kinds: 'w' raw word,
 # 'p' pointer (identity: arena address or the stack), ('c', n) pointer whose n bytes are logged by value.
-AUX_TARGETS = ('AuxLevel', 'AuxEffects', 'AuxIdle', 'EnvelopeConfigure', 'EnvelopeStep', 'SequenceReset', 'SequenceStep', 'SoundCurve', 'SoundCurveConvert', 'ControlConstruct', 'ControlBind', 'GainCurveConstruct', 'AuxConstruct', 'AuxFactory', 'AuxBind', 'AuxActivate', 'AuxAttach', 'AuxRpm', 'AuxThrottle', 'AuxDependency', 'AuxDescriptor', 'AuxCarValue', 'AuxApproach', 'AuxSequenceConstruct', 'AuxSequenceAppend')
+AUX_TARGETS = ('SpatialPosition','SpatialOrientation', 'AuxOffsets', 'AuxBackfire', 'AuxCutoff', 'AuxFrame', 'SoundInverse', 'SoundRandom', 'SoundRandomFloat', 'SoundSine', 'SoundNormalize', 'AuxLevel', 'AuxEffects', 'AuxIdle', 'EnvelopeConfigure', 'EnvelopeStep', 'SequenceReset', 'SequenceStep', 'SoundCurve', 'SoundCurveConvert', 'ControlConstruct', 'ControlBind', 'GainCurveConstruct', 'AuxConstruct', 'AuxFactory', 'AuxBind', 'AuxActivate', 'AuxAttach', 'AuxRpm', 'AuxThrottle', 'AuxDependency', 'AuxDescriptor', 'AuxCarValue', 'AuxApproach', 'AuxSequenceConstruct', 'AuxSequenceAppend')
 ROUTINES = {
+    'SpatialPosition': (0x45e1d0, '?SetPosition45E1D0@EngineSoundSpatialComponent@', 4, None, 'arena', ['p']),
+    'SpatialOrientation': (0x45e1e0, '?SetOrientation45E1E0@EngineSoundSpatialComponent@', 4, None, 'arena', ['p']),
+    'AuxOffsets': (0x45c7a0, '?ProduceOffsets45C7A0@EngineSoundAuxiliary@', 4, None, 'arena', ['w']),
+    'AuxBackfire': (0x46f580, '?ProduceBackfire46F580@EngineSoundAuxiliary@', 4, None, 'arena', ['w']),
+    'AuxCutoff': (0x46f460, '?ProduceCutoff46F460@EngineSoundAuxiliary@', 0, None, 'arena', []),
+    'AuxFrame': (0x47c010, '?Update47C010@EngineSoundAuxiliary@', 4, None, 'arena', ['w']),
+    'SoundInverse': (0x467ff0, '?EngineSoundCurveInverse467FF0@', 0, 'eax', None, ['w']),
+    'SoundRandom': (0x43c1c0, '?bRandom@@', 0, 'eax', None, ['w']),
+    'SoundRandomFloat': (0x43c1f0, '?bRandomFloat@@', 0, 'st0', None, ['w']),
+    'SoundSine': (0x43c2b0, '?EngineSineUnits@', 0, 'st0', None, ['w']),
+    'SoundNormalize': (0x43cf10, '?WheelNormalize@', 0, None, None, ['p', ('c', 12)]),
+
     'AuxLevel': (0x45c6c0, '?ProduceLevel45C6C0@EngineSoundAuxiliary@', 4, None, 'arena', ['w']),
     'AuxEffects': (0x46f610, '?ProduceEffects46F610@EngineSoundAuxiliary@', 4, None, 'arena', ['w']),
     'AuxIdle': (0x46f9d0, '?ProduceIdle46F9D0@EngineSoundAuxiliary@', 0, None, 'arena', []),
@@ -274,6 +295,46 @@ def snd_ret(key):
 PURE_RANGES = ((0x75bed4, 0x75bf49), (0x72423e, 0x72428b), (0x721a6b, 0x721aae))
 # Retail globals read by the recovered code, by MSVC symbol prefix; __fltused is a null symbol.
 SHARED = {
+    # Relocations in unexecuted collision bodies; the execution guard excludes the ticker.
+    '?collisionHulls86B598@': 0x86b598,
+    '?bGetTicker@': 0x43bdf0,
+    '?engineSoundCurveTable7EE7EC@': 0x7ee7ec,
+    '?engineSoundCurveShift82BC8C@': 0x82bc8c,
+    '?engineSoundCurveRemainder82BC90@': 0x82bc90,
+    '?engineSoundOffsetCycle789FB4@': 0x789fb4,
+    '?engineSoundBackfireBase7885E4@': 0x7885e4,
+    '?engineSoundBackfireScale7885E8@': 0x7885e8,
+    '?engineSoundCutoffRange7885DC@': 0x7885dc,
+    '?engineSoundCutoffSpecial7885E0@': 0x7885e0,
+    '?engineSoundCutoffOrigin78AAA8@': 0x78aaa8,
+    '?engineSoundCutoffPosition78AAA4@': 0x78aaa4,
+    '?engineSoundCutoffLow7885D4@': 0x7885d4,
+    '?engineSoundPositionScale784554@': 0x784554,
+    '?bRandomFloatScale786CE8@': 0x786ce8,
+    '?bRandomSeed7EA624@': 0x7ea624,
+    '?engineAngleScale@': 0x78423c,
+    '?engineAngleUnit@': 0x784240,
+    '?engineThreeHalfPi@': 0x786da0,
+    '?engineTwoPi@': 0x786d9c,
+    '?engineHalfPi@': 0x784254,
+    '?enginePi@': 0x786d98,
+    '?engineSineC3@': 0x786d94,
+    '?engineSineC5@': 0x786d90,
+    '?engineSineC7@': 0x786d8c,
+    '?engineSineC9@': 0x786d88,
+    '?collisionShapeHalf@': 0x784260,
+    '?collisionSupportFloor@': 0x7a206c,
+    '?collisionPolygonCentres86B2DC@': 0x86b2dc,
+    '?collisionHullClimb86B2D8@': 0x86b2d8,
+    '?collisionThirdWeight@': 0x7842a4,
+    '?collisionThirdRemainder@': 0x7a2068,
+    '?collisionQuarterWeight@': 0x784d28,
+    '?collisionOne784250@': 0x784250,
+    '?collisionZero7D7D3C@': 0x7d7d3c,
+    '?collisionCylinderStep7A2070@': 0x7a2070,
+    '?collisionCylinderStepScale7A2074@': 0x7a2074,
+    '?collisionCylinderAxes@': 0x7a1930,
+
     '?engineSoundShiftLevel789FB0': 0x789fb0,
     '?engineSoundHighLimit788600': 0x788600,
     '?engineSoundHighEnter7885EC': 0x7885ec,
@@ -345,6 +406,7 @@ TARGETS = AUX_TARGETS + ('PhysicsFactory', 'PhysicsHash') + ('PhysicsConstruct',
            'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt',
            'PacketReleaseCallback', 'SynthesisConstruct', 'SynthesisDestruct', 'StartSynthesis')
 LIMITATIONS = [
+    'auxiliary frame: direct and virtual producers, shared random seed, sine, normalization and cutoff curves execute recovered code; spatial setters run as recovered code in composed frames; other spatial callbacks and shift/accel components remain fixtures; positions/orientations are finite; exceptions, concurrency, invalid pointers and arbitrary table indices are excluded',
     'envelope/sequence: complete step bodies and curve helper/conversion run; active fixture indices stay within six entries, table inputs within 0..32767; both x87 precisions compare finite motion and hold/completion branches; invalid pointers/table indices, asynchronous state mutation and exception execution remain outside evidence',
 
     "auxiliary input: actual construction/bind/activation, descriptor/attachment, RPM/throttle production, averages, sequence helpers and scalar approach execute; spatial virtual methods and unknown-ID diagnostics are controlled boundaries, shift/accel states are fixture inputs; recovered idle, level and high-RPM producers run in composed input/gain trajectories; quarter producer fixtures compose lifecycle, and quarter RPM fixtures prepend actual Physics and append actual throttle/gain update; custom frequency/average virtuals mutate linked state to test read boundaries; full SFXCTL_Engine frame update, offsets/backfire/cutoff and shift/accel producers, manager composition, invalid-kind/null dependency dereferences and exceptions remain outside this evidence",
@@ -539,7 +601,7 @@ def fx_state(uc):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--compiler', choices=('msvc', 'clang-cl'), default='msvc')
-    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, construction, controller, caller, dispatch, values, initialize, lifecycle, audio, banks, bank_path, selection, upgrade_queries, control, gains, sample_update, gain_curve, gain_shift, physics, physics_factory, physics_max, physics_hash, average_construct, auxiliary, aux_sequence, control_lifecycle, gain_curve_construct, envelope, sound_curve, sequence_update, aux_idle, aux_effects)')
+    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, construction, controller, caller, dispatch, values, initialize, lifecycle, audio, banks, bank_path, selection, upgrade_queries, control, gains, sample_update, gain_curve, gain_shift, physics, physics_factory, physics_max, physics_hash, average_construct, auxiliary, aux_sequence, control_lifecycle, gain_curve_construct, envelope, sound_curve, sequence_update, aux_idle, aux_effects, aux_producers, aux_frame, sound_inverse, random_float, random_integer, sound_sine, sound_normalize, spatial_position, spatial_orientation)')
     parser.add_argument('--clang-flag', action='append', default=[], help='extra clang option (via /clang:)')
     parser.add_argument('--cases', type=int, default=1024)
     parser.add_argument('--targets', default='', help='comma separated subset of targets')
@@ -575,7 +637,7 @@ def main():
     # These leaves have no relocations. Only claim complete byte identity
     # when COFF places a single function in the section and its size agrees.
     query_byte_matching = {}
-    for name, source_key in (('EngineGain', 'values'), ('EngineValue', 'values'), ('AuxFrequency', 'control'), ('AuxGain', 'control'), ('AuxCarValue', 'auxiliary'), ('AuxApproach', 'aux_sequence'), ('GainCurveConstruct', 'gain_curve_construct')):
+    for name, source_key in (('EngineGain', 'values'), ('EngineValue', 'values'), ('AuxFrequency', 'control'), ('AuxGain', 'control'), ('AuxCarValue', 'auxiliary'), ('AuxApproach', 'aux_sequence'), ('GainCurveConstruct', 'gain_curve_construct'), ('SpatialPosition','spatial_position'), ('SpatialOrientation','spatial_orientation')):
         spec = ROUTINES[name]
         symbol = next(s for s in parsed[source_key]['symbols'].values() if s['name'].startswith(spec[1]))
         section = parsed[source_key]['sections'][symbol['section'] - 1]
@@ -669,6 +731,9 @@ def main():
 
         # Queries through a constructed SFXCTL_Engine's original table.
         uc.mem_write(0x789fa4,struct.pack('<II',rebuilt_entry['AuxFrequency'] if rebuilt else retail_entry['AuxFrequency'],rebuilt_entry['AuxGain'] if rebuilt else retail_entry['AuxGain']))
+
+        for slot,target in ((0x24,'AuxRpm'),(0x28,'AuxThrottle'),(0x2c,'AuxLevel'),(0x30,'AuxEffects'),(0x3c,'AuxOffsets')):
+            uc.mem_write(0x789f70+slot,struct.pack('<I',rebuilt_entry[target] if rebuilt else retail_entry[target]))
 
         # Original WaitForSingleObject/ReleaseMutex IAT entries; both sides use
         # the same stdcall stand-ins and record the exact arguments.
@@ -773,7 +838,7 @@ def main():
                         uc.mem_write(CONTROL+0x6c,struct.pack('<III',AUXILIARY,ARENA+0x3a000,ARENA+0x3a200))
                     uc.mem_write(STACK,struct.pack('<I',STOP)+b''.join(struct.pack('<I',w&0xffffffff) for w in words))
                     uc.reg_write(xc.UC_X86_REG_ESP,STACK);uc.reg_write(xc.UC_X86_REG_ECX,this)
-                if postauxcontrol:
+                if postauxcontrol and name=='AuxRpm':
                     for target,receiver,arguments in (('AuxIdle',AUXILIARY,[]),('SequenceStep',AUXILIARY+0x154,words)):
                         uc.mem_write(STACK,struct.pack('<I',STOP)+b''.join(struct.pack('<I',w&0xffffffff) for w in arguments))
                         uc.reg_write(xc.UC_X86_REG_ESP,STACK);uc.reg_write(xc.UC_X86_REG_ECX,receiver)
@@ -826,7 +891,7 @@ def main():
                     uc.reg_write(xc.UC_X86_REG_EAX, 0)
                 uc.emu_start(rebuilt_entry[name] if rebuilt else retail_entry[name], STOP + 7, count=MAX_INSTRUCTIONS)
                 if postauxcontrol:
-                    for target,receiver in (('AuxThrottle',AUXILIARY),('AuxLevel',AUXILIARY),('AuxEffects',AUXILIARY),('ControlUpdate',CONTROL)):
+                    for target,receiver in ((('ControlUpdate',CONTROL),) if name=='AuxFrame' else (('AuxThrottle',AUXILIARY),('AuxLevel',AUXILIARY),('AuxEffects',AUXILIARY),('ControlUpdate',CONTROL))):
                         uc.mem_write(STACK,struct.pack('<II',STOP,fw(1/60.)))
                         uc.reg_write(xc.UC_X86_REG_ESP,STACK);uc.reg_write(xc.UC_X86_REG_ECX,receiver)
                         uc.emu_start(rebuilt_entry[target] if rebuilt else retail_entry[target],STOP+7,count=MAX_INSTRUCTIONS)
@@ -1106,12 +1171,15 @@ def main():
         shift, accel, physics, owner = (ARENA+x for x in (0x3a000,0x3a200,0x3a400,0x3a600))
         record, inputs = ARENA+0x3b500, ARENA+0x3b000
         car2, car_table = ARENA+0x3b800, ARENA+0x3bb00
-        spatial, spatial2, spatial_table = ARENA+0x3ba00, ARENA+0x3ba80, ARENA+0x3ba40
+        spatial, spatial2, spatial_table = ARENA+0x33000, ARENA+0x33100, ARENA+0x33200
         avg_table, pairs, control_samples = ARENA+0x3bf00, ARENA+0x3be80, ARENA+0x3beb0
         fixture_code_fields[avg_table+4]='SampleRecalculate'
         fixture_code_fields[car_table+0x44]='AuxCarValue'
         pk(memory,spatial,'<I',spatial_table); pk(memory,spatial2,'<I',spatial_table)
         pk(memory,spatial_table+0x2c,'<II',VIRTUAL['AuxPosition'],VIRTUAL['AuxDirection'])
+        if preauxinit or (name=='AuxFrame' and trial%4!=1):
+            fixture_code_fields[spatial_table+0x2c]='SpatialPosition'
+            fixture_code_fields[spatial_table+0x30]='SpatialOrientation'
         pk(memory,AUXILIARY,'<I',AUX_VTABLE)
         pk(memory,AUXILIARY+0x44,'<I',CAR)
         pk(memory,AUXILIARY+0x58,'<B',trial%2)
@@ -1140,6 +1208,15 @@ def main():
             pk(memory,car+0x78,'<i',(trial//4)%2)
             pk(memory,car+0x80,'<II',ARENA+0x3b300,ARENA+0x3b380)
             pk(memory,car+0x94,'<i',rng.choice((-1,0,1,2,3,4)))
+        fixture_globals[0x7ea624]=struct.pack('<I',rng.getrandbits(32))
+        fixture_globals[0x82bc88]=struct.pack('<III',rng.getrandbits(32),rng.getrandbits(32),rng.getrandbits(32))
+        pk(memory,owner+0x60,'<3f',rng.uniform(-100.,100.),rng.uniform(-100.,100.),rng.uniform(-100.,100.))
+        pk(memory,owner+0x90,'<3f',rng.uniform(-10.,10.),rng.uniform(-10.,10.),rng.uniform(-10.,10.))
+        pk(memory,owner+0x18,'<I',ARENA+0x36000)
+        pk(memory,ARENA+0x36058,'<i',(0,1,6,7,8)[trial%5])
+        pk(memory,spatial+8,'<i',(0,1,16384,32767)[trial%4])
+        pk(memory,spatial2+8,'<i',rng.randrange(32768))
+        for i in range(6):pk(memory,shift+0x80+i*4,'<i',(0,1,50,10000,10001,-1)[(trial+i)%6])
         pk(memory,owner+0x14,'<I',ARENA+0x35000)
         pk(memory,ARENA+0x35004,'<i',1)
         pk(memory,ARENA+0x35900,'<B',0)
@@ -1174,6 +1251,8 @@ def main():
         pk(memory,AUXILIARY+0x13c,'<B',trial%3==0)
         pk(memory,AUXILIARY+0x144,'<ff',rng.uniform(-100.,100.),rng.uniform(-10.,10.))
         pk(memory,AUXILIARY+0x1c8,'<f',rng.uniform(-100.,100.))
+        for slot,target in ((0x24,'AuxRpm'),(0x28,'AuxThrottle'),(0x2c,'AuxLevel'),(0x30,'AuxEffects'),(0x3c,'AuxOffsets')):
+            fixture_code_fields[AUX_VTABLE+slot]=target
         fixture_code_fields[AUX_VTABLE+0x34]='AuxFrequency'
         fixture_code_fields[AUX_VTABLE+0x38]='AuxGain'
         returns.update(PhysicsRecord=record,PhysicsBlown=0,AverageMalloc=ALLOC)
@@ -1227,7 +1306,7 @@ def main():
         pk(memory,CONTROL+0xec,'<8f',0.,0.,1000.,1000.,1.,1.,0.,0.)
 
     preauxinit = postauxcontrol = auxtrajectory = False
-    aux_sequence_seed = None
+    aux_sequence_seed = frame_sequence_seed = None
     physics_sequence_seed = None
     for trial in range(args.cases):
         precision = rng.choice(PRECISIONS)
@@ -1242,14 +1321,74 @@ def main():
             preselect = False
             precontrol = False
             prephysics = name == 'PhysicsUpdate' and trial % 4 == 0
-            preauxinit = name in ('AuxRpm','AuxThrottle','AuxActivate') and trial % 4 == 0
-            postauxcontrol = name == 'AuxRpm' and preauxinit
+            preauxinit = name in ('AuxRpm','AuxThrottle','AuxActivate','AuxFrame') and trial % 4 == 0
+            postauxcontrol = name in ('AuxRpm','AuxFrame') and preauxinit
             observe_gains = name in ('ControlOne', 'ControlTwo', 'ControlUpdate', 'EngineUpdate')
             complete_reads = 0
             if name in AUX_TARGETS:
                 seed_auxiliary(memory,trial)
                 words, this = [], AUXILIARY
-                if name in ('AuxLevel','AuxEffects'):
+                if name in ('SpatialPosition','SpatialOrientation'):
+                    this=ARENA+0x33000
+                    words=[rng.choice((0,AUXILIARY+0x80,ARENA+0x3a690,0x7ed368,0xdeadbeef))]
+                elif name in ('AuxFrame','AuxOffsets','AuxBackfire','AuxCutoff'):
+                    if name!='AuxCutoff':words=[fw(rng.choice((0.,0.001,0.016,0.1,0.5,-0.01)))]
+                    for offset in (0xe8,0x104,0x1d0):
+                        pk(memory,AUXILIARY+offset,'<4fifB',0.,0.1,0.,1.,0,0.,int(trial%3==0))
+                    pk(memory,AUXILIARY+0x118,'<f',1.)
+                    pk(memory,AUXILIARY+0x120,'<B',1)
+                    pk(memory,AUXILIARY+0x124,'<f',0.)
+                    pk(memory,AUXILIARY+0x152,'<B',trial%2)
+                    sequence=AUXILIARY+0x154
+                    pk(memory,sequence,'<f',0.)
+                    pk(memory,sequence+0x6c,'<iifB',2,trial%2,0.,0)
+                    for i in range(6):
+                        pk(memory,sequence+4+i*4,'<f',0.1)
+                        pk(memory,sequence+0x1c+i*4,'<f',float(i))
+                        pk(memory,sequence+0x34+i*4,'<f',float(i+1))
+                        pk(memory,sequence+0x4c+i,'<B',0)
+                        pk(memory,sequence+0x54+i*4,'<i',6)
+                    if name=='AuxOffsets' and trial%7==0:pk(memory,AUXILIARY+0x6c,'<I',0)
+                    if name=='AuxCutoff':
+                        pk(memory,ARENA+0x35004,'<i',1 if trial%8<6 else 2)
+                        pk(memory,ARENA+0x35900,'<B',trial%8==5)
+                        if trial%8==4:pk(memory,ARENA+0x3a618,'<I',0)
+                        pk(memory,ARENA+0x33008,'<i',rng.choice((-2**31,-100,0,6,7,10,28,29,96,97,32767,2**31-1)))
+                    if name=='AuxOffsets':
+                        for i in range(6):pk(memory,ARENA+0x3a080+i*4,'<i',rng.choice((-2**31,-1,0,1,50,10000,10001,2**31-1)))
+                        pk(memory,AUXILIARY+0x14c,'<3H',*(rng.choice((0,1,0xffff,0x4097,rng.randrange(65536))) for _ in range(3)))
+                    if name=='AuxOffsets' and trial in (1,2):
+                        pk(memory,ARENA+0x3a078,'<i',1)
+                        pk(memory,ARENA+0x3a090,'<ii',1,10001)
+                        pk(memory,AUXILIARY+0x14c,'<H',0xffff)
+                        words=[fw(0. if trial==1 else 0.5)]
+                    if name=='AuxCutoff' and trial==3:pk(memory,ARENA+0x33008,'<i',28)
+                    if name=='AuxFrame':
+                        pk(memory,AUXILIARY+0x58,'<B',int(trial%3!=0))
+                        pk(memory,AUXILIARY+0x5c,'<ff',rng.uniform(-1.,100.),rng.uniform(-1.,1.))
+                        if trial%7==0:pk(memory,ARENA+0x3a690,'<3f',0.,0.,0.)
+                        if trial%4==1:
+                            altowner=ARENA+0x37000
+                            pk(memory,ARENA+0x3b830,'<I',altowner)
+                            pk(memory,ARENA+0x3b850,'<i',4)
+                            pk(memory,altowner+0x14,'<II',ARENA+0x35000,ARENA+0x36000)
+                            pk(memory,altowner+0x60,'<3f',123.,-456.,789.)
+                            pk(memory,altowner+0x90,'<3f',0.5,0.,0.5)
+                            callback_writes['AuxDirection']={AUXILIARY+0x44:struct.pack('<I',ARENA+0x3b800),AUXILIARY+0x68:struct.pack('<I',ARENA+0x3b800),AUXILIARY+0x78:struct.pack('<I',ARENA+0x33100)}
+
+                elif name in ('SoundInverse','SoundRandom','SoundRandomFloat','SoundSine','SoundNormalize'):
+                    this=0
+                    if name in ('SoundRandom','SoundRandomFloat'):fixture_globals[0x7ea624]=struct.pack('<I',(0,1,0x7ffffffe,0x7fffffff,0x80000000,0xffffffff,rng.getrandbits(32))[trial%7])
+                    if name=='SoundInverse':words=[rng.choice((-2**31,2**31-1,-10000,-9600,-602,-601,-1,0,1,601,602,10000,rng.randrange(-2**31,2**31)))&0xffffffff]
+                    elif name=='SoundRandom':words=[rng.choice((1,2,100,0x7fffffff,0x80000000,0xffffffff))]
+                    elif name=='SoundRandomFloat':words=[fw(rng.choice((0.,-0.,-1.,1.,100.,1e20,rng.uniform(-1000.,1000.))))]
+                    elif name=='SoundSine':words=[rng.choice((0,1,0xffff,0x10000,0x7fffffff,0xffffffff,rng.getrandbits(32)))]
+                    else:
+                        output,input=ARENA+0x34000,ARENA+0x34040
+                        pk(memory,input,'<3f',*(rng.uniform(-1000.,1000.) for _ in range(3)))
+                        if trial%7==0:pk(memory,input,'<3f',0.,0.,0.)
+                        words=[input if trial%3==0 else output,input]
+                elif name in ('AuxLevel','AuxEffects'):
                     words=[fw(rng.choice((0.,0.001,0.01,0.05,1.,-0.1)))]
                     if name=='AuxLevel':
                         pk(memory,ARENA+0x3a0f8,'<f',rng.choice((0.,1.,-1.,0.5,1e20,float('nan'))))
@@ -1967,6 +2106,8 @@ def main():
                                     -0.0, float('nan'), float('inf'), -float('inf'), 1e30, -1e30, 0.5, -0.5, 1e-40)) if k < 0.95 else float('nan')
                 words, this = [fw(value)], 0
 
+            if name == 'AuxFrame' and trial == 0:
+                frame_sequence_seed=(bytes(memory),dict(fixture_globals),dict(fixture_code_fields),dict(returns))
             if name == 'AuxRpm' and trial == 0:
                 aux_sequence_seed=(bytes(memory),dict(fixture_globals),dict(fixture_code_fields),dict(returns))
             if name == 'PhysicsUpdate' and trial == 0:
@@ -1990,6 +2131,14 @@ def main():
                 else:
                     chosen = [key for key in ('ManagerAC', 'ManagerB0', 'ManagerB4') if key in names]
                     note('create-called-' + (chosen[0] if chosen else 'none'))
+            if name=='AuxFrame':
+                note('aux-frame-active' if a['arena'][AUXILIARY-ARENA+0x58] else 'aux-frame-inactive')
+                note('aux-frame-direction-mutation' if 'AuxDirection' in callback_writes else 'aux-frame-direction-stable')
+                if 'SoundRandom' in names:note('aux-frame-pulse')
+            if name=='AuxBackfire':note('aux-pulse-created' if 'SoundRandom' in names else 'aux-pulse-stepped')
+            if name=='AuxOffsets':note('aux-offset-sines-%d' % names.count('SoundSine'))
+            if name=='AuxCutoff':
+                note('aux-cutoff-zero' if struct.unpack_from('<i',a['arena'],AUXILIARY-ARENA+0x138)[0]==0 else 'aux-cutoff-positive')
             if name=='AuxIdle':
                 note('aux-idle-active' if a['arena'][AUXILIARY-ARENA+0x13c] else 'aux-idle-inactive')
                 note('aux-idle-query' if 'AuxFrequency' in names or 'AuxValue38' in names else 'aux-idle-gated')
@@ -2173,14 +2322,14 @@ def main():
                 memory = bytearray(a['arena'])
         paths['physics-sequence-steps'] = steps
 
-    if aux_sequence_seed is not None:
-        name='AuxRpm'
+    for name,aux_seed in (('AuxRpm',aux_sequence_seed),('AuxFrame',frame_sequence_seed)):
+        if aux_seed is None:continue
         steps=0
         for precision in PRECISIONS:
-            memory=bytearray(aux_sequence_seed[0])
-            fixture_globals.clear();fixture_globals.update(aux_sequence_seed[1])
-            fixture_code_fields.clear();fixture_code_fields.update(aux_sequence_seed[2])
-            returns.clear();returns.update(aux_sequence_seed[3]);callback_writes.clear()
+            memory=bytearray(aux_seed[0])
+            fixture_globals.clear();fixture_globals.update(aux_seed[1])
+            fixture_code_fields.clear();fixture_code_fields.update(aux_seed[2])
+            returns.clear();returns.update(aux_seed[3]);callback_writes.clear()
             preconstruct=preselect=precontrol=prephysics=observe_gains=False
             auxtrajectory=postauxcontrol=True
             for frame in range(128):
@@ -2211,6 +2360,7 @@ def main():
                     pk(memory,owner+0x440,'<f',12000.)
                     pk(memory,shift+0x78,'<i',0)
                     pk(memory,accel+0xc8,'<i',0)
+                if name=='AuxFrame' and frame in (24,48,72,112):pk(memory,AUXILIARY+0x152,'<B',1)
                 attempts[name]+=1
                 try:
                     a,b=run(name,memory,[fw(1/60.)],precision,AUXILIARY)
@@ -2225,7 +2375,7 @@ def main():
                 if high:note('aux-carried-high-active')
                 memory=bytearray(a['arena'])
                 fixture_globals.update(a['globals'])
-        paths['aux-sequence-steps']=steps
+        paths['aux-frame-sequence-steps' if name=='AuxFrame' else 'aux-sequence-steps']=steps
 
     for target in ('EnvelopeStep','SequenceStep'):
         if target not in selected: continue
@@ -2325,6 +2475,15 @@ def main():
             assert text.count(before)==1,(key,before)
             return (key,text,text.replace(before,after,1))
         mutations = {
+            'offset-modulus': frame_mutation('aux_producers','value14C - (unsigned short)step) % 65535u','value14C - (unsigned short)step) % 65536u'),
+            'offset-period-clamp': frame_mutation('aux_producers','rpmPeriod > 10000) rpmPeriod = 10000','rpmPeriod > 10000) rpmPeriod = 9999'),
+            'backfire-repeat': frame_mutation('aux_producers','        flag152 = 0;',''),
+            'cutoff-special-mode': frame_mutation('aux_producers','mode == 6 || mode == 7','mode == 6'),
+            'inverse-zero-write': frame_mutation('sound_inverse','if (value == 0) return 0x7fff;','if (value == 0) { engineSoundCurveScratch82BC88 = 0; return 0x7fff; }'),
+            'inverse-shift-mask': frame_mutation('sound_inverse','quotient & 31','quotient & 15'),
+            'random-float-seed': frame_mutation('random_float','((double)(int)value * bRandomFloatScale786CE8)','((double)(int)(bRandomSeed7EA624 % 0x7fffffffu) * bRandomFloatScale786CE8)'),
+            'frame-backfire-order': frame_mutation('aux_frame','    ProduceBackfire46F580(duration);\n    vtable0->value24(this, 0, duration);','    vtable0->value24(this, 0, duration);\n    ProduceBackfire46F580(duration);'),
+            'frame-position-scale': frame_mutation('aux_frame','normalized.x * engineSoundPositionScale784554','normalized.x'),
             'idle-unordered': frame_mutation('aux_idle','!(frequency > engineSoundIdleLimit7885D0)','frequency <= engineSoundIdleLimit7885D0'),
             'idle-context-gate': frame_mutation('aux_idle','context->flag900 == 0 && ','true && '),
             'level-shift-reduction': frame_mutation('aux_effects','0x7fffu - (unsigned int)reduction','0x7fffu + (unsigned int)reduction'),

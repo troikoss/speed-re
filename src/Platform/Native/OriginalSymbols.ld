@@ -1103,3 +1103,17 @@ engineSoundHighRelease7885F4 = 0x7885f4;
 engineSoundHighAttack7885F8 = 0x7885f8;
 engineSoundHighScale7885FC = 0x7885fc;
 engineSoundHighCurve7F0050 = 0x7f0050;
+
+bRandomFloatScale786CE8 = 0x786ce8;
+engineSoundCurveTable7EE7EC = 0x7ee7ec;
+engineSoundCurveShift82BC8C = 0x82bc8c;
+engineSoundCurveRemainder82BC90 = 0x82bc90;
+engineSoundOffsetCycle789FB4 = 0x789fb4;
+engineSoundBackfireBase7885E4 = 0x7885e4;
+engineSoundBackfireScale7885E8 = 0x7885e8;
+engineSoundCutoffRange7885DC = 0x7885dc;
+engineSoundCutoffSpecial7885E0 = 0x7885e0;
+engineSoundCutoffOrigin78AAA8 = 0x78aaa8;
+engineSoundCutoffPosition78AAA4 = 0x78aaa4;
+engineSoundCutoffLow7885D4 = 0x7885d4;
+engineSoundPositionScale784554 = 0x784554;

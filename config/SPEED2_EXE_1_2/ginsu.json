@@ -515,6 +515,61 @@
       "address": "0x46f610",
       "size": 435,
       "sha256": "84766fe325ef9c2eafde53881406ee5646806e1b7c587494cb17e43d457943ca"
+    },
+    "AuxOffsets": {
+      "address": "0x45c7a0",
+      "size": 498,
+      "sha256": "380b98b5b22e1b157eb1df4296c396320f5d88386b04b9d4d2f606a4ef5a6e83"
+    },
+    "AuxBackfire": {
+      "address": "0x46f580",
+      "size": 132,
+      "sha256": "714dd8bdcd82253bf01a1bd1da0616a810b8f724647fdc8e373565731efcf4a7"
+    },
+    "AuxCutoff": {
+      "address": "0x46f460",
+      "size": 273,
+      "sha256": "098e3af16fef08471153561de81b5f49fd00a1e04ecd8db8b1fa1a03a6a57cd8"
+    },
+    "AuxFrame": {
+      "address": "0x47c010",
+      "size": 395,
+      "sha256": "c515b59941daae9f104c32916ca126ad3ab5e12a16c45e29a66d76d56fecae57"
+    },
+    "SoundInverse": {
+      "address": "0x467ff0",
+      "size": 92,
+      "sha256": "4ebe3c44bcb11a3941ddb74a282498ccbf6be783c01a89db302399a89aed3989"
+    },
+    "SoundRandom": {
+      "address": "0x43c1c0",
+      "size": 47,
+      "sha256": "edbebfdd60605dfd3f8a58edb5a72908987d52aebc098f31ac5dd486bd901362"
+    },
+    "SoundRandomFloat": {
+      "address": "0x43c1f0",
+      "size": 78,
+      "sha256": "d875d27b8570b47e9449f39b7ba4232222ae8e9531c88f6e6bc60a8a8282d1fd"
+    },
+    "SoundSine": {
+      "address": "0x43c2b0",
+      "size": 150,
+      "sha256": "d030d6898336bb087f67dfe850c07f69dab4da2d322330227b386fbe3a729981"
+    },
+    "SoundNormalize": {
+      "address": "0x43cf10",
+      "size": 113,
+      "sha256": "23ba23dfc72112b19545c124d27a47e20d0d98f9f5b58e7513da66fb4b68a1c7"
+    },
+    "SpatialPosition": {
+      "address": "0x45e1d0",
+      "size": 10,
+      "sha256": "cd19f3891f7b20efb4b72aa01a4c520781f2cd1efd0bfba94313a8f4a27f8e60"
+    },
+    "SpatialOrientation": {
+      "address": "0x45e1e0",
+      "size": 10,
+      "sha256": "7ed72a491eeeeb25a633645a193a3bf4428d9f32bf960a2fdf606ac2e4c67aa4"
     }
   }
 }

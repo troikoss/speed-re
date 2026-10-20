@@ -86,7 +86,8 @@ UG2_CHECK_OFFSET(EngineSoundPhysicsView, average94, 0x94);
 UG2_CHECK_SIZE(EngineSoundPhysicsView, 0xf4);
 struct EngineSoundShiftView {
     char unidentified0[0x78]; int value78, value7C;
-    char unidentified80[0x40]; float valueC0;
+    int value80, value84, value88, value8C, value90, value94;
+    char unidentified98[0x28]; float valueC0;
     char unidentifiedC4[0x18]; float valueDC;
     char unidentifiedE0[0x18]; float valueF8;
     char unidentifiedFC[0x58]; float value154;
@@ -256,9 +257,14 @@ struct EngineSoundParameters {
 
 struct EngineSoundAuxiliary;
 struct EngineSoundAuxiliaryVtable {
-    void *unidentified0[13];
+    void *unidentified0[9];
+    void (__fastcall *value24)(EngineSoundAuxiliary *, void *, float);
+    void (__fastcall *value28)(EngineSoundAuxiliary *, void *, float);
+    void (__fastcall *value2C)(EngineSoundAuxiliary *, void *, float);
+    void (__fastcall *value30)(EngineSoundAuxiliary *, void *, float);
     float (__fastcall *value34)(EngineSoundAuxiliary *);
     float (__fastcall *value38)(EngineSoundAuxiliary *);
+    void (__fastcall *value3C)(EngineSoundAuxiliary *, void *, float);
 };
 
 struct EngineSoundSpatialComponent;
@@ -267,7 +273,22 @@ struct EngineSoundSpatialVtable {
     void (__fastcall *value2C)(EngineSoundSpatialComponent *, void *, float *);
     void (__fastcall *value30)(EngineSoundSpatialComponent *, void *, void *);
 };
-struct EngineSoundSpatialComponent { EngineSoundSpatialVtable *vtable0; };
+// Observed 0xd8-byte 3DCarPos allocation; only the currently used fields
+// are named. Full construction/update and the +8 producer remain open.
+struct EngineSoundSpatialComponent {
+    EngineSoundSpatialVtable *vtable0;
+    int unidentified4;
+    int value8;
+    char unidentifiedC[0x64];
+    float *position70;
+    void *orientation74;
+    char unidentified78[0x60];
+    void SetPosition45E1D0(float *position);
+    void SetOrientation45E1E0(void *orientation);
+};
+UG2_CHECK_SIZE(EngineSoundSpatialComponent, 0xd8);
+UG2_CHECK_OFFSET(EngineSoundSpatialComponent, position70, 0x70);
+UG2_CHECK_OFFSET(EngineSoundSpatialComponent, orientation74, 0x74);
 
 struct EngineSoundComponent;
 struct EngineSoundAuxiliary {
@@ -321,6 +342,10 @@ struct EngineSoundAuxiliary {
     void Bind45C550(EngineSoundCar *car);
     void Attach46F3E0(EngineSoundComponent *component);
     void Activate45C5A0();
+    void Update47C010(float duration);
+    void ProduceOffsets45C7A0(float duration);
+    void ProduceBackfire46F580(float duration);
+    void ProduceCutoff46F460();
     void ProduceIdle46F9D0();
     void ProduceLevel45C6C0(float duration);
     void ProduceEffects46F610(float duration);

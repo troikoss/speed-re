@@ -52,12 +52,19 @@ NativeAverageVtable averageVtable = {0, RecalculateAverage};
 int __fastcall CarValue(EngineSoundCar *car) { return car->Value479700(); }
 float __fastcall AuxiliaryFrequency(EngineSoundAuxiliary *auxiliary) { return auxiliary->Value45C530(); }
 float __fastcall AuxiliaryThrottle(EngineSoundAuxiliary *auxiliary) { return auxiliary->Value45C540(); }
-// Spatial rendering remains centered. Activation's outputs are retained locally;
-// the missing spatial component does not supply attenuation/pan to playback.
-void __fastcall SpatialPosition(EngineSoundSpatialComponent *, void *, float *position) {
-    position[0] = position[1] = position[2] = 0.0f;
+void __fastcall AuxiliaryRpm(EngineSoundAuxiliary *value, void *, float duration) { value->ProduceRpm46F7D0(duration); }
+void __fastcall AuxiliaryThrottleUpdate(EngineSoundAuxiliary *value, void *, float duration) { value->ProduceThrottle45C710(duration); }
+void __fastcall AuxiliaryLevel(EngineSoundAuxiliary *value, void *, float duration) { value->ProduceLevel45C6C0(duration); }
+void __fastcall AuxiliaryEffects(EngineSoundAuxiliary *value, void *, float duration) { value->ProduceEffects46F610(duration); }
+void __fastcall AuxiliaryOffsets(EngineSoundAuxiliary *value, void *, float duration) { value->ProduceOffsets45C7A0(duration); }
+// The original callbacks retain pointers; spatial attenuation/pan production
+// still remains outside this native session.
+void __fastcall SpatialPosition(EngineSoundSpatialComponent *value, void *, float *position) {
+    value->SetPosition45E1D0(position);
 }
-void __fastcall SpatialDirection(EngineSoundSpatialComponent *, void *, void *) {}
+void __fastcall SpatialDirection(EngineSoundSpatialComponent *value, void *, void *orientation) {
+    value->SetOrientation45E1E0(orientation);
+}
 
 void InitialiseControlSession(NativeEnginePlayback *session) {
     EngineSoundCar &car = session->car;
@@ -167,6 +174,11 @@ bool NativeEngineSound::Load(const char *gameDirectory, MoverModeOwner *owner, c
     physics.flag6C = 1;
     EngineSoundAuxiliary &auxiliary = playback_->auxiliary;
     auxiliary.Construct46F1B0();
+    playback_->auxiliaryVtable.value24 = AuxiliaryRpm;
+    playback_->auxiliaryVtable.value28 = AuxiliaryThrottleUpdate;
+    playback_->auxiliaryVtable.value2C = AuxiliaryLevel;
+    playback_->auxiliaryVtable.value30 = AuxiliaryEffects;
+    playback_->auxiliaryVtable.value3C = AuxiliaryOffsets;
     playback_->auxiliaryVtable.value34 = AuxiliaryFrequency;
     playback_->auxiliaryVtable.value38 = AuxiliaryThrottle;
     auxiliary.vtable0 = &playback_->auxiliaryVtable;
@@ -182,9 +194,9 @@ bool NativeEngineSound::Load(const char *gameDirectory, MoverModeOwner *owner, c
     playback_->spatial.vtable0 = &playback_->spatialVtable;
     auxiliary.spatial78 = &playback_->spatial;
     auxiliary.Activate45C5A0();
-    // Full auxiliary frame 0x47c010 remains open. Position/offset, backfire
-    // and cutoff producers are still absent; the recovered idle/level/high-RPM
-    // producers and envelope/sequence updates run below.
+    // The spatial +8 producer remains a fixture (zero in the value-initialized
+    // session); the recovered cutoff now consumes it. Full auxiliary update
+    // dispatches the actual producers through the ABI bridges above.
     InitialiseControlSession(playback_);
     engine.auxiliaryB8 = &auxiliary;
     engine.controlC0 = &playback_->control;
@@ -210,12 +222,7 @@ void NativeEngineSound::Update(float rpm, float duration, int frame) {
     // the raw RPM argument is used only by the diagnostic log.
     playback_->car.time34 += duration;
     playback_->physics.Update484C50(duration);
-    playback_->auxiliary.ProduceIdle46F9D0();
-    playback_->auxiliary.sequence154.Step46AF70(duration);
-    playback_->auxiliary.ProduceRpm46F7D0(duration);
-    playback_->auxiliary.ProduceThrottle45C710(duration);
-    playback_->auxiliary.ProduceLevel45C6C0(duration);
-    playback_->auxiliary.ProduceEffects46F610(duration);
+    playback_->auxiliary.Update47C010(duration);
     playback_->control.Update47C3D0(duration);
     playback_->engine.Update474310();
     if (log_ != 0) {

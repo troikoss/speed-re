@@ -15,6 +15,7 @@ struct EngineSoundEnvelope {
 };
 UG2_CHECK_SIZE(EngineSoundEnvelope, 0x1c);
 int EngineSoundCurve468160(unsigned int kind, unsigned int value, unsigned char mode);
+int EngineSoundCurveInverse467FF0(int value);
 int EngineSoundCurveConvert468050(unsigned int value);
 extern int engineSoundCurveTable7EF7F8[];
 extern int engineSoundCurveTable7EE7F0[];

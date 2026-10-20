@@ -224,7 +224,7 @@ Limitations (see the verifier's report for the full list):
 - Native volume and Q12 pitch adapters now reach SDL output. The retail voice
   registry, pan vectors, filters, effects and output callback consumers remain open.
 - Recovered Physics, auxiliary RPM/throttle and prepare/gain/outer-control code
-  now feed both native playback controllers. Shift/accel, offsets, backfire and cutoff
+  now feed both native playback controllers. Shift/accel and spatial
   producers remain fixtures; spatial attenuation/pan and manager
   lifecycle/registry are still native seams. See the latest wiring checkpoint below.
 - Parameter callback dispatch is recovered, while registry behavior and actual
@@ -1654,3 +1654,107 @@ active frames in total. Standalone fixtures also covered 24 entries, 49 exits,
 and 88 kind-2 bypasses. Idle fixtures covered both query and short-circuit
 paths. All seven existing leaf byte matches remain intact; no new byte-match
 claim is made here. The full audio objective remains open.
+
+## Complete auxiliary frame and remaining spatial seam (2026-10-20)
+
+`EngineSoundAuxiliaryProducers.cpp` recovers offsets `0x45c7a0` (498 bytes),
+backfire `0x46f580` (132) and cutoff `0x46f460` (273). Offsets snapshot three
+signed amplitudes and periods from the shift component. Each period clamps to
+1..10000 before the calls. A phase step uses exact integer loading, milliseconds,
+the supplied duration and the addressed cycle scale. The result truncates to an
+integer, subtracts as a 16-bit word, then takes remainder modulo 65535. The three
+sine calls remain ordered RPM, throttle, level, with exact signed amplitudes.
+A null or inactive shift resets the output words and all three phase words.
+
+Backfire first steps the existing sequence. A request at `+0x152` then consumes
+one bounded integer random value and one float random value from the shared
+seed, rounds the peak once, resets and appends both kind-6 pulse segments,
+clears the request and writes the observed prefix event word at `+8`. Request
+production beyond the constructor's initial request remains with the missing
+shift/accel/manager graph; recovering the pulse body does not recover that graph.
+
+Cutoff retains its normal/special range gate for context kind 1, context flag
+`+0x900`, a nonnull race entry and race-entry mode 6/7. It keeps the spatial
+`+8` integer exact through subtraction/division, stores a rounded fraction,
+clamps it, then executes the original curve, inverse conversion and integer
+cutoff clamp. Spatial `+8` production is not inferred from this consumer.
+
+`EngineSoundCurveInverse.cpp` recovers `0x467ff0` (92 bytes), including the
+zero-input return that leaves scratch untouched, signed quotient/remainder,
+negative table indices relative to `0x7ee7ec`, low-five-bit arithmetic shift,
+and all three scratch writes. `Libs/bWare/Random.cpp` recovers float random
+`0x43c1f0` (78), using the previous unsigned seed modulo INT_MAX before advancing
+the shared seed. The integer random body `0x43c1c0`, angle sine `0x43c2b0` and
+normalization `0x43cf10` are compiled unchanged from existing recovered sources
+and independently compared here; no retail helper body substitutes for them.
+Unexecuted collision-body relocations are present in that shared source; the
+execution guard excludes them, including the ticker.
+
+`EngineSoundAuxiliaryUpdate.cpp` recovers the complete caller `0x47c010`
+(395 bytes). It retains the active timing gate, spatial orientation dispatch,
+post-dispatch owner reload, position/orientation capture, actual normalization,
+rounded position products, envelope `+0x1d0`, idle, virtual offset update,
+backfire, virtual RPM/throttle/level updates, cutoff and virtual high-RPM update.
+The native frame now calls this body instead of manually scheduling its parts.
+Spatial callbacks, shift/accel states and subsequent manager consumers are still
+separate seams. The native spatial `+8` input stays an explicit zero fixture;
+filters/pan are retained by the snd adapter but are not applied as retail DSP.
+
+The first run passed 832 comparisons and the expanded run 2560, each including
+256 carried complete auxiliary frames. Expanded fixtures cover zero orientations,
+callback-time car/spatial pointer changes, period/phase boundaries, signed
+amplitudes, special cutoff modes and null race entries, full random-seed words,
+integer conversion and shared scratch state at both x87 precisions. Spatial
+callbacks and shift/accel production remain fixtures. Positions/orientations
+are finite; invalid dependencies, concurrent mutation and exceptions are not
+established by these checks. Behavioral evidence is separate from byte matching.
+
+The native build and three audio/backend tests pass. The 600-frame SKYLINE
+smoke passes with RMS 1772 LSB, 893 releases, zero underruns and correlation
+0.809. The 350Z run has RMS 7467 LSB, 1208 releases and zero underruns, but
+its correlation 0.486 remains below the unchanged 0.50 threshold. These native
+observations do not establish original/rebuilt acoustic equivalence.
+
+Spatial follow-up: descriptor `0x7ed368` identifies `SFXCTL_3DCarPos`, type 8,
+factory `0x47c7a0`, allocation `0xd8`, constructor `0x471d60` and table
+`0x78ab68`. Its `+0x2c`/`+0x30` methods `0x45e1d0`/`0x45e1e0` store the
+supplied pointers at `+0x70`/`+0x74`. They are setters, not output copies.
+The real component update, listener state, attenuation/pan and lifecycle remain
+required; the new component view does not claim their recovery.
+
+The two spatial pointer setters are now recovered source in
+`EngineSoundSpatialPosition.cpp` / `EngineSoundSpatialOrientation.cpp` and
+replace the native output-copy/no-op callbacks. The verifier relocates fixture
+spatial storage to keep its `0xd8` view separate from its vtable and executes
+these setter bodies in constructed/composed frames; selected callback-mutation
+fixtures retain scripted virtual boundaries to test owner/spatial reloads.
+
+The 64-case mutation baseline passed 832 comparisons, including 256 carried
+full auxiliary frames. All nine mutations were rejected by state/call
+mismatches, with no survivors or compile-only rejections: phase modulus,
+period clamp, pulse retrigger, special cutoff mode, zero-input scratch write,
+shift mask, random-seed timing, backfire call order and position scaling.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 256
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets AuxOffsets,AuxBackfire,AuxCutoff,AuxFrame,SoundInverse,SoundRandom,SoundRandomFloat,SoundSine,SoundNormalize --cases 64 --mutation-checks --mutation-source aux_producers --mutation-source aux_frame --mutation-source sound_inverse --mutation-source random_float
+```
+
+Final regression passed 30720 comparisons across 114 targets: 256 independent
+cases each, 128 carried HybridMotor steps, 384 Physics steps, 256 existing
+input/gain steps, 256 complete auxiliary frames, and 512 envelope/sequence
+steps. Complete-frame fixtures include both active timing states, 64 callback
+mutation cases and 192 pulse-producing cases. The spatial setters independently
+match their complete 10-byte original bodies; together with the seven existing
+leaves, nine strict MSVC byte checks pass. The larger caller/producers retain
+behavioral verification only.
+
+After the setter correction, final 600-frame native runs produced SKYLINE
+RMS 1980 LSB, 730 releases, zero underruns and correlation 0.861 (pass); 350Z
+RMS 7517 LSB, 1172 releases, zero underruns and correlation 0.498 (failure
+against 0.50). The earlier numbers above describe the preceding native build.
+All three audio/backend tests pass on the final build. Neither profile enters
+the high-RPM gate; that transition is covered by the carried binary comparisons.
+The complete audio objective remains open, including real shift/accel/spatial
+production, overall level/pan, notification/parameter consumers, manager
+lifecycle and the other inventoried audio paths.

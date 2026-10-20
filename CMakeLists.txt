@@ -16,6 +16,7 @@ file(GLOB UG2_RECOVERED_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Src/Frontend/*.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Src/EAXSound/Ginsu/*.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Src/Audio/*.cpp
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Random.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Strings.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/StringConcat.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Formatting.cpp
