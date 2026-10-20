@@ -1089,3 +1089,17 @@ engineSoundRpmIncrease78AAB0 = 0x78aab0;
 engineSoundOscillatorLimit78AAAC = 0x78aaac;
 engineSoundAttachDiagnostic78AA74 = 0x78aa74;
 engineSoundSequenceMilliseconds78435C = 0x78435c;
+
+engineSoundIdleLimit7885D0 = 0x7885d0;
+engineSoundCurveTable7EF7F8 = 0x7ef7f8;
+engineSoundCurveTable7EE7F0 = 0x7ee7f0;
+engineSoundCurveScratch82BC88 = 0x82bc88;
+engineSoundCurveInteger789CF4 = 0x789cf4;
+engineSoundShiftLevel789FB0 = 0x789fb0;
+engineSoundHighLimit788600 = 0x788600;
+engineSoundHighEnter7885EC = 0x7885ec;
+engineSoundHighExit7885F0 = 0x7885f0;
+engineSoundHighRelease7885F4 = 0x7885f4;
+engineSoundHighAttack7885F8 = 0x7885f8;
+engineSoundHighScale7885FC = 0x7885fc;
+engineSoundHighCurve7F0050 = 0x7f0050;

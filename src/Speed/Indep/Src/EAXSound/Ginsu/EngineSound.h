@@ -88,7 +88,8 @@ struct EngineSoundShiftView {
     char unidentified0[0x78]; int value78, value7C;
     char unidentified80[0x40]; float valueC0;
     char unidentifiedC4[0x18]; float valueDC;
-    char unidentifiedE0[0x74]; float value154;
+    char unidentifiedE0[0x18]; float valueF8;
+    char unidentifiedFC[0x58]; float value154;
 };
 struct EngineSoundAccelView {
     char unidentified0[0x88]; float value88;
@@ -320,6 +321,9 @@ struct EngineSoundAuxiliary {
     void Bind45C550(EngineSoundCar *car);
     void Attach46F3E0(EngineSoundComponent *component);
     void Activate45C5A0();
+    void ProduceIdle46F9D0();
+    void ProduceLevel45C6C0(float duration);
+    void ProduceEffects46F610(float duration);
     void ProduceRpm46F7D0(float duration);
     void ProduceThrottle45C710(float duration);
 };
@@ -327,6 +331,7 @@ UG2_CHECK_SIZE(EngineSoundAuxiliary, 0x1f0);
 UG2_CHECK_OFFSET(EngineSoundAuxiliary, average90, 0x90);
 UG2_CHECK_OFFSET(EngineSoundAuxiliary, averageB8, 0xb8);
 UG2_CHECK_OFFSET(EngineSoundAuxiliary, sequence154, 0x154);
+UG2_CHECK_OFFSET(EngineSoundShiftView, valueF8, 0xf8);
 UG2_CHECK_OFFSET(EngineSoundShiftView, value154, 0x154);
 UG2_CHECK_OFFSET(EngineSoundAccelView, valueC0, 0xc0);
 EngineSoundAuxiliary *CreateEngineSoundAuxiliary47BFD0();

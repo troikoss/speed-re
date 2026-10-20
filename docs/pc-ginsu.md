@@ -224,8 +224,8 @@ Limitations (see the verifier's report for the full list):
 - Native volume and Q12 pitch adapters now reach SDL output. The retail voice
   registry, pan vectors, filters, effects and output callback consumers remain open.
 - Recovered Physics, auxiliary RPM/throttle and prepare/gain/outer-control code
-  now feed both native playback controllers. Shift/accel and auxiliary effect
-  producers remain neutral fixtures; spatial attenuation/pan and manager
+  now feed both native playback controllers. Shift/accel, offsets, backfire and cutoff
+  producers remain fixtures; spatial attenuation/pan and manager
   lifecycle/registry are still native seams. See the latest wiring checkpoint below.
 - Parameter callback dispatch is recovered, while registry behavior and actual
   consumers remain open. Manager pools, forced audio disable, collision and
@@ -1557,3 +1557,100 @@ updates and 256 carried auxiliary/input/gain steps. Both gain modes occurred
 in 32 composed RPM fixtures each. All seven leaf byte matches remain intact.
 The audio goal remains open; the native integration and remaining seams above
 are not evidence of complete audio recovery.
+
+## Idle, level, envelopes and high-RPM producers (2026-10-20)
+
+`EngineSoundAuxiliaryIdle.cpp` recovers `0x46f9d0` (81 bytes). It checks the
+owner context kind, context `+0x900` flag and accel-transition `+0xc8` before
+querying virtual `+0x34`. The binary's `TEST AH,0x41` accepts unordered as well
+as less/equal, so a NaN query sets idle `+0x13c`; a C++ `<=` replacement would
+change that behavior. The threshold is the addressed float at `0x7885d0`
+(2500). The extended virtual return is not rounded before comparison.
+
+`EngineSoundEnvelope.cpp` recovers configuration `0x459990` (70 bytes) and
+step `0x46b100` (281 contiguous bytes before its jump table). This `0x1c`-byte
+time envelope is distinct from the same-sized Physics interpolation helper.
+Configuration converts the integer duration with FILD, stores a float copy,
+then compares the unrounded product before applying the minimum duration.
+Step rounds elapsed time before testing strict `>` completion. Kind 1 holds
+the previous value; kinds 2/3 retain the original square/interpolation order;
+kind 6 converts/clamps its position and calls curve `0x468160`. Completion
+copies the endpoint word rather than performing float arithmetic on it.
+
+`EngineSoundSequenceUpdate.cpp` recovers reset `0x4598c0` (48 bytes) and step
+`0x46af70` (362 contiguous bytes). Reset does not append a segment. Step
+consumes at most one completed segment per call, retains excess time, and
+conditionally copies the previous endpoint into the next segment's start.
+It retains the same hold, square and curve branches, including re-reading the
+current index after the curve call. Invalid indices remain unchecked.
+
+`EngineSoundCurve.cpp` recovers curve `0x468160` (494 contiguous bytes) and
+conversion `0x468050` (232). The original tables remain addressed player data.
+The source preserves reflected tail branches, actual recursive call boundaries,
+low 32-bit products before arithmetic shifts, low-byte mode, the `0x1e` mask,
+and the distinct floors: curve results below -9600 become -10000; converter
+results are clamped at -10000. Conversion writes scratch `0x82bc88 = -1` even
+on early returns. Checked inputs lie in 0..32767; this is a fixture domain,
+not proof of safe arbitrary table indices.
+
+`EngineSoundAuxiliaryEffects.cpp` recovers level `0x45c6c0` (79 bytes) and
+high-RPM production `0x46f610` (435). The apparent random calls in the initial
+decompilation are the CRT float-to-integer conversion helper `0x75bed4`.
+Level starts at 32767, applies the shift-linked `+0xf8` contribution when
+shift `+0x78` is nonzero, then adds truncated auxiliary `+0x140`, preserving
+integer wrapping. High-RPM production bypasses all work for state kind 2.
+Other kinds use the original 9800 threshold and shift gate, query through the
+actual virtual boundary, evaluate shared gear-dependent curve `0x7f0050`,
+configure both envelopes and step them in order. Entering also initializes
+the carried RPM oscillator. The exit path rechecks the active flag after the
+virtual query. Threshold equality retains the original state.
+
+The focused helper run passed 896 comparisons. The expanded run passed 3328,
+including 256 carried envelope steps, 256 carried sequence steps and 256
+existing composed input/gain steps. Fixtures compare both x87 precisions,
+context gates, binary64 query boundaries, nonfinite idle/level inputs, curve
+kinds/modes, dirty storage, all envelope kinds and single-step sequence
+transitions. Spatial callbacks and shift/accel states remain controlled inputs;
+these are finite behavioral comparisons, not complete caller recovery or new
+byte-match claims.
+
+Native frames now call recovered idle, sequence step, RPM/throttle, level and
+high-RPM producers before HybridMotor/playback. The fixed base level and
+forced idle/oscillator/ramp inputs are removed. `# auxiliary` log records show
+idle/high-RPM flags, level, gain ramps, oscillator and sequence state. The full
+auxiliary frame, offset/position producer, backfire and cutoff still remain
+open, as do shift/accel components, spatial attenuation/pan, notifications,
+manager lifecycle, parameter registry and consumers. The unrelated envelope
+at auxiliary `+0x1d0` is not stepped until its original caller is recovered.
+
+Native build and all three audio/backend tests passed. A 600-frame SKYLINE
+run passed with RMS 2023 LSB, 689 releases, zero underruns, 278 idle-active
+frames and pitch correlation 0.876. The 350Z run produced RMS 7503 LSB,
+1224 releases, zero underruns and 482 idle-active frames, but correlation
+0.486 still fails the unchanged 0.50 threshold. Neither native run entered
+the high-RPM gate; standalone/composed binary comparisons provide that
+transition evidence. These observations do not establish acoustic equivalence.
+
+The 64-case focused mutation baseline passed 1088 comparisons, including
+512 carried envelope/sequence steps. All ten deliberate errors were rejected
+by state/call mismatches, with no survivors or compile-only rejections:
+unordered idle comparison, context gate, shift-level subtraction, kind-2
+bypass, threshold equality, completion equality, minimum duration, discarded
+sequence excess time, table interpolation mask and omitted scratch write.
+The final composed trajectory carries the actual high-RPM flag rather than
+forcing it, and drives a high-RPM window after the NIS override returns to
+normal input. Shift/accel states remain explicitly supplied fixtures.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 256
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets AuxIdle,AuxLevel,AuxEffects,EnvelopeConfigure,EnvelopeStep,SequenceReset,SequenceStep,SoundCurve,SoundCurveConvert --cases 64 --mutation-checks --mutation-source aux_idle --mutation-source aux_effects --mutation-source envelope --mutation-source sequence_update --mutation-source sound_curve
+```
+
+Final regression passed 27648 comparisons across 103 targets: 256 independent
+cases each, 128 carried HybridMotor updates, 384 Physics updates, 256 composed
+auxiliary/input/gain steps and 512 envelope/sequence steps. The composed path
+entered and exited the high-RPM state once per x87 precision, carrying 16
+active frames in total. Standalone fixtures also covered 24 entries, 49 exits,
+and 88 kind-2 bypasses. Idle fixtures covered both query and short-circuit
+paths. All seven existing leaf byte matches remain intact; no new byte-match
+claim is made here. The full audio objective remains open.

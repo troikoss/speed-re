@@ -470,6 +470,51 @@
       "address": "0x576770",
       "size": 18,
       "sha256": "0d4641e22a94bf3e3d952540cba846c6865d42df80cd139af0ea42c5333f9379"
+    },
+    "AuxIdle": {
+      "address": "0x46f9d0",
+      "size": 81,
+      "sha256": "8d2d494c3ed449941ec142d40c5e083f3c95d68bee5a42566446eeff162cddb2"
+    },
+    "EnvelopeConfigure": {
+      "address": "0x459990",
+      "size": 70,
+      "sha256": "9c99119a6c282e4a8abc1e3a73b64bb30aeb5a341de1e0351b134c7d921e3468"
+    },
+    "EnvelopeStep": {
+      "address": "0x46b100",
+      "size": 281,
+      "sha256": "608b9283bfeb7d37717c5601ec7d82d78784108b8151903c5ad028289f19f2d5"
+    },
+    "SequenceReset": {
+      "address": "0x4598c0",
+      "size": 48,
+      "sha256": "2253aac490445fb9b0a065a5e45dff81d453628c34ec843cdf3df7e9968983d8"
+    },
+    "SequenceStep": {
+      "address": "0x46af70",
+      "size": 362,
+      "sha256": "f7f6532c7c9ee87e0ae26176769f3b12735b9c1df1f549ceb4d82a9ebe753be7"
+    },
+    "SoundCurve": {
+      "address": "0x468160",
+      "size": 494,
+      "sha256": "b3a5c44be360d058279a4ac45f3a5243aec01537f5fca8d1712a13384f77be39"
+    },
+    "SoundCurveConvert": {
+      "address": "0x468050",
+      "size": 232,
+      "sha256": "1f865b9cb8c3d041127b63983e571d53bed2557220e676d9e513b55a4f83fbe0"
+    },
+    "AuxLevel": {
+      "address": "0x45c6c0",
+      "size": 79,
+      "sha256": "4efb9bdbb6de3501cb167f04987176d0fdeb5ca86300f8387a9d9814cd5ad548"
+    },
+    "AuxEffects": {
+      "address": "0x46f610",
+      "size": 435,
+      "sha256": "84766fe325ef9c2eafde53881406ee5646806e1b7c587494cb17e43d457943ca"
     }
   }
 }

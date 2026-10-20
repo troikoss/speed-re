@@ -16,6 +16,8 @@ struct EngineSoundSequence {
     float value74;
     unsigned char flag78;
     char unidentified79[3];
+    void Reset4598C0();
+    void Step46AF70(float duration);
     void Construct46AF20(float first, float second, int duration);
     int Append4598F0(float first, float second, int duration, int kind);
 };

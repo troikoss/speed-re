@@ -198,6 +198,15 @@ def main():
             failures.append('frequency still follows the direct raw-RPM seam')
         if max(float(row[3]) for row in controls) <= min(float(row[3]) for row in controls):
             failures.append('filtered throttle never changes')
+    auxiliary = [line.split()[2:] for line in log_path.read_text().splitlines()
+                 if line.startswith('# auxiliary ')]
+    if len(auxiliary) != len(playback) or not auxiliary:
+        failures.append('missing recovered auxiliary producer records')
+    else:
+        print('auxiliary producers: %d idle / %d high-RPM frames'
+              % (sum(int(row[1]) != 0 for row in auxiliary), sum(int(row[2]) != 0 for row in auxiliary)))
+        if not all(math.isfinite(float(value)) for row in auxiliary for value in row[3:]):
+            failures.append('non-finite auxiliary producer state')
     if overall_rms <= RMS_THRESHOLD:
         failures.append('output is silent (RMS %.1f <= %.1f)' % (overall_rms, RMS_THRESHOLD))
     if releases is None or releases == 0:

@@ -182,9 +182,9 @@ bool NativeEngineSound::Load(const char *gameDirectory, MoverModeOwner *owner, c
     playback_->spatial.vtable0 = &playback_->spatialVtable;
     auxiliary.spatial78 = &playback_->spatial;
     auxiliary.Activate45C5A0();
-    // Full auxiliary frame 0x47c010 remains open: retain neutral offset/ramp
-    // state and a full base level in place of its random/effect producers.
-    auxiliary.valueE0 = 32767;
+    // Full auxiliary frame 0x47c010 remains open. Position/offset, backfire
+    // and cutoff producers are still absent; the recovered idle/level/high-RPM
+    // producers and envelope/sequence updates run below.
     InitialiseControlSession(playback_);
     engine.auxiliaryB8 = &auxiliary;
     engine.controlC0 = &playback_->control;
@@ -210,8 +210,12 @@ void NativeEngineSound::Update(float rpm, float duration, int frame) {
     // the raw RPM argument is used only by the diagnostic log.
     playback_->car.time34 += duration;
     playback_->physics.Update484C50(duration);
+    playback_->auxiliary.ProduceIdle46F9D0();
+    playback_->auxiliary.sequence154.Step46AF70(duration);
     playback_->auxiliary.ProduceRpm46F7D0(duration);
     playback_->auxiliary.ProduceThrottle45C710(duration);
+    playback_->auxiliary.ProduceLevel45C6C0(duration);
+    playback_->auxiliary.ProduceEffects46F610(duration);
     playback_->control.Update47C3D0(duration);
     playback_->engine.Update474310();
     if (log_ != 0) {
@@ -225,6 +229,11 @@ void NativeEngineSound::Update(float rpm, float duration, int frame) {
                 playback_->auxiliary.value130, playback_->control.frequencyF8,
                 playback_->control.value7C, playback_->control.value80,
                 playback_->control.value84, playback_->control.valueBC);
+        fprintf(log_, "# auxiliary %d %d %d %d %.4f %.4f %.2f %d %d\n", frame,
+                playback_->auxiliary.flag13C, playback_->auxiliary.flagE4,
+                playback_->auxiliary.valueE0, playback_->auxiliary.value118,
+                playback_->auxiliary.valueFC, playback_->auxiliary.value124,
+                playback_->auxiliary.sequence154.index70, playback_->auxiliary.sequence154.flag78);
         fflush(log_);
     }
 }
