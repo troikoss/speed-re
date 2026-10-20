@@ -10,6 +10,7 @@ struct MoverModeOwner;
 struct AudioCarSoundManager;
 struct MoverContext;
 struct AudioManagedCarSound;
+struct EngineSoundCar;
 
 struct AudioManagedCarSoundVtable {
     void *unidentified0[3];
@@ -65,6 +66,7 @@ struct Audio82B884 {
     void *engineBanksDC[2]; // 0x47d740: slot 0, indexed by the car's +0x10
     void *engineBanksE4[2]; // 0x47d740: slot 1; table fill still unrecovered
     Audio82B884 *Construct4585A0(); // original constructor; partial view retains unwritten bytes
+    EngineSoundCar *FindListener4690B0(int index);
     void Apply(float *volumes);                    // 0x469050
     void RegisterCollision(CollisionEvent *event);   // 0x483e20
     void UnregisterCollision(CollisionEvent *event); // 0x483e40

@@ -706,11 +706,12 @@ open. Recovered participant selection chooses one or two files under
 binding, bank loading and setup initialize the slots. Each unpaused frame runs
 recovered Physics, spatial, complete auxiliary, HybridMotor and playback updates
 for both selected banks. Physics consumes the recovered vehicle export at owner
-`+0x440`. Spatial construction, binding, activation and Doppler averaging run,
-but listener producer `0x46d7e0` remains missing: the original not-ready path
-publishes -1 distances. Parent scheduling, shift/accel inputs, overall level/pan,
+`+0x440`. Listener producer `0x46d7e0` reads the same finalized camera used
+for rendering, then the spatial component computes distances, angles and
+Doppler averaging. The native session supplies its one-car manager list;
+parent scheduling, shift/accel inputs, overall level/pan,
 notifications and parameter consumers remain seams. See
-[recovery and integration evidence](pc-ginsu.md#spatial-component-recovery-and-native-integration-2026-10-20).
+[recovery and integration evidence](pc-ginsu.md#listener-production-and-camera-integration-2026-10-20).
 
 ```sh
 build/native/ug2demo --game "$UG2_DIR" --car SKYLINE                       # engine sound on

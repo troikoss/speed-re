@@ -39,7 +39,10 @@ from probe_pc_race_reward import ROOT, EXE, GAME_DIR
 
 BUILD = ROOT / 'build/analysis/ginsu'
 SOURCE_DIR = 'src/Speed/Indep/Src/EAXSound/Ginsu'
-SOURCES = {'spatial': SOURCE_DIR + '/EngineSoundSpatial.cpp',
+SOURCES = {'listeners': SOURCE_DIR + '/EngineSoundListeners.cpp',
+           'listener_find': 'src/Speed/Indep/Src/Audio/AudioFindListener.cpp',
+           'listener_distance': 'src/Speed/Indep/Src/Physics/MoverInputRoute.cpp',
+           'spatial': SOURCE_DIR + '/EngineSoundSpatial.cpp',
            'spatial_lifecycle': SOURCE_DIR + '/EngineSoundSpatialLifecycle.cpp',
            'spatial_geometry': SOURCE_DIR + '/EngineSoundSpatialGeometry.cpp',
            'spatial_normalize': 'src/Speed/Indep/Src/World/WCollision.cpp',
@@ -118,6 +121,10 @@ GIN_MAGIC = b'Gnsu2'
 # 'p' pointer (identity: arena address or the stack), ('c', n) pointer whose n bytes are logged by value.
 AUX_TARGETS = ('SpatialBaseConstruct', 'SpatialConstruct', 'SpatialFactory', 'SpatialBind', 'SpatialActivate', 'SpatialAngle', 'SpatialCompute', 'SpatialSelect', 'SpatialDoppler', 'SpatialUpdate', 'SpatialLimit', 'SpatialValue', 'SpatialDistance2D', 'SpatialNormalize2D', 'SpatialArcSine', 'SampleDefault', 'SampleAllocate', 'SpatialPosition','SpatialOrientation', 'AuxOffsets', 'AuxBackfire', 'AuxCutoff', 'AuxFrame', 'SoundInverse', 'SoundRandom', 'SoundRandomFloat', 'SoundSine', 'SoundNormalize', 'AuxLevel', 'AuxEffects', 'AuxIdle', 'EnvelopeConfigure', 'EnvelopeStep', 'SequenceReset', 'SequenceStep', 'SoundCurve', 'SoundCurveConvert', 'ControlConstruct', 'ControlBind', 'GainCurveConstruct', 'AuxConstruct', 'AuxFactory', 'AuxBind', 'AuxActivate', 'AuxAttach', 'AuxRpm', 'AuxThrottle', 'AuxDependency', 'AuxDescriptor', 'AuxCarValue', 'AuxApproach', 'AuxSequenceConstruct', 'AuxSequenceAppend')
 ROUTINES = {
+    'ListenerUpdate': (0x46d7e0, '?EngineSoundUpdateListeners46D7E0@', 0, None, None, []),
+    'ListenerFind': (0x4690b0, '?FindListener4690B0@Audio82B884@', 4, 'eax', 'arena', ['w']),
+    'ListenerDistance': (0x43ce10, '?bDistance@@', 0, 'st0', None, [('c',12),('c',12)]),
+    'ListenerAngle': (0x43e6d0, '?HudAngleUnits@@', 0, 'ax', None, ['w','w']),
     'SpatialBaseConstruct': (0x45dd60, '?Construct45DD60@EngineSoundSpatialComponent@', 0, 'eax', 'arena', []),
     'SpatialConstruct': (0x471d60, '?Construct471D60@EngineSoundSpatialComponent@', 0, 'eax', 'arena', []),
     'SpatialFactory': (0x47c7a0, '?CreateEngineSoundSpatial47C7A0@', 0, 'eax', None, []),
@@ -319,6 +326,16 @@ def snd_ret(key):
 PURE_RANGES = ((0x75bed4, 0x75bf49), (0x72423e, 0x72428b), (0x721a6b, 0x721aae))
 # Retail globals read by the recovered code, by MSVC symbol prefix; __fltused is a null symbol.
 SHARED = {
+    '?engineSoundListenerView82BB48@': 0x82bb48,
+    '?engineSoundListenerPrevious82BB50@': 0x82bb50,
+    '?engineSoundListenerCameraBEF0@': 0x82bef0,
+    '?engineSoundListenerDirectionC610@': 0x82c610,
+    '?engineSoundListenerTargetBE80@': 0x82be80,
+    '?engineSoundListenerBlendBF34@': 0x82bf34,
+    '?engineSoundListenerRange7ED12C@': 0x7ed12c,
+    '?engineSoundListenerMargin7ED130@': 0x7ed130,
+    '?engineSoundListenerNegative7842A0@': 0x7842a0,
+    '?hudMinimumLength7843EC@': 0x7843ec,
     '?engineSoundSpatialReady82BB40@': 0x82bb40,
     '?engineSoundSpatialMode82BC14@': 0x82bc14,
     '?engineSoundSpatialDirection82BB78@': 0x82bb78,
@@ -446,10 +463,11 @@ SHARED.update({
 })
 # Retail addresses of the E branch (fz1 == fz2) and of the SampleToCycle found path (0x466c2f).
 E_BRANCH_HOOK, FOUND_HOOK = 0x466e98, 0x466c2f
-TARGETS = AUX_TARGETS + ('PhysicsFactory', 'PhysicsHash') + ('PhysicsConstruct', 'PhysicsBind', 'PhysicsActivate', 'PhysicsUpdate', 'PhysicsOverride', 'PhysicsNotify', 'PhysicsMode40', 'PhysicsMode28', 'PhysicsMode10', 'PhysicsRampConstruct', 'PhysicsRampEvaluate', 'PhysicsSpecMaximum', 'PhysicsEngineMaximum', 'SampleConstruct') + ('ControlPrepare', 'ControlOne', 'ControlTwo', 'SampleAdvance', 'SampleFill', 'SampleRecalculate', 'GainCurveLookup', 'GainPendingShift', 'EngineDependency', 'EngineAttach', 'AuxFrequency', 'AuxGain', 'ControlScale', 'ControlUpdate', 'CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
+TARGETS = ('ListenerUpdate','ListenerFind','ListenerDistance','ListenerAngle') + AUX_TARGETS + ('PhysicsFactory', 'PhysicsHash') + ('PhysicsConstruct', 'PhysicsBind', 'PhysicsActivate', 'PhysicsUpdate', 'PhysicsOverride', 'PhysicsNotify', 'PhysicsMode40', 'PhysicsMode28', 'PhysicsMode10', 'PhysicsRampConstruct', 'PhysicsRampEvaluate', 'PhysicsSpecMaximum', 'PhysicsEngineMaximum', 'SampleConstruct') + ('ControlPrepare', 'ControlOne', 'ControlTwo', 'SampleAdvance', 'SampleFill', 'SampleRecalculate', 'GainCurveLookup', 'GainPendingShift', 'EngineDependency', 'EngineAttach', 'AuxFrequency', 'AuxGain', 'ControlScale', 'ControlUpdate', 'CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
            'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt',
            'PacketReleaseCallback', 'SynthesisConstruct', 'SynthesisDestruct', 'StartSynthesis')
 LIMITATIONS = [
+    'listener production: full 0x46d7e0 and 0x4690b0 execute recovered code, including unchanged bDistance/HudAngleUnits; manager topology, owners/player records/cameras and sound-state +0xa8 are fixtures; missing camera paths retain state, and composed/carried cases execute actual spatial construction/update and cutoff; one/two-player finite-coordinate paths are covered, while cycles, invalid pointers, absent first owner with live second owner, null race-state dereference, exceptions and concurrent list mutation are excluded; native manager ownership/scheduling and downstream Doppler/voice consumers remain seams',
     'spatial component: original/rebuilt construction, binding, activation, virtual selection, mode-specific distances/angles and Doppler averaging execute recovered code, including unchanged Normalize2/HudArcSineUnits; listener readiness/coordinate arrays and the audio root are fixtures, not recovered listener production 0x46d7e0; valid indices 0/1, finite positions and nonnegative allocation capacities are exercised; exceptions, concurrency, arbitrary indices and full attenuation/pan consumers remain outside this evidence; both pure helper roots stay extended through selection, and a scripted average callback checks the post-callback raw-word copy',
     'auxiliary frame: direct and virtual producers, shared random seed, sine, normalization and cutoff curves execute recovered code; spatial setters run as recovered code in composed frames; other spatial callbacks and shift/accel components remain fixtures; positions/orientations are finite; exceptions, concurrency, invalid pointers and arbitrary table indices are excluded',
     'envelope/sequence: complete step bodies and curve helper/conversion run; active fixture indices stay within six entries, table inputs within 0..32767; both x87 precisions compare finite motion and hold/completion branches; invalid pointers/table indices, asynchronous state mutation and exception execution remain outside evidence',
@@ -703,7 +721,7 @@ def main():
             if s['section'] != 0 or s['name'] in defined: continue
             match = [a for prefix, a in SHARED.items() if s['name'] == prefix or (prefix.startswith('?') and s['name'].startswith(prefix))]
             snd = [snd_link[k] for k, spec in SND.items() if s['name'].startswith(spec[1])]
-            if len(match)+len(snd)==0 and key in ('spatial_normalize','spatial_arcsine'):
+            if len(match)+len(snd)==0 and key in ('spatial_normalize','spatial_arcsine','listener_distance'):
                 # These relocations belong to unexecuted bodies in the shared
                 # file. An accidental use faults at an unmapped trap address.
                 externals[s['name']]=0x7f000000+16*len(unexecuted_relocations)
@@ -836,6 +854,9 @@ def main():
                                   (0x46f8d6,'aux-average-accel'),(0x45c727,'aux-throttle-shift'),(0x45c756,'aux-throttle-accel'),
                                   (0x45c766,'aux-throttle-car')):
                 uc.hook_add(UC_HOOK_CODE,count(label),begin=address,end=address)
+            for address,label in ((0x46d85c,'listener-first-camera'),(0x46dac7,'listener-second-camera'),
+                                  (0x46dc63,'listener-blend'),(0x46dec7,'listener-no-blend')):
+                uc.hook_add(UC_HOOK_CODE,count(label),begin=address,end=address)
             for address, label in ((0x470286,'gain-one-interpolate'), (0x470336,'gain-one-fixed'), (0x4702cc,'gain-one-idle-flag'),
                                    (0x4703c2,'gain-one-smooth'), (0x470494,'gain-one-direct'), (0x470697,'gain-two-primary'),
                                    (0x4706f6,'gain-two-secondary'), (0x470727,'gain-two-smooth'), (0x4707b1,'gain-two-direct')):
@@ -955,6 +976,22 @@ def main():
                     uc.reg_write(xc.UC_X86_REG_ECX, SETUP)
                     uc.reg_write(xc.UC_X86_REG_EAX, 0)
                 uc.emu_start(rebuilt_entry[name] if rebuilt else retail_entry[name], STOP + 7, count=MAX_INSTRUCTIONS)
+                if name=='ListenerUpdate' and postlisteners:
+                    saved_outer_esp=uc.reg_read(xc.UC_X86_REG_ESP)
+                    saved_outer_eax=uc.reg_read(xc.UC_X86_REG_EAX)
+                    spatial=ARENA+0x33000
+                    calls=[]
+                    if prelistenerspatial:
+                        calls=[('SpatialConstruct',spatial,[]),('SpatialBind',spatial,[CAR]),
+                               ('SpatialActivate',spatial,[]),('SpatialPosition',spatial,[AUXILIARY+0x80]),
+                               ('SpatialOrientation',spatial,[ARENA+0x35090])]
+                    calls += [('SpatialUpdate',spatial,[fw(1/60.)]),('AuxCutoff',AUXILIARY,[])]
+                    for target,receiver,arguments in calls:
+                        uc.mem_write(STACK,struct.pack('<I',STOP)+b''.join(struct.pack('<I',w) for w in arguments))
+                        uc.reg_write(xc.UC_X86_REG_ESP,STACK);uc.reg_write(xc.UC_X86_REG_ECX,receiver)
+                        uc.emu_start(rebuilt_entry[target] if rebuilt else retail_entry[target],STOP+7,count=MAX_INSTRUCTIONS)
+                        assert uc.reg_read(xc.UC_X86_REG_ESP)==STACK+4+ROUTINES[target][2],('state or call order mismatch','listener chain stack',target)
+                    uc.reg_write(xc.UC_X86_REG_ESP,saved_outer_esp);uc.reg_write(xc.UC_X86_REG_EAX,saved_outer_eax)
                 if postauxcontrol:
                     for target,receiver in ((('ControlUpdate',CONTROL),) if name=='AuxFrame' else (('AuxThrottle',AUXILIARY),('AuxLevel',AUXILIARY),('AuxEffects',AUXILIARY),('ControlUpdate',CONTROL))):
                         uc.mem_write(STACK,struct.pack('<II',STOP,fw(1/60.)))
@@ -1373,6 +1410,8 @@ def main():
 
     preauxinit = postauxcontrol = auxtrajectory = prespatialinit = False
     spatial_sequence_seed = None
+    listener_sequence_seed = None
+    postlisteners = prelistenerspatial = False
     aux_sequence_seed = frame_sequence_seed = None
     physics_sequence_seed = None
     for trial in range(args.cases):
@@ -1393,7 +1432,65 @@ def main():
             postauxcontrol = name in ('AuxRpm','AuxFrame') and preauxinit
             observe_gains = name in ('ControlOne', 'ControlTwo', 'ControlUpdate', 'EngineUpdate')
             complete_reads = 0
-            if name in AUX_TARGETS:
+            postlisteners = name=='ListenerUpdate' and (trial//16)%2==1 and trial%16>=6
+            prelistenerspatial = postlisteners
+            if name in ('ListenerUpdate','ListenerFind','ListenerDistance','ListenerAngle'):
+                this=0;words=[]
+                audio,manager,unmatched,second=(ARENA+x for x in (0x34000,0x34200,0x34400,0x34600))
+                owner1,owner2,player1,player2,mover1,mover2,camera1,camera2=(ARENA+x for x in (0x35000,0x35800,0x36000,0x36400,0x36800,0x36900,0x37000,0x37400))
+                shape=trial%16
+                fixture_globals[0x82b884]=struct.pack('<I',audio)
+                pk(memory,audio+0x13,'<B',int(trial%11==0));pk(memory,audio+0x84,'<i',trial%2)
+                pk(memory,audio+0xac,'<I',0 if shape==0 else manager)
+                pk(memory,manager+0x10,'<I',0 if shape==1 else unmatched)
+                pk(memory,unmatched+4,'<I',0 if shape==2 else CAR)
+                pk(memory,unmatched+0x10,'<i',2)
+                pk(memory,CAR+4,'<I',second if shape>=7 else 0)
+                pk(memory,CAR+0x10,'<i',0);pk(memory,CAR+0x30,'<I',0 if shape==3 else owner1)
+                pk(memory,second+4,'<I',0);pk(memory,second+0x10,'<i',1)
+                pk(memory,second+0x30,'<I',0 if shape==7 else owner2)
+                for index,(car,owner,player,mover,camera) in enumerate(((CAR,owner1,player1,mover1,camera1),(second,owner2,player2,mover2,camera2))):
+                    pk(memory,car+0xa8,'<i',(-1,0,2,4,5)[(trial//2+index)%5])
+                    missing_player=(index==0 and shape in (4,13)) or (index==1 and shape==11)
+                    missing_mover=(index==0 and shape in (5,14)) or (index==1 and shape==12)
+                    pk(memory,owner+0x18,'<I',0 if missing_player else player)
+                    pk(memory,player+0x238,'<I',0 if missing_mover else mover)
+                    pk(memory,mover+0x1c,'<I',camera)
+                    pk(memory,player+0x58,'<i',(0,1,6,7,8)[(trial//3+index)%5])
+                    position=[rng.uniform(-100.,100.) for _ in range(3)]
+                    if index:
+                        distance=(30.,5.,0.,10.,14.99,15.,15.01,100.)[shape%8]
+                        position=[distance,0.,0.]
+                    else:position=[0.,0.,0.]
+                    pk(memory,owner+0x60,'<3f',*position)
+                    pk(memory,owner+0x90,'<3f',*(rng.uniform(-1.,1.) for _ in range(3)))
+                    for offset in (0x40,0x50,0x60):
+                        pk(memory,camera+offset,'<3f',*(rng.uniform(-100.,100.) for _ in range(3)))
+                fixture_globals[0x890118]=struct.pack('<I',ARENA+0x37800)
+                pk(memory,ARENA+0x37800,'<i',(0,2,3,4,5)[(trial//4)%5])
+                fixture_globals[0x8900d8]=struct.pack('<I',ARENA+0x37810 if trial%3 else 0)
+                pk(memory,ARENA+0x37810,'<i',(2,3,5,7)[(trial//5)%4])
+                for address in (0x827ec8,0x827eb0,0x827e98):fixture_globals[address]=struct.pack('<i',rng.choice((0,0,1)))
+                fixture_globals[0x82a3a4]=struct.pack('<i',(-1,0,1)[(trial//7)%3])
+                fixture_globals[0x82bb40]=struct.pack('<II',camera2 if trial%2 else 0,camera1 if trial%3 else 0)
+                fixture_globals[0x82bb48]=struct.pack('<4i',*(rng.randrange(-2,7) for _ in range(4)))
+                for address,count in ((0x82be70,4),(0x82becc,4),(0x82bedc,4),(0x82bf10,4),(0x82bf20,4),(0x82c670,4),(0x82c6c4,4),(0x82bef0,8),(0x82c610,8),(0x82be80,8),(0x82bf34,4)):
+                    fixture_globals[address]=struct.pack('<'+'f'*count,*(rng.uniform(-10.,10.) for _ in range(count)))
+                fixture_globals[0x82bc14]=bytes(4)
+                fixture_globals[0x82bb78]=struct.pack('<III',0x82be70,0x82bf10,rng.getrandbits(32))
+                fixture_globals[0x82bc88]=struct.pack('<III',*(rng.getrandbits(32) for _ in range(3)))
+                pk(memory,owner1+0x14,'<I',ARENA+0x30000)
+                pk(memory,ARENA+0x30004,'<i',1 if trial%3 else 2);pk(memory,ARENA+0x30900,'<B',trial%7==0)
+                pk(memory,AUXILIARY+0x44,'<I',CAR);pk(memory,AUXILIARY+0x78,'<I',ARENA+0x33000)
+                pk(memory,AUXILIARY+0x80,'<3f',rng.uniform(-100.,100.),rng.uniform(-100.,100.),0.)
+                pk(memory,ARENA+0x3305c,'<ff',0.,1/60.)
+                if name=='ListenerFind':this=audio;words=[(-1,0,1,2,3)[trial%5]&0xffffffff]
+                elif name=='ListenerDistance':
+                    for owner in (owner1,owner2):
+                        pk(memory,owner+0x60,'<3f',*(rng.uniform(-1e6,1e6) for _ in range(3)))
+                    words=[owner1+0x60,owner2+0x60]
+                elif name=='ListenerAngle':words=[fw(rng.uniform(-100.,100.)),fw(rng.uniform(-100.,100.))]
+            elif name in AUX_TARGETS:
                 seed_auxiliary(memory,trial)
                 words, this = [], AUXILIARY
                 if name in ('SpatialBaseConstruct','SpatialConstruct','SpatialFactory','SpatialBind','SpatialActivate','SpatialAngle','SpatialCompute','SpatialSelect','SpatialDoppler','SpatialUpdate','SpatialLimit','SpatialValue','SpatialDistance2D','SpatialNormalize2D','SpatialArcSine','SampleDefault','SampleAllocate'):
@@ -2238,6 +2335,8 @@ def main():
                 physics_sequence_seed = (bytes(memory), dict(fixture_globals), dict(fixture_code_fields), dict(returns))
             if name == 'SpatialUpdate' and trial == 1:
                 spatial_sequence_seed = (bytes(memory),dict(fixture_globals),dict(fixture_code_fields),dict(returns))
+            if name == 'ListenerUpdate' and trial == 9:
+                listener_sequence_seed = (bytes(memory),dict(fixture_globals),dict(fixture_code_fields),dict(returns))
             attempts[name] += 1
             try:
                 a, b = run(name, memory, words, precision, this)
@@ -2246,6 +2345,10 @@ def main():
                 continue
             names = [e[0] for e in a['events']]
             # The original's run defines the coverage, whatever the comparison says.
+            if name=='ListenerUpdate':
+                for key,value in a['counters'].items():
+                    if key.startswith('listener-'):paths[key]=paths.get(key,0)+value
+                if postlisteners:note('listener-spatial-cutoff-chain')
             if name in ('SpatialSelect','SpatialUpdate'):
                 listener=struct.unpack_from('<i',a['arena'],ARENA+0x330d0-ARENA)[0]
                 note('spatial-listener-%d'%listener)
@@ -2541,6 +2644,40 @@ def main():
         paths['spatial-sequence-steps']=steps
     prespatialinit=False
 
+    if listener_sequence_seed is not None:
+        name='ListenerUpdate'
+        steps=0
+        for precision in PRECISIONS:
+            memory=bytearray(listener_sequence_seed[0])
+            fixture_globals.clear();fixture_globals.update(listener_sequence_seed[1])
+            fixture_code_fields.clear();fixture_code_fields.update(listener_sequence_seed[2])
+            returns.clear();returns.update(listener_sequence_seed[3]);callback_writes.clear()
+            preconstruct=preselect=precontrol=prephysics=observe_gains=preauxinit=postauxcontrol=auxtrajectory=prespatialinit=False
+            postlisteners=True
+            for frame in range(128):
+                prelistenerspatial=frame==0
+                pk(memory,ARENA+0x34013,'<B',int(96<=frame<104))
+                pk(memory,ARENA+0x34084,'<i',(frame//16)%2)
+                pk(memory,CAR+4,'<I',0 if 64<=frame<80 else ARENA+0x34600)
+                pk(memory,ARENA+0x36000+0x238,'<I',0 if 32<=frame<40 else ARENA+0x36800)
+                pk(memory,ARENA+0x36400+0x238,'<I',0 if 40<=frame<48 else ARENA+0x36900)
+                for index,(owner,camera) in enumerate(((ARENA+0x35000,ARENA+0x37000),(ARENA+0x35800,ARENA+0x37400))):
+                    pk(memory,owner+0x60,'<3f',frame*0.5+index*(frame%17)*2.,frame*0.25,0.)
+                    pk(memory,camera+0x40,'<3f',frame*0.5+index*4.,frame*0.25-10.,5.)
+                    pk(memory,camera+0x50,'<3f',math.cos(frame/10.+index),math.sin(frame/10.+index),0.)
+                pk(memory,AUXILIARY+0x80,'<3f',frame*0.5,frame*0.25,0.)
+                fixture_globals[0x82a3a4]=struct.pack('<i',int(80<=frame<96))
+                attempts[name]+=1
+                try:
+                    a,b=run(name,memory,[],precision,0)
+                    check(name,precision,a,b)
+                except AssertionError as error:
+                    record_failure(name,frame,precision,AssertionError(('state or call order mismatch','listener spatial cutoff sequence',error)));break
+                counts[name]+=1;steps+=1;memory=bytearray(a['arena'])
+                fixture_globals.update(a['globals'])
+        paths['listener-spatial-cutoff-steps']=steps
+    postlisteners=prelistenerspatial=False
+
     for target in ('EnvelopeStep','SequenceStep'):
         if target not in selected: continue
         steps=0
@@ -2639,6 +2776,12 @@ def main():
             assert text.count(before)==1,(key,before)
             return (key,text,text.replace(before,after,1))
         mutations = {
+            'listener-stale-ready': frame_mutation('listeners','    MoverModeOwner *firstOwner = 0;','    engineSoundSpatialReady82BB40[0] = 0;\n    MoverModeOwner *firstOwner = 0;'),
+            'listener-previous-mode': frame_mutation('listeners','engineSoundListenerPrevious82BB50[0] = engineSoundListenerView82BB48[0];','engineSoundListenerPrevious82BB50[0] = 0;'),
+            'listener-game-mode': frame_mutation('listeners','*engineSoundMode8900D8 == 5','*engineSoundMode8900D8 == 2'),
+            'listener-blend-threshold': frame_mutation('listeners','if (distance < range)','if (distance <= range)'),
+            'listener-blend-rounding': frame_mutation('listeners','volatile float ny =','float ny ='),
+            'listener-find-index': frame_mutation('listener_find','car->bankIndex10 == index','car->kind14 == index'),
             'spatial-ready-gate': frame_mutation('spatial','!engineSoundSpatialReady82BB40[index] && !engineSoundSpatialReady82BB40[0]','!engineSoundSpatialReady82BB40[index] || !engineSoundSpatialReady82BB40[0]'),
             'spatial-partial-mode': frame_mutation('spatial','case 2: case 3:\n','case 2: case 3:\n        value8 = -1;\n'),
             'spatial-tie': frame_mutation('spatial','!(sqrt((double)ay * ay + (double)ax * ax) <','!(sqrt((double)ay * ay + (double)ax * ax) <='),

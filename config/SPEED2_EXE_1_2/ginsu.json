@@ -655,6 +655,26 @@
       "address": "0x5768a0",
       "size": 57,
       "sha256": "faa7e062b54bb064f6050ecc920b4ec13e1702d731bf5e26e39b358d2e1eb3b3"
+    },
+    "ListenerUpdate": {
+      "address": "0x46d7e0",
+      "size": 1777,
+      "sha256": "00ed7dd2d351a27c0ca87b165bc13ee5a1ad48397b42ea1c14902f8bf7e19b21"
+    },
+    "ListenerFind": {
+      "address": "0x4690b0",
+      "size": 38,
+      "sha256": "37365ed51f153a43cbbb422ed4e3dafbe1bfb8a950525eadab5ad61e6bcd1a25"
+    },
+    "ListenerDistance": {
+      "address": "0x43ce10",
+      "size": 49,
+      "sha256": "7896819648156c4858f29179bd2f15579ecdf16652d6d9cdf3bdf1e5f8b44b17"
+    },
+    "ListenerAngle": {
+      "address": "0x43e6d0",
+      "size": 326,
+      "sha256": "ae1a41c8e94daa3da152dd4309072465dd0befee482363f79703f959c5ae5ca2"
     }
   }
 }

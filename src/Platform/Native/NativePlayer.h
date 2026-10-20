@@ -8,11 +8,12 @@
 #include "../../Speed/Indep/Src/Hud/HudFreeroam.h"
 
 struct NativeVehicle;
+struct Camera;
 
-// The demo's camera is native, so +0x238 holds this stand-in reporting the attached chase
-// mover the original installs (kind 1 from 0x451660 after 0x444040). Slot +0x28 is the kind-1
-// method 0x404800 (returns false); slot +0x20 (type change) is left to the native camera, which
-// reads the same profile option.
+// Native ownership bridge at +0x238 reports the attached chase mover's kind
+// (1 from 0x451660 after 0x444040), and +0x1c points at the actual recovered
+// Camera used for rendering and audio. Slot +0x28 is the original kind-1 query
+// 0x404800 (false); native type-change handling reads the same profile option.
 class NativeChaseCameraMover : public CameraMover {
 public:
     NativeChaseCameraMover();
@@ -27,7 +28,10 @@ public:
     void SetType20(int type);
     void Virtual24();
     bool Query28();
+    char unidentified18[4];
+    Camera *camera1C; // actual finalized camera, shared with recovered audio
 };
+UG2_CHECK_OFFSET(NativeChaseCameraMover, camera1C, 0x1c);
 
 union NativePlayerStorage {
     PlayerRecord record;

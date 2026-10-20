@@ -1,7 +1,7 @@
 // Native adapter around recovered car selection, binding, bank loading and engine setup.
 // Default records come from the participant car type and upgrade state; --engine-gin is an
 // explicit one-bank override. Recovered playback controllers update both slots.
-// Shift/accel and listener production, parent lifecycle and registry remain seams.
+// Shift/accel, parent lifecycle and registry remain seams.
 #ifndef UG2_NATIVE_ENGINE_SOUND_H
 #define UG2_NATIVE_ENGINE_SOUND_H
 

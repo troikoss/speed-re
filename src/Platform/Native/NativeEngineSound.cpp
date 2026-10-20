@@ -7,6 +7,7 @@
 #include "../../Speed/Indep/Src/Audio/AudioSystem.h"
 #include "../../Speed/Indep/Src/Physics/VehicleMover.h"
 #include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSoundPhysics.h"
+#include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSoundSpatial.h"
 
 #include <SDL2/SDL.h>
 #include <stdlib.h>
@@ -16,6 +17,7 @@ extern Audio82B884 *audio82B884;
 
 struct NativeEnginePlayback {
     Audio82B884 audio;
+    AudioCarSoundManager listenerManager;
     EngineSoundCar car;
     EngineSoundCarValue overrideRecord;
     EngineSound engine;
@@ -203,9 +205,10 @@ bool NativeEngineSound::Load(const char *gameDirectory, MoverModeOwner *owner, c
     playback_->spatial.vtable0 = &playback_->spatialVtable;
     auxiliary.spatial78 = &playback_->spatial;
     auxiliary.Activate45C5A0();
-    // Listener production 0x46d7e0 is still missing. The recovered spatial
-    // update observes the actual not-ready globals and publishes -1 distances;
-    // do not manufacture camera/listener inputs or an attenuation curve.
+    // Manager allocation/registry remain a native ownership seam. Publish the
+    // constructed car as the single list entry read by original listener code.
+    playback_->listenerManager.first10 = reinterpret_cast<AudioManagedCarSound *>(&car);
+    playback_->audio.managerAC = &playback_->listenerManager;
     InitialiseControlSession(playback_);
     engine.auxiliaryB8 = &auxiliary;
     engine.controlC0 = &playback_->control;
@@ -232,6 +235,9 @@ void NativeEngineSound::Update(float rpm, float duration, int frame) {
     playback_->car.time34 += duration;
     Audio82B884 *previous = audio82B884;
     audio82B884 = &playback_->audio;
+    // Original audio frame 0x483b40 produces listeners before manager updates.
+    // The native player points at the same finalized Camera used for rendering.
+    EngineSoundUpdateListeners46D7E0();
     playback_->physics.Update484C50(duration);
     // Parent manager ordering remains a native scheduling seam. The retained
     // position pointer addresses the auxiliary's most recent position snapshot.

@@ -8,6 +8,7 @@
 #include "NativePause.h"
 #include "NativeAudio.h"
 #include "NativeEngineSound.h"
+#include "NativePlayer.h"
 #ifdef UG2_ENABLE_MODDING
 #include "NativeModBridge.h"
 #endif
@@ -482,6 +483,7 @@ int main(int argc, char **argv) {
     memset(&nativeCamera, 0, sizeof(nativeCamera));
     nativeCamera.reset270 = 1;
     driveCamera.camera1C = &nativeCamera;
+    nativeChaseCamera.camera1C = &nativeCamera;
     driveCameraSlots[0x24 / 4] = reinterpret_cast<void *>(DriveCameraSlot24);
     driveCameraSlots[0x30 / 4] = reinterpret_cast<void *>(DriveCameraSlot30);
     driveCameraSlots[0x44 / 4] = reinterpret_cast<void *>(DriveCameraSlot44);

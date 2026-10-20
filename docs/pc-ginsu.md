@@ -1838,3 +1838,97 @@ spatial steps). It exercised 64 constructed and 192 direct spatial updates,
 All nine existing strict leaf byte checks pass. The complete audio goal remains
 active; integrating this component does not close the listener/manager or other
 remaining audio seams.
+
+## Listener production and camera integration (2026-10-20)
+
+`EngineSoundListeners.cpp` recovers the complete listener producer `0x46d7e0`
+(1777 bytes). `AudioFindListener.cpp` recovers the separate list lookup
+`0x4690b0` (38 bytes). The producer's repeated inline searches remain distinct
+from its actual lookup calls. The original audio frame `0x483b40` calls the
+listener producer before its manager-update passes; that larger frame remains
+unrecovered, and its other branches are not enabled by this integration.
+
+The first path obtains index 0's owner, player record and camera mover, then
+reads Camera through mover `+0x1c`. It copies camera position/direction/target,
+normalizes the planar camera and car directions, captures car position and
+car-minus-camera deltas, saves the previous view mode and applies the original
+race/mode/override, player-state, game-flow and sound-state `+0xa8` gates.
+The index-1 path retains its separate mode logic; it does not acquire the first
+player's race/override/game-flow gates. Missing owner/player/mover paths leave
+previous listener state intact. There is no invented clearing or null-camera
+fallback. The first race-state comparison still dereferences a null race-state
+pointer on the original invalid path; normal fixtures supply a valid pointer.
+
+The complete second-player path also preserves the 3D distance comparison
+against `20 - 5`, the strictly-less blend gate, the rounded division result,
+all planar differences, negated differences and product spills, and the four
+ordered angle-helper calls whose returned angles are discarded. Most weighted
+products round before accumulation, while the first direction's Y product stays
+extended through its addition. Existing `bDistance` (`0x43ce10`) and
+`HudAngleUnits` (`0x43e6d0`) compile unchanged and execute recovered bodies.
+Their standalone cases are included in this verifier. Unexecuted relocations in
+the shared helper files remain unmapped traps and are listed in the report.
+
+The first 128-case run exposed missing product spills; after correcting those
+boundaries, 512 cases per target passed 2048 comparisons. The composed 256-case
+run passed 1280 comparisons: four targets plus 256 carried listener → spatial →
+cutoff frames. Its standalone producer cases include 128 first-camera paths,
+96 second-camera paths, 64 blends, 64 no-blend paths and 80 constructed
+listener/spatial/cutoff chains. Carried frames vary camera transforms, owner
+positions, one/two-listener selection, camera availability, list membership,
+clock suppression and overrides, retaining the shared globals and Doppler ring
+between steps. Missing-camera stale state is exercised. Fixtures exclude cycles,
+invalid pointers, missing first owner with a live second owner, nonfinite
+coordinates, exceptions and concurrent list changes. This is bounded behavioral
+evidence, separate from strict byte matching.
+
+The native bridge now publishes the finalized Camera at the existing player
+mover's `+0x1c`. Listener production therefore consumes the same recovered
+Camera state used for drawing, without a replacement coordinate algorithm.
+The persistent audio context owns a minimal one-car manager list pointing at
+the already constructed car sound state. Manager allocation/registration and
+its full lifecycle remain seams. Sound-state `+0xa8` remains the zero from
+native session initialization until its producer is recovered. The native
+session remains one-player; two-player behavior is covered by binary comparison.
+
+Native scheduling now calls listener production, Physics, spatial, auxiliary,
+HybridMotor and playback. Relative scheduling of those manager components is
+still unverified. The retained auxiliary position pointer initially addresses
+its activation-time zero snapshot, so the first spatial update can see a large
+initial distance; later updates see the preceding auxiliary snapshot. This is
+recorded as part of the scheduling seam, not hidden by an invented initialization.
+Spatial distance feeds the actual cutoff consumer. Doppler averaging now has
+live inputs, but its downstream voice consumers and retail filter/pan DSP are
+still open. Overall packed level/pan, shift/accel, notification/parameter paths,
+manager lifecycle and the remaining inventory rows keep the audio goal active.
+
+The native build and all six CTest checks pass. The 600-frame SKYLINE smoke has
+RMS 1962 LSB, 681 packet releases, zero underruns and pitch/RPM correlation
+0.824 (pass). Its 600 spatial diagnostics have distance `+4` 0..1911,
+distance `+8` 6..1905 and average 0.4985..1, replacing the previous -1/unity
+not-ready output. The 350Z smoke has RMS 9113 LSB, 1726 releases and zero
+underruns, but correlation 0.346 and its high/low RPM pitch ordering fail the
+unchanged smoke gates. Neither profile enters the high-RPM gate. These are
+native integration observations, not retail acoustic equivalence.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets ListenerUpdate,ListenerFind,ListenerDistance,ListenerAngle --cases 512
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets ListenerUpdate,ListenerFind,ListenerDistance,ListenerAngle --cases 128 --mutation-checks --mutation-source listeners --mutation-source listener_find
+```
+
+The six listener mutations all fail by state/call mismatches, with no survivors
+or compile-only rejections: stale readiness, previous-mode capture, game-flow
+mode, blend equality, product rounding and list index. The 128-case mutation
+baseline passed 768 comparisons, including 256 carried steps. Final full
+regression passed 36608 comparisons across 135 targets with zero failures,
+including 2048 carried steps; all nine existing strict leaf byte checks pass.
+
+Next parent-scheduler evidence: `0x464c10` (111 bytes) advances car timing subject
+to the root's `+0x13` byte, walks car `+0x1c` through component `+0x50` links,
+calling each `+0x14(duration)` then `+0x18()`, then walks car `+0x20` through
+those links calling `+0x24(duration)` then `+0x34()`. `0x469cf0` and derived
+`0x479590` gate that call on a live owner; the latter also calls `0x469a10`.
+`0x469cb0` separately walks car `+0x20` and calls component `+0x28()`.
+These routines have been inspected in Ghidra but are not yet recovered/verified;
+the linked-list construction/order and the remaining virtual bodies are needed
+to replace the current manual native schedule faithfully.

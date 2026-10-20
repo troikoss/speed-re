@@ -773,6 +773,8 @@ NativeChaseCameraMover::NativeChaseCameraMover() {
     kindC = 1;
     value10 = 0;
     active14 = 1;
+    memset(unidentified18, 0, sizeof(unidentified18));
+    camera1C = 0;
 }
 void NativeChaseCameraMover::Virtual00() { NativeTrap("camera mover slot +0x00"); }
 void NativeChaseCameraMover::Virtual04() { NativeTrap("camera mover slot +0x04"); }
