@@ -100,6 +100,31 @@
       "address": "0x474030",
       "size": 731,
       "sha256": "f4476ac71be4fe378ff26d2406341dfe183d0afe4b68d58ccfe619f4bcb473df"
+    },
+    "AudioConstruct": {
+      "address": "0x4585a0",
+      "size": 210,
+      "sha256": "c3ce8cc21b59053fde2168ad9a1834e70ccdc0662e62a33be07e7cb9ce7a7e27"
+    },
+    "CarSoundCreate": {
+      "address": "0x4690e0",
+      "size": 118,
+      "sha256": "14788cdf561ed8feaacc3bdc36a613582fd5256e52305ce80d8e5fd23cfed91e"
+    },
+    "ManagerInitialize": {
+      "address": "0x463ad0",
+      "size": 17,
+      "sha256": "b182eb634ecae6771055e84bb7d03f99ad03209e13dd2c14c701d8f2f553544a"
+    },
+    "ManagerFind": {
+      "address": "0x463cc0",
+      "size": 68,
+      "sha256": "79e23b8b4d3539b89441abe9ee4d8da07e840f7fc72561cf362b8dfb99be06fd"
+    },
+    "ManagerQueue": {
+      "address": "0x463f10",
+      "size": 19,
+      "sha256": "96678ecee4f068486158c31d3d5d5c37f95428a1277dc4737850b91889b8660f"
     }
   }
 }

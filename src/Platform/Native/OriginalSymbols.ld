@@ -654,6 +654,7 @@ value89E7D8 = 0x89e7d8;
 value890108 = 0x890108;
 volumes83AA28 = 0x83aa28;
 audio82B884 = 0x82b884;
+audioObject82BA30 = 0x82ba30;
 jumpCamera83AA20 = 0x83aa20;
 mirror83AA18 = 0x83aa18;
 units83AA1A = 0x83aa1a;

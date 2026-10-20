@@ -364,8 +364,8 @@ bool UIProgressBar::HandleMessage(unsigned int m) {
 }
 void UIProgressBar::SetValue(float v) { previous2C = value30; value30 = v; if (value30 > max24) value30 = max24; if (value30 < min28) value30 = min28; UpdateBar(this); }
 
-// Game/platform interfaces. The demo has no audio backend, registry, save profiles or force
-// feedback. Keep calls at their original boundaries and do not claim persistence or audio.
+// Game/platform interfaces. Audio settings are not connected to packet playback;
+// registry/profile persistence and force feedback also remain native seams.
 void Audio82B884::Apply(float *) {}
 void SetPresetDisplayLevelFromLevelOfDetailAndLimit() {} // native renderer has no retail quality presets
 void SaveRegistrySettings() { fprintf(stderr, "ug2demo: display settings are session-only; registry persistence is not recovered\n"); }
@@ -395,6 +395,7 @@ void NativePauseOptionsLoad(const char *gameDirectory) {
             offset += 8 + length;
         }
     }
+    nativeAudio.Construct4585A0(); // initialization only; device/state-manager setup is still a seam
     audio82B884 = &nativeAudio;
     for (int i = 0; i < 7; ++i) volumes83AA28[i] = 1.0f;
     levelOfDetail87099C = 3; resolution870D1C = 1;

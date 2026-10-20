@@ -33,6 +33,11 @@ Native seams: `src/Platform/Native/{NativeAudio.cpp,NativeAudio.h,NativeEngineSo
 | `0x477870` | `GinsuSynthesis::~GinsuSynthesis` | stops the player when `sampleRate24 != 0`, destroys it; vtable `0x789ce4` written last |
 | `0x4778c0` | `GinsuSynthesis::StartSynthesis(float)` (thiscall, RET 4) | returns the `SNDPKTPLAY_start` result, also kept at `+0x20`; on success clears both buffers, records the rate at `+0x24` and submits both packets |
 | `0x4777f0` | `GinsuSynthesis::PacketReleaseCallback` (cdecl) | calls `HandlePacketRelease(samples)` on the client data |
+| `0x4585a0` | `Audio82B884::Construct4585A0` | initializes the audio object while retaining original unwritten bytes; called by native pause/options setup |
+| `0x4690e0` | `Audio82B884::CreateCarSound` | enabled gate and manager dispatch; state-manager factories remain seams |
+| `0x463ad0` | `AudioCarSoundManager::Initialize463AD0` | writes kind/limit at +0xc/+0x14 only |
+| `0x463cc0` | `AudioCarSoundManager::FindCarSound463CC0` | looks up and binds a sound object; query/bind methods remain seams |
+| `0x463f10` | `AudioQueuedCarSoundManager::QueueCar463F10` | queues the car at +0x20 and increments count +0x60; returns null |
 | `0x440820` | `EngineSoundAllocate440820` | bWare allocation wrapper; heap backend remains native |
 | `0x47d740` | `EngineSound::Setup47D740` | one/two-slot setup; native demo calls mode 0 with a scaffold bank view |
 | `0x473e60` | `EngineSound::Update473E60` | one-slot controller; recovered and verified, native integration open |
@@ -325,8 +330,9 @@ RET 4 cleanup and ordered calls are compared with the retail thiscall ABI.
 Caller lead: original bytes `0x474310..0x47434b`, read through Ghidra MCP and
 independently decoded with Capstone, copy control `+0xf8` to `+0x104`, set `+0xbc`
 to 1, and call one-slot mode when the car mode at `+0x78` is zero, two-slot
-otherwise. Ghidra has no function defined for this code; no project mutation was
-made. The caller's remainder and the producer of control `+0xf8` are not recovered
+otherwise. At the controller checkpoint Ghidra had no function defined for this code.
+Its later decompilation is recorded below; the caller's remainder and the
+producer of control `+0xf8` are still not recovered
 or covered by the controller verifier. This corrects the earlier lead that
 virtual `+0x38` supplied engine RPM.
 
@@ -370,3 +376,113 @@ one-slot below/at-or-above-minimum counts were 382/473, two-slot 426/429. Each
 controller ran 506 cases at 53-bit and 518 at 64-bit x87 precision. These are
 bounded comparisons with scripted virtual/snd boundaries, not complete caller
 or middleware verification.
+
+
+## Audio object and car dispatch recovery (2026-10-20)
+
+`src/Speed/Indep/Src/Audio/AudioSystem.cpp` recovers the constructor
+`0x4585a0..0x458671`, car-sound dispatcher `0x4690e0..0x469155`, manager kind/limit initializer `0x463ad0..0x463ae0`, sound-object lookup
+`0x463cc0..0x463d03` and car queue `0x463f10..0x463f22`. Their original Ghidra decompilations
+and instruction listings were inspected, and their ranges and hashes are pinned
+in `ginsu.json`. Unknown constructor fields stay offset-based.
+
+The constructor writes retail vtable word `0x789cf0`, 1 at word `+0x90` and byte
+`+0x10`, the retail `SOUND` string pointer `0x789ce8` at `+0x60`, and the original
+set of zero words/bytes. It conditionally clears nine manager words at
+`+0xa8..+0xc8` and clears shared global `0x82ba30`. Other bytes retain their
+initial contents. Native pause/options setup now calls this recovered
+constructor before installing its audio object. This initializes the object;
+it does not replace device or state-manager setup `0x4853c0`. Raw retail vtable
+and string words are evidence-bearing data in the mapped image; native code
+uses the recovered direct methods, not the original audio vtable as code.
+
+The dispatcher first tests enable global `0x7faaa8`, returning null without
+reading the car when disabled. Otherwise it reads context pointer at car
+`+0x14`, kind at context `+4`, and byte at context `+0x900`. Clear byte plus kind
+1 selects audio manager `+0xac`; kind 2 or any set byte selects `+0xb0`; clear
+byte plus kind 3 selects `+0xb4`. Other kinds with a clear byte return null.
+A null selected manager returns null; otherwise slot `+0x10` receives the car
+and its returned word is passed through. The native trap for this routine was
+removed. The flag remains disabled in the demo, and its manager pointers are
+null: recovery of this dispatcher alone does not provide car sound objects.
+The manager initializer only writes its two arguments at `+0xc` and `+0x14`.
+Lookup `0x463cc0` traverses sound objects from manager `+0x10` via object `+4`.
+For each candidate it re-reads the car context before querying virtual `+0x2c`.
+The first equal context with object word `+0x30 == 0` is bound through virtual
+`+0xc(car)` and returned. No allocation occurs in this method. The kind-3 queue
+`0x463f10` stores the car at `manager +0x20 +4*count60`, increments `+0x60` and
+returns null. It has no capacity guard; the caller's queue invariants remain
+unrecovered. Its 16-entry view and count fit the 0x64-byte allocation observed
+in setup; the verifier restricts entry indexes to 0..15.
+
+Construction leads from original initialization `0x4853c0`: the selected
+manager vtables are `0x78a3b0`, `0x78a418` and `0x78a3e0`. Their slot `+0x10`
+words, read through Ghidra MCP, point to `0x463cc0`, `0x463cc0` and `0x463f10`.
+Ghidra decompilation and original instruction listings of the two manager
+entries confirm the lookup/queue recovery above. Controller caller `0x474310` was also decompiled; its body
+extends the known prefix with additional sound-parameter updates and remains
+unrecovered. Manager pool creation and sound-object context/bind implementations
+remain separate dependencies.
+
+The extended Ginsu verifier compares the constructor over randomized object
+contents (including mixtures of zero/nonzero manager words) and compares the
+shared global it clears. Dispatch fixtures cover disabled audio with an
+unmapped/null car, enabled flags including negative values, kinds 1/2/3/other,
+clear/set override bytes including 128/255, independently null manager pointers,
+and null/arbitrary manager returns. Half the dispatch fixtures use distinct
+scripted manager entries, while half dispatch through the actual recovered
+lookup/queue bodies on both sides. Standalone lookup fixtures span lists of
+zero through six nodes, context mismatches and word +0x30 gates; standalone
+queue fixtures compare the inserted word and updated count. Sound-object
+context/bind methods remain scripted thiscall boundaries. The verifier compares
+selected receivers, car arguments, ordered calls, returned words, arena/globals,
+callee cleanup, preserved registers and x87 stack/control state. For composed
+manager tables, the verifier installs the corresponding original/rebuilt code
+address, checks that each slot remains exactly that address, then normalizes
+only those known code pointer words for arena comparison. The source's unused-EDX fastcall ABI view preserves
+the retail caller's ECX and one stack argument under MSVC 7.1.
+
+The sound-object virtual query/bind methods are scripted boundaries here.
+The composed car constructor still uses its separate car-sound event hook; neither this test
+nor native playback proves state-manager lifecycle, actual sound-object
+construction, bank loading, gain/spatial queries or enabled-audio integration.
+Behavioral comparison is bounded; byte identity is not claimed.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets AudioConstruct,CarSoundCreate,ManagerInitialize,ManagerFind,ManagerQueue --cases 1024
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets AudioConstruct,CarSoundCreate,ManagerInitialize,ManagerFind,ManagerQueue --cases 384 --mutation-checks --mutation-source audio
+```
+
+
+All 18 audio-construction/manager mutants were rejected with state or call-order
+mismatches (384 cases per each of the five targets); none survived or failed
+merely to compile. They cover manager selection/override/null gates, constructor
+flags/manager clearing/shared global/unwritten bytes, initializer fields,
+lookup context/state/bind/return, and queue index/increment. The mutation runner
+now includes each original source directory, so moving the mutated audio source
+to the analysis directory still resolves its headers.
+
+The native build passed. Playback smoke after constructor integration produced
+686 packet releases, zero underruns and a pitch/RPM Spearman correlation of
+0.867. A 30-frame scripted `--no-audio` run also passed after the manager
+recovery. These cover native startup and the existing playback scaffold; they
+do not execute enabled car-audio construction. Native manager/sound-object
+vtables and any required platform ABI bridges are still outside this change.
+
+
+Final full-suite result: 25 targets, 25,600 original/rebuilt comparisons
+(1,024 per target), zero failures. Car dispatch included 512 scripted and 512
+composed fixtures: 152 called the actual lookup body and 22 called the actual
+queue body. Standalone lookup bound an object in 525 cases and returned null
+in 499, with zero through six context queries. The separate car-construction
+regression passed 12,288 comparisons (1,024 per target), including 387
+car-sound-hook cases. That regression retains its car-sound stub and does not
+establish a composed car constructor through these managers.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 1024
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_car_construction.py --cases 1024
+```
+
+MSVC/wibo checks ran sequentially. Byte matching and enabled-audio runtime
+integration remain unestablished.

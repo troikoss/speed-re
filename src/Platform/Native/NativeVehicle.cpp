@@ -584,7 +584,6 @@ CarRecorder918::CarRecorder918(MoverModeOwner *) { NativeTrap("car recorder 0x5f
 // collision consumer 0x637c70 is a native no-op.
 CarFeedback958::CarFeedback958(MoverModeOwner *) {}
 CarFeedback958::~CarFeedback958() {}
-CarReplayState *Audio82B884::CreateCarSound(MoverModeOwner *) { NativeTrap("car sound 0x4690e0"); return 0; }
 // 0x5e02b0 adds the callback to the update list at 0x88e9c4; the registered routine is empty.
 void EmptyRoutine4022C0() {} // 0x4022c0, the shared empty routine
 int RegisterUpdate5E02B0(void (*)(), int) { return 1; }

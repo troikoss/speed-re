@@ -920,7 +920,7 @@ mover factory `0x5f46a0` (null mover or PhysicsMover, now built with the CarType
 car `+0xc` instead of a zeroed block); a yaw matrix in place of ground placement `0x5f5010`;
 no-op road-network placement, visual parts `0x6399d0`, render object, tracker registration,
 collider pack loading and update registration; a force-feedback object with no device.
-Kind 3, the replay recorder, car sound and world `+0x118` entries trap. With modding enabled, the mod bridge swaps its provider's collision body in after construction (15 mod scenarios pass). The world-list sort
+Kind 3, the replay recorder and world `+0x118` entries trap. Car-sound dispatch `0x4690e0` is now recovered (2026-10-20); its manager pool/sound-object construction and virtual query/bind methods remain separate audio seams, and native audio stays disabled for this construction path. With modding enabled, the mod bridge swaps its provider's collision body in after construction (15 mod scenarios pass). The world-list sort
 seam now accepts a single node. Headless `ug2sim` matches the previous build up to the first
 wall contact (between 3.5 and 4 s); afterwards the runs diverge slightly, as the car now
 carries original values the scaffold zeroed (the collision body's id, the CarTypeInfo row

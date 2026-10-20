@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-"""Behavioural verifier for the recovered Ginsu granular synthesizer of EA SPEED (UG2 PC v1.2).
+"""Behavioural verifier for recovered Ginsu and car-audio dispatch (UG2 PC v1.2).
 
-The recovered GinsuData.cpp, GinsuSynth.cpp, EngineSoundSetup.cpp and EngineSoundController.cpp sources under
-src/Speed/Indep/Src/EAXSound/Ginsu are compiled with
+The recovered Ginsu sources and AudioSystem.cpp (SOURCES below) are compiled with
 MSVC 7.1 (wibo) and linked as analysis objects. Each routine of config/SPEED2_EXE_1_2/ginsu.json runs on two
 Unicorn machines with the same fixture: the retail image at the manifest address, and the linked objects at
 the exported symbol. The snd library is a seam (SND below) with two kinds of entry:
@@ -41,7 +40,8 @@ BUILD = ROOT / 'build/analysis/ginsu'
 SOURCE_DIR = 'src/Speed/Indep/Src/EAXSound/Ginsu'
 SOURCES = {'data': SOURCE_DIR + '/GinsuData.cpp', 'synth': SOURCE_DIR + '/GinsuSynth.cpp',
            'setup': SOURCE_DIR + '/EngineSoundSetup.cpp',
-           'controller': SOURCE_DIR + '/EngineSoundController.cpp'}
+           'controller': SOURCE_DIR + '/EngineSoundController.cpp',
+           'audio': 'src/Speed/Indep/Src/Audio/AudioSystem.cpp'}
 SEED = 0x47494e53
 IMAGE_BASE = 0x400000
 ARENA, ARENA_SIZE = 0x2000000, 0x40000
@@ -54,7 +54,9 @@ STACK_BASE, STACK = 0x2100000, 0x2110000
 STACK_ZERO = STACK - 0x8000
 STACK_RANGE = (STACK_ZERO, STACK + 0x100)
 STOP, FXAREA, STUBS = 0x2120000, 0x2121000, 0x2122000
-VIRTUAL = {'Gain38': STUBS + 0x200, 'Value3C': STUBS + 0x210}
+VIRTUAL = {'Gain38': STUBS + 0x200, 'Value3C': STUBS + 0x210,
+           'ManagerAC': STUBS + 0x220, 'ManagerB0': STUBS + 0x230, 'ManagerB4': STUBS + 0x240,
+           'SoundBind': STUBS + 0x250, 'SoundContext': STUBS + 0x260}
 FXSAVE_AT_STOP = b'\x0f\xae\x05' + struct.pack('<I', FXAREA)
 PRECISIONS = (0x027f, 0x037f)
 PRESERVED = (xc.UC_X86_REG_EBX, xc.UC_X86_REG_ESI, xc.UC_X86_REG_EDI, xc.UC_X86_REG_EBP)
@@ -67,6 +69,11 @@ GIN_MAGIC = b'Gnsu2'
 # return kinds: 'al' (bool), 'eax' (int), 'st0' (float left in ST0), None. argument kinds: 'w' raw word,
 # 'p' pointer (identity: arena address or the stack), ('c', n) pointer whose n bytes are logged by value.
 ROUTINES = {
+    'ManagerFind': (0x463cc0, '?FindCarSound463CC0@AudioCarSoundManager@', 4, 'eax', 'arena', ['p']),
+    'ManagerQueue': (0x463f10, '?QueueCar463F10@AudioQueuedCarSoundManager@', 4, 'eax', 'arena', ['p']),
+    'AudioConstruct': (0x4585a0, '?Construct4585A0@Audio82B884@', 0, 'eax', 'arena', []),
+    'CarSoundCreate': (0x4690e0, '?CreateCarSound@Audio82B884@', 4, 'eax', 'arena', ['p']),
+    'ManagerInitialize': (0x463ad0, '?Initialize463AD0@AudioCarSoundManager@', 8, None, 'arena', ['w', 'w']),
     'EngineUpdateOne': (0x473e60, '?Update473E60@EngineSound@', 0, None, 'arena', []),
     'EngineUpdateTwo': (0x474030, '?Update474030@EngineSound@', 0, None, 'arena', []),
     'EngineSetup': (0x47d740, '?Setup47D740@EngineSound@', 0, None, 'arena', []),
@@ -118,7 +125,7 @@ STUB = {'VoiceVolume': STUBS + 0xa0, 'VoiceValue': STUBS + 0xb0, 'VoiceValue2': 
 # SNDplaysetdef 0x721a6b..0x721aae (both end in RET and call nothing).
 PURE_RANGES = ((0x75bed4, 0x75bf49), (0x72423e, 0x72428b), (0x721a6b, 0x721aae))
 # Retail globals read by the recovered code, by MSVC symbol prefix; __fltused is a null symbol.
-SHARED = {'?engineSoundValue82A998@': 0x82a998, '?engineSoundValue82B078@': 0x82b078,
+SHARED = {'?audioEnabled7FAAA8@': 0x7faaa8, '?audioObject82BA30@': 0x82ba30, '?engineSoundValue82A998@': 0x82a998, '?engineSoundValue82B078@': 0x82b078,
           '?engineSoundScale78A2E0@': 0x78a2e0, '?engineSoundScale78AF80@': 0x78af80,
           '__ftol2': 0x75bed4, '__ftol': 0x75bed4, '?audio82B884@': 0x82b884, '?engineSoundHeap7EC840@': 0x7ec840,
           '?ginsuEngineBlockRate78A5B0@': 0x78a5b0, '?ginsuZero7D7D3C@': 0x7d7d3c, '?ginsuOne784250@': 0x784250, '?ginsuHalf784260@': 0x784260,
@@ -128,16 +135,17 @@ SHARED = {'?engineSoundValue82A998@': 0x82a998, '?engineSoundValue82B078@': 0x82
           '?ginsuStepTable7ED950@': 0x7ed950, '__fltused': 0}
 # Retail addresses of the E branch (fz1 == fz2) and of the SampleToCycle found path (0x466c2f).
 E_BRANCH_HOOK, FOUND_HOOK = 0x466e98, 0x466c2f
-TARGETS = ('EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
+TARGETS = ('ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
            'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt',
            'PacketReleaseCallback', 'SynthesisConstruct', 'SynthesisDestruct', 'StartSynthesis')
 LIMITATIONS = [
     'the uninitialised packet words are read without being written by the original (the frame word bit 31, the SNDPACKET ssf and sizeofsamples words, and the fields at 0x3c and 0x44 of the HandlePacketRelease record); the stack is zeroed before each run; isolated entry tests read zero; composed setup may reuse stack words, so composed-setup snd event comparison masks the packet continuation bit and unwritten format/size words, attribute pad/tsdatasize fields and option pads',
     'status word condition bits and exception flags are not compared (only the control word and the logical stack)',
     'NaN is generated for CyclePeriod, CeilToInt and controller snd-conversion inputs; a NaN CyclePeriod result compares as NaN class (sign and payload not compared)',
-    'finite values only for integers within |x| < 2^28 and overlap within [0, 40]',
+    'interpolation/sample-index fixture integers stay within |x| < 2^28 and overlap within [0, 40]; controller gains and manager arguments also exercise full 32-bit words',
     'the arena is compared byte for byte; the stack is compared through the events, the return values and the x87 image only',
     'the MSVC 7.1 build passes no /GS flag: this cl.exe reads /GS- as /GS (security cookies appear), and the default compile has none',
+    'car sound creation: fixtures alternate scripted manager entries with composed lookup/enqueue bodies; sound-object context/bind queries remain scripted; pool creation, device setup and a composed car constructor remain outside this comparison; queue indexes are limited to 0..15',
     'engine controllers: virtual slots +0x38/+0x3c are scripted thiscall boundaries; snd setters are logged stubs, not middleware equivalence; the original CRT conversion helper 0x75bed4 runs on both sides',
     'engine setup: heap capacity and bMalloc are scripted boundaries; packet/synth allocation-failure cases use invalid gin magic and a successfully allocated or existing data object to avoid the original null dereference; failure of the data allocation is not exercised',
     'engine setup: the bank table producer and engine object construction are fixtures, not recovered callers; table indexes 0 and 1 are tested without establishing the table bounds',
@@ -283,6 +291,8 @@ def entry_hook(log, name, this_kind, kinds, labels, scripted=None, key=None):
                 index = sum(event[0] == name for event in log) - 1
                 assert index < len(value), ('script exhausted', key, index)
                 value = value[index]
+            elif isinstance(value, dict):
+                value = value[uc.reg_read(xc.UC_X86_REG_ECX)]
             uc.reg_write(xc.UC_X86_REG_EAX, value & 0xffffffff)
     return hook
 
@@ -300,7 +310,7 @@ def fx_state(uc):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--compiler', choices=('msvc', 'clang-cl'), default='msvc')
-    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, controller)')
+    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, controller, audio)')
     parser.add_argument('--clang-flag', action='append', default=[], help='extra clang option (via /clang:)')
     parser.add_argument('--cases', type=int, default=1024)
     parser.add_argument('--targets', default='', help='comma separated subset of targets')
@@ -328,7 +338,7 @@ def main():
     objects = []
     for key, path in SOURCES.items():
         source = Path(replaced.get(key, ROOT / path)); obj = BUILD / (key + '-' + Path(path).stem + '.obj')
-        subprocess.run(compiler + ['/nologo', '/c', '/O2', '/Ob0', '/Fo' + str(obj.relative_to(ROOT)), '/I' + SOURCE_DIR,
+        subprocess.run(compiler + ['/nologo', '/c', '/O2', '/Ob0', '/Fo' + str(obj.relative_to(ROOT)), '/I' + SOURCE_DIR, '/I' + str(Path(path).parent),
                                    os.path.relpath(source, ROOT)], cwd=ROOT, check=True)
         objects.append((key, obj))
     parsed = {key: read_object(obj) for key, obj in objects}
@@ -358,8 +368,8 @@ def main():
     original_ranges = [(spec[0], spec[0] + manifest['functions'][name]['size']) for name, spec in ROUTINES.items()]
     linked_ranges = linked['ranges']
     stub_retail = [spec[0] for spec in SND.values() if spec[4] == 'stub']
-    original_allowed = original_ranges + [(a, a + 1) for a in stub_retail] + list(PURE_RANGES) + [(STOP, STOP + 7), (STUBS + 0x200, STUBS + 0x220)]
-    rebuilt_allowed = linked_ranges + [(STUBS, STUBS + 0x220), (STOP, STOP + 7)] + list(PURE_RANGES)
+    original_allowed = original_ranges + [(a, a + 1) for a in stub_retail] + list(PURE_RANGES) + [(STOP, STOP + 7), (STUBS + 0x200, STUBS + 0x270)]
+    rebuilt_allowed = linked_ranges + [(STUBS, STUBS + 0x270), (STOP, STOP + 7)] + list(PURE_RANGES)
     inside = lambda ranges, a: any(lo <= a < hi for lo, hi in ranges)
 
     # Gin files: sorted by name, five fixed positions and the last one.
@@ -382,7 +392,8 @@ def main():
         uc.mem_map(STOP, 0x1000); uc.mem_write(STOP, FXSAVE_AT_STOP)
         uc.mem_map(FXAREA, 0x1000)
         uc.mem_map(STUBS, 0x1000)
-        for address in VIRTUAL.values(): uc.mem_write(address, b'\xc2\x04\x00')
+        for key, address in VIRTUAL.items():
+            uc.mem_write(address, b'\xc3' if key == 'SoundContext' else b'\xc2\x04\x00')
         if rebuilt:
             uc.mem_map(linked['address'], max(0x1000, linked['allocation']))
             for address, body in linked['blocks']: uc.mem_write(address, body)
@@ -411,7 +422,7 @@ def main():
             uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], spec[3], None, spec[2], labels[rebuilt], returns, key),
                         begin=address, end=address)
         for key, address in VIRTUAL.items():
-            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], key, 'arena', ['w'], labels[rebuilt], returns, key),
+            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], key, 'arena', [] if key == 'SoundContext' else ['p'] if key.startswith('Manager') or key == 'SoundBind' else ['w'], labels[rebuilt], returns, key),
                         begin=address, end=address)
         if not rebuilt:
             def count(name, rebuilt=rebuilt):
@@ -421,6 +432,7 @@ def main():
         machines[rebuilt] = uc
 
     fixture_globals = {}
+    fixture_code_fields = {}
 
     def run(name, memory, words, precision, this):
         """Run one routine on both machines and return the two snapshots."""
@@ -429,7 +441,10 @@ def main():
         for rebuilt in (False, True):
             uc = machines[rebuilt]
             events[rebuilt].clear(); counters[rebuilt].clear()
-            uc.mem_write(ARENA, bytes(memory))
+            code_memory = bytearray(memory)
+            for address, target in fixture_code_fields.items():
+                pk(code_memory, address, '<I', rebuilt_entry[target] if rebuilt else retail_entry[target])
+            uc.mem_write(ARENA, bytes(code_memory))
             for address, body in fixture_globals.items(): uc.mem_write(address, body)
             uc.mem_write(STACK_ZERO, bytes(STACK + 0x100 - STACK_ZERO))
             uc.mem_write(STACK, struct.pack('<I', STOP) + b''.join(struct.pack('<I', w & 0xffffffff) for w in words))
@@ -443,10 +458,17 @@ def main():
             except UcError as error:
                 raise AssertionError(('state or call order mismatch' if rebuilt else 'original fixture fault', name, str(error), hex(uc.reg_read(xc.UC_X86_REG_EIP)), list(events[rebuilt]))) from error
             assert uc.reg_read(xc.UC_X86_REG_EIP) == STOP + 7, ('state or call order mismatch' if rebuilt else 'original fixture fault', name, 'did not return')
-            snapshots[rebuilt] = dict(events=list(events[rebuilt]), arena=bytes(uc.mem_read(ARENA, ARENA_SIZE)),
+            arena = bytearray(uc.mem_read(ARENA, ARENA_SIZE))
+            for address, target in fixture_code_fields.items():
+                actual = struct.unpack_from('<I', arena, address - ARENA)[0]
+                expected = rebuilt_entry[target] if rebuilt else retail_entry[target]
+                assert actual == expected, ('state or call order mismatch', 'vtable slot changed', hex(address))
+                pk(arena, address, '<I', retail_entry[target])
+            snapshots[rebuilt] = dict(events=list(events[rebuilt]), arena=bytes(arena),
                                       esp=uc.reg_read(xc.UC_X86_REG_ESP), eax=uc.reg_read(xc.UC_X86_REG_EAX),
                                       regs=tuple(uc.reg_read(r) for r in PRESERVED), fx=fx_state(uc),
-                                      counters=dict(counters[rebuilt]))
+                                      counters=dict(counters[rebuilt]),
+                                      globals={a: bytes(uc.mem_read(a, len(body))) for a, body in fixture_globals.items()})
         return snapshots[False], snapshots[True]
 
     def check(name, precision, a, b):
@@ -461,6 +483,7 @@ def main():
         if a['events'] != b['events']:
             k = next((i for i, (x, y) in enumerate(zip(a['events'], b['events'])) if x != y), min(len(a['events']), len(b['events'])))
             problems.append(('event list', k, len(a['events']), len(b['events']), a['events'][k:k + 1], b['events'][k:k + 1]))
+        if a['globals'] != b['globals']: problems.append(('globals', a['globals'], b['globals']))
         if a['arena'] != b['arena']:
             diff = [i for i in range(ARENA_SIZE) if a['arena'][i] != b['arena'][i]]
             problems.append(('arena', len(diff), hex(ARENA + diff[0]), arena_regions(diff),
@@ -529,6 +552,24 @@ def main():
 
     scales = tuple(struct.unpack_from('<f', image, a - IMAGE_BASE)[0] for a in (0x788890, 0x788894, 0x788898))
 
+    def make_sound_pool(memory):
+        context = ARENA + 0x39000
+        pk(memory, CAR + 0x14, '<I', context)
+        count = rng.randrange(7)
+        values = {}
+        table = ARENA + 0x3b000
+        pk(memory, table + 0xc, '<I', VIRTUAL['SoundBind'])
+        pk(memory, table + 0x2c, '<I', VIRTUAL['SoundContext'])
+        for i in range(count):
+            sound = ARENA + 0x3a000 + 0x100*i
+            following = sound + 0x100 if i + 1 < count else 0
+            pk(memory, sound, '<II', table, following)
+            pk(memory, sound + 0x30, '<i', rng.choice((0, 0, 1, -1)))
+            values[sound] = rng.choice((context, context, 0, context + 4))
+        returns['SoundContext'] = values
+        returns['SoundBind'] = 0
+        return ARENA + 0x3a000 if count else 0
+
     for trial in range(args.cases):
         precision = rng.choice(PRECISIONS)
         gin = gins[rng.randrange(len(gins))]
@@ -536,7 +577,50 @@ def main():
             memory = random_memory()
             returns.clear()
             fixture_globals.clear()
-            if name in ('EngineUpdateOne', 'EngineUpdateTwo'):
+            fixture_code_fields.clear()
+            if name == 'ManagerFind':
+                head = make_sound_pool(memory)
+                pk(memory, CONTROL + 0x10, '<I', head)
+                words, this = [CAR if head else 0], CONTROL
+            elif name == 'ManagerQueue':
+                pk(memory, CONTROL + 0x60, '<i', rng.randrange(16))
+                words, this = [rng.getrandbits(32)], CONTROL
+            elif name == 'AudioConstruct':
+                for i in range(9):
+                    pk(memory, AUDIO + 0xa8 + 4*i, '<I', rng.choice((0, rng.getrandbits(32))))
+                fixture_globals[0x82ba30] = struct.pack('<I', rng.getrandbits(32))
+                words, this = [], AUDIO
+            elif name == 'ManagerInitialize':
+                words, this = [rng.getrandbits(32), rng.getrandbits(32)], CONTROL
+            elif name == 'CarSoundCreate':
+                enabled = rng.choice((0, 0, 1, -1, rng.randrange(-2**31, 2**31)))
+                fixture_globals[0x7faaa8] = struct.pack('<i', enabled)
+                context = ARENA + 0x39000
+                kind = rng.choice((-1, 0, 1, 1, 2, 2, 3, 3, 4, 256, rng.randrange(-2**31, 2**31)))
+                flag = rng.choice((0, 0, 0, 1, 128, 255))
+                pk(memory, CAR + 0x14, '<I', context)
+                pk(memory, context + 4, '<i', kind)
+                pk(memory, context + 0x900, '<B', flag)
+                composed = trial % 2 == 0
+                head = make_sound_pool(memory) if composed else 0
+                for i, key in enumerate(('ManagerAC', 'ManagerB0', 'ManagerB4')):
+                    manager = CONTROL + 0x100 + i*0x80
+                    table = CONTROL + 0x400 + i*0x40
+                    pk(memory, AUDIO + 0xac + 4*i, '<I', rng.choice((0, manager, manager)))
+                    pk(memory, manager, '<I', table)
+                    pk(memory, table + 0x10, '<I', VIRTUAL[key])
+                    returns[key] = rng.choice((0, ARENA + 0x3a000, rng.getrandbits(32)))
+                    if composed:
+                        fixture_code_fields[table + 0x10] = 'ManagerQueue' if i == 2 else 'ManagerFind'
+                        pk(memory, manager + 0x10, '<I', head)
+                        if i == 2: pk(memory, manager + 0x60, '<i', rng.randrange(16))
+                words, this = [CAR if enabled else 0], AUDIO
+                note('create-composed' if composed else 'create-scripted')
+                note('create-enabled' if enabled else 'create-disabled-null-car')
+                if enabled:
+                    note('create-kind-%d' % kind if kind in (1, 2, 3) else 'create-kind-other')
+                    note('create-flag-set' if flag else 'create-flag-clear')
+            elif name in ('EngineUpdateOne', 'EngineUpdateTwo'):
                 write_gin(memory, gin['raw'])
                 write_object(memory, gin, rng)
                 write_synth(memory, synthData28=OBJ, sampleRate24=rng.choice((0, gin['rate'], rng.randrange(-2**31, 2**31))),
@@ -784,6 +868,17 @@ def main():
                 continue
             names = [e[0] for e in a['events']]
             # The original's run defines the coverage, whatever the comparison says.
+            if name == 'ManagerFind':
+                note('find-bound' if 'SoundBind' in names else 'find-missed')
+                note('find-queries-%d' % names.count('SoundContext'))
+            if name == 'CarSoundCreate':
+                if composed:
+                    if 'ManagerFind' in names: note('create-composed-find')
+                    elif 'ManagerQueue' in names: note('create-composed-queue')
+                    else: note('create-composed-no-manager')
+                else:
+                    chosen = [key for key in ('ManagerAC', 'ManagerB0', 'ManagerB4') if key in names]
+                    note('create-called-' + (chosen[0] if chosen else 'none'))
             if name in ('EngineUpdateOne', 'EngineUpdateTwo'):
                 note(name + '-active' if 'Gain38' in names else name + '-inactive')
                 note(name + '-precision-%x' % precision)
@@ -832,6 +927,24 @@ def main():
         if failures:
             raise SystemExit('mutation checks need a passing baseline: %d failures in the unmutated run' % len(failures))
         mutations = {
+            'audio-find-context': ('audio', 'sound->vtable0->context2C(sound) == context', 'sound->vtable0->context2C(sound) != context'),
+            'audio-find-gate': ('audio', 'sound->value30 == 0', 'sound->value30 != 0'),
+            'audio-find-bind': ('audio', 'sound->vtable0->bind0C(sound, 0, car);', ''),
+            'audio-find-return': ('audio', 'return reinterpret_cast<CarReplayState *>(sound);', 'return 0;'),
+            'audio-queue-index': ('audio', 'pending20[count60] = car;', 'pending20[0] = car;'),
+            'audio-queue-increment': ('audio', '++count60;', ''),
+            'audio-enable-gate': ('audio', 'if (!audioEnabled7FAAA8) return 0;', 'if (audioEnabled7FAAA8) return 0;'),
+            'audio-human-manager': ('audio', 'manager = managerAC;', 'manager = managerB0;'),
+            'audio-other-manager': ('audio', 'manager = managerB0;', 'manager = managerB4;'),
+            'audio-kind3-manager': ('audio', 'manager = managerB4;', 'manager = managerAC;'),
+            'audio-override-flag': ('audio', 'else if (kind == 2 || car->context14->flag900)', 'else if (kind == 2)'),
+            'audio-null-manager': ('audio', 'if (!manager) return 0;', ''),
+            'audio-ctor-flag': ('audio', 'byte[0x10] = 1;', 'byte[0x10] = 0;'),
+            'audio-ctor-manager-count': ('audio', 'i < 9', 'i < 8'),
+            'audio-ctor-global': ('audio', 'audioObject82BA30 = 0;', ''),
+            'audio-ctor-unwritten': ('audio', 'word[0x90 / 4] = 1;', 'word[0x90 / 4] = 1; word[0x94 / 4] = 0;'),
+            'audio-manager-kind': ('audio', 'kindC = kind;', 'kindC = limit;'),
+            'audio-manager-limit': ('audio', 'limit14 = limit;', 'limit14 = kind;'),
             'controller-one-gate': ('controller', 'void EngineSound::Update473E60() {\n    if (!activeC8) return;', 'void EngineSound::Update473E60() {\n    if (activeC8) return;'),
             'controller-two-gate': ('controller', 'void EngineSound::Update474030() {\n    if (!activeC8) return;', 'void EngineSound::Update474030() {\n    if (activeC8) return;'),
             'controller-clamp-high': ('controller', 'if (value > 127) return 127;', 'if (value > 127) return 126;'),
