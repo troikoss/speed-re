@@ -1,16 +1,16 @@
 // Platform scaffolding for the engine sound (see NativeEngineSound.h). The recovered routines are the Ginsu ones;
-// the file choice, the controller and the memory are scaffold, with the retail evidence cited below.
+// setup is recovered; file choice, object/table construction, controller and heap backend remain scaffold.
 #include "NativeEngineSound.h"
 #include "NativeAudio.h"
+#include "../../Speed/Indep/Src/Audio/AudioSystem.h"
+#include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSound.h"
 
 #include <SDL2/SDL.h>
-#include <math.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string>
 
-// Retail constant of the engine setup 0x47d740: the block rate 48000.0 at 0x78a5b0, mapped in OriginalSymbols.ld.
-extern float ginsuEngineBlockRate78A5B0;
+extern Audio82B884 *audio82B884;
 
 namespace {
 
@@ -51,27 +51,30 @@ bool NativeEngineSound::Load(const char *gameDirectory, const char *ginName, cha
         return false;
     }
 
-    data_ = new GinsuSynthData();
-    if (!data_->BindToData(gin_)) {
+    if (memcmp(gin_, "Gnsu2", 5) != 0) {
         snprintf(error, errorSize, "engine sound %s is not a Gnsu2 data block", path.c_str());
         Destroy();
         return false;
     }
 
-    // 0x47d740: size = overhead(8) + 4 + 4 * ceil((0x788898 + 0x788894) * 0x78a5b0). For the 48 kHz block rate this is
-    // two 552-sample packet buffers plus the player (2624 bytes); the synthesizer reads n = (size - overhead) >> 3.
-    const int overhead = SNDPKTPLAY_overhead(8);
-    volatile float blockSamples = (ginsuRateScaleC788898 + ginsuRateScaleB788894) * ginsuEngineBlockRate78A5B0;
-    const int size = overhead + 4 + 4 * (int)ceilf(blockSamples);
-    memblock_ = calloc(1, (size_t)size);
-    synth_ = new GinsuSynthesis(memblock_, size);
-    if (!synth_->SetSynthData(*data_)) {
-        snprintf(error, errorSize, "engine sound %s needs a larger packet block", path.c_str());
-        Destroy();
-        return false;
-    }
-    // 0x47d8f9: StartSynthesis is called with the minimum frequency of the data block.
-    started_ = synth_->StartSynthesis(data_->minFrequency4) >= 0;
+    // Scaffold until EAXSound's table loader and engine/car constructors are
+    // recovered: one selected gin, bank index 0, mode 0, and a fresh slot.
+    // Only setup reads these temporary views; synthesis retains the allocated
+    // data and packet memory, not either view. Restore the session audio object.
+    Audio82B884 banks = {};
+    banks.engineBanksDC[0] = gin_;
+    EngineSoundCar car = {};
+    EngineSound engine = {};
+    engine.car9C = &car;
+    engine.slotsCC[0].startResult14 = -1;
+    Audio82B884 *previous = audio82B884;
+    audio82B884 = &banks;
+    engine.Setup47D740();
+    audio82B884 = previous;
+    data_ = engine.slotsCC[0].data0;
+    synth_ = engine.slotsCC[0].synth4;
+    memblock_ = engine.slotsCC[0].memory8;
+    started_ = engine.slotsCC[0].startResult14 >= 0;
 
     if (const char *logPath = getenv("UG2_ENGINE_LOG")) {
         log_ = fopen(logPath, "w");
@@ -95,12 +98,14 @@ void NativeEngineSound::Update(float rpm, int frame) {
 
 void NativeEngineSound::Destroy() {
     // The synthesizer destructor stops and destroys its player, so the audio device must still be open.
-    delete synth_;
+    if (synth_) synth_->~GinsuSynthesis();
+    free(synth_);
     synth_ = 0;
     started_ = false;
     free(memblock_);
     memblock_ = 0;
-    delete data_;
+    if (data_) data_->~GinsuSynthData();
+    free(data_);
     data_ = 0;
     free(gin_);
     gin_ = 0;

@@ -80,6 +80,16 @@
       "address": "0x4778c0",
       "size": 366,
       "sha256": "504b1490d9643f40bfa5a249a51daa83220940ce0f003448c2205dc63450a30a"
+    },
+    "EngineSetup": {
+      "address": "0x47d740",
+      "size": 475,
+      "sha256": "37c5cc010056dd3ec700c0ece9a1868f3ef034ba040fe875078067155d6926de"
+    },
+    "EngineAllocate": {
+      "address": "0x440820",
+      "size": 23,
+      "sha256": "72f33b7fa3f35c29ad7fdea6d3457bca175c1be0e0f0848b78a8df828286e659"
     }
   }
 }

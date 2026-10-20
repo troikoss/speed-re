@@ -10,6 +10,7 @@ retail copy checked; header `Gnsu20`, little-endian). The `GinsuSynthData` layou
 `SND_attrsetdef` writes `platformver` 0 and `rendermode` 0.
 
 Sources: `src/Speed/Indep/Src/EAXSound/Ginsu/{Ginsu.h,GinsuData.cpp,GinsuSynth.cpp}`.
+Engine setup: `src/Speed/Indep/Src/EAXSound/Ginsu/{EngineSound.h,EngineSoundSetup.cpp}`.
 Native seams: `src/Platform/Native/{NativeAudio.cpp,NativeAudio.h,NativeEngineSound.cpp,NativeEngineSound.h}`.
 
 ## Recovered routines
@@ -78,9 +79,9 @@ native build implements them in `NativeAudio.cpp`.
 with the retail bytes on 256 random initial buffers (including the bytes each routine leaves
 alone): 0 mismatches.
 
-## Engine setup and controller (evidence, not recovered)
+## Engine setup and controller
 
-- `0x47d740` (engine SFX setup, not recovered) keeps slot records of `0x1c` bytes at
+- `0x47d740` (engine SFX setup, recovered 2026-10-20) keeps slot records of `0x1c` bytes at
   `this+0xcc+0x1c*slot`: `+0` the `GinsuSynthData`, `+4` the `GinsuSynthesis`, `+8` the memory
   block, `+0xc` the maximum frequency, `+0x10` the minimum frequency, `+0x14` the start result.
   The mode `[[this+0x9c]+0x78]` selects one slot (mode 0), two slots (mode 1) or none.
@@ -113,10 +114,15 @@ twice on the main thread and once inside the audio callback, and completed 27 ca
 300 ms without deadlock. The demo exercises the same path: every released packet nests
 `SNDSYS_entercritical` inside the callback.
 
-`NativeEngineSound.cpp` binds the chosen gin, builds the synthesizer with the memory size
-above, calls `SetSynthData` and `StartSynthesis(minFrequency4)`, and calls
+`NativeEngineSound.cpp` reads the chosen gin and calls recovered setup `0x47d740`, then calls
 `UpdateFrequency(rpm, 60.0f)` once per frame. The default gin is `GIN_Nissan_Skyline.gin`
-(`--engine-gin` chooses another file). The per-car choice is not recovered.
+(`--engine-gin` chooses another file). The per-car choice is not recovered. Setup temporarily receives a native EAXSound bank
+view, bank index 0, car mode 0 and a fresh slot with start result -1; the prior audio
+object is restored before returning. These are explicit construction seams. The
+recovered allocator wrapper `0x440820` calls the existing native `bMalloc` backend
+(`calloc`); native heap-capacity query `0x43e910` returns an unbounded capacity
+(`INT_MAX`) because this heap has no bWare partition budget. The game-side
+capacity checks and allocation flags remain in recovered code.
 
 Headless check (`tools/smoke_native_engine_audio.py --frames 600`, final run): 6.92 s of
 output, RMS 6125 LSB, peak 16072 with no clipped samples, 595 callbacks, 627 packets released,
@@ -188,8 +194,79 @@ Limitations (see the verifier's report for the full list):
 
 - The snd library behind the seam (voices, mixer, volume `0x72412a`, pitch and pan) is not
   recovered. The native player applies no volume, so the controller's volume is absent.
-- `0x473e60` and `0x474030` (engine controller), `0x47d740` (engine SFX setup, the per-car gin
-  table at `0x82b884`) and the second slot's feed in mode 1 are not recovered. The demo feeds one
+- `0x473e60` and `0x474030` (engine controller), the producer of the per-car gin
+  table at `0x82b884` and the second slot's feed in mode 1 are not recovered. The demo feeds one
   synthesizer with the RPM.
 - Not yet located in UG2: a stop or current-pitch routine of the synthesizer,
   and any callers of the synthesizer beyond the engine setup.
+
+
+## Engine setup recovery (2026-10-20)
+
+`EngineSound::Setup47D740` recovers `0x47d740..0x47d91a`; the allocation wrapper
+`EngineSoundAllocate440820` recovers `0x440820..0x440836`. The original instruction
+listings and decompilation were inspected through Ghidra MCP against `speed2.exe`.
+The manifest pins both routines' byte ranges and SHA-256 fingerprints. No Ghidra
+project mutations were needed.
+
+Setup re-reads the 32-bit mode at car `+0x78` on each iteration: mode 0 sets up
+one slot, mode 1 two, and other modes return. It reuses existing data, memory and
+synth pointers. Allocations require available bytes of at least `0x4b0`, packet
+block size plus `0x400`, and `0x444`, respectively, using heap selector `0x7ec840`
+and flags `(selector & 7) | 0x1000`. The packet size retains the original float
+store and ceiling sequence, giving 2624 bytes with the retail constants.
+
+Slot 0 binds the word at audio object `+0xdc + 4*index`; slot 1 binds
+`+0xe4 + 4*index`, with index from car `+0x10`. A successful bind calls
+`SetSynthData` (its result is ignored), copies the frequency bounds, and calls
+`StartSynthesis(minimum)` only if the slot's existing start result is negative.
+The original has no general allocation-failure early return; recovery preserves
+this. Its null data/synth dereferences require caller and heap invariants that
+are not yet recovered. The native demo still chooses a fixed gin and mode 0;
+this recovery does not establish the original bank-table fill or car sound
+construction.
+
+The extended `verify_pc_ginsu.py` executes setup together with the recovered
+constructors, binder, packet sizing and synthesis start. Only heap capacity,
+`bMalloc` and stateful snd operations are scripted boundaries. It compares all
+arena bytes, ordered calls and defined snd arguments, stack cleanup, preserved
+registers and x87 stack/control word. Fixtures cover modes 0/1/other, both bank
+indexes 0/1, reuse/allocation, valid/invalid magic, start gates and scripted snd
+success/failure. Invalid-magic cases cover packet/synth capacity boundaries and
+allocation failures without invoking null synth pointers. Data allocation
+failure and valid-bank allocation-failure dereferences remain outside this
+bounded comparison; indexes 0/1 do not prove the tables' extent.
+
+Composed calls revealed indeterminate stack fields that isolated entry tests
+had read as zero. For composed setup only, event comparisons omit attribute
+padding and `tsdatasize`, option padding, packet format/size words and the
+packet continuation bit. Every defined field is still compared; isolated entry
+tests retain their previous full struct checks. The defaults helper verifier
+continues to compare all bytes, including the ones it leaves unchanged.
+
+Reproduce with `UG2_DIR` set to the local installation (MSVC/wibo jobs sequential):
+
+```sh
+build/venv/bin/python tools/verify_pc_ginsu.py
+build/venv/bin/python tools/verify_pc_ginsu.py --targets EngineSetup,EngineAllocate --cases 384 --mutation-checks --mutation-source setup
+build/venv/bin/python tools/verify_native_snd_helpers.py
+cmake --build build/native
+build/venv/bin/python tools/smoke_native_engine_audio.py --frames 600
+```
+
+The full MSVC run passed all 18 targets: 18,432 comparisons (1,024 per target),
+zero failures, with 504 setup cases at 53-bit x87 precision and 520 at 64-bit.
+Setup reached zero/one/two slots in 392/250/382 cases and made zero/one/two
+start calls in 775/212/37 cases. The native defaults check also passed 256
+randomized buffers with zero mismatches.
+
+Setup-target mutation checks (384 cases per target) rejected all 10 mutants
+with state or call-order mismatches; none survived or failed merely to compile.
+The mutations cover mode slot count, all three capacity thresholds, allocation
+flags, both bank selectors, the start gate/frequency, and packet allocation size.
+
+The native smoke after wiring setup produced 8.42 s of output, RMS 5729 LSB,
+724 callbacks, 763 released packets and zero underrun frames. Pitch/RPM Spearman
+correlation was 0.837 (low/high thirds 25.3/204.4 Hz). This checks native playback,
+not original controller or middleware equivalence. A separate `--no-audio` run
+completed 30 scripted headless frames. Byte identity is not claimed.

@@ -14,6 +14,9 @@ struct CollisionSoundSet {
 struct Audio82B884 {
     char unidentified0[0x3c];
     CollisionSoundSet *collisions3C;
+    char unidentified40[0x9c];
+    void *engineBanksDC[2]; // 0x47d740: slot 0, indexed by the car's +0x10
+    void *engineBanksE4[2]; // 0x47d740: slot 1; table fill still unrecovered
     void Apply(float *volumes);                    // 0x469050
     void RegisterCollision(CollisionEvent *event);   // 0x483e20
     void UnregisterCollision(CollisionEvent *event); // 0x483e40

@@ -64,6 +64,13 @@ void *bMalloc(int size, const char *, int, int) {
     return calloc(1, size);
 }
 
+// Heap-capacity backend for recovered engine setup (retail 0x43e910). The
+// native malloc heap has no bWare partition budget; retain the caller checks
+// with an unbounded capacity. Allocation itself still goes through bMalloc.
+int EngineSoundHeapAvailable43E910(int) {
+    return 0x7fffffff;
+}
+
 void bFreeMemory(void *memory) {
     free(memory);
 }
