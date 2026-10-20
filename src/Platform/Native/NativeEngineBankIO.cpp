@@ -67,8 +67,9 @@ int EngineBankRead57B4A0(void *destination, const char *filename, int offset, in
     return 0; // The recovered caller ignores the original request identifier.
 }
 
-bool NativeEngineBankIODrain(char *error, int errorSize, int *firstSize) {
+bool NativeEngineBankIODrain(char *error, int errorSize, int *firstSize, int *secondSize) {
     if (firstSize) *firstSize = pending.empty() ? 0 : pending[0].size;
+    if (secondSize) *secondSize = pending.size() < 2 ? 0 : pending[1].size;
     for (size_t i = 0; i < pending.size(); ++i) {
         const BankRead request = pending[i];
         FILE *file = request.destination && request.offset >= 0 && request.size >= 0

@@ -96,12 +96,20 @@ def main():
     subprocess.run([str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe', '/nologo', '/c', '/Ox', '/Ob0', '/Z7',
                     '/EHsc', '/Fo' + str(obj.relative_to(ROOT)), os.path.relpath(args.source, ROOT)], cwd=ROOT, check=True,
                    stdout=subprocess.DEVNULL)
+    queries = ROOT / 'src/Speed/Indep/Src/Physics/PhysicsUpgradeQueries.cpp'
+    query_obj = BUILD / 'PhysicsUpgradeQueries.obj'
+    subprocess.run([str(ROOT / 'build/tools/wibo'), 'build/compilers/Win32/7.1/cl.exe', '/nologo', '/c', '/Ox', '/Ob0', '/Z7',
+                    '/EHsc', '/Fo' + str(query_obj.relative_to(ROOT)), str(queries.relative_to(ROOT))], cwd=ROOT, check=True,
+                   stdout=subprocess.DEVNULL)
+    objects = [obj, query_obj]
+    defined = {s['name'] for o in objects for s in read_object(o)['symbols'].values() if s['section'] > 0}
     externals = {}
-    for s in read_object(obj)['symbols'].values():
-        if s['section'] != 0 or s['storage'] != 2: continue
-        match = [SHARED[s['name']]] if s['name'] in SHARED else [a for p, a in SHARED.items() if p.startswith('?') and s['name'].startswith(p)]
-        assert len(match) == 1, ('unexpected external', s['name']); externals[s['name']] = match[0]
-    linked = link_objects([obj], externals)
+    for o in objects:
+        for s in read_object(o)['symbols'].values():
+            if s['section'] != 0 or s['storage'] != 2 or s['name'] in defined: continue
+            match = [SHARED[s['name']]] if s['name'] in SHARED else [a for p, a in SHARED.items() if p.startswith('?') and s['name'].startswith(p)]
+            assert len(match) == 1, ('unexpected external', s['name']); externals[s['name']] = match[0]
+    linked = link_objects(objects, externals)
     entries = {n: next(a for s, a in linked['exports'].items() if s.startswith(p)) for n, (p, _, _, _) in TARGETS.items()}
     recovered = [(int(f['address'], 16), int(f['address'], 16) + f['size']) for f in manifest['functions'].values()]
     stub_sites = set(STUB_CODE) | {a for a, _, _ in SLOT_STUBS.values()}

@@ -32,14 +32,15 @@ MAX_UNDERRUN_FRACTION = 0.01
 COUNTERS = re.compile(r'ug2demo: audio (\d+) callbacks, (\d+) packets released, (\d+) underrun frames')
 
 
-def run_demo(game, frames, gin, raw_path, log_path):
+def run_demo(game, frames, gin, raw_path, log_path, car):
     env = dict(os.environ)
     for key in ('DISPLAY', 'WAYLAND_DISPLAY'):
         env.pop(key, None)
     env.update(SDL_VIDEODRIVER='offscreen', LIBGL_ALWAYS_SOFTWARE='1', SDL_AUDIODRIVER='disk',
                SDL_DISKAUDIOFILE=str(raw_path), UG2_ENGINE_LOG=str(log_path))
-    command = [str(ROOT / 'build/native/ug2demo'), '--game', game, '--car', 'SKYLINE', '--scripted',
-               '--frames', str(frames), '--engine-gin', gin, '--no-hud', '--width', '640', '--height', '360']
+    command = [str(ROOT / 'build/native/ug2demo'), '--game', game, '--car', car, '--scripted',
+               '--frames', str(frames), '--no-hud', '--width', '640', '--height', '360']
+    if gin: command += ['--engine-gin', gin]
     result = subprocess.run(command, cwd=ROOT, env=env, capture_output=True, text=True, timeout=900)
     (OUT / 'engine-smoke-demo.log').write_text(result.stdout + result.stderr)
     return result
@@ -106,7 +107,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('--game', default=os.environ.get('UG2_DIR', ''), help='game directory (default: $UG2_DIR)')
     parser.add_argument('--frames', type=int, default=600)
-    parser.add_argument('--gin', default='GIN_Nissan_Skyline.gin')
+    parser.add_argument('--gin', default=None, help='explicit one-bank override; default uses recovered car selection')
+    parser.add_argument('--car', default='SKYLINE')
     parser.add_argument('--reuse', action='store_true', help='analyse the existing output without running the demo')
     args = parser.parse_args()
     if not args.game:
@@ -117,7 +119,7 @@ def main():
     if not args.reuse:
         for path in (raw_path, log_path):
             path.unlink(missing_ok=True)
-        result = run_demo(args.game, args.frames, args.gin, raw_path, log_path)
+        result = run_demo(args.game, args.frames, args.gin, raw_path, log_path, args.car)
         counters = COUNTERS.search(result.stdout + result.stderr)
         if result.returncode != 0 or counters is None:
             raise SystemExit('demo failed (exit %d)\n%s' % (result.returncode, result.stderr[-2000:]))

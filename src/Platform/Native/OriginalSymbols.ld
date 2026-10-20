@@ -1028,3 +1028,7 @@ cameraShakeDisabled890108 = 0x890108;
 engineBankRecords82B098 = 0x82b098;
 engineBankDirectory7ED164 = 0x7ed164;
 engineParameterMode850078 = 0x850078;
+
+engineSoundPrimary7F0DE0 = 0x7f0de0;
+engineSoundSecondary7F1AA8 = 0x7f1aa8;
+engineSoundChoices7F2230 = 0x7f2230;

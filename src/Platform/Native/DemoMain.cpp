@@ -341,7 +341,7 @@ int main(int argc, char **argv) {
     int cameraOption = 3;       // profile drive camera option: 0 bumper, 1 hood, 2 close, 3 far, 4 super far
     int pauseAt = -1;           // scripted capture: open the pause menu at this frame
     const char *pauseKeys = ""; // scripted L/R/A/B/U/D/S, C=Controls, K=capture Z, M=mouse primary binding
-    const char *engineGin = "GIN_Nissan_Skyline.gin"; // SOUND/ENGINE file of the engine sound (per-car choice not recovered)
+    const char *engineGin = 0; // optional one-bank override; default uses recovered participant selection
     bool noAudio = false;       // no audio device: the engine sound is skipped and the demo runs silent
     for (int i = 1; i < argc; ++i) {
         if (!strcmp(argv[i], "--game") && i + 1 < argc) game = argv[++i];
@@ -412,7 +412,7 @@ int main(int argc, char **argv) {
     NativeEngineSound engineSound;
     bool haveEngine = false;
     if (NativeAudioIsOpen()) {
-        haveEngine = engineSound.Load(game, engineGin, error, sizeof(error));
+        haveEngine = engineSound.Load(game, vehicle.owner->context14, engineGin, error, sizeof(error));
         if (!haveEngine) fprintf(stderr, "ug2demo: %s; engine sound disabled\n", error);
         else if (!engineSound.Started()) fprintf(stderr, "ug2demo: engine sound did not start; running silent\n");
     }

@@ -701,7 +701,11 @@ keyboard/mouse/controller UI actions while accepting the scripted input.
 ## Engine sound
 
 The demo plays the engine through the recovered Ginsu synthesizer when an audio device is
-open. It reads `<game>/SOUND/ENGINE/<file>` and feeds the speed of the car each frame.
+open. Recovered participant selection chooses one or two files under
+`<game>/SOUND/ENGINE` from the car type and upgrades. Recovered construction,
+binding, bank loading and setup initialize the slots. The frame scaffold still
+feeds engine RPM directly to slot 0; the original controller/gain integration
+remains open, and a two-bank secondary slot stays at its setup frequency.
 
 ```sh
 build/native/ug2demo --game "$UG2_DIR" --car SKYLINE                       # engine sound on
@@ -710,8 +714,9 @@ build/native/ug2demo --game "$UG2_DIR" --no-audio                          # sil
 UG2_ENGINE_LOG=build/engine-rpm.log build/native/ug2demo --game "$UG2_DIR" # one line per frame
 ```
 
-- `--engine-gin` names a file in `SOUND/ENGINE`; the default is `GIN_Nissan_Skyline.gin`, which
-  matches the default `--car SKYLINE`. The per-car choice of the original is not recovered.
+- By default the recovered selector `0x4593b0` uses the participant car type and upgrades.
+  `--engine-gin` explicitly overrides its primary filename and forces one-bank mode.
+  See [selection evidence and remaining seams](pc-ginsu.md#per-car-engine-record-selection-2026-10-20).
 - `--no-audio` skips the device. Without a device (no audio driver, or SDL refuses it) the
   demo prints a message and runs silent. The engine sound is not created then.
 - `UG2_ENGINE_LOG` writes a header `# audio_start_ticks N` (the device timeline) and one line
@@ -723,6 +728,7 @@ Headless check with SDL's disk driver, the scripted throttle and no display:
 
 ```sh
 build/venv/bin/python tools/smoke_native_engine_audio.py --game "$UG2_DIR" --frames 600
+build/venv/bin/python tools/smoke_native_engine_audio.py --game "$UG2_DIR" --frames 600 --car 350Z
 ```
 
 It writes `build/analysis/ginsu/engine.raw` (S16 stereo, 44100 Hz) and checks that the output

@@ -3,5 +3,5 @@
 // Demo file-I/O backend for the recovered bank loader. Requests copy their
 // paths and remain pending until Drain; this is not the original stream scheduler.
 void NativeEngineBankIOBegin(const char *gameDirectory);
-bool NativeEngineBankIODrain(char *error, int errorSize, int *firstSize = 0);
+bool NativeEngineBankIODrain(char *error, int errorSize, int *firstSize = 0, int *secondSize = 0);
 #endif

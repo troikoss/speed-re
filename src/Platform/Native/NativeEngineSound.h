@@ -1,30 +1,32 @@
-// Platform scaffolding for native engine playback. Recovered construction, bank loading and slot setup
-// run over a temporary car record supplied from --engine-gin. The original car-record producer, mode/index
-// selection and controller integration remain open; frames still feed RPM directly to Ginsu. Native file I/O,
-// device output and cleanup remain backend seams. See docs/pc-ginsu.md.
+// Native adapter around recovered car selection, binding, bank loading and engine setup.
+// Default records come from the participant car type and upgrade state; --engine-gin is an
+// explicit one-bank override. Per-frame controller integration and cleanup remain seams.
+// Both original setup slots are retained, but only slot 0 receives the direct-RPM scaffold.
 #ifndef UG2_NATIVE_ENGINE_SOUND_H
 #define UG2_NATIVE_ENGINE_SOUND_H
 
 #include <stdio.h>
 #include "../../Speed/Indep/Src/EAXSound/Ginsu/Ginsu.h"
 
+struct MoverContext;
+
 class NativeEngineSound {
 public:
     NativeEngineSound();
     ~NativeEngineSound();
-    // Reads <gameDirectory>/SOUND/ENGINE/<ginName>, calls recovered construction 0x473d30, bank loading 0x465c80 and setup 0x47d740, and starts it at the
-    // gin's minimum frequency. Returns false with a message in error when the file is missing or invalid.
-    bool Load(const char *gameDirectory, const char *ginName, char *error, int errorSize);
+    // Uses participant state through selection 0x4593b0, or the explicit filename override,
+    // then construction, binding, bank loading and setup. Missing/invalid banks report an error.
+    bool Load(const char *gameDirectory, MoverContext *context, const char *ginOverride, char *error, int errorSize);
     // One frame of the engine controller: UpdateFrequency(rpm, 60.0f). 60.0 is the latency pushed by 0x473e60.
     void Update(float rpm, int frame);
     void Destroy();
     bool Started() const { return started_; }
 
 private:
-    unsigned char *gin_;
-    GinsuSynthData *data_;
-    GinsuSynthesis *synth_;
-    void *memblock_;
+    unsigned char *gin_[2];
+    GinsuSynthData *data_[2];
+    GinsuSynthesis *synth_[2];
+    void *memblock_[2];
     bool started_;
     FILE *log_;  // UG2_ENGINE_LOG: one line per frame, "ticks frame rpm"
 };

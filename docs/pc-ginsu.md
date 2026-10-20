@@ -126,15 +126,18 @@ twice on the main thread and once inside the audio callback, and completed 27 ca
 300 ms without deadlock. The demo exercises the same path: every released packet nests
 `SNDSYS_entercritical` inside the callback.
 
-`NativeEngineSound.cpp` calls recovered construction `0x473d30`, bank loading
-`0x465c80` with queued native file I/O, and setup `0x47d740`, then calls
-`UpdateFrequency(rpm, 60.0f)` once per frame. The default gin is
-`GIN_Nissan_Skyline.gin` (`--engine-gin` chooses another file). The per-car
-record producer is not recovered. Loading and setup temporarily receive a
-native EAXSound bank view, bank index 0 and car mode 0; the recovered constructor
-supplies the fresh slots. The prior audio object is restored before returning.
-The [bank-loading checkpoint](#engine-bank-loading-and-state-binding-2026-10-20)
-describes the remaining input and file-backend seams. The
+`NativeEngineSound.cpp` runs recovered car-state construction `0x479660` and
+selection `0x4593b0` from the native participant, then engine construction
+`0x473d30`, state binding `0x463500`, bank loading `0x465c80` with queued native
+file I/O, and setup `0x47d740`. The selected car type and upgrade state now
+choose the filename(s) and mode. `--engine-gin` explicitly overrides this with
+one bank. A temporary EAXSound view and manager ownership/index assignment
+remain native; the prior audio object is restored before returning. Both
+setup slots are retained and cleaned up. The per-frame scaffold still calls
+`UpdateFrequency(rpm, 60.0f)` only on slot 0; a mode-1 secondary slot remains at
+its setup frequency because original controllers/gains are not wired.
+See the [selection checkpoint](#per-car-engine-record-selection-2026-10-20).
+The
 recovered allocator wrapper `0x440820` calls the existing native `bMalloc` backend
 (`calloc`); native heap-capacity query `0x43e910` returns an unbounded capacity
 (`INT_MAX`) because this heap has no bWare partition budget. The game-side
@@ -919,3 +922,138 @@ Final full regression: 43 targets, 44,032 original/rebuilt comparisons
 retained their separately reported MSVC byte identity. Bank fixtures exercised
 zero/one/two queued reads in 200/654/170 cases, zero/one/two completions in
 480/499/45 cases, and count-pointer aliasing in 256 cases.
+
+## Per-car engine record selection (2026-10-20)
+
+`EngineSoundSelection.cpp` recovers car type mapping `0x459240` (203 bytes),
+car-state base construction `0x479660` (130 bytes), and participant selection
+`0x4593b0` (382 bytes). Original disassembly confirms that the latter is
+virtual slot `+0x28` in the base table `0x78baa8`; manager setup `0x476a80`
+passes a participant record to that slot. No direct caller xref was required
+to identify this indirect call. The three bodies and upgrade selected-byte
+query `0x599610` (20 bytes) are fingerprinted in `ginsu.json`. The already
+recovered upgrade level query `0x5995e0` (21 bytes) moved unchanged from
+`CarUpdate.cpp` to `PhysicsUpgradeQueries.cpp`, allowing both verifiers to
+compile and execute the same body in composition.
+
+Selection stores the participant at state `+0x74`, maps its setup car type at
+participant `+0x10` to sound row `+0x8c`, and reads upgrades at participant
+`+0x300`. Selected bytes at indices `0x18`, `0x13`, `0xf` choose state `+0x94`
+in that priority order (3, 2, 1, otherwise 0). Upgrade levels at indices
+4, 2, 8, 1 are queried in order, each clamped to 0..3 and stored at
+`+0x98`, `+0x9c`, `+0xa0`, `+0xa4`. The level query adds 0.5 before the original
+CRT truncation helper; the selection query tests one byte for nonzero.
+
+It copies `+0x94` to `+0x90`, selects a 12-byte choice record at
+`0x7f2230 + (4 * row + grade) * 12`, copies its first word to `+0x7c`, and
+selects the `0x4c`-byte primary record at `0x7f0de0`. If primary word `+0x10`
+is nonzero and global `0x850078` is not 4, it sets mode `+0x78` to 1 and
+selects the `0x34`-byte secondary record at `0x7f1aa8` using primary word
+`+0x14`. Otherwise mode is 0 and the secondary pointer is the table base.
+The remaining record fields stay offset-based. The original type mapping has
+explicit cases 0..30 except 28; 28 and unsigned values above 30 use row 18.
+These observed mapping outputs do not establish bounds for other consumers.
+
+Construction preserves dirty bytes outside its observed stores, installs raw
+vtable word `0x78baa8`, resets manager/index/kind fields, selects the default
+primary and choice table bases, and clears the two bytes at `+0xb4`/`+0xc0`
+without widening them. It leaves `+0x84`, `+0x74` and other uninitialized words
+untouched. Selection fills both record pointers before native loading.
+Native code calls recovered methods directly; retail vtable entries are data.
+
+The default native path now passes `vehicle.owner->context14` to this selector
+and the resulting state to recovered binding/loading/setup. It retains the
+selected mode and both slots. Manager allocation/ownership is still supplied
+by the native session (kind from participant, bank index 0, temporary audio
+view), and the participant itself is still produced by native race setup.
+The CLI override copies the selected primary record, changes its filename,
+and forces mode 0 as an explicit diagnostic option. It is no longer the
+default bank-choice algorithm. The native file backend reports both queued
+sizes so both headers can be validated before setup, and cleanup releases
+both players, data objects, packet buffers and banks.
+
+This wires selection, binding and loading, not the original per-frame sound
+controller. Slot 0 still receives direct engine RPM; a mode-1 secondary slot
+stays at its setup frequency with the current fixed middleware gain. Original
+accel/decel blending, volume/pan, control-state production, parameter consumers,
+manager pools, enabled game audio, collision and frontend/HUD audio remain
+open. A two-bank playback smoke does not establish those missing mechanics.
+
+The verifier executes the actual mapping, selected-byte and level queries
+inside selection. Fixtures span all explicit car mappings plus the default,
+every priority flag combination including non-binary true bytes, level clamp
+boundaries, dirty state bytes, both global modes and original constant-table
+records. One quarter of bank-load fixtures prepend actual car construction,
+selection, engine construction and binding, with only manager kind/index
+provided as a fixture. The full arena, selected globals, ordered calls,
+stack cleanup, return contracts, preserved registers and x87 state are
+compared. Finite levels are used here; exceptions and invalid conversion
+behavior are not established by these fixtures. Original immutable table data
+remains a mapped-image dependency, not recovered data-loader source.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 1024
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets CarSoundSelect,CarSoundIndex,CarStateConstruct,UpgradeSelected,UpgradeLevel,EngineBankLoad --cases 384 --mutation-checks --mutation-source selection --mutation-source upgrade_queries
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_car_update.py --cases 4096
+cmake --build build/native
+ctest --test-dir build/native -R engine_bank_io_native --output-on-failure
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/smoke_native_engine_audio.py --frames 600 --car SKYLINE
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/smoke_native_engine_audio.py --frames 600 --car 350Z
+```
+
+Focused comparison passed 2,304 cases across six targets, including 96
+composed bank loads. Native build and the asset-free I/O test passed. A
+600-frame SKYLINE run selected `GIN_Nissan_Skyline.gin`, mode 0, with 727
+packet releases, zero underruns, and pitch/RPM rank correlation 0.872. A
+600-frame 350Z run selected `GIN_G35_350ZX_Comp_v2_AB.gin` and
+`GIN_Infinit_G35_DCL.gin`, mode 1, with 1,656 releases, zero underruns, and
+correlation 0.546. The latter includes the secondary slot at its setup
+frequency and is not controller equivalence. Missing/overlong filename
+checks and a 30-frame no-audio run are checked separately.
+
+Next control-state lead (binary analysis only): registration record `0x7ed2e4`
+has packed word `0x00010060`, name `SFXCTL_HybridMotor`, and factory
+`0x4700f0`, which allocates `0x10c` bytes and calls constructor `0x45ce20`.
+Its table `0x789fe4` points at update `0x47c3d0` in slot `+0x14`.
+That update calls `0x45d0a0`, queries linked object `+0x6c` through virtual
+`+0x34`, and writes control frequency `+0xf8` using primary-record floats at
+`+0x1c`/`+0x20` before choosing `0x4701a0` or `0x470540` by the selected
+mode. It then calls `0x45d190`. Engine link method `0x4614e0` installs its
+`+0xc0` control pointer when a queried descriptor's bits 4..15 equal 6.
+These bodies are decompiled leads, not recovered/verified source or native
+integration. In particular the linked query's producer and control gains
+must be recovered before replacing the remaining direct-RPM update.
+
+HybridMotor dependency query `0x45d070` requests types 5, 3 and 4 in that
+order. Attachment method `0x470150` installs them at `+0x6c`, `+0x70` and
+`+0x74`, respectively, based on descriptor bits 4..15. Registration records
+identify them as `SFXCTL_Engine` (`0x7ed2c4`, factory `0x47bfd0`),
+`SFXCTL_Shifting` (`0x7ed2a4`, factory `0x46ebd0`), and `SFXCTL_AccelTrans`
+(`0x7ed2d4`, factory `0x46ffa0`). These remain analysis leads. Adjacent raw
+vtables must be bounded independently; following words are not assumed to be
+additional virtual slots of HybridMotor.
+
+Selection mutation checks rejected all 11 final mutants with comparison
+mismatches at 64 cases per target; no survivors or compile-only rejections.
+The two upgrade-query mutants were rejected at 384 cases per target. An
+initial threshold change from `> 3` to `> 2` was equivalent for integer levels
+and is excluded; the final clamp mutant uses `> 4`, which incorrectly retains
+level 4, and produced 18 mismatches. The affected car-update verifier passed
+40,960 comparisons (4,096 per each of ten targets) after the shared query move.
+Separate 30-frame native checks passed for a valid one-bank override on 350Z,
+a missing bank, an overlong path, and `--no-audio`.
+
+The linked `SFXCTL_Engine` factory `0x47bfd0` allocates `0x1f0` bytes and
+calls constructor `0x46f1b0`, installing table `0x789f70`. Its update is
+`0x47c010`; slots `+0x34`/`+0x38` point to the seven-byte queries
+`0x45c530`/`0x45c540`, which load floats at `+0x128`/`+0x130` into ST0.
+Their producers and the update's nested callees remain unrecovered; these
+observations do not justify substituting raw physics RPM for either query.
+
+Final full audio regression passed 49,152 original/rebuilt comparisons across
+48 targets (1,024 per target), zero failures. It includes 256 composed bank
+loads after recovered car construction, selection, engine construction and
+binding, plus 768 bank-load fixtures retaining direct input control for
+aliasing and boundary coverage. The two pre-existing value-query leaves
+retain their separate MSVC byte identity. No new byte-matching claim is made
+for this selection checkpoint.

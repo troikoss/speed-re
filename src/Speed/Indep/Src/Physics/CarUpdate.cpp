@@ -42,11 +42,6 @@ CarTicks *CarTicks::Construct(float seconds) {
     return this;
 }
 
-// Original 0x5995e0.
-int PhysicsUpgradeSelection::GetLevel(int index) {
-    return (int)(values0[index] + 0.5f);
-}
-
 // Original 0x5fc050: contact state at car +0x38 from the collision body's event
 // count. State 1 returns to 0 once no events have been seen for 0.1 s.
 void MoverModeOwner::UpdateContactState() {

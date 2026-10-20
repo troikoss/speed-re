@@ -215,6 +215,31 @@
       "address": "0x461560",
       "size": 12,
       "sha256": "a45df5258a651f702fe88b123c1cd32bd439c1dbe47159168f280dc337fbc978"
+    },
+    "CarSoundSelect": {
+      "address": "0x4593b0",
+      "size": 382,
+      "sha256": "19d562f2c2657e6eea48403a296a2d597647c4dc0eef21c60b78c6d90e48fb51"
+    },
+    "CarSoundIndex": {
+      "address": "0x459240",
+      "size": 203,
+      "sha256": "74be1107eac688e479a684c1bb7e15c16ae60319901437b7ec5863fc8f37da2a"
+    },
+    "CarStateConstruct": {
+      "address": "0x479660",
+      "size": 130,
+      "sha256": "6f7884032c471b91f68665bae07062be396832239f979c5f39fc145bfdaa2b5c"
+    },
+    "UpgradeSelected": {
+      "address": "0x599610",
+      "size": 20,
+      "sha256": "b67aa4873db865242f08433955e731a24fc0fe93b3393961bc92cd33e8a8c8c4"
+    },
+    "UpgradeLevel": {
+      "address": "0x5995e0",
+      "size": 21,
+      "sha256": "d20ca2f60c8a5af98aacb5502dd285a2c3601e0451c55ddaf9ca6cc7f36d856d"
     }
   }
 }

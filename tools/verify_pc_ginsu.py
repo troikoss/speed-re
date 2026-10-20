@@ -42,6 +42,8 @@ SOURCE_DIR = 'src/Speed/Indep/Src/EAXSound/Ginsu'
 SOURCES = {'data': SOURCE_DIR + '/GinsuData.cpp', 'synth': SOURCE_DIR + '/GinsuSynth.cpp',
            'setup': SOURCE_DIR + '/EngineSoundSetup.cpp',
            'construction': SOURCE_DIR + '/EngineSoundConstruct.cpp',
+           'selection': SOURCE_DIR + '/EngineSoundSelection.cpp',
+           'upgrade_queries': 'src/Speed/Indep/Src/Physics/PhysicsUpgradeQueries.cpp',
            'banks': SOURCE_DIR + '/EngineSoundBanks.cpp',
            'bank_path': 'src/Speed/Indep/Libs/bWare/StringConcat.cpp',
            'controller': SOURCE_DIR + '/EngineSoundController.cpp',
@@ -81,6 +83,11 @@ GIN_MAGIC = b'Gnsu2'
 # return kinds: 'al' (bool), 'eax' (int), 'st0' (float left in ST0), None. argument kinds: 'w' raw word,
 # 'p' pointer (identity: arena address or the stack), ('c', n) pointer whose n bytes are logged by value.
 ROUTINES = {
+    'CarSoundSelect': (0x4593b0, '?Select4593B0@EngineSoundCar@', 4, None, 'arena', ['p']),
+    'CarSoundIndex': (0x459240, '?EngineSoundCarIndex459240@', 0, 'eax', None, ['w']),
+    'CarStateConstruct': (0x479660, '?Construct479660@EngineSoundCar@', 0, 'eax', 'arena', []),
+    'UpgradeSelected': (0x599610, '?IsSelected599610@PhysicsUpgradeSelection@', 4, 'al', 'arena', ['w']),
+    'UpgradeLevel': (0x5995e0, '?GetLevel@PhysicsUpgradeSelection@', 4, 'eax', 'arena', ['w']),
     'EngineBankLoad': (0x465c80, '?LoadBanks465C80@EngineSound@', 4, None, 'arena', ['p']),
     'EngineStateBind': (0x463500, '?Bind463500@EngineSound@', 4, None, 'arena', ['p']),
     'EngineBankPath': (0x43dda0, '_bStringConcat43DDA0', 0, None, None, ['p', 'z', 'z']),
@@ -161,7 +168,7 @@ STUB = {'BankFileSize': STUBS + 0x150, 'BankRead': STUBS + 0x160, 'ParameterRegi
 # SNDplaysetdef 0x721a6b..0x721aae (both end in RET and call nothing).
 PURE_RANGES = ((0x75bed4, 0x75bf49), (0x72423e, 0x72428b), (0x721a6b, 0x721aae))
 # Retail globals read by the recovered code, by MSVC symbol prefix; __fltused is a null symbol.
-SHARED = {'?engineBankRecords82B098@': 0x82b098, '?engineBankDirectory7ED164@': 0x7ed164, '?engineSoundConstructionValues82AF90@': 0x82af90, '?engineSoundConstructionValue7ED440@': 0x7ed440, '?engineParameterAllocator8B4F3C@': 0x8b4f3c,
+SHARED = {'?engineSoundPrimary7F0DE0@': 0x7f0de0, '?engineSoundSecondary7F1AA8@': 0x7f1aa8, '?engineSoundChoices7F2230@': 0x7f2230, '?engineBankRecords82B098@': 0x82b098, '?engineBankDirectory7ED164@': 0x7ed164, '?engineSoundConstructionValues82AF90@': 0x82af90, '?engineSoundConstructionValue7ED440@': 0x7ed440, '?engineParameterAllocator8B4F3C@': 0x8b4f3c,
           '?engineParameterRegistry82C538@': 0x82c538, '?engineParameterDescriptor7EDE18@': 0x7ede18,
           '?engineParameterMode850078@': 0x850078, '___CxxFrameHandler': 0x75bfd2, '__except_list': 0, '?engineSoundMutex8B4F38@': 0x8b4f38, '?engineSoundValue82B070@': 0x82b070, '?engineSoundValue82B880@': 0x82b880,
           '?engineSoundScale78AF84@': 0x78af84, '?engineSoundScale78A1C8@': 0x78a1c8, '?audioEnabled7FAAA8@': 0x7faaa8, '?audioObject82BA30@': 0x82ba30, '?engineSoundValue82A998@': 0x82a998, '?engineSoundValue82B078@': 0x82b078,
@@ -174,10 +181,11 @@ SHARED = {'?engineBankRecords82B098@': 0x82b098, '?engineBankDirectory7ED164@': 
           '?ginsuStepTable7ED950@': 0x7ed950, '__fltused': 0}
 # Retail addresses of the E branch (fz1 == fz2) and of the SampleToCycle found path (0x466c2f).
 E_BRANCH_HOOK, FOUND_HOOK = 0x466e98, 0x466c2f
-TARGETS = ('EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
+TARGETS = ('CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
            'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt',
            'PacketReleaseCallback', 'SynthesisConstruct', 'SynthesisDestruct', 'StartSynthesis')
 LIMITATIONS = [
+    'car sound selection: original constant tables are used on both sides; flags and upgrade levels are actual recovered queries, with the original CRT conversion helper; tested car types cover 0..30 and the default arm, not exhaustive 32-bit values; the source participant setup remains supplied by native race scaffolding',
     'bank loading: file size and queued reads are scripted; actual completion callbacks execute after return for a selected queue prefix; filesystem/queue implementation equivalence is not claimed; record indices 0..2 (including count aliasing record 0) and bank indices 0..1 are fixtures, not inferred valid bounds; filenames fit the original 64-byte local buffer',
     'engine initialization: normal returns and FS chain restoration are checked; exceptions/unwind are excluded; allocator and registry are scripted boundaries, allocation failure retains the original null dereference and is not exercised; the recovered setup and final dispatcher-value query execute in composition',
     'engine value queries: standalone table indices 0..16 are fixture positions, not an established table bound; controller fixtures alternate original query bodies with scripted callbacks; record production and enabled native audio integration remain open',
@@ -366,7 +374,7 @@ def fx_state(uc):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--compiler', choices=('msvc', 'clang-cl'), default='msvc')
-    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, construction, controller, caller, dispatch, values, initialize, lifecycle, audio, banks, bank_path)')
+    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, construction, controller, caller, dispatch, values, initialize, lifecycle, audio, banks, bank_path, selection, upgrade_queries)')
     parser.add_argument('--clang-flag', action='append', default=[], help='extra clang option (via /clang:)')
     parser.add_argument('--cases', type=int, default=1024)
     parser.add_argument('--targets', default='', help='comma separated subset of targets')
@@ -553,6 +561,20 @@ def main():
             uc.reg_write(xc.UC_X86_REG_FPTAG, 0xffff)
             for reg, value in zip(PRESERVED, PRESERVED_VALUES): uc.reg_write(reg, value)
             try:
+                if preselect:
+                    for target, receiver, arguments in (
+                            ('CarStateConstruct', CAR, []),
+                            ('CarSoundSelect', CAR, [ARENA + 0x3a000]),
+                            ('EngineConstruct', SETUP, []),
+                            ('EngineStateBind', SETUP, [CAR])):
+                        # Manager fields remain a fixture, as in the native adapter.
+                        if target == 'EngineStateBind': uc.mem_write(CAR + 0x14, struct.pack('<i', 1))
+                        uc.mem_write(STACK, struct.pack('<I', STOP) + b''.join(struct.pack('<I', w) for w in arguments))
+                        uc.reg_write(xc.UC_X86_REG_ESP, STACK); uc.reg_write(xc.UC_X86_REG_ECX, receiver)
+                        uc.emu_start(rebuilt_entry[target] if rebuilt else retail_entry[target], STOP + 7, count=MAX_INSTRUCTIONS)
+                        assert uc.reg_read(xc.UC_X86_REG_ESP) == STACK + 4 + ROUTINES[target][2], ('state or call order mismatch', 'selection composition stack', target)
+                    uc.mem_write(STACK, struct.pack('<I', STOP) + b''.join(struct.pack('<I', w & 0xffffffff) for w in words))
+                    uc.reg_write(xc.UC_X86_REG_ESP, STACK); uc.reg_write(xc.UC_X86_REG_ECX, this)
                 if preconstruct:
                     uc.emu_start(rebuilt_entry['EngineConstruct'] if rebuilt else retail_entry['EngineConstruct'], STOP + 7, count=MAX_INSTRUCTIONS)
                     assert uc.reg_read(xc.UC_X86_REG_ESP) == STACK + 4 and uc.reg_read(xc.UC_X86_REG_EAX) == SETUP, ('state or call order mismatch', 'constructor return', rebuilt)
@@ -731,6 +753,15 @@ def main():
             callback_writes['ParameterCallback'] = [changes, {}, {}, {}]
         return dispatcher
 
+    def seed_selection(memory, trial):
+        context = ARENA + 0x3a000
+        pk(memory, context + 0x10, '<I', trial % 36 if trial % 36 < 31 else rng.getrandbits(32))
+        for bit, index in enumerate((0x18, 0x13, 0xf)):
+            memory[context - ARENA + 0x350 + index] = rng.choice((1, 0x80, 0xff)) if (trial // 36) & (1 << bit) else 0
+        for index in (4, 2, 8, 1):
+            pk(memory, context + 0x300 + index * 4, '<f', rng.choice((-100., -0.51, -0.5, 0., 0.49, 0.5, 1.5, 2.49, 2.5, 3., 3.5, 100.)))
+        return context
+
     for trial in range(args.cases):
         precision = rng.choice(PRECISIONS)
         gin = gins[rng.randrange(len(gins))]
@@ -741,8 +772,25 @@ def main():
             fixture_globals.clear()
             fixture_code_fields.clear()
             preconstruct = False
+            preselect = False
             complete_reads = 0
-            if name == 'EngineBankLoad':
+            if name == 'CarSoundSelect':
+                context = seed_selection(memory, trial)
+                fixture_globals[0x850078] = struct.pack('<i', rng.choice((-1, 0, 4, 5)))
+                words, this = [context], CAR
+            elif name == 'CarSoundIndex':
+                words, this = [trial % 36 if trial % 36 < 31 else rng.getrandbits(32)], 0
+            elif name == 'CarStateConstruct':
+                words, this = [], CAR
+            elif name == 'UpgradeSelected':
+                index = rng.randrange(68)
+                memory[CAR - ARENA + 0x50 + index] = rng.choice((0, 0, 1, 0x80, 0xff))
+                words, this = [index], CAR
+            elif name == 'UpgradeLevel':
+                index = rng.randrange(10)
+                pk(memory, CAR + index * 4, '<f', rng.choice((-100., -0.51, -0.5, 0., 0.49, 0.5, 1.5, 2.5, 3., 3.5, 100.)))
+                words, this = [index], CAR
+            elif name == 'EngineBankLoad':
                 primary, secondary = ARENA + 0x3b500, ARENA + 0x3b540
                 directory, name0, name1 = ARENA + 0x3b600, ARENA + 0x3b640, ARENA + 0x3b680
                 for address, body in ((directory, b'sound\\Engine\\\0'), (name0, b'GIN_primary.gin\0'), (name1, b'GIN_secondary.gin\0')):
@@ -780,6 +828,11 @@ def main():
                 complete_reads = rng.randrange(3)
                 words, this = [count_ptr], SETUP
                 note('bank-count-alias' if alias_count else 'bank-count-arena')
+                preselect = trial % 4 == 3
+                if preselect:
+                    seed_selection(memory, trial)
+                    seed_construction_globals()
+                note('bank-selected-input' if preselect else 'bank-fixture-input')
             elif name == 'EngineStateBind':
                 pk(memory, CAR + 0x14, '<i', rng.choice((-1, 0, 1, 2, 3, rng.randrange(-2**31,2**31))))
                 words, this = [CAR], SETUP
@@ -1185,6 +1238,9 @@ def main():
                 else:
                     chosen = [key for key in ('ManagerAC', 'ManagerB0', 'ManagerB4') if key in names]
                     note('create-called-' + (chosen[0] if chosen else 'none'))
+            if name == 'CarSoundSelect':
+                note('selection-grade-%d' % struct.unpack_from('<i', a['arena'], CAR - ARENA + 0x94)[0])
+                note('selection-mode-%d' % struct.unpack_from('<i', a['arena'], CAR - ARENA + 0x78)[0])
             if name == 'EngineBankLoad':
                 note('bank-reads-%d' % names.count('BankRead'))
                 note('bank-completions-%d' % (names.count('BankReadPrimary') + names.count('BankReadSecondary')))
@@ -1253,7 +1309,24 @@ def main():
         def bank_mutation(before, after):
             assert before in bank_source, before
             return ('banks', bank_source, bank_source.replace(before, after))
+        selection_source = (ROOT / SOURCES['selection']).read_text()
+        def selection_mutation(before, after):
+            assert before in selection_source, before
+            return ('selection', selection_source, selection_source.replace(before, after))
         mutations = {
+            'selection-car-map': selection_mutation('case 10: return 9;', 'case 10: return 10;'),
+            'selection-default': selection_mutation('default: return 18;', 'default: return 0;'),
+            'selection-priority': selection_mutation('IsSelected599610(0x18)', 'IsSelected599610(0xf)'),
+            'selection-level-index': selection_mutation('GetLevel(4)', 'GetLevel(3)'),
+            'selection-level-clamp': selection_mutation('level > 3', 'level > 4'),
+            'selection-grade-copy': selection_mutation('value90 = value94;', 'value90 = 0;'),
+            'selection-choice-stride': selection_mutation('value94 + value8C * 4', 'value94 + value8C * 3'),
+            'selection-mode-global': selection_mutation('engineParameterMode850078 != 4', 'engineParameterMode850078 == 4'),
+            'selection-secondary-index': selection_mutation('value80->value14]', 'value80->value10]'),
+            'selection-constructor-byte': selection_mutation('reinterpret_cast<unsigned char *>(this)[0xb4] = 0;', 'words[0xb4 / 4] = 0;'),
+            'selection-constructor-default': selection_mutation('value80 = engineSoundPrimary7F0DE0;', 'value80 = engineSoundPrimary7F0DE0 + 1;'),
+            'upgrade-selected-byte': ('upgrade_queries', 'selected50[index] != 0', 'selected50[index] == 1'),
+            'upgrade-level-rounding': ('upgrade_queries', 'values0[index] + 0.5f', 'values0[index] + 1.0f'),
             'bank-mode': bank_mutation('engineParameterMode850078 == 4', 'engineParameterMode850078 != 4'),
             'bank-alternate-id': bank_mutation('value8 = car9C->value80->value4;', 'value8 = car9C->value80->value0;'),
             'bank-counter': bank_mutation('*count = (int)((unsigned int)*count + 1u);', ''),

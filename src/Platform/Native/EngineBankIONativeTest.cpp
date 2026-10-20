@@ -34,8 +34,8 @@ int main() {
     EngineBankRead57B4A0(second, path, 0, 3, Complete, &b);
     memset(path, 'X', sizeof(path) - 1); // pending jobs must own their filenames
     if (calls || first[0] != 0x55 || second[0] != 0x55) return 5;
-    char error[256]; int size = -1;
-    if (!NativeEngineBankIODrain(error, sizeof(error), &size) || size != 4 || calls != 2 || failed) return 6;
+    char error[256]; int size = -1, secondSize = -1;
+    if (!NativeEngineBankIODrain(error, sizeof(error), &size, &secondSize) || size != 4 || secondSize != 3 || calls != 2 || failed) return 6;
     if (EngineBankFileSize57D900("sound\\engine\\missing.gin") != -1) return 7;
     EngineBankRead57B4A0(0, "sound\\engine\\test.gin", 0, 10, Complete, &a);
     if (NativeEngineBankIODrain(error, sizeof(error)) || calls != 2) return 8;

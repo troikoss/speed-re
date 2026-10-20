@@ -10,21 +10,40 @@ struct EngineSoundCarValue {
     int value4;
     int value8;
     const char *fileC;
+    int value10;
+    int value14;
+    char unidentified18[0x34];
 };
 
 struct EngineSoundCarValue84 {
     const char *file0;
+    char unidentified4[0x30];
 };
+
+struct MoverContext;
+struct EngineSoundChoice;
 
 struct EngineSoundCar {
     char unidentified0[0x10];
     int bankIndex10;
     int kind14;
-    char unidentified18[0x60];
+    char unidentified18[0x5c];
+    MoverContext *context74;
     int mode78;
-    char unidentified7C[4];
+    int value7C;
     EngineSoundCarValue *value80;
     EngineSoundCarValue84 *value84;
+    EngineSoundChoice *value88;
+    int value8C;
+    int value90;
+    int value94;
+    int value98;
+    int value9C;
+    int valueA0;
+    int valueA4;
+    char unidentifiedA8[0x24];
+    EngineSoundCar *Construct479660();
+    void Select4593B0(MoverContext *context);
 };
 
 struct EngineSoundSlot {

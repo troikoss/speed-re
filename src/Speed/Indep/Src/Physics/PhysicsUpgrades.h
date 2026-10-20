@@ -24,6 +24,7 @@ struct PhysicsUpgradeSelection {
     int values28[10]; // 0x5997e0 tests these as integer flags, not floats.
     unsigned char selected50[68];
     int GetLevel(int index); // 0x5995e0
+    bool IsSelected599610(int index);
     int SetItem(PhysicsUpgradeItem *item, char selected, char recursive); // 0x5a6320
     int SetIndex(int index, char selected, char recursive); // 0x599680
     int SetGroup(PhysicsUpgradeGroup *group, char selected); // 0x5a6400
