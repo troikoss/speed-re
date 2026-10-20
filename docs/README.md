@@ -2,6 +2,7 @@
 
 ## Scope and development
 
+- [64-bit and ARM64 porting plan](ARM64_PORTING_PLAN.md): branch ownership, Linux x86-64 first, Linux ARM64, then Android, with evidence gates and current support limits.
 - [Decompilation scope](DECOMPILATION_SCOPE.md): the SPEED engine objective, the UG2 first-target milestone and required completion evidence.
 - [Repository guidelines](../AGENTS.md): contributor workflow, build commands, and recovery rules.
 - [Native modding](../modding/README.md): optional C SDK, native plugins, widescreen HUD/FOV, and physics-provider seams.

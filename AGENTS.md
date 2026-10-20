@@ -1,5 +1,30 @@
 # Repository Guidelines
 
+## Branch Mission: `x64`
+
+This branch owns the shared 64-bit portability layer and the first playable
+Linux x86-64 demo milestone. Follow `docs/ARM64_PORTING_PLAN.md`. Its downstream
+`arm64` branch consumes shared fixes for Linux AArch64 first, then Android.
+The immediate target is current-demo parity, including the common audio baseline,
+not complete game recovery. Runtime port implementation is still pending.
+
+- Build one reusable address/layout/allocation/callback layer for both 64-bit
+  architectures. Keep original pointer fields four bytes and retain all observed
+  size/offset assertions; never truncate host pointers or disable checks to build.
+- Separate original records/code tokens from host objects and typed callbacks.
+  Do not depend on low host mappings, native C++ vtable layout, or x86 calling
+  conventions for portable records. Preserve original algorithms and call order.
+- Preserve i386 builds and legacy original/rebuilt verification. Report byte
+  matching, bounded numeric behavior and platform integration separately.
+- Use measured numeric parity: preserve operation order and explicit conversions,
+  disable fast math/contraction, and investigate discrete outcome differences.
+  Do not silently loosen the acceptance limits in the porting plan.
+- Defer Android integration and new-architecture mod-loader support. Existing
+  i386 mod support remains. Keep portable scaffolding separate from recovered code.
+- Current build commands below are **i386 baseline commands**, not x86-64 support.
+  Add verified architecture-specific commands only after implementing the profiles;
+  planned profile names in the porting document are not existing CMake options.
+
 ## Objective and Recovery Rules
 
 The final objective is to reverse engineer EA Black Box's **SPEED** engine into verified, reproducibly buildable source. To keep the scope small, Need for Speed Underground 2 (UG2) PC v1.2 is the first target: it is the reference build for all current evidence, and complete UG2 recovery is the first milestone. A playable demo is an intermediate milestone. Follow `docs/DECOMPILATION_SCOPE.md` for completion evidence.
@@ -30,7 +55,7 @@ The `ghidra-mcp` server (tools named `mcp__ghidra-mcp__*`) gives live access to 
 - `docs/`: subsystem evidence, limitations, and demo instructions; start at `docs/README.md`.
 - Ignored `build/`, `orig/`, and `local/`: generated results and local dependencies. Assets come from the player's installation.
 
-## Build, Test, and Development Commands
+## Build, Test, and Development Commands (Current i386 Baseline)
 
 ```sh
 cmake -S . -B build/native
