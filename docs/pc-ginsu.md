@@ -208,7 +208,7 @@ Limitations (see the verifier's report for the full list):
   recovered. The native player applies no volume, so the controller's volume is absent.
 - The controllers `0x473e60` and `0x474030` are recovered and behaviorally checked,
   including the second slot's feed. Native integration remains open: the control-state
-  producer, virtual queries, parameter callback dispatch `0x735580`, the producer of the per-car gin table
+  producer, virtual queries, parameter callback registration/consumers, the producer of the per-car gin table
   at `0x82b884`, virtual gain/spatial queries and snd setters. The demo still feeds
   one synthesizer directly with engine RPM.
 - Not yet located in UG2: a stop or current-pitch routine of the synthesizer,
@@ -524,9 +524,10 @@ The two saved global values are captured before later virtual calls. The float
 return stays in ST0 until multiplication and truncation; adding a float store
 changes boundary results. If parameter word `+0` is nonzero, it becomes the
 receiver of middleware method `0x735580`, with the payload pointer at parameter
-`+4` as its single stack argument. The original callback-dispatch body is a
-separate mutex/callback-list routine and remains unrecovered here. Its body
-and native synchronization are not validated by this caller comparison.
+`+4` as its single stack argument. At this caller checkpoint it was a traced boundary. The subsequent
+[parameter-dispatch recovery](#parameter-dispatch-recovery-2026-10-20) below
+executes that body together with this caller and checks native synchronization
+separately.
 
 The extended verifier executes the caller together with the actual recovered
 one/two-slot controller and Ginsu frequency/cycle bodies. Virtual integer/float
@@ -567,3 +568,69 @@ at 64-bit x87 precision. The native build passed; playback smoke reported
 699 released packets, zero underrun frames and pitch/RPM Spearman correlation
 0.868. Native smoke still exercises the direct-RPM scaffold, not this caller's
 parameter/virtual/snd seams.
+
+
+## Parameter dispatch recovery (2026-10-20)
+
+`ParameterDispatch.cpp` recovers the complete 69-byte body at
+`0x735580..0x7355c4` (inclusive), pinned in `ginsu.json`. Live Ghidra
+instructions establish a dispatcher head at `+8`; each 16-byte node contains
+next at `+0`, callback at `+8`, and client data at `+0xc`. Node `+4` remains
+unidentified. The callback is cdecl with `(values, clientData)`; the dispatch
+method is thiscall with one stack argument and returns zero.
+
+The method waits indefinitely using the handle at `0x8b4f38` through
+WaitForSingleObject IAT `0x783218`. It reads the list head **after** waiting,
+calls every node and reads its next link **after** the callback. It then
+reloads the global handle and calls ReleaseMutex IAT `0x783250`, including
+for an empty list. Both OS results are ignored. These details are preserved;
+no registration, removal, callback meaning, or unknown node fields are inferred.
+
+The verifier now executes this body on both sides, also when reached from
+`0x474310`. Only the two OS imports and callback implementations are scripted.
+Fixtures cover zero through four nodes, a wait that changes the head,
+callbacks that change links, payload contents and the mutex handle, full-word
+client data and varied OS results. It compares call order, arguments and
+payload bytes, arena/globals, return, stack cleanup, preserved registers and
+x87 state. This is finite behavioral evidence; byte identity is not claimed.
+
+`NativeAudio.cpp` provides a separate recursive SDL mutex for these OS calls;
+it is created after successful device negotiation and destroyed after device
+close. Its backend supports the observed infinite wait only. It is separate
+from the packet player's device lock. `ug2audiodispatch_native_test` uses the
+recovered body with actual SDL synchronization and no assets or audio device:
+empty traversal, callback link mutation, nested dispatch and a blocked worker
+thread are checked. These tests do not establish Windows mutex equivalence
+beyond those exercised uses.
+
+The engine caller remains outside native playback. Callback registration and
+actual consumers, control-state production, per-car bank loading, virtual
+queries, snd setters, sound-object construction, frontend/HUD paths and the
+forced audio-disable flag remain open.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 1024
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets ParameterDispatch,EngineUpdate --cases 64 --mutation-checks --mutation-source dispatch
+cmake -S . -B build/native
+cmake --build build/native
+ctest --test-dir build/native -R audio_dispatch_native --output-on-failure
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_native_snd_helpers.py
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/smoke_native_engine_audio.py --frames 600
+```
+
+Native build and asset-free synchronization probe passed. Both snd defaults
+passed 256 byte-for-byte cases with zero mismatches. The 600-frame audio smoke
+produced 687 packet releases, zero underruns and pitch/RPM rank correlation
+0.885; playback still exercises the direct-RPM scaffold.
+
+All nine final dispatch mutants were rejected with state or call-order
+mismatches at 64 cases per target; none survived or failed merely to compile.
+They cover a missing wait, reading the head before waiting, caching the next
+link or mutex handle, wrong client data/payload, wrong timeout, missing release
+and wrong return.
+
+The final full suite passed 27,648 original/rebuilt comparisons (27 targets,
+1,024 cases each), with zero failures. Standalone dispatch traversed zero,
+one, two, three and four callbacks in 495/383/100/23/23 cases; the engine caller
+reached actual dispatch in 385 cases. Both 53-bit and 64-bit x87 precisions
+were exercised.

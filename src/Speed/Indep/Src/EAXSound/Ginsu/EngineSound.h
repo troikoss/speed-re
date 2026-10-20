@@ -45,9 +45,24 @@ struct EngineSoundControl {
     float frequencyF8;
 };
 
-struct EngineParameterDispatcher {
-    int Dispatch735580(void *values); // snd callback dispatch, not recovered
+struct EngineParameterCallback {
+    EngineParameterCallback *next0;
+    int value4;
+    void (__cdecl *callback8)(void *values, void *data);
+    void *dataC;
 };
+
+struct EngineParameterDispatcher {
+    int Dispatch735580(void *values);
+    char unidentified0[8];
+    EngineParameterCallback *first8;
+};
+
+UG2_CHECK_SIZE(EngineParameterCallback, 0x10);
+UG2_CHECK_OFFSET(EngineParameterDispatcher, first8, 8);
+extern void *engineSoundMutex8B4F38;
+unsigned int __stdcall EngineDispatchWait(void *mutex, unsigned int timeout);
+int __stdcall EngineDispatchRelease(void *mutex);
 
 struct EngineSoundParameters {
     EngineParameterDispatcher *dispatcher0;

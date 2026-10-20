@@ -130,6 +130,11 @@
       "address": "0x474310",
       "size": 658,
       "sha256": "378386cc5c1b256e686c9ea2c9d087b15d24607141dbf35af71a59f9d82ff504"
+    },
+    "ParameterDispatch": {
+      "address": "0x735580",
+      "size": 69,
+      "sha256": "5e3f7e8da82ff13ab9811bcb3bf95a9f234e69d2cf4ed62feb0780b0ceadd4b0"
     }
   }
 }

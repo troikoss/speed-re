@@ -157,6 +157,19 @@ void AudioCallback(void *userdata, Uint8 *stream, int length) {
 
 }  // namespace
 
+// Backend storage for the original callback-dispatch mutex at 0x8b4f38.
+// This is separate from the packet player's SDL device critical section.
+void *engineSoundMutex8B4F38 = 0;
+
+unsigned int __attribute__((stdcall)) EngineDispatchWait(void *mutex, unsigned int timeout) {
+    if (timeout != 0xffffffffu || !mutex) return 0xffffffffu;
+    return SDL_LockMutex(static_cast<SDL_mutex *>(mutex)) == 0 ? 0u : 0xffffffffu;
+}
+
+int __attribute__((stdcall)) EngineDispatchRelease(void *mutex) {
+    return mutex && SDL_UnlockMutex(static_cast<SDL_mutex *>(mutex)) == 0 ? 1 : 0;
+}
+
 bool NativeAudioOpen(bool enabled, char *error, int errorSize) {
     if (!enabled || g_device != 0) {
         return true;
@@ -184,6 +197,12 @@ bool NativeAudioOpen(bool enabled, char *error, int errorSize) {
         snprintf(error, errorSize, "audio device did not accept 44100 Hz stereo S16");
         return false;
     }
+    engineSoundMutex8B4F38 = SDL_CreateMutex();
+    if (!engineSoundMutex8B4F38) {
+        SDL_CloseAudioDevice(device);
+        snprintf(error, errorSize, "%s", SDL_GetError());
+        return false;
+    }
     g_device = device;
     g_openTicks = SDL_GetTicks();
     SDL_PauseAudioDevice(device, 0);
@@ -198,6 +217,10 @@ void NativeAudioClose(void) {
     if (g_device != 0) {
         SDL_CloseAudioDevice(g_device);
         g_device = 0;
+    }
+    if (engineSoundMutex8B4F38) {
+        SDL_DestroyMutex(static_cast<SDL_mutex *>(engineSoundMutex8B4F38));
+        engineSoundMutex8B4F38 = 0;
     }
     for (int i = 0; i < kChannels; ++i) {
         g_channels[i].allocated = false;

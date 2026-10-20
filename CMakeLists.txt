@@ -106,3 +106,16 @@ target_link_options(ug2fenggrid_native_test PRIVATE -m32 -no-pie)
 if(BUILD_TESTING)
     add_test(NAME feng_grid_native COMMAND ug2fenggrid_native_test)
 endif()
+
+# Recovered parameter callbacks through the native SDL mutex backend; no assets/device needed.
+add_executable(ug2audiodispatch_native_test src/Platform/Native/AudioDispatchNativeTest.cpp)
+target_compile_options(ug2audiodispatch_native_test PRIVATE ${UG2_ARCH_FLAGS} -O1 -g
+    -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+target_include_directories(ug2audiodispatch_native_test PRIVATE /usr/include/SDL2)
+target_link_directories(ug2audiodispatch_native_test PRIVATE /usr/lib/i386-linux-gnu)
+target_link_libraries(ug2audiodispatch_native_test -Wl,--start-group ug2native ug2recovered -Wl,--end-group -l:libSDL2-2.0.so.0)
+target_link_options(ug2audiodispatch_native_test PRIVATE -m32 -no-pie)
+if(BUILD_TESTING)
+    add_test(NAME audio_dispatch_native COMMAND ug2audiodispatch_native_test)
+    set_tests_properties(audio_dispatch_native PROPERTIES TIMEOUT 10)
+endif()
