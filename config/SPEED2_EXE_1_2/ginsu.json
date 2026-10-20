@@ -175,6 +175,21 @@
       "address": "0x735070",
       "size": 14,
       "sha256": "9e43b90cefe68881ab74182eb0f29aba43287ad0856260ce970242d769673a29"
+    },
+    "SoundBaseConstruct": {
+      "address": "0x45e350",
+      "size": 64,
+      "sha256": "7cca98e9492c34106b24f9bd9548d49f7145022d816c5a1bc76beb487316a104"
+    },
+    "EngineBaseConstruct": {
+      "address": "0x473bf0",
+      "size": 97,
+      "sha256": "3a6cfa32bc4c8905965ec3cdd39434fead8f78026e0796baa2981b4e1fb6718c"
+    },
+    "EngineConstruct": {
+      "address": "0x473d30",
+      "size": 84,
+      "sha256": "3a852537dd8012e45ad51b3036e4fa7550ca76f8f83b8365ce649463814fe238"
     }
   }
 }

@@ -1,5 +1,6 @@
 // Platform scaffolding for the engine sound (see NativeEngineSound.h). The recovered routines are the Ginsu ones;
-// setup is recovered; file choice, object/table construction, controller and heap backend remain scaffold.
+// setup and engine construction are recovered; file choice, car/table construction,
+// controller wiring and heap backend remain scaffold.
 #include "NativeEngineSound.h"
 #include "NativeAudio.h"
 #include "../../Speed/Indep/Src/Audio/AudioSystem.h"
@@ -57,16 +58,17 @@ bool NativeEngineSound::Load(const char *gameDirectory, const char *ginName, cha
         return false;
     }
 
-    // Scaffold until EAXSound's table loader and engine/car constructors are
-    // recovered: one selected gin, bank index 0, mode 0, and a fresh slot.
+    // Scaffold until EAXSound's table loader and car state are recovered:
+    // one selected gin, bank index 0 and mode 0. The original constructor
+    // supplies the engine fields and both fresh slots.
     // Only setup reads these temporary views; synthesis retains the allocated
     // data and packet memory, not either view. Restore the session audio object.
     Audio82B884 banks = {};
     banks.engineBanksDC[0] = gin_;
     EngineSoundCar car = {};
-    EngineSound engine = {};
+    EngineSound engine;
+    engine.Construct473D30();
     engine.car9C = &car;
-    engine.slotsCC[0].startResult14 = -1;
     Audio82B884 *previous = audio82B884;
     audio82B884 = &banks;
     engine.Setup47D740();

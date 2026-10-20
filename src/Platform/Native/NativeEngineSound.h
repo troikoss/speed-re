@@ -13,7 +13,7 @@ class NativeEngineSound {
 public:
     NativeEngineSound();
     ~NativeEngineSound();
-    // Reads <gameDirectory>/SOUND/ENGINE/<ginName>, calls the recovered setup 0x47d740 and starts it at the
+    // Reads <gameDirectory>/SOUND/ENGINE/<ginName>, calls recovered construction 0x473d30 and setup 0x47d740, and starts it at the
     // gin's minimum frequency. Returns false with a message in error when the file is missing or invalid.
     bool Load(const char *gameDirectory, const char *ginName, char *error, int errorSize);
     // One frame of the engine controller: UpdateFrequency(rpm, 60.0f). 60.0 is the latency pushed by 0x473e60.

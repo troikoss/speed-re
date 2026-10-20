@@ -18,7 +18,7 @@ Compared per case: the whole fixture arena (object, sample buffers and gin table
 EAX, or the x87 ST0 for float routines), ESP, EBX/ESI/EDI/EBP, the FXSAVE control word, the logical x87 stack
 (abridged tag, TOP and the ST(i) registers of the FXSAVE image) and the ordered event list.
 
-Documented limitations are listed in the report. Byte identity is not claimed."""
+Documented limitations are listed in the report. Byte matching for the two value-query leaves is reported separately."""
 
 import argparse
 import ctypes
@@ -41,6 +41,7 @@ BUILD = ROOT / 'build/analysis/ginsu'
 SOURCE_DIR = 'src/Speed/Indep/Src/EAXSound/Ginsu'
 SOURCES = {'data': SOURCE_DIR + '/GinsuData.cpp', 'synth': SOURCE_DIR + '/GinsuSynth.cpp',
            'setup': SOURCE_DIR + '/EngineSoundSetup.cpp',
+           'construction': SOURCE_DIR + '/EngineSoundConstruct.cpp',
            'controller': SOURCE_DIR + '/EngineSoundController.cpp',
            'caller': SOURCE_DIR + '/EngineSoundUpdate.cpp',
            'dispatch': SOURCE_DIR + '/ParameterDispatch.cpp',
@@ -78,6 +79,9 @@ GIN_MAGIC = b'Gnsu2'
 # return kinds: 'al' (bool), 'eax' (int), 'st0' (float left in ST0), None. argument kinds: 'w' raw word,
 # 'p' pointer (identity: arena address or the stack), ('c', n) pointer whose n bytes are logged by value.
 ROUTINES = {
+    'SoundBaseConstruct': (0x45e350, '?Construct45E350@EngineSound@', 0, 'eax', 'arena', []),
+    'EngineBaseConstruct': (0x473bf0, '?Construct473BF0@EngineSound@', 0, 'eax', 'arena', []),
+    'EngineConstruct': (0x473d30, '?Construct473D30@EngineSound@', 0, 'eax', 'arena', []),
     'EngineGain': (0x45e390, '?Value45E390@EngineSound@', 4, 'eax', 'arena', ['w']),
     'EngineValue': (0x45e3b0, '?Value45E3B0@EngineSound@', 4, 'eax', 'arena', ['w']),
     'EngineInitialize': (0x47d920, '?Initialize47D920@EngineSound@', 0, None, 'arena', []),
@@ -148,7 +152,7 @@ STUB = {'ParameterRegister': STUBS + 0x130, 'ParameterBind': STUBS + 0x140, 'Dis
 # SNDplaysetdef 0x721a6b..0x721aae (both end in RET and call nothing).
 PURE_RANGES = ((0x75bed4, 0x75bf49), (0x72423e, 0x72428b), (0x721a6b, 0x721aae))
 # Retail globals read by the recovered code, by MSVC symbol prefix; __fltused is a null symbol.
-SHARED = {'?engineParameterAllocator8B4F3C@': 0x8b4f3c,
+SHARED = {'?engineSoundConstructionValues82AF90@': 0x82af90, '?engineSoundConstructionValue7ED440@': 0x7ed440, '?engineParameterAllocator8B4F3C@': 0x8b4f3c,
           '?engineParameterRegistry82C538@': 0x82c538, '?engineParameterDescriptor7EDE18@': 0x7ede18,
           '?engineParameterMode850078@': 0x850078, '___CxxFrameHandler': 0x75bfd2, '__except_list': 0, '?engineSoundMutex8B4F38@': 0x8b4f38, '?engineSoundValue82B070@': 0x82b070, '?engineSoundValue82B880@': 0x82b880,
           '?engineSoundScale78AF84@': 0x78af84, '?engineSoundScale78A1C8@': 0x78a1c8, '?audioEnabled7FAAA8@': 0x7faaa8, '?audioObject82BA30@': 0x82ba30, '?engineSoundValue82A998@': 0x82a998, '?engineSoundValue82B078@': 0x82b078,
@@ -161,7 +165,7 @@ SHARED = {'?engineParameterAllocator8B4F3C@': 0x8b4f3c,
           '?ginsuStepTable7ED950@': 0x7ed950, '__fltused': 0}
 # Retail addresses of the E branch (fz1 == fz2) and of the SampleToCycle found path (0x466c2f).
 E_BRANCH_HOOK, FOUND_HOOK = 0x466e98, 0x466c2f
-TARGETS = ('EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
+TARGETS = ('SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
            'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt',
            'PacketReleaseCallback', 'SynthesisConstruct', 'SynthesisDestruct', 'StartSynthesis')
 LIMITATIONS = [
@@ -177,7 +181,7 @@ LIMITATIONS = [
     'engine update: the auxiliary virtual float query supplies binary64 values in ST0 and scripted writes to globals/control state; callback dispatch executes the recovered list traversal with scripted OS mutex and callback entries; producer of control +0xf8 and native controller wiring remain outside this comparison',
     'engine controllers: virtual slots +0x38/+0x3c alternate recovered query bodies and scripted thiscall boundaries; snd setters are logged stubs, not middleware equivalence; the original CRT conversion helper 0x75bed4 runs on both sides',
     'engine setup: heap capacity and bMalloc are scripted boundaries; packet/synth allocation-failure cases use invalid gin magic and a successfully allocated or existing data object to avoid the original null dereference; failure of the data allocation is not exercised',
-    'engine setup: the bank table producer and engine object construction are fixtures, not recovered callers; table indexes 0 and 1 are tested without establishing the table bounds',
+    'engine setup: the bank table producer remains a fixture; one quarter of setup/initialization fixtures prepend actual engine construction then the native adapter temporary car binding; table indexes 0 and 1 are tested without establishing the table bounds',
     'the stateful snd entry points are scripted: their retail bodies do not run, so the player behaviour is not compared here (the native player is checked separately); the scripted EAX is the only result they give',
     'SND_attrsetdef and SNDplaysetdef run as retail bytes on both sides, so the struct contents passed to SNDPKTPLAY_start are the retail ones by construction',
 ]
@@ -313,7 +317,7 @@ def entry_hook(log, name, this_kind, kinds, labels, scripted=None, key=None, eff
         esp = uc.reg_read(xc.UC_X86_REG_ESP)
         this = pointer_view(uc, uc.reg_read(xc.UC_X86_REG_ECX), 0) if this_kind else None
         words = struct.unpack('<%dI' % len(kinds), bytes(uc.mem_read(esp + 4, 4 * len(kinds)))) if kinds else ()
-        log.append((name, this, tuple(argument_view(uc, w, k, labels, bool(log and log[0][0] in ('EngineSetup', 'EngineInitialize'))) for w, k in zip(words, kinds))))
+        log.append((name, this, tuple(argument_view(uc, w, k, labels, bool(log and log[0][0] in ('EngineSetup', 'EngineInitialize', 'EngineConstruct'))) for w, k in zip(words, kinds))))
         if scripted is not None and key in scripted:
             value = scripted[key]
             if isinstance(value, list):
@@ -345,7 +349,7 @@ def fx_state(uc):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--compiler', choices=('msvc', 'clang-cl'), default='msvc')
-    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, controller, caller, dispatch, values, initialize, lifecycle, audio)')
+    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, construction, controller, caller, dispatch, values, initialize, lifecycle, audio)')
     parser.add_argument('--clang-flag', action='append', default=[], help='extra clang option (via /clang:)')
     parser.add_argument('--cases', type=int, default=1024)
     parser.add_argument('--targets', default='', help='comma separated subset of targets')
@@ -523,6 +527,15 @@ def main():
             uc.reg_write(xc.UC_X86_REG_FPTAG, 0xffff)
             for reg, value in zip(PRESERVED, PRESERVED_VALUES): uc.reg_write(reg, value)
             try:
+                if preconstruct:
+                    uc.emu_start(rebuilt_entry['EngineConstruct'] if rebuilt else retail_entry['EngineConstruct'], STOP + 7, count=MAX_INSTRUCTIONS)
+                    assert uc.reg_read(xc.UC_X86_REG_ESP) == STACK + 4 and uc.reg_read(xc.UC_X86_REG_EAX) == SETUP, ('state or call order mismatch', 'constructor return', rebuilt)
+                    assert tuple(uc.reg_read(r) for r in PRESERVED) == PRESERVED_VALUES, ('state or call order mismatch', 'constructor preserved registers', rebuilt)
+                    # The native adapter's remaining temporary car binding.
+                    uc.mem_write(SETUP + 0x9c, struct.pack('<I', CAR))
+                    uc.reg_write(xc.UC_X86_REG_ESP, STACK)
+                    uc.reg_write(xc.UC_X86_REG_ECX, SETUP)
+                    uc.reg_write(xc.UC_X86_REG_EAX, 0)
                 uc.emu_start(rebuilt_entry[name] if rebuilt else retail_entry[name], STOP + 7, count=MAX_INSTRUCTIONS)
             except UcError as error:
                 raise AssertionError(('state or call order mismatch' if rebuilt else 'original fixture fault', name, str(error), hex(uc.reg_read(xc.UC_X86_REG_EIP)), list(events[rebuilt]))) from error
@@ -640,6 +653,10 @@ def main():
         returns['SoundBind'] = 0
         return ARENA + 0x3a000 if count else 0
 
+    def seed_construction_globals():
+        fixture_globals[0x82af90] = b''.join(struct.pack('<I', rng.getrandbits(32)) for _ in range(6))
+        fixture_globals[0x7ed440] = struct.pack('<I', rng.getrandbits(32))
+
     def make_allocator(memory):
         allocator, table = ARENA + 0x3b900, ARENA + 0x3ba00
         pk(memory, allocator, '<I', table)
@@ -688,7 +705,11 @@ def main():
             callback_writes.clear()
             fixture_globals.clear()
             fixture_code_fields.clear()
-            if name in ('EngineGain', 'EngineValue'):
+            preconstruct = False
+            if name in ('SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct'):
+                seed_construction_globals()
+                words, this = [], SETUP
+            elif name in ('EngineGain', 'EngineValue'):
                 index = rng.randrange(17)
                 make_values(memory, index)
                 words, this = [index], SETUP
@@ -846,6 +867,11 @@ def main():
                 allocate_data = rng.random() < 0.5
                 allocate_memory = rng.random() < 0.5
                 allocate_synth = rng.random() < 0.5
+                preconstruct = trial % 4 == 0
+                if preconstruct:
+                    allocate_data = allocate_memory = allocate_synth = True
+                    seed_construction_globals()
+                note('setup-constructed' if preconstruct else 'setup-fixture-object')
                 pk(memory, SETUP + 0x9c, '<I', CAR)
                 pk(memory, CAR + 0x10, '<i', index)
                 pk(memory, CAR + 0x78, '<i', mode)
@@ -1135,6 +1161,19 @@ def main():
         if failures:
             raise SystemExit('mutation checks need a passing baseline: %d failures in the unmutated run' % len(failures))
         mutations = {
+            'construct-base-word-count': ('construction', 'i <= 16', 'i <= 15'),
+            'construct-base-wide48': ('construction', '        value48 = 0;', '        words[0x48 / 4] = 0;'),
+            'construct-base-table-count': ('construction', 'i < 16', 'i < 15'),
+            'construct-base-vtable': ('construction', '0x78a0f0', '0x789ed4'),
+            'construct-engine-parent': ('construction', '    Construct45E350();', ''),
+            'construct-global-count': ('construction', 'i < 6', 'i < 5'),
+            'construct-global-default': ('construction', 'engineSoundConstructionValue7ED440 = -1;', 'engineSoundConstructionValue7ED440 = 0;'),
+            'construct-flag-width': ('construction', 'bytes[0x54] = 0;', 'words[0x54 / 4] = 0;'),
+            'construct-slots': ('construction', 'i < 2', 'i < 1'),
+            'construct-slot-start': ('construction', 'slot->startResult14 = -1;', 'slot->startResult14 = 0;'),
+            'construct-slot-flag-width': ('construction', 'slot->value18 = 0;', '*reinterpret_cast<int *>(&slot->value18) = 0;'),
+            'construct-control': ('construction', '    controlC0 = 0;', ''),
+            'construct-final-vtable': ('construction', '0x78af30', '0x78ae90'),
             'value-gain-mask': ('values', '*value & 0x7fffu', '*value & 0xffffu'),
             'value-gain-index': ('values', 'static_cast<const unsigned int *>(table[index])', 'static_cast<const unsigned int *>(table[0])'),
             'value-gain-null': ('values', '(int)(*value & 0x7fffu) : 0', '(int)(*value & 0x7fffu) : 1'),

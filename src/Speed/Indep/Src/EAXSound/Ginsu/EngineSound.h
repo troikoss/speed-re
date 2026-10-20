@@ -26,7 +26,8 @@ struct EngineSoundSlot {
     float maxFrequencyC;
     float minFrequency10;
     int startResult14;
-    int value18;
+    unsigned char value18;
+    char unidentified19[3];
 };
 
 struct EngineSound;
@@ -110,6 +111,9 @@ struct EngineSoundAuxiliary {
 };
 
 struct EngineSound {
+    EngineSound *Construct45E350();
+    EngineSound *Construct473BF0();
+    EngineSound *Construct473D30();
     void Setup47D740();
     void Initialize47D920();
     int Value45E390(int index);
@@ -171,6 +175,8 @@ UG2_CHECK_OFFSET(EngineSoundAuxiliary, value134, 0x134);
 void *EngineSoundAllocate440820(int size, int flags);
 int EngineSoundHeapAvailable43E910(int heap);
 extern int engineSoundHeap7EC840;
+extern int engineSoundConstructionValues82AF90[6];
+extern int engineSoundConstructionValue7ED440;
 extern float ginsuEngineBlockRate78A5B0;
 extern int engineSoundValue82A998;
 extern int engineSoundValue82B078;

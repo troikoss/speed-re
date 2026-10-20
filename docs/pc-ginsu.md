@@ -739,3 +739,89 @@ verifier reports this in `query_byte_matching`, requiring a single function
 in its COFF section, no relocations, equal size and equal bytes. This claim
 is limited to those two leaves; initialization, allocator/mutex wrappers,
 caller composition and exception behavior are not claimed byte-matched.
+
+
+## Engine constructor chain (2026-10-20)
+
+`EngineSoundConstruct.cpp` recovers the three original construction bodies
+`0x45e350` → `0x473bf0` → `0x473d30`, using live Ghidra decompilation and
+instruction listings. Their complete address spans are pinned in `ginsu.json`:
+64, 97 and 84 bytes respectively. The last span includes a three-byte alignment
+gap between its entry jump and loop; Ghidra's body-size measure omits that gap
+and reports 81. It is not used as the contiguous fingerprint length.
+
+The shared sound base sets its intermediate vtable `0x789ed4`, clears 16 words
+at object `+4..+0x40`, and writes zero to the 16-bit field `+0x48` during that
+loop. It then installs `0x78a0f0`, clears word `+0x50`, and clears 16 pointer
+words at `+0x58..+0x94`. The other bytes retain their prior contents. The
+sixteen cleared pointers identify the constructor's initialized region;
+unchecked query indexing still does not establish valid caller bounds.
+
+The intermediate engine base calls that body, then clears byte `+0xa0`, words
+`+0xac`, `+0xa8`, car pointer `+0x9c`, and parameters/auxiliary/value fields
+`+0xb0`, `+0xb8`, `+0xb4`; it installs `0x78ae90` and clears byte `+0x54`.
+It also clears six global words at `0x82af90..0x82afa4`, sets word `0x7ed440`
+to -1, and clears the raw word at `+0xbc`. Those global resets occur on every
+construction. Their meanings remain unidentified.
+
+The final body installs `0x78af30` and initializes both `0x1c`-byte slots:
+null data/synth/memory pointers, zero frequency words, start result -1, and
+one zero byte at slot `+0x18`. The next three bytes are untouched, so the
+slot view now distinguishes that byte from the three unidentified bytes. Finally it clears control
+pointer `+0xc0`, auxiliary pointer `+0xb8`, and active byte `+0xc8`. Each body
+returns the original receiver in EAX. No whole-object zero-fill is substituted.
+
+`NativeEngineSound::Load` now calls the recovered final constructor on its
+temporary engine object before attaching the scaffold car view and invoking
+recovered slot setup. It no longer zero-initializes that engine view or
+manually supplies slot 0's -1 start result. The constructor's raw vtable values
+are retained as data; this native adapter calls recovered methods directly.
+It does not execute retail virtual functions. File choice, mode/index 0,
+temporary bank/car binding, direct RPM updates and native cleanup remain seams.
+This does not wire parameter initialization or the original controllers.
+
+The verifier starts each constructor from dirty arena and global bytes and
+compares the entire arena, selected globals, ordered nested calls, return,
+stack cleanup, preserved registers and x87 state. One quarter of setup and
+parameter-initialization fixtures now run the actual final constructor first,
+attach only the temporary car pointer, then run their actual target. These
+fixtures allocate fresh slots; the remaining fixtures retain reuse/allocation
+cases. The known masks for unwritten packet/attribute stack bytes also apply
+to this composition. Constructor object bytes and globals are never masked.
+
+No byte identity is claimed for these constructors. Both query leaves retain
+their separately reported MSVC byte identity; behavioral comparisons do not
+establish untested interleavings or exception behavior. Bank-table and record
+producers, the car state constructor/binding methods, control-frequency inputs,
+registry/allocator behavior, setter backends, enabled game audio, collision and
+frontend/HUD paths remain open.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 1024
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets SoundBaseConstruct,EngineBaseConstruct,EngineConstruct,EngineSetup,EngineInitialize --cases 64 --mutation-checks --mutation-source construction
+cmake --build build/native
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/smoke_native_engine_audio.py --frames 600
+```
+
+Native build and 600-frame audio smoke passed: 1,004 packet releases, zero
+underrun frames, pitch/RPM rank correlation 0.767. The smoke executes the new
+constructor chain and recovered setup, followed by the existing direct-RPM
+scaffold. It does not establish original controller integration.
+
+
+Final full-suite result: 38 targets, 38,912 original/rebuilt comparisons
+(1,024 per target), zero failures. Setup/initialization included 512 cases
+with actual construction followed by the temporary car binding, and 1,536
+cases retaining fixture-created objects for allocation/reuse coverage. Both
+query leaves retained their separate MSVC byte identity. All 13 constructor
+mutants were rejected with state or call-order mismatches at 64 cases per
+target, with no survivors or compile-only rejections. Mutants cover clear
+counts, byte/word widths, parent calls, globals, slot counts/start defaults,
+control pointer and final vtable. A separate 30-frame `--no-audio` native run
+also passed.
+
+The next bank-table producer is now identified at `0x465c80`: live Ghidra
+reads show stores through `*0x82b884` to indexed `+0xdc` and `+0xe4`, filename
+construction through `0x43dda0`, size query `0x57d900` and queued read
+`0x57b4a0`. Its source, input record producer and native I/O integration remain
+open; identifying that body does not establish recovered bank selection.
