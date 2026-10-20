@@ -2,6 +2,8 @@
 #define UG2_EAXSOUND_ENGINE_SOUND_H
 
 #include "Ginsu.h"
+#include "../../../Libs/bWare/TimedAverage.h"
+#include "../../Physics/DriveFeedbackCurve.h"
 #include "../../Physics/Ug2Layout.h"
 
 // UG2-only views of the fields read by engine setup and controllers.
@@ -15,22 +17,53 @@ struct EngineSoundCarValue {
     int value18;
     float value1C;
     float value20;
-    char unidentified24[0x28];
+    int value24;
+    int value28;
+    float value2C;
+    float value30;
+    float value34;
+    float value38;
+    float value3C;
+    float value40;
+    float value44;
+    int value48;
 };
 
 struct EngineSoundCarValue84 {
     const char *file0;
-    char unidentified4[0x30];
+    int value4;
+    int value8;
+    char unidentifiedC[0x10];
+    float value1C;
+    char unidentified20[4];
+    float value24;
+    float value28;
+    float value2C;
+    float value30;
 };
 
 struct MoverContext;
 struct EngineSoundChoice;
 
+struct MoverModeOwner;
+struct EngineSoundPhysicsView { char unidentified0[0xd8]; unsigned char flagD8; };
+struct EngineSoundShiftView { char unidentified0[0x78]; int value78; int value7C; };
+struct EngineSoundAccelView { char unidentified0[0xc8]; int valueC8; };
+
 struct EngineSoundCar {
     char unidentified0[0x10];
     int bankIndex10;
     int kind14;
-    char unidentified18[0x5c];
+    char unidentified18[0x18];
+    MoverModeOwner *car30;
+    char unidentified34[0xc];
+    EngineSoundPhysicsView *value40;
+    char unidentified44[4];
+    float value48;
+    unsigned char flag4C;
+    char unidentified4D[7];
+    float value54;
+    char unidentified58[0x1c];
     MoverContext *context74;
     int mode78;
     int value7C;
@@ -74,7 +107,9 @@ struct EngineSoundAuxiliary;
 struct EngineSoundComponent;
 
 struct EngineSoundControl {
-    char unidentified0[0x58];
+    char unidentified0[0x44];
+    EngineSoundCar *state44;
+    char unidentified48[0x10];
     unsigned char active58;
     char unidentified59[3];
     float time5C;
@@ -82,17 +117,22 @@ struct EngineSoundControl {
     char unidentified64[4];
     EngineSoundCar *car68;
     EngineSoundAuxiliary *engine6C;
-    void *value70;
-    void *value74;
+    EngineSoundShiftView *value70;
+    EngineSoundAccelView *value74;
     char unidentified78[4];
     int value7C;
     int value80;
     int value84;
-    char unidentified88[0x30];
+    DriveFeedbackCurve curve88;
+    DriveFeedbackPair pairs90[5];
     int valueB8;
     float valueBC;
     unsigned char flagC0;
-    char unidentifiedC1[0x37];
+    char unidentifiedC1[3];
+    SampleAverage averageC4;
+    float valueEC;
+    float valueF0;
+    float valueF4;
     float frequencyF8;
     float valueFC;
     float value100;
@@ -100,9 +140,9 @@ struct EngineSoundControl {
     float value108;
     void Update47C3D0(float duration);
     void Scale45D190();
-    void Prepare45D0A0(); // original dependency, not yet recovered
-    void ModeOne4701A0(float duration); // original one-bank gain producer, not yet recovered
-    void ModeTwo470540(float duration); // original two-bank gain producer, not yet recovered
+    void Prepare45D0A0();
+    void ModeOne4701A0(float duration);
+    void ModeTwo470540(float duration);
 };
 
 struct EngineParameterCallback {
@@ -158,13 +198,15 @@ struct EngineSoundAuxiliaryVtable {
 
 struct EngineSoundAuxiliary {
     EngineSoundAuxiliaryVtable *vtable0;
-    char unidentified4[0xf8];
+    char unidentified4[0xdc];
+    int valueE0;
+    char unidentifiedE4[0x18];
     float valueFC;
     char unidentified100[0x18];
     float value118;
     char unidentified11C[0xc];
     float value128;
-    char unidentified12C[4];
+    float value12C;
     float value130;
     int value134;
     int value138;
@@ -257,6 +299,21 @@ UG2_CHECK_OFFSET(EngineSoundAuxiliary, value128, 0x128);
 UG2_CHECK_OFFSET(EngineSoundAuxiliary, value130, 0x130);
 UG2_CHECK_OFFSET(EngineSoundAuxiliary, value134, 0x134);
 UG2_CHECK_OFFSET(EngineSoundAuxiliaryVtable, value34, 0x34);
+UG2_CHECK_OFFSET(EngineSoundControl, averageC4, 0xc4);
+UG2_CHECK_OFFSET(EngineSoundControl, valueEC, 0xec);
+UG2_CHECK_OFFSET(EngineSoundControl, curve88, 0x88);
+UG2_CHECK_OFFSET(EngineSoundCar, value48, 0x48);
+UG2_CHECK_OFFSET(EngineSoundCar, value54, 0x54);
+UG2_CHECK_OFFSET(EngineSoundAuxiliary, valueE0, 0xe0);
+extern float engineGainPrepareScale788620;
+extern float engineGainStep78861C;
+extern float engineGainCutoffStep788624;
+extern float engineGainCutoffMaximum7885D8;
+extern float engineGainCarLimit7843E8;
+extern float engineGainOneScale78AAB4;
+extern float engineGainTwoScale78A6C8;
+extern float engineGainNegativePercent784364;
+extern float engineGainPercent78425C;
 extern float engineControlMinimum784550;
 extern float engineControlMaximum784500;
 extern float engineControlScale78A290;

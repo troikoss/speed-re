@@ -270,6 +270,46 @@
       "address": "0x47c3d0",
       "size": 192,
       "sha256": "2fd48dd89abd17f46fdff53c7ebc42c636a959978e9c68dce363e0687355008e"
+    },
+    "ControlPrepare": {
+      "address": "0x45d0a0",
+      "size": 230,
+      "sha256": "93371661c6e60fe39b4975253b5732035b09d4ffb303e2a6d22d290ba0ddc672"
+    },
+    "ControlOne": {
+      "address": "0x4701a0",
+      "size": 893,
+      "sha256": "2a000d540e00f78c0dcc87d45c0eb0db1e3420179c53bec832775b3008b28612"
+    },
+    "ControlTwo": {
+      "address": "0x470540",
+      "size": 996,
+      "sha256": "9ad78a65d588a09a7ff26cc7b4839259c787bbe8cd45ce11df4498e3dd16b0e6"
+    },
+    "SampleAdvance": {
+      "address": "0x576970",
+      "size": 84,
+      "sha256": "260fc3d1674d78be2ab82f08d4eee7fcb5428941ba92104110ef4a32a10335c6"
+    },
+    "SampleFill": {
+      "address": "0x576a10",
+      "size": 70,
+      "sha256": "c77e8a649e1741b6bad7064ef5e5242eee520025ce3a889f59fb3be0c065411d"
+    },
+    "SampleRecalculate": {
+      "address": "0x576910",
+      "size": 92,
+      "sha256": "b7698e5a7d322189a96f331de0c6033bdaa8fe2d5a9f3448f8db5fded408b9ff"
+    },
+    "GainCurveLookup": {
+      "address": "0x576790",
+      "size": 190,
+      "sha256": "28e5ee5be52e01e60a219f43be3b446201a2e4b0229596f740eece353c1f8266"
+    },
+    "GainPendingShift": {
+      "address": "0x5ecd70",
+      "size": 26,
+      "sha256": "fd119cbf1a5034fac7ed2db7feda4b2ecffe71c5c80be5c521f5ea9ec347bdf8"
     }
   }
 }

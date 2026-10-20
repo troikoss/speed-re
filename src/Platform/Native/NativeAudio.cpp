@@ -12,9 +12,10 @@
 //     audio thread with the device lock held (the Ginsu release submits the same buffer again).
 //   - stop() stops the player and drops the queued packets without release callbacks (purge is not implemented).
 //   - destroy() frees the slot.
-// Not modelled: voices and render modes, the volume, pitch and pan options (the retail volume is set by the engine
-// controller through 0x72412a, which is not recovered, so the player plays at a fixed scaffold gain), channels other
-// than mono, and the frame-count callback. SND_attrsetdef and SNDplaysetdef write the retail bytes (0x72423e and
+// Engine controller setters use native adapters below: volume and pitch reach
+// the mixer; other values are retained without a claimed DSP implementation.
+// Not modelled: retail voices/render modes, pan vectors, filters, effect sends,
+// channels other than mono, and the frame-count callback. SND_attrsetdef and SNDplaysetdef write the retail bytes (0x72423e and
 // 0x721a6b); the padding words and tsdatasize, which the retail does not write, are left alone.
 //
 // SNDSYS_entercritical and SNDSYS_leavecritical are the device lock. SDL's device lock is a recursive mutex, so the
@@ -53,6 +54,13 @@ struct Channel {
     bool playing;
     int ring;                     // queue length (the retail maxpackets)
     int sampleRate;
+    float volume;
+    unsigned short pitch;
+    short pan;
+    int elevation;
+    int cutoff;
+    unsigned char value5F;
+    int outputLevel;
     void (*release)(void *, void *);
     void (*frames)(int, int, void *);
     void *clientdata;
@@ -90,7 +98,7 @@ void ReleaseHead(Channel &channel) {
 // Adds one channel to mix[0..frames). Each device frame reads the packet at the read position with linear
 // interpolation; across a packet boundary the interpolation reads the first sample of the next queued packet.
 void MixChannel(Channel &channel, float *mix, int frames) {
-    const double step = (double)channel.sampleRate / (double)kDeviceRate;
+    const double step = ((double)channel.sampleRate / (double)kDeviceRate) * channel.pitch / 4096.0;
     int released = 0;
     for (int i = 0; i < frames; ++i) {
         bool ready = false;
@@ -121,7 +129,7 @@ void MixChannel(Channel &channel, float *mix, int frames) {
                 s1 = next.samples[0];
             }
         }
-        mix[i] += kChannelGain * (s0 + (s1 - s0) * (float)fraction);
+        mix[i] += kChannelGain * channel.volume * (s0 + (s1 - s0) * (float)fraction);
         channel.position += step;
     }
 }
@@ -307,6 +315,8 @@ int SNDPKTPLAY_start(int packetinstancehandle, GinsuSndFormat *pssf, GinsuSndAtt
     SNDSYS_entercritical();
     Channel &channel = g_channels[packetinstancehandle];
     channel.sampleRate = pssf->samplerate;
+    channel.volume = 1.0f;
+    channel.pitch = 4096;
     channel.head = 0;
     channel.count = 0;
     channel.nextHandle = 0;
@@ -362,6 +372,52 @@ int SNDPKTPLAY_destroy(int packetinstancehandle) {
     channel.count = 0;
     SNDSYS_leavecritical();
     return 0;
+}
+
+// Native snd adapters, not recovered middleware. The recovered controllers
+// already bound their inputs. Slot validation replaces the retail generation
+// registry; no voice graph, optional output callbacks or DSP is fabricated.
+int EngineSnd72412A(int handle, int value) {
+    if (!g_device) return -10;
+    if (!ValidChannel(handle)) return -8;
+    g_channels[handle].volume = value / 127.0f;
+    return handle;
+}
+
+int EngineSnd724093(int handle, int value, int value2) {
+    if (!g_device) return -10;
+    if (!ValidChannel(handle)) return -8;
+    g_channels[handle].pan = (short)value;
+    g_channels[handle].elevation = value2;
+    return handle;
+}
+
+int EngineSnd723D9B(int handle, int value) {
+    if (!g_device) return -10;
+    if (!ValidChannel(handle)) return -8;
+    g_channels[handle].pitch = (unsigned short)value;
+    return handle;
+}
+
+int EngineSnd72403E(int handle, int value) {
+    if (!g_device) return -10;
+    if (!ValidChannel(handle)) return -8;
+    g_channels[handle].cutoff = value;
+    return handle;
+}
+
+int EngineSnd723C41(int handle, int value) {
+    if (!g_device) return -10;
+    if (!ValidChannel(handle)) return -8;
+    g_channels[handle].value5F = (unsigned char)value;
+    return handle;
+}
+
+int EngineSnd723BC1(int handle, int index, int value) {
+    if (!g_device) return -10;
+    if (!ValidChannel(handle) || index != 0) return -8;
+    g_channels[handle].outputLevel = value;
+    return handle;
 }
 
 // 0x72423e: the retail defaults. Fields the retail does not write (padchar, tsdatasize) are not written here.

@@ -39,8 +39,8 @@ void EngineSoundControl::Scale45D190() {
     value84 = (int)((double)saved84 * engine->value118);
 }
 
-// 0x47c3d0: outer HybridMotor update. Prepare and both gain producers are
-// unrecovered call boundaries; the caller and conversion tail are recovered.
+// 0x47c3d0: outer HybridMotor update, retaining calls to recovered prepare,
+// mode gain producers and conversion tail.
 void EngineSoundControl::Update47C3D0(float duration) {
     if (active58) {
         delta60 = duration;
