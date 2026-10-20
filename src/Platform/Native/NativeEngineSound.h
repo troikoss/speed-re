@@ -1,7 +1,7 @@
 // Native adapter around recovered car selection, binding, bank loading and engine setup.
 // Default records come from the participant car type and upgrade state; --engine-gin is an
 // explicit one-bank override. Recovered playback controllers update both slots.
-// Shifting, registry/list ownership and manager lifecycle remain seams.
+// Registry/list ownership and manager lifecycle remain seams.
 #ifndef UG2_NATIVE_ENGINE_SOUND_H
 #define UG2_NATIVE_ENGINE_SOUND_H
 
@@ -18,7 +18,7 @@ public:
     // Uses participant state through selection 0x4593b0, or the explicit filename override,
     // then construction, binding, bank loading and setup. Missing/invalid banks report an error.
     bool Load(const char *gameDirectory, MoverModeOwner *owner, const char *ginOverride, char *error, int errorSize);
-    // Recovered physics, acceleration, spatial and auxiliary/control updates feed both banks.
+    // Recovered physics, shifting, acceleration, spatial and auxiliary/control updates feed both banks.
     void Update(float rpm, float duration, int frame);
     void Destroy();
     bool Started() const { return started_; }

@@ -39,7 +39,12 @@ from probe_pc_race_reward import ROOT, EXE, GAME_DIR
 
 BUILD = ROOT / 'build/analysis/ginsu'
 SOURCE_DIR = 'src/Speed/Indep/Src/EAXSound/Ginsu'
-SOURCES = {'accel': SOURCE_DIR + '/EngineSoundAccel.cpp',
+SOURCES = {'shift_lifecycle': SOURCE_DIR + '/EngineSoundShiftLifecycle.cpp',
+'shift_producers': SOURCE_DIR + '/EngineSoundShiftProducers.cpp',
+'shift_transitions': SOURCE_DIR + '/EngineSoundShiftTransitions.cpp',
+'shift': SOURCE_DIR + '/EngineSoundShift.cpp',
+'shift_post': SOURCE_DIR + '/EngineSoundShiftPost.cpp',
+'accel': SOURCE_DIR + '/EngineSoundAccel.cpp',
            'accel_lifecycle': SOURCE_DIR + '/EngineSoundAccelLifecycle.cpp',
            'accel_shiftpoint': SOURCE_DIR + '/EngineSoundShiftPoint.cpp',
            'schedule': SOURCE_DIR + '/EngineSoundSchedule.cpp',
@@ -125,9 +130,29 @@ GIN_MAGIC = b'Gnsu2'
 # name: (retail address, rebuilt symbol prefix, callee-popped bytes, return kind, `this` kind, argument kinds)
 # return kinds: 'al' (bool), 'eax' (int), 'st0' (float left in ST0), None. argument kinds: 'w' raw word,
 # 'p' pointer (identity: arena address or the stack), ('c', n) pointer whose n bytes are logged by value.
+SHIFT_TARGETS = ('ShiftConstruct', 'ShiftFactory', 'ShiftBind', 'ShiftActivate', 'ShiftDependency', 'ShiftAttach', 'ShiftReset', 'ShiftUp', 'ShiftDown', 'ShiftRpm', 'ShiftThrottle', 'ShiftEffects', 'ShiftConfigureEffects', 'ShiftAdvance', 'ShiftUpdate', 'ShiftPost', 'PhysicsThrottle', 'SoundClamp')
 ACCEL_TARGETS = ('AccelConstruct', 'AccelFactory', 'AccelBind', 'AccelActivate', 'AccelDependency', 'AccelAttach', 'AccelConfigure', 'AccelLaunch', 'AccelQueryLaunch', 'AccelQuery', 'AccelRelease', 'AccelRpm', 'AccelThrottle', 'AccelAdvance', 'AccelUpdate', 'ShiftActive', 'OwnerShiftPoint', 'GearShiftPoint', 'EnvelopeTarget')
 AUX_TARGETS = ('SpatialBaseConstruct', 'SpatialConstruct', 'SpatialFactory', 'SpatialBind', 'SpatialActivate', 'SpatialAngle', 'SpatialCompute', 'SpatialSelect', 'SpatialDoppler', 'SpatialUpdate', 'SpatialLimit', 'SpatialValue', 'SpatialDistance2D', 'SpatialNormalize2D', 'SpatialArcSine', 'SampleDefault', 'SampleAllocate', 'SpatialPosition','SpatialOrientation', 'AuxOffsets', 'AuxBackfire', 'AuxCutoff', 'AuxFrame', 'SoundInverse', 'SoundRandom', 'SoundRandomFloat', 'SoundSine', 'SoundNormalize', 'AuxLevel', 'AuxEffects', 'AuxIdle', 'EnvelopeConfigure', 'EnvelopeStep', 'SequenceReset', 'SequenceStep', 'SoundCurve', 'SoundCurveConvert', 'ControlConstruct', 'ControlBind', 'GainCurveConstruct', 'AuxConstruct', 'AuxFactory', 'AuxBind', 'AuxActivate', 'AuxAttach', 'AuxRpm', 'AuxThrottle', 'AuxDependency', 'AuxDescriptor', 'AuxCarValue', 'AuxApproach', 'AuxSequenceConstruct', 'AuxSequenceAppend')
 ROUTINES = {
+    'ShiftConstruct': (4571344, '?Construct45C0D0@EngineSoundShiftView@', 0, 'eax', 'arena', []),
+    'ShiftFactory': (4647888, '?CreateEngineSoundShift46EBD0@', 0, 'eax', None, []),
+    'ShiftBind': (4571952, '?Bind45C330@EngineSoundShiftView@', 4, None, 'arena', ['p']),
+    'ShiftActivate': (4572112, '?Activate45C3D0@EngineSoundShiftView@', 0, None, 'arena', []),
+    'ShiftDependency': (4571920, '?Dependency45C310@EngineSoundShiftView@', 4, 'eax', 'arena', ['w']),
+    'ShiftAttach': (4647984, '?Attach46EC30@EngineSoundShiftView@', 4, None, 'arena', ['p']),
+    'ShiftReset': (4572208, '?Reset45C430@EngineSoundShiftView@', 0, None, 'arena', []),
+    'ShiftUp': (4648048, '?Upshift46EC70@EngineSoundShiftView@', 0, None, 'arena', []),
+    'ShiftDown': (4648544, '?Downshift46EE60@EngineSoundShiftView@', 0, None, 'arena', []),
+    'ShiftRpm': (4701984, '?Advance47BF20@EngineSoundShiftView@', 4, None, 'arena', ['w']),
+    'ShiftThrottle': (4701856, '?Advance47BEA0@EngineSoundShiftView@', 4, None, 'arena', ['w']),
+    'ShiftEffects': (4648960, '?Advance46F000@EngineSoundShiftView@', 4, None, 'arena', ['w']),
+    'ShiftConfigureEffects': (4649088, '?Configure46F080@EngineSoundShiftView@', 0, None, 'arena', []),
+    'ShiftAdvance': (4730192, '?Advance482D50@EngineSoundShiftView@', 4, None, 'arena', ['w']),
+    'ShiftUpdate': (4731184, '?Update483130@EngineSoundShiftView@', 4, None, 'arena', ['w']),
+    'ShiftPost': (4571664, '?Post45C210@EngineSoundShiftView@', 0, None, 'arena', []),
+    'PhysicsThrottle': (4576000, '?Value45D300@EngineSoundPhysicsView@', 0, 'st0', 'arena', []),
+    'SoundClamp': (4198544, '?EngineSoundClamp401090@', 0, 'st0', None, ['w', 'w', 'w']),
+
     'AccelConstruct': (0x45c9c0, '?Construct45C9C0@EngineSoundAccelView@', 0, 'eax', 'arena', []),
     'AccelFactory': (0x46ffa0, '?CreateEngineSoundAccel46FFA0@', 0, 'eax', None, []),
     'AccelBind': (0x45ca80, '?Bind45CA80@EngineSoundAccelView@', 4, None, 'arena', ['p']),
@@ -365,6 +390,21 @@ def snd_ret(key):
 PURE_RANGES = ((0x75bed4, 0x75bf49), (0x72423e, 0x72428b), (0x721a6b, 0x721aae))
 # Retail globals read by the recovered code, by MSVC symbol prefix; __fltused is a null symbol.
 SHARED = {
+    '?engineSoundShiftTuning7F2860@': 0x7f2860,
+    '?engineSoundShiftTuning7F2EC0@': 0x7f2ec0,
+    '?engineSoundShiftSelection7F2234@': 0x7f2234,
+    '?engineSoundShiftPacked7ED344@': 0x7ed344,
+    '?engineSoundShiftGate7885C0@': 0x7885c0,
+    '?engineSoundShiftScale7885C4@': 0x7885c4,
+    '?engineSoundShiftScale7885C8@': 0x7885c8,
+    '?engineSoundShiftOffset78AAA0@': 0x78aaa0,
+    '?engineSoundShiftRpmScale7885A0@': 0x7885a0,
+    '?engineSoundShiftDuration7885B0@': 0x7885b0,
+    '?engineSoundShiftFirst7ED29C@': 0x7ed29c,
+    '?engineSoundShiftTime7ED2A0@': 0x7ed2a0,
+    '?engineSoundShiftTimeScale7844D8@': 0x7844d8,
+    '?engineSoundShiftLow784550@': 0x784550,
+
     '?engineSoundAccelTuning7F3248@': 0x7f3248,
     '?engineSoundAccelTuning7F3284@': 0x7f3284,
     '?engineSoundAccelTuning7F32C0@': 0x7f32c0,
@@ -526,12 +566,13 @@ SHARED.update({
 })
 # Retail addresses of the E branch (fz1 == fz2) and of the SampleToCycle found path (0x466c2f).
 E_BRANCH_HOOK, FOUND_HOOK = 0x466e98, 0x466c2f
-TARGETS = ACCEL_TARGETS + ('ControlActivate',) + ('CarBind','CarSort','CarSchedule','CarFrame','CarPlayback','EngineForward','ScheduleNoop','ScheduleNoopArg','PhysicsPost','ControlPost','PhysicsFraction','ApproachInt') + ('ListenerUpdate','ListenerFind','ListenerDistance','ListenerAngle') + AUX_TARGETS + ('PhysicsFactory', 'PhysicsHash') + ('PhysicsConstruct', 'PhysicsBind', 'PhysicsActivate', 'PhysicsUpdate', 'PhysicsOverride', 'PhysicsNotify', 'PhysicsMode40', 'PhysicsMode28', 'PhysicsMode10', 'PhysicsRampConstruct', 'PhysicsRampEvaluate', 'PhysicsSpecMaximum', 'PhysicsEngineMaximum', 'SampleConstruct') + ('ControlPrepare', 'ControlOne', 'ControlTwo', 'SampleAdvance', 'SampleFill', 'SampleRecalculate', 'GainCurveLookup', 'GainPendingShift', 'EngineDependency', 'EngineAttach', 'AuxFrequency', 'AuxGain', 'ControlScale', 'ControlUpdate', 'CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
+TARGETS = SHIFT_TARGETS + ACCEL_TARGETS + ('ControlActivate',) + ('CarBind','CarSort','CarSchedule','CarFrame','CarPlayback','EngineForward','ScheduleNoop','ScheduleNoopArg','PhysicsPost','ControlPost','PhysicsFraction','ApproachInt') + ('ListenerUpdate','ListenerFind','ListenerDistance','ListenerAngle') + AUX_TARGETS + ('PhysicsFactory', 'PhysicsHash') + ('PhysicsConstruct', 'PhysicsBind', 'PhysicsActivate', 'PhysicsUpdate', 'PhysicsOverride', 'PhysicsNotify', 'PhysicsMode40', 'PhysicsMode28', 'PhysicsMode10', 'PhysicsRampConstruct', 'PhysicsRampEvaluate', 'PhysicsSpecMaximum', 'PhysicsEngineMaximum', 'SampleConstruct') + ('ControlPrepare', 'ControlOne', 'ControlTwo', 'SampleAdvance', 'SampleFill', 'SampleRecalculate', 'GainCurveLookup', 'GainPendingShift', 'EngineDependency', 'EngineAttach', 'AuxFrequency', 'AuxGain', 'ControlScale', 'ControlUpdate', 'CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
            'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt',
            'PacketReleaseCallback', 'SynthesisConstruct', 'SynthesisDestruct', 'StartSynthesis')
 LIMITATIONS = [
+    'shifting: complete lifecycle, up/down setup, seven-state advancement, six envelopes, packed post-update and Physics query run as recovered bodies; carried frames and six-input car scheduling compose them; query callbacks test snapshot/reload boundaries with scripted binary64 results; dependent pointers, player table selectors and kinds 1..3 are valid fixtures, with finite envelope inputs and a quiet NaN at the upshift gate/clamp; invalid dereferences, component/tuning aliasing, exceptions and concurrency are excluded; native mix ownership, full registry/manager and other audio seams remain open',
     'acceleration transitions: complete construction/bind/activation, queries, envelope producers, update and owner/gear shift-point helpers execute recovered code; callbacks can change kind/car/tuning/level at query boundaries; valid kinds 1..3 and gear indices 0..7, separate tuning storage, finite envelope inputs and selected quiet-NaN query inputs are covered; launch/general/return/release states are carried, and actual acceleration runs in composed car scheduling; shifting production, registry/list construction, invalid-kind dereferences, exceptions and concurrency remain outside this evidence',
-    'car scheduling: actual sort, owner-gated wrapper, clock handling, component/post and separate playback passes execute, with callback-time table/link/head changes in scripted cases; constructed and carried frames compose the four recovered inputs and actual inactive engine caller, while active retail GIN playback is a native smoke; registry/list creation, shift/accel production and full manager dispatch remain seams; sort fixtures have at most six nodes, counts through seven and keys 0..63, excluding cycles, overlong scratch writes and invalid-key original faults; post-update comparisons include full integer wrapping, flag fractions, player/camera and race-count branches, with finite floating inputs and valid dependent pointers',
+    'car scheduling: actual sort, owner-gated wrapper, clock handling, component/post and separate playback passes execute, with callback-time table/link/head changes in scripted cases; constructed and carried frames compose the six recovered inputs and actual inactive engine caller, while active retail GIN playback is a native smoke; registry/list creation and full manager dispatch remain seams; sort fixtures have at most six nodes, counts through seven and keys 0..63, excluding cycles, overlong scratch writes and invalid-key original faults; post-update comparisons include full integer wrapping, flag fractions, player/camera and race-count branches, with finite floating inputs and valid dependent pointers',
     'listener production: full 0x46d7e0 and 0x4690b0 execute recovered code, including unchanged bDistance/HudAngleUnits; manager topology, owners/player records/cameras and sound-state +0xa8 are fixtures; missing camera paths retain state, and composed/carried cases execute actual spatial construction/update and cutoff; one/two-player finite-coordinate paths are covered, while cycles, invalid pointers, absent first owner with live second owner, null race-state dereference, exceptions and concurrent list mutation are excluded; native manager ownership/scheduling and downstream Doppler/voice consumers remain seams',
     'spatial component: original/rebuilt construction, binding, activation, virtual selection, mode-specific distances/angles and Doppler averaging execute recovered code, including unchanged Normalize2/HudArcSineUnits; listener readiness/coordinate arrays and the audio root are fixtures, not recovered listener production 0x46d7e0; valid indices 0/1, finite positions and nonnegative allocation capacities are exercised; exceptions, concurrency, arbitrary indices and full attenuation/pan consumers remain outside this evidence; both pure helper roots stay extended through selection, and a scripted average callback checks the post-callback raw-word copy',
     'auxiliary frame: direct and virtual producers, shared random seed, sine, normalization and cutoff curves execute recovered code; spatial setters run as recovered code in composed frames; other spatial callbacks and shift/accel components remain fixtures; positions/orientations are finite; exceptions, concurrency, invalid pointers and arbitrary table indices are excluded',
@@ -551,7 +592,7 @@ LIMITATIONS = [
     'the arena is compared byte for byte; the stack is compared through the events, the return values and the x87 image only',
     'the MSVC 7.1 build passes no /GS flag: this cl.exe reads /GS- as /GS (security cookies appear), and the default compile has none',
     'car sound creation: fixtures alternate scripted manager entries with composed lookup/enqueue bodies; sound-object context/bind queries remain scripted; pool creation, device setup and a composed car constructor remain outside this comparison; queue indexes are limited to 0..15',
-    'engine update: one quarter compose recovered dependency attachment, outer HybridMotor update, float queries and conversion tail before the actual engine caller/controllers; prepare, both gain producers, average/curve and pending-shift query now run as recovered bodies, while other fixtures retain direct control inputs; auxiliary query alternates binary64 scripted values and recovered float getter; native Physics, auxiliary RPM/throttle, outer control/gains and playback controllers are wired with neutral shift/accel/effect fixtures',
+    'engine update: one quarter compose recovered dependency attachment, outer HybridMotor update, float queries and conversion tail before the actual engine caller/controllers; prepare, both gain producers, average/curve and pending-shift query now run as recovered bodies, while other fixtures retain direct control inputs; auxiliary query alternates binary64 scripted values and recovered float getter; native Physics, shifting, acceleration, full auxiliary, outer control/gains, spatial and playback controllers are wired; isolated controller cases retain controlled shift/accel/effect inputs',
     'engine controllers: virtual slots +0x38/+0x3c alternate recovered query bodies and scripted thiscall boundaries; snd setters are logged stubs, not middleware equivalence; the original CRT conversion helper 0x75bed4 runs on both sides',
     'engine setup: heap capacity and bMalloc are scripted boundaries; packet/synth allocation-failure cases use invalid gin magic and a successfully allocated or existing data object to avoid the original null dereference; failure of the data allocation is not exercised',
     'engine setup: the bank table producer remains a fixture; one quarter of setup/initialization fixtures prepend actual engine construction then the native adapter temporary car binding; table indexes 0 and 1 are tested without establishing the table bounds',
@@ -765,7 +806,7 @@ def main():
     # These leaves have no relocations. Only claim complete byte identity
     # when COFF places a single function in the section and its size agrees.
     query_byte_matching = {}
-    for name, source_key in (('EngineGain', 'values'), ('EngineValue', 'values'), ('AuxFrequency', 'control'), ('AuxGain', 'control'), ('AuxCarValue', 'auxiliary'), ('AuxApproach', 'aux_sequence'), ('GainCurveConstruct', 'gain_curve_construct'), ('SpatialPosition','spatial_position'), ('SpatialOrientation','spatial_orientation'), ('CarBind','schedule'), ('EngineForward','schedule'), ('ScheduleNoop','schedule'), ('ScheduleNoopArg','schedule'), ('ControlActivate','control_lifecycle'), ('GearShiftPoint','accel_shiftpoint'), ('ShiftActive','accel_lifecycle'), ('AccelActivate','accel_lifecycle'), ('AccelDependency','accel_lifecycle')):
+    for name, source_key in (('EngineGain', 'values'), ('EngineValue', 'values'), ('AuxFrequency', 'control'), ('AuxGain', 'control'), ('AuxCarValue', 'auxiliary'), ('AuxApproach', 'aux_sequence'), ('GainCurveConstruct', 'gain_curve_construct'), ('SpatialPosition','spatial_position'), ('SpatialOrientation','spatial_orientation'), ('CarBind','schedule'), ('EngineForward','schedule'), ('ScheduleNoop','schedule'), ('ScheduleNoopArg','schedule'), ('ControlActivate','control_lifecycle'), ('GearShiftPoint','accel_shiftpoint'), ('ShiftActive','accel_lifecycle'), ('AccelActivate','accel_lifecycle'), ('AccelDependency','accel_lifecycle'), ('PhysicsThrottle','shift_producers'), ('ShiftReset','shift_lifecycle'), ('ShiftActivate','shift_lifecycle'), ('ShiftDependency','shift_lifecycle')):
         spec = ROUTINES[name]
         symbol = next(s for s in parsed[source_key]['symbols'].values() if s['name'].startswith(spec[1]))
         section = parsed[source_key]['sections'][symbol['section'] - 1]
@@ -874,7 +915,8 @@ def main():
             uc.mem_write(table+0x24,struct.pack('<I',rebuilt_entry['SpatialSelect'] if rebuilt else retail_entry['SpatialSelect']))
             for slot,target in ((0x2c,'SpatialPosition'),(0x30,'SpatialOrientation')):
                 uc.mem_write(table+slot,struct.pack('<I',rebuilt_entry[target] if rebuilt else retail_entry[target]))
-        for table,slots in ((0x78a008,{0x14:'PhysicsUpdate',0x18:'PhysicsPost'}),
+        for table,slots in ((0x78a008,{0x14:'PhysicsUpdate',0x18:'PhysicsPost',0x24:'PhysicsThrottle'}),
+                            (0x789f28,{0x14:'ShiftUpdate',0x18:'ShiftPost'}),
                             (0x789fe4,{0x14:'ControlUpdate',0x18:'ControlPost'}),
                             (0x789fb8,{0x14:'AccelUpdate',0x18:'ScheduleNoop'}),
                             (0x789f70,{0x14:'AuxFrame',0x18:'ScheduleNoop',0x2c:'AuxLevel'}),
@@ -963,6 +1005,14 @@ def main():
             uc.reg_write(xc.UC_X86_REG_FPTAG, 0xffff)
             for reg, value in zip(PRESERVED, PRESERVED_VALUES): uc.reg_write(reg, value)
             try:
+                if preshiftinit and name=='ShiftUpdate':
+                    for target,arguments in (('ShiftConstruct',[]),('ShiftBind',[CAR]),('ShiftActivate',[])):
+                        uc.mem_write(STACK,struct.pack('<I',STOP)+b''.join(struct.pack('<I',w&0xffffffff) for w in arguments))
+                        uc.reg_write(xc.UC_X86_REG_ESP,STACK);uc.reg_write(xc.UC_X86_REG_ECX,this)
+                        uc.emu_start(rebuilt_entry[target] if rebuilt else retail_entry[target],STOP+7,count=MAX_INSTRUCTIONS)
+                        assert uc.reg_read(xc.UC_X86_REG_ESP)==STACK+4+ROUTINES[target][2],('state or call order mismatch','shift prelude stack',target)
+                    uc.mem_write(STACK,struct.pack('<I',STOP)+b''.join(struct.pack('<I',w&0xffffffff) for w in words))
+                    uc.reg_write(xc.UC_X86_REG_ESP,STACK);uc.reg_write(xc.UC_X86_REG_ECX,this)
                 if preaccelinit and name=='AccelUpdate':
                     for target,arguments in (('AccelConstruct',[]),('AccelBind',[CAR]),('AccelActivate',[])):
                         uc.mem_write(STACK,struct.pack('<I',STOP)+b''.join(struct.pack('<I',w) for w in arguments))
@@ -981,6 +1031,7 @@ def main():
                     for target,receiver,arguments in (
                         ('PhysicsConstruct',ARENA+0x3a400,[]),('PhysicsBind',ARENA+0x3a400,[CAR]),('PhysicsActivate',ARENA+0x3a400,[]),
                         ('AuxConstruct',AUXILIARY,[]),('AuxBind',AUXILIARY,[CAR]),
+                        ('ShiftConstruct',ARENA+0x3a000,[]),('ShiftBind',ARENA+0x3a000,[CAR]),('ShiftActivate',ARENA+0x3a000,[]),
                         ('AccelConstruct',ARENA+0x3a200,[]),('AccelBind',ARENA+0x3a200,[CAR]),('AccelActivate',ARENA+0x3a200,[]),
                         ('SpatialConstruct',ARENA+0x33000,[]),('SpatialBind',ARENA+0x33000,[CAR]),('SpatialActivate',ARENA+0x33000,[]),
                         ('ControlConstruct',CONTROL,[]),('ControlBind',CONTROL,[CAR]),('ControlActivate',CONTROL,[]),
@@ -988,13 +1039,14 @@ def main():
                         invoke_schedule(target,receiver,arguments)
                     uc.mem_write(ARENA+0x3a46c,b'\x01')
                     uc.mem_write(AUXILIARY+0x6c,struct.pack('<IIII',ARENA+0x3a000,ARENA+0x3a200,ARENA+0x3a400,ARENA+0x33000))
+                    uc.mem_write(ARENA+0x3a06c,struct.pack('<I',AUXILIARY))
                     uc.mem_write(ARENA+0x3a26c,struct.pack('<II',AUXILIARY,ARENA+0x3a000))
                     uc.mem_write(CONTROL+0x6c,struct.pack('<III',AUXILIARY,ARENA+0x3a000,ARENA+0x3a200))
                     uc.mem_write(SETUP+0xb8,struct.pack('<I',AUXILIARY));uc.mem_write(SETUP+0xc0,struct.pack('<I',CONTROL))
                     invoke_schedule('AuxActivate',AUXILIARY,[])
-                    nodes=[ARENA+0x3a400,ARENA+0x33000,AUXILIARY,CONTROL,ARENA+0x3a200]
-                    for i,(node,key) in enumerate(zip(nodes,(0,8,5,6,4))):uc.mem_write(node+0x4c,struct.pack('<II',key<<4,nodes[i+1] if i<4 else 0))
-                    uc.mem_write(CAR+0x1c,struct.pack('<II',nodes[0],SETUP));uc.mem_write(CAR+0x2c,struct.pack('<i',5))
+                    nodes=[ARENA+0x3a400,ARENA+0x33000,AUXILIARY,CONTROL,ARENA+0x3a200,ARENA+0x3a000]
+                    for i,(node,key) in enumerate(zip(nodes,(0,8,5,6,4,3))):uc.mem_write(node+0x4c,struct.pack('<II',key<<4,nodes[i+1] if i<5 else 0))
+                    uc.mem_write(CAR+0x1c,struct.pack('<II',nodes[0],SETUP));uc.mem_write(CAR+0x2c,struct.pack('<i',6))
                     invoke_schedule('CarSort',CAR,[])
                     uc.mem_write(STACK,struct.pack('<I',STOP)+b''.join(struct.pack('<I',w&0xffffffff) for w in words))
                     uc.reg_write(xc.UC_X86_REG_ESP,STACK);uc.reg_write(xc.UC_X86_REG_ECX,this)
@@ -1530,6 +1582,7 @@ def main():
         pk(memory,ARENA+0x3a078,'<i',0);pk(memory,ARENA+0x3a200+0xc8,'<i',0)
         fixture_code_fields[ARENA+0x3bb34]='ScheduleNoop'
         fixture_globals[0x82b884]=struct.pack('<I',ARENA+0x34000)
+        pk(memory,ARENA+0x34038,'<I',0)
         pk(memory,ARENA+0x34013,'<B',int(trial%3==0));pk(memory,ARENA+0x34084,'<i',trial%2)
         fixture_globals[0x89e7b0]=bytes(4);fixture_globals[0x89e7c0]=bytes(16)
         fixture_globals[0x82bb40]=struct.pack('<II',1,1)
@@ -1545,6 +1598,8 @@ def main():
         for component in (ARENA+0x3a400,ARENA+0x33000,AUXILIARY,CONTROL):pk(memory,component+0x5c,'<ff',0.,1/60.)
 
     preauxinit = postauxcontrol = auxtrajectory = prespatialinit = precarinit = composedcar = cartrajectory = preaccelinit = False
+    preshiftinit=False
+    shift_sequence_seed=None
     accel_sequence_seed=None
     schedule_sequence_seed=None
     spatial_sequence_seed = None
@@ -1575,7 +1630,71 @@ def main():
             composedcar=name in ('CarFrame','CarSchedule') and trial%4==0
             precarinit=composedcar
             cartrajectory=False
+            preshiftinit=name=='ShiftUpdate' and trial%4==0
             preaccelinit=name=='AccelUpdate' and trial%4==0
+            if name in SHIFT_TARGETS:
+                seed_auxiliary(memory,trial)
+                this=ARENA+0x3a000;words=[]
+                physics=ARENA+0x3a400;table=ARENA+0x33e00;tuning=ARENA+0x33400
+                pk(memory,this+0x44,'<I',CAR);pk(memory,this+0x68,'<II',CAR,AUXILIARY)
+                pk(memory,this+0x74,'<I',tuning)
+                pk(memory,this+0x58,'<B',trial%2);pk(memory,this+0x5c,'<ff',rng.choice((0.,0.1,1.,5.,100.)),0.)
+                pk(memory,this+0x64,'<i',(-3,-2,-1,0,1,2,3,4)[trial%8])
+                pk(memory,this+0x78,'<ii',(-1,0,1,2,3,4,5,6,7,8)[trial%10],trial%8)
+                pk(memory,this+0x98,'<B',trial%3);pk(memory,this+0x9c,'<i',trial%2)
+                pk(memory,this+0xa0,'<fff',rng.choice((0.,0.1,1.,5.,100.)),rng.uniform(-100.,100.),rng.choice((-1.,0.,1000.,3000.,6000.,10000.)))
+                for offset in (0xac,0xc8,0xe4,0x104,0x120,0x140):
+                    pk(memory,this+offset,'<4fifB',rng.choice((0.,0.05,0.2)),rng.choice((0.01,0.1,0.2)),rng.uniform(-100.,100.),rng.uniform(-100.,100.),(0,1,2,3,6)[(trial+offset)%5],rng.uniform(-100.,100.),trial%3==0)
+                pk(memory,this+0x13c,'<i',trial%3)
+                for offset in range(0,0x60,4):pk(memory,tuning+offset,'<i',rng.choice((-2**31,-1,0,1,50,100,500,0x1000001,2**31-1)))
+                for offset in (8,0x20,0x40,0x5c):pk(memory,tuning+offset,'<f',rng.choice((0.,0.001,0.1,0.5,1.,10.)))
+                pk(memory,CAR+0x14,'<i',1+trial%3);pk(memory,CAR+0xa4,'<i',trial%4);pk(memory,CAR+0x8c,'<i',trial%3)
+                pk(memory,CAR+0x50,'<i',trial%8)
+                pk(memory,physics,'<I',table);pk(memory,table+0x24,'<I',0)
+                fixture_code_fields[table+0x24]='PhysicsThrottle'
+                pk(memory,physics+0x70,'<f',rng.choice((0.,999.,1000.,3000.,6000.,10000.)))
+                pk(memory,physics+0x84,'<f',rng.uniform(-10.,110.))
+                pk(memory,physics+0xc8,'<ii',(-1,1,2,3,4,5,6)[trial%7],(trial//7)%7)
+                # Auxiliary queries remain actual recovered leaves; selected cases use a scripted double.
+                if trial%4==1 and name in ('ShiftAdvance','ShiftUpdate'):
+                    fixture_code_fields.pop(AUX_VTABLE+0x34,None)
+                    pk(memory,AUX_VTABLE+0x34,'<I',VIRTUAL['AuxValue38'])
+                    pk(memory,AUX_RESULT,'<d',rng.uniform(1000.,9000.))
+                    callback_writes['AuxValue38']={tuning+0x54:struct.pack('<i',123),physics+0x70:struct.pack('<f',5432.)}
+                if name=='ShiftBind' and trial%4==1:
+                    fixture_code_fields.pop(ARENA+0x3bb44,None)
+                    pk(memory,ARENA+0x3bb44,'<I',VIRTUAL['SoundContext']);returns['SoundContext']=trial%5
+                    callback_writes['SoundContext']={this+0x64:struct.pack('<i',(-3,-2,-1,0,1)[trial%5])}
+                if name in ('ShiftUp','ShiftDown','ShiftThrottle') and trial%4==1:
+                    fixture_code_fields.pop(table+0x24,None)
+                    pk(memory,table+0x24,'<I',VIRTUAL['AuxValue38']);pk(memory,AUX_RESULT,'<d',77.123456789)
+                    callback_writes['AuxValue38']={this+0xa8:struct.pack('<f',4321.),tuning+0xc:struct.pack('<i',17),tuning+0x44:struct.pack('<i',23)}
+                if name=='ShiftAdvance' and trial%4==1:
+                    fixture_code_fields.pop(AUX_VTABLE+0x34,None);fixture_code_fields.pop(AUX_VTABLE+0x38,None)
+                    pk(memory,AUX_VTABLE+0x34,'<II',VIRTUAL['AuxValue38'],VIRTUAL['AuxValue38'])
+                    pk(memory,AUX_RESULT,'<d',3456.123456789)
+                    pk(memory,this+0x78,'<i',(1,4,5,6)[(trial//4)%4]);pk(memory,this+0x13c,'<i',0)
+                    pk(memory,this+0xe0,'<B',1);pk(memory,this+0x158,'<B',1)
+                    callback_writes['AuxValue38']=[{physics+0x70:struct.pack('<f',5432.),0x7ed29c:struct.pack('<f',12.),0x7ed2a0:struct.pack('<i',150)},
+                                                  {0x7ed29c:struct.pack('<f',13.),0x7ed2a0:struct.pack('<i',250)},{}]
+                    fixture_globals[0x7ed29c]=struct.pack('<f',11.);fixture_globals[0x7ed2a0]=struct.pack('<i',50)
+                fixture_globals[0x82b884]=struct.pack('<I',ARENA+0x34000)
+                pk(memory,ARENA+0x34038,'<I',0 if trial%3==0 else ARENA+0x34100)
+                pk(memory,ARENA+0x34100,'<7f',*[rng.uniform(-2.,2.) for _ in range(7)])
+                fixture_globals[0x7ed344]=struct.pack('<i',rng.choice((-2**31,-32768,0,1,32767,32768,2**31-1)))
+                if name=='ShiftUp' and trial%8==0:pk(memory,physics+0x70,'<I',0x7fc12345)
+                if name=='ShiftFactory':
+                    this=0;returns['HeapAvailable']=(-1,0,0x55a,0x55b,0x55c,2**31-1)[trial%6];returns['Malloc']=0 if (trial//6)%2 else ALLOC
+                    fixture_globals[0x7ec840]=struct.pack('<i',trial%32)
+                elif name=='ShiftBind':words=[CAR]
+                elif name=='ShiftDependency':words=[(-1,0,1,2,3,2**31-1)[trial%6]&0xffffffff]
+                elif name=='ShiftAttach':
+                    component=ARENA+0x3bbe0;pk(memory,component,'<I',ARENA+0x3bb80);pk(memory,ARENA+0x3bb84,'<I',VIRTUAL['SoundContext'])
+                    returns['SoundContext']=AUX_RESULT
+                    pk(memory,AUX_RESULT,'<I',(rng.getrandbits(32)&~0xfff0)|((3,5,0,1,4,8,0xfff)[trial%7]<<4));words=[component]
+                elif name in ('ShiftRpm','ShiftThrottle','ShiftEffects','ShiftAdvance','ShiftUpdate'):words=[fw(rng.choice((0.,0.001,0.016,0.1,0.5,-0.01)))]
+                elif name=='PhysicsThrottle':this=physics
+                elif name=='SoundClamp':this=0;words=[fw(rng.choice((-1.,0.,1.,1000.,10000.,float('nan')))),fw(rng.choice((-1.,0.,1.,1000.))),fw(rng.choice((-1.,0.,1.,10000.)))]
             if name in ACCEL_TARGETS:
                 seed_auxiliary(memory,trial)
                 this=ARENA+0x3a200;words=[]
@@ -2596,6 +2715,8 @@ def main():
                 aux_sequence_seed=(bytes(memory),dict(fixture_globals),dict(fixture_code_fields),dict(returns))
             if name=='CarFrame' and trial==0:
                 schedule_sequence_seed=(bytes(memory),dict(fixture_globals),dict(fixture_code_fields),dict(returns))
+            if name=='ShiftUpdate' and trial==0:
+                shift_sequence_seed=(bytes(memory),dict(fixture_globals),dict(fixture_code_fields),dict(returns))
             if name=='AccelUpdate' and trial==1:
                 accel_sequence_seed=(bytes(memory),dict(fixture_globals),dict(fixture_code_fields),dict(returns))
             if name == 'PhysicsUpdate' and trial == 0:
@@ -2746,6 +2867,7 @@ def main():
                 record_failure(name, trial, precision, error)
                 continue
             counts[name] += 1
+    preshiftinit=False
     # Carry matching object/ring state forward through mode/shift changes.
     # Every step is compared before its state becomes the next input.
     sequence_steps = 0
@@ -2951,6 +3073,44 @@ def main():
         paths['listener-spatial-cutoff-steps']=steps
     postlisteners=prelistenerspatial=False
 
+    if shift_sequence_seed is not None:
+        name='ShiftUpdate';steps=0
+        for precision in PRECISIONS:
+            memory=bytearray(shift_sequence_seed[0])
+            fixture_globals.clear();fixture_globals.update(shift_sequence_seed[1])
+            fixture_code_fields.clear();fixture_code_fields.update(shift_sequence_seed[2])
+            returns.clear();returns.update(shift_sequence_seed[3]);callback_writes.clear()
+            preconstruct=preselect=precontrol=prephysics=observe_gains=preauxinit=postauxcontrol=auxtrajectory=prespatialinit=False
+            postlisteners=prelistenerspatial=composedcar=precarinit=cartrajectory=preaccelinit=False
+            this=ARENA+0x3a000;physics=ARENA+0x3a400
+            pk(memory,CAR+0x14,'<i',1);pk(memory,CAR+0xa4,'<i',0);pk(memory,CAR+0x8c,'<i',0)
+            pk(memory,this+0x5c,'<f',0.)
+            gear=2
+            for frame in range(320):
+                preshiftinit=frame==0
+                old=gear
+                if frame in (5,70,230):gear+=1
+                if frame in (130,180,280):gear-=1
+                pk(memory,physics+0xc8,'<ii',gear,old)
+                pk(memory,physics+0x70,'<f',4500.+(frame%20)*50.)
+                pk(memory,physics+0x84,'<f',80.)
+                pk(memory,AUXILIARY+0x128,'<ff',4500.+(frame%20)*50.,4700.)
+                pk(memory,AUXILIARY+0x130,'<f',80.)
+                pk(memory,CAR+0x50,'<i',gear)
+                attempts[name]+=1
+                try:
+                    a,b=run(name,memory,[fw(0.02)],precision,this)
+                    check(name,precision,a,b)
+                except AssertionError as error:
+                    record_failure(name,frame,precision,AssertionError(('state or call order mismatch','shift trajectory',error)));break
+                counts[name]+=1;steps+=1
+                note('shift-carried-state-%d'%struct.unpack_from('<i',a['arena'],this-ARENA+0x78)[0])
+                for i in range(3):
+                    if a['arena'][this-ARENA+0x70+i]:note('shift-carried-flag-%d'%i)
+                memory=bytearray(a['arena']);fixture_globals.update(a['globals'])
+        paths['shift-carried-steps']=steps
+    preshiftinit=False
+
     if accel_sequence_seed is not None:
         name='AccelUpdate'
         steps=0
@@ -3007,6 +3167,7 @@ def main():
                 pk(memory,ARENA+0x34084,'<i',(frame//32)%2)
                 pk(memory,CAR+0x78,'<i',(frame//64)%2)
                 pk(memory,ARENA+0x3a600+0x430,'<f',20.)
+                pk(memory,ARENA+0x3a600+0x434,'<i',2 if frame<30 or frame>=200 else 3 if frame<60 or frame>=160 else 4)
                 pk(memory,ARENA+0x3a600+0x440,'<f',2000. if 64<=frame<220 else 850.+(frame%32)*200.)
                 pk(memory,ARENA+0x3b000+0x20c,'<f',0. if 64<=frame<220 else 0.5)
                 pk(memory,ARENA+0x3a600+0x60,'<3f',frame*0.25,frame*0.125,0.)
@@ -3017,6 +3178,7 @@ def main():
                 except AssertionError as error:
                     record_failure(name,frame,precision,AssertionError(('state or call order mismatch','car scheduler sequence',error)));break
                 counts[name]+=1;steps+=1
+                note('car-carried-shift-state-%d'%struct.unpack_from('<i',a['arena'],0x3a078)[0])
                 for event in a['events']:
                     if event[0]=='SoundRandom' and event[2]==(150,):note('car-sequence-control-pulse')
                 memory=bytearray(a['arena']);fixture_globals.update(a['globals'])
@@ -3121,6 +3283,15 @@ def main():
             assert text.count(before)==1,(key,before)
             return (key,text,text.replace(before,after,1))
         mutations = {
+            'shift-notify-equality': frame_mutation('shift','time5C > valueA0 && flag98','time5C >= valueA0 && flag98'),
+            'shift-up-unordered': frame_mutation('shift_transitions','aux->physics74->value70 < engineSoundShiftGate7885C0','!(aux->physics74->value70 >= engineSoundShiftGate7885C0)'),
+            'shift-down-neutral': frame_mutation('shift_transitions','if (aux->physics74->valueC8 == 1) return;','if (false) return;'),
+            'shift-effect-reset': frame_mutation('shift_producers','if (flag11C) { Reset45C430(); return; }','if (flag138) { Reset45C430(); return; }'),
+            'shift-clock-inactive': frame_mutation('shift','if (active58) { delta60','if (true) { delta60'),
+            'shift-step-order': frame_mutation('shift','    Advance47BF20(duration);\n    Advance47BEA0(duration);','    Advance47BEA0(duration);\n    Advance47BF20(duration);'),
+            'shift-throttle-snapshot': frame_mutation('shift','throttle->Configure459990(begin, end, throttleTime, 0);','throttle->Configure459990(begin, engineSoundShiftFirst7ED29C, engineSoundShiftTime7ED2A0, 0);'),
+            'shift-gear-state': frame_mutation('shift','case 2: if (flagE0) value78 = value7C = 3;','case 2: if (flagE0) value78 = value7C = 7;'),
+
             'accel-edge': frame_mutation('accel','const unsigned char previous = flagD0;','const unsigned char previous = 0;'),
             'accel-unordered-release': frame_mutation('accel','if (car68->value48 < engineSoundAccelHigh789FE0)','if (!(car68->value48 >= engineSoundAccelHigh789FE0))'),
             'accel-delay-equality': frame_mutation('accel','(double)time5C - valueCC < engineSoundAccelDelay7844C0','(double)time5C - valueCC <= engineSoundAccelDelay7844C0'),
@@ -3450,7 +3621,7 @@ def main():
             mutations = {label: value for label, value in mutations.items() if value[0] in args.mutation_source}
         if args.mutation_name:
             assert set(args.mutation_name) <= set(mutations), 'unknown/excluded mutation name'
-            mutations = {label:value for label,value in mutations.items() if label in args.mutation_name}
+            mutations = {label: value for label, value in mutations.items() if label in args.mutation_name}
         rejected, survived, no_mismatch_text = [], [], []
         for label, (key, before, after) in mutations.items():
             text = (ROOT / SOURCES[key]).read_text(); assert text.count(before) == 1, (label, text.count(before))

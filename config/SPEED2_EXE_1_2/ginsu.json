@@ -835,6 +835,96 @@
       "address": "0x47aaa0",
       "size": 40,
       "sha256": "80fb8abc4955effb66862031af242e2ca3d7e67e8d4c7b0d0afa51cf6b18d665"
+    },
+    "ShiftConstruct": {
+      "address": "0x45c0d0",
+      "size": 311,
+      "sha256": "3bbd34a93f95d266a94755b09ed9ada8b1b4699340b84d5f9f7b8eeab20696bf"
+    },
+    "ShiftFactory": {
+      "address": "0x46ebd0",
+      "size": 64,
+      "sha256": "5467a9278580e712a49b74d3430e72028e1a37f1ca3e3b8269dd5c7676ef142d"
+    },
+    "ShiftBind": {
+      "address": "0x45c330",
+      "size": 147,
+      "sha256": "41ed24d920992cb7f6af9d91da7fc2302b8d009cf424bbd29cdafd43fd63de71"
+    },
+    "ShiftActivate": {
+      "address": "0x45c3d0",
+      "size": 89,
+      "sha256": "85ee30a6d4eacc49c47f572167c5daf8622ef5348798b689895bbf5fb9aacfb5"
+    },
+    "ShiftDependency": {
+      "address": "0x45c310",
+      "size": 17,
+      "sha256": "6e505cdd0ba855bbc985ed9f17e2ec1fc043e0fca7a12bff7e79598dc5305bb4"
+    },
+    "ShiftAttach": {
+      "address": "0x46ec30",
+      "size": 56,
+      "sha256": "42484449390bad8aa9d4414547682904f672b558ba77412fcfcec93115b28e64"
+    },
+    "ShiftReset": {
+      "address": "0x45c430",
+      "size": 51,
+      "sha256": "88a029febb6e5d19b0d084c9070d0d5684909354591a304c3f107fc96c75d5aa"
+    },
+    "ShiftUp": {
+      "address": "0x46ec70",
+      "size": 484,
+      "sha256": "4d18e99913070666182d73b36fde4a0910cd2984dd5f221fe868d47f2b2dd09b"
+    },
+    "ShiftDown": {
+      "address": "0x46ee60",
+      "size": 408,
+      "sha256": "f8724ea49d3bd20cf5e5aacd340ae128b1da9200bda0de34692bd091745693bc"
+    },
+    "ShiftRpm": {
+      "address": "0x47bf20",
+      "size": 153,
+      "sha256": "97f3fdc880a1780bdd601b5af962e710fe273cc4149ab5d031bb4b88fa432bf8"
+    },
+    "ShiftThrottle": {
+      "address": "0x47bea0",
+      "size": 106,
+      "sha256": "c0c4c6be6551a12ffe171c986b74ad6fcf3b436a961e86c5394d00d254cbc633"
+    },
+    "ShiftEffects": {
+      "address": "0x46f000",
+      "size": 124,
+      "sha256": "a110c5aa3df7ae8a8465f4f2205f60fc65f8479885c6c4f4511ccb28e6c96208"
+    },
+    "ShiftConfigureEffects": {
+      "address": "0x46f080",
+      "size": 226,
+      "sha256": "a8c5914b125059da097f50daa1db4f4af16c94ad0ab2de4f722f5360743a3a07"
+    },
+    "ShiftAdvance": {
+      "address": "0x482d50",
+      "size": 963,
+      "sha256": "5bcf7e1e4db7429ea7eb2134a845c82e98482f7dfa979ab8e217d7a91af0e5ea"
+    },
+    "ShiftUpdate": {
+      "address": "0x483130",
+      "size": 108,
+      "sha256": "a79ee30cb7dcbb52350f18eeb9ff99a57ee5fb8e2ed8374bb3cd12a37c91ac8a"
+    },
+    "ShiftPost": {
+      "address": "0x45c210",
+      "size": 248,
+      "sha256": "87ca00cc331ae75a6f9b891c9103c19296e48defae46f1b23b0f8b43bedaca00"
+    },
+    "PhysicsThrottle": {
+      "address": "0x45d300",
+      "size": 7,
+      "sha256": "f16c150298d9e6c126e094146780fd774e2e72a9ab4aa4bba2da89728ce88c44"
+    },
+    "SoundClamp": {
+      "address": "0x401090",
+      "size": 45,
+      "sha256": "0bbc0be0d446e0bca0d5cc1d9ff3682ac001f6bf36f61fd3957cf28a57c7d4c0"
     }
   }
 }

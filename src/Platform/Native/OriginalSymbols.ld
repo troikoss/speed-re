@@ -1164,3 +1164,19 @@ engineSoundAccelHigh789FE0 = 0x789fe0;
 engineSoundAccelRpmMargin78429C = 0x78429c;
 engineSoundAccelRpmLow78759C = 0x78759c;
 engineSoundAccelDelay7844C0 = 0x7844c0;
+
+/* Recovered shifting tuning and constants (UG2 PC v1.2). */
+engineSoundShiftTuning7F2860 = 0x7f2860;
+engineSoundShiftTuning7F2EC0 = 0x7f2ec0;
+engineSoundShiftSelection7F2234 = 0x7f2234;
+engineSoundShiftPacked7ED344 = 0x7ed344;
+engineSoundShiftGate7885C0 = 0x7885c0;
+engineSoundShiftScale7885C4 = 0x7885c4;
+engineSoundShiftScale7885C8 = 0x7885c8;
+engineSoundShiftOffset78AAA0 = 0x78aaa0;
+engineSoundShiftRpmScale7885A0 = 0x7885a0;
+engineSoundShiftDuration7885B0 = 0x7885b0;
+engineSoundShiftFirst7ED29C = 0x7ed29c;
+engineSoundShiftTime7ED2A0 = 0x7ed2a0;
+engineSoundShiftTimeScale7844D8 = 0x7844d8;
+engineSoundShiftLow784550 = 0x784550;

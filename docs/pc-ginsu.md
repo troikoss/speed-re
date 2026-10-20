@@ -2210,3 +2210,153 @@ shifting, registry/manager or other inventoried audio seams.
 UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 256
 UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets AccelConstruct,AccelFactory,AccelBind,AccelActivate,AccelDependency,AccelAttach,AccelConfigure,AccelLaunch,AccelQueryLaunch,AccelQuery,AccelRelease,AccelRpm,AccelThrottle,AccelAdvance,AccelUpdate,ShiftActive,OwnerShiftPoint,GearShiftPoint,EnvelopeTarget,CarFrame,CarSchedule --cases 128 --mutation-checks --mutation-name accel-edge --mutation-name accel-unordered-release --mutation-name accel-delay-equality --mutation-name accel-bind-reload --mutation-name accel-duration-integer --mutation-name accel-release-snapshot --mutation-name accel-return-state --mutation-name accel-step-order --mutation-name accel-target-copy
 ```
+
+## Shifting component and native input (2026-10-20)
+
+Recovered the complete `SFXCTL_Shifting` input graph (type 3, vtable
+`0x789f28`, allocation `0x15c`), replacing the native shifting fixture:
+
+| Routine | Address | Original bytes |
+|---|---:|---:|
+| Construct / factory | `0x45c0d0` / `0x46ebd0` | 311 / 64 |
+| Bind / activate | `0x45c330` / `0x45c3d0` | 147 / 89 |
+| Dependency / attach | `0x45c310` / `0x46ec30` | 17 / 56 |
+| Reset | `0x45c430` | 51 |
+| Upshift / downshift | `0x46ec70` / `0x46ee60` | 484 / 408 |
+| RPM / throttle advancement | `0x47bf20` / `0x47bea0` | 153 / 106 |
+| Effect advancement / setup | `0x46f000` / `0x46f080` | 124 / 226 |
+| State advancement / frame | `0x482d50` / `0x483130` | 963 / 108 |
+| Packed post-update | `0x45c210` | 248 |
+| Physics throttle virtual query | `0x45d300` | 7 |
+| Shared float clamp | `0x401090` | 45 |
+
+The full layout retains six `0x1c` envelopes at `+0xac`, `+0xc8`, `+0xe4`,
+`+0x104`, `+0x120` and `+0x140`, with the final completion flag at `+0x158`.
+Construction preserves unwritten bytes. Activation resets the original state
+and output fields without inventing envelope initialization. Binding retains
+its virtual query for non-player kinds, the unconditional final non-player
+tuning choice, signed remainder at `+0x100`, and player table lookup through
+`0x7f2234` with a `0x60` byte tuning stride at `0x7f2860`.
+
+The frame compares Physics previous/current gears (`+0xcc`/`+0xc8`), clears
+notification flags even while the clock is inactive, calls upshift/downshift,
+then advances the seven-state machine. Upshift resets inline, gates on RPM,
+swaps the two auxiliary RPM snapshots and starts the follow envelope.
+Unordered RPM passes its strict less-than rejection. Downshift into gear 1
+leaves the object unchanged. Duration products retain exact signed integer
+loads and x87 precision until the original stores/conversion boundaries;
+upshift follow-time addition wraps as a 32-bit integer before conversion.
+
+Shared RPM/throttle/effect stepping precedes state transitions. RPM captures
+its current target across each actual envelope step. Throttle queries Physics
+virtual `+0x24` and rounds its result before stepping. The two effects start
+only below gear 5 and use the original gear-3/4 scale constants; completing
+the first effect resets shifting. State transitions preserve repeated virtual
+queries, captured Physics/auxiliary receivers, and the throttle endpoint/time
+snapshot preceding the state-4 auxiliary callback. Packed post-update reloads
+the audio object's mix record at `+0x38` for each conversion and retains the
+wrapped, clamped complement of `0x7ed344`.
+
+The native scheduler now owns six recovered inputs in sorted order:
+Physics ID 0 → Shifting ID 3 → AccelTrans ID 4 → Auxiliary ID 5 → HybridMotor
+ID 6 → Spatial ID 8, followed by the separate engine playback pass. Native
+construction/bind/activation and explicit dependency pointers remain adapter
+ownership; the original registry and manager construction are still open.
+The Physics `+0x24` query and shifting frame/post methods use native ABI
+bridges. `UG2_ENGINE_LOG` adds `# shifting frame state78 transition7C rpmDC
+throttleC0 flag70 flag71 flag72`.
+
+Initial isolated verification passed 2304 comparisons across 18 targets.
+Expanded verification passed 6272 comparisons at 256 cases per target,
+including 640 carried shifting frames and 512 composed car frames. The carried
+shifting run reached all states 0..7 and each notification flag: across both
+x87 precisions, state counts were 28/180/140/30/72/94/94/2, and flags
+`+0x70`/`+0x71`/`+0x72` appeared 12/6/6 times. The composed scheduler still
+reached two delayed HybridMotor pulse requests. Callback fixtures replace
+Physics/auxiliary queries with scripted binary64 results and mutate tuning,
+RPM targets, global throttle endpoints/times and the binding remainder source
+to test snapshot/reload boundaries. Other cases run actual recovered query
+leaves. The full fixture arena, call order, returns, preserved registers,
+stack cleanup and logical x87 state are compared.
+
+Two additional leaves match complete original bytes: Physics throttle (7) and
+shifting dependency selection (17). Nineteen strict leaf byte checks now pass;
+reset/activation and the larger shifting routines retain behavioral evidence
+without a byte-match claim. Native build and all six CTest checks pass.
+
+These are bounded comparisons, not exhaustive or acoustic equivalence.
+Fixtures use valid dependent pointers, kinds 1..3 and valid table selectors;
+invalid-kind dereferences, overlapping component/tuning storage, exceptions
+and concurrency remain outside coverage. Envelope inputs are finite, with a
+quiet NaN separately tested at the upshift RPM gate and the clamp. The native
+mix pointer remains null until original mix ownership is integrated, so the
+recovered packed post-update takes its original default arm. Registry/list
+creation, full manager lifecycle/dispatch, Tunnel/MasterVol, overall level/pan,
+notification/parameter consumers, collision audio and flag-gated frontend/HUD
+paths remain audio seams. The overall audio goal remains active.
+
+Native 600-frame SKYLINE smoke passes: RMS 2178 LSB, 713 packet releases,
+zero underruns, pitch/RPM correlation 0.859. The 350Z smoke completes with
+RMS 9037 LSB, 1716 releases and zero underruns, but fails the unchanged pitch
+gate: correlation 0.424 < 0.50 and high-RPM pitch below low-RPM pitch.
+Its shifting diagnostic reaches states 0/1/4/5/6/7 for 487/22/15/17/16/43
+frames, with notification flags appearing 2/1/0 times. These native profiles
+are not full state coverage; binary trajectories provide the seven-state
+comparison above. This checkpoint does not close the 350Z acoustic regression
+or assert that middleware, mix ownership, gain decisions and the simple
+zero-crossing pitch measure are already equivalent to retail behavior.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets ShiftConstruct,ShiftFactory,ShiftBind,ShiftActivate,ShiftDependency,ShiftAttach,ShiftReset,ShiftUp,ShiftDown,ShiftRpm,ShiftThrottle,ShiftEffects,ShiftConfigureEffects,ShiftAdvance,ShiftUpdate,ShiftPost,PhysicsThrottle,SoundClamp,CarFrame,CarSchedule --cases 256
+ctest --test-dir build/native --output-on-failure
+build/venv/bin/python tools/smoke_native_engine_audio.py --game "$UG2_DIR" --frames 600 --car SKYLINE
+build/venv/bin/python tools/smoke_native_engine_audio.py --game "$UG2_DIR" --frames 600 --car 350Z
+```
+
+All eight shifting mutations were rejected by state/call mismatches, with no
+survivors or compile-only rejections; their 128-case baseline passed 3712
+comparisons including the 640 shifting and 512 car carried frames. Mutations
+cover notification equality, unordered upshift RPM, downshift destination gear,
+effect completion, inactive clock, shared update order, callback-time throttle
+snapshot and state-2 completion destination.
+
+The failing 350Z capture has 36 windows with shifting inactive (pitch/RPM
+correlation 0.670) and eight with shifting active (0.415). This split is only
+diagnostic: both bank mixing and intentional controller RPM transitions affect
+the observed waveform, and it does not waive the unchanged whole-capture gate
+or identify the remaining acoustic cause.
+
+Next open component evidence from live Ghidra: Tunnel table `0x78a064` uses
+frame `0x483250` (612 bytes), post `0x45db40` (75), dependency `0x45db20`
+(17, requests component ID 10), attach `0x471040` (59), shared bind
+`0x45dac0` and activation `0x45daf0` (47). Its frame queries world regions
+through `0x5d9c70` and calls `0x471080`, `0x45db90`, `0x47c6d0` and
+`0x4714a0`. MasterVol table `0x78a08c` uses frame `0x471970` (807), shared
+bind `0x45dac0`, activation `0x45dcc0` (32) and no-op post. Its frame produces
+mix outputs and writes the global `0x7ed344` read by shifting, with frontend,
+pause and race-mode gates and calls to `0x435950`/`0x4fe4a0`. These bodies
+are inspected, not recovered or wired. Original registry selection `0x476890`,
+component lookup `0x464ad0`, resolver `0x476f80` and dependency setup
+`0x47f710` remain open alongside full audio setup `0x4853c0` and frame
+`0x483b40`.
+
+Final full regression passed 51072 comparisons across 185 targets with zero
+failures, including 3712 carried steps. The six-input carried car scheduler
+itself reaches shifting states 0..7 for 238/52/40/24/28/62/48/20 frames across
+both precisions, and retains the two delayed HybridMotor pulse requests.
+Nineteen strict leaf byte checks pass. These results do not turn the failing
+350Z native pitch smoke into a pass.
+
+A further concrete mix seam is `Audio82B884::Apply` (`0x469050`, 91 bytes),
+currently a no-op in `NativePauseOptions.cpp`. Live assembly shows it stores
+the caller's mix pointer at audio `+0x38`, optionally calls the two music
+objects' virtual `+0x14` methods, and always copies mix `+0x1c` to `0x7ec848`
+and converts its scaled value to `0x7ec84c`. Its recovered frontend caller is
+`0x5344d0`. Recovering this method and connecting the persistent demo audio
+object to the existing options mix records is part of the remaining mix and
+frontend integration; supplying guessed gain behavior would not close it.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 256
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets ShiftConstruct,ShiftFactory,ShiftBind,ShiftActivate,ShiftDependency,ShiftAttach,ShiftReset,ShiftUp,ShiftDown,ShiftRpm,ShiftThrottle,ShiftEffects,ShiftConfigureEffects,ShiftAdvance,ShiftUpdate,ShiftPost,PhysicsThrottle,SoundClamp,CarFrame,CarSchedule --cases 128 --mutation-checks --mutation-name shift-notify-equality --mutation-name shift-up-unordered --mutation-name shift-down-neutral --mutation-name shift-effect-reset --mutation-name shift-clock-inactive --mutation-name shift-step-order --mutation-name shift-throttle-snapshot --mutation-name shift-gear-state
+```
