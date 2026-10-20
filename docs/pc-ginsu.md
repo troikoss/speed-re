@@ -10,7 +10,7 @@ retail copy checked; header `Gnsu20`, little-endian). The `GinsuSynthData` layou
 `SND_attrsetdef` writes `platformver` 0 and `rendermode` 0.
 
 Sources: `src/Speed/Indep/Src/EAXSound/Ginsu/{Ginsu.h,GinsuData.cpp,GinsuSynth.cpp}`.
-Engine setup: `src/Speed/Indep/Src/EAXSound/Ginsu/{EngineSound.h,EngineSoundSetup.cpp}`.
+Engine setup: `src/Speed/Indep/Src/EAXSound/Ginsu/{EngineSound.h,EngineSoundSetup.cpp,EngineSoundController.cpp}`.
 Native seams: `src/Platform/Native/{NativeAudio.cpp,NativeAudio.h,NativeEngineSound.cpp,NativeEngineSound.h}`.
 
 ## Recovered routines
@@ -33,6 +33,10 @@ Native seams: `src/Platform/Native/{NativeAudio.cpp,NativeAudio.h,NativeEngineSo
 | `0x477870` | `GinsuSynthesis::~GinsuSynthesis` | stops the player when `sampleRate24 != 0`, destroys it; vtable `0x789ce4` written last |
 | `0x4778c0` | `GinsuSynthesis::StartSynthesis(float)` (thiscall, RET 4) | returns the `SNDPKTPLAY_start` result, also kept at `+0x20`; on success clears both buffers, records the rate at `+0x24` and submits both packets |
 | `0x4777f0` | `GinsuSynthesis::PacketReleaseCallback` (cdecl) | calls `HandlePacketRelease(samples)` on the client data |
+| `0x440820` | `EngineSoundAllocate440820` | bWare allocation wrapper; heap backend remains native |
+| `0x47d740` | `EngineSound::Setup47D740` | one/two-slot setup; native demo calls mode 0 with a scaffold bank view |
+| `0x473e60` | `EngineSound::Update473E60` | one-slot controller; recovered and verified, native integration open |
+| `0x474030` | `EngineSound::Update474030` | two-slot controller; recovered and verified, native integration open |
 
 The frequency range in the `.gin` header is engine RPM: `GIN_Mazda_Miata_DCL.gin`
 spans about 2171 to 6852.
@@ -91,12 +95,14 @@ alone): 0 mismatches.
   With the 48000.0 block rate at `0x78a5b0` that is 2624 bytes: two 552-sample packet buffers
   plus the player.
 - `StartSynthesis` is called with the gin's minimum frequency (`0x47d8f9`).
-- The engine controller `0x473e60` (not recovered) makes snd calls for the voice (`0x72412a`
+- The engine controller `0x473e60` (recovered, not wired natively) makes snd calls for the voice (`0x72412a`
   with the voice handle at `+0xe0` and a value clamped to 0..127 at `+0x108`, and further
   calls for pitch and pan), then calls
   `UpdateFrequency(arg, 60.0f)` on `[this+0xd0]`, which is slot 0's synthesizer. `0x473fc7`
-  pushes `0x42700000` (60.0). The argument is passed through without a clamp; the clamp is
-  `FrequencyToSample` returning the first table entry below the minimum.
+  pushes `0x42700000` (60.0). The frequency argument is raised to the first slot's minimum when below it; the
+  ratio of requested to minimum frequency is retained for the snd control and
+  frequency feedback. The original decompilation omitted the saved target and
+  this ratio's role; the instruction-level comparison below verifies both.
 
 ## Native packet player and engine sound scaffold
 
@@ -194,9 +200,11 @@ Limitations (see the verifier's report for the full list):
 
 - The snd library behind the seam (voices, mixer, volume `0x72412a`, pitch and pan) is not
   recovered. The native player applies no volume, so the controller's volume is absent.
-- `0x473e60` and `0x474030` (engine controller), the producer of the per-car gin
-  table at `0x82b884` and the second slot's feed in mode 1 are not recovered. The demo feeds one
-  synthesizer with the RPM.
+- The controllers `0x473e60` and `0x474030` are recovered and behaviorally checked,
+  including the second slot's feed. Native integration remains open: the control-state
+  producer, the rest of caller `0x474310`, the producer of the per-car gin table
+  at `0x82b884`, virtual gain/spatial queries and snd setters. The demo still feeds
+  one synthesizer directly with engine RPM.
 - Not yet located in UG2: a stop or current-pitch routine of the synthesizer,
   and any callers of the synthesizer beyond the engine setup.
 
@@ -254,7 +262,7 @@ cmake --build build/native
 build/venv/bin/python tools/smoke_native_engine_audio.py --frames 600
 ```
 
-The full MSVC run passed all 18 targets: 18,432 comparisons (1,024 per target),
+The setup checkpoint's full MSVC run passed all 18 targets: 18,432 comparisons (1,024 per target),
 zero failures, with 504 setup cases at 53-bit x87 precision and 520 at 64-bit.
 Setup reached zero/one/two slots in 392/250/382 cases and made zero/one/two
 start calls in 775/212/37 cases. The native defaults check also passed 256
@@ -270,3 +278,95 @@ The native smoke after wiring setup produced 8.42 s of output, RMS 5729 LSB,
 correlation was 0.837 (low/high thirds 25.3/204.4 Hz). This checks native playback,
 not original controller or middleware equivalence. A separate `--no-audio` run
 completed 30 scripted headless frames. Byte identity is not claimed.
+
+
+## Engine controller recovery (2026-10-20)
+
+`EngineSoundController.cpp` recovers the complete bodies of one-slot controller
+`0x473e60..0x474028` and two-slot controller `0x474030..0x47430a`. Ghidra MCP
+provided the original instruction listings and decompilation. The instruction
+listings resolve missing target, ratio, conversion and feedback expressions in
+the decompiled text. The two ranges are fingerprinted in `ginsu.json`.
+
+Both controllers return when byte `+0xc8` is zero. Vtable slot `+0x38` receives
+one zero argument and returns the integer gain. Requested frequency is field
+`+0x104`; it is raised to slot 0's minimum frequency, saving a float ratio
+`requested/minimum` below the minimum (otherwise 1). Volume is the wrapped low
+32-bit product of control `+0x80` and gain, shifted arithmetically by 15 then 8,
+and clamped to 0..127. Two-slot mode uses control `+0x84` for the second volume.
+Global `0x82a998 >> 8` and the wrapped product of global `0x82b078` with gain,
+shifted by 23, are independently clamped to 0..127.
+
+Each slot sets six snd values, in retail order: `0x72412a` gets its stored start
+handle and volume; `0x724093` gets that handle, the result of virtual `+0x3c(0)`,
+and an additional zero; `0x723d9b` gets the truncating conversion of
+`ratio * this[+0xbc] * 4096`; `0x72403e` gets the truncating conversion of control
+`+0xbc`; `0x723c41` gets the shifted global; `0x723bc1` gets index 0 and the
+second global/gain product. The six middleware implementations remain seams;
+their full parameter semantics and native behavior are not established here.
+In particular, the extra zero of `0x724093` survives the virtual call (which
+pops one argument), explaining the caller's stack cleanup. It was absent from
+the initial decompilation.
+
+Both synths receive the same saved target with latency 60. One-slot mode unlocks
+snd before the synth update. Two-slot mode retains the outer lock across the
+first update, frequency feedback, the second slot's six setters and its update,
+and unlocks last. The synth updates themselves nest their recovered locks.
+
+Feedback reads slot 0's sample rate. For nonzero rate it computes
+`float(rate) / CyclePeriod(float(currentCycle + 0.5))`, retaining the x87 result
+without an intervening float store, then multiplies by the saved ratio and 120
+and stores it to frequency `+0x104`. Zero rate substitutes global float zero
+before the same two multiplies. No feedback is taken from slot 1. MSVC 7.1
+cannot spell a free thiscall function pointer, so the source uses a fastcall ABI
+view with an unused EDX for the virtual calls; ECX, the single stack argument,
+RET 4 cleanup and ordered calls are compared with the retail thiscall ABI.
+
+Caller lead: original bytes `0x474310..0x47434b`, read through Ghidra MCP and
+independently decoded with Capstone, copy control `+0xf8` to `+0x104`, set `+0xbc`
+to 1, and call one-slot mode when the car mode at `+0x78` is zero, two-slot
+otherwise. Ghidra has no function defined for this code; no project mutation was
+made. The caller's remainder and the producer of control `+0xf8` are not recovered
+or covered by the controller verifier. This corrects the earlier lead that
+virtual `+0x38` supplied engine RPM.
+
+The extended Ginsu verifier runs the original/rebuilt controllers with the real
+recovered `UpdateFrequency`, `FrequencyToSample` and `CyclePeriod` bodies.
+Virtual queries and stateful snd setters are logged, scripted boundaries. The
+retail CRT float-to-integer helper at `0x75bed4` runs on both sides. Comparisons
+include all arena bytes (both slot states and the control object), ordered calls
+and arguments, stack cleanup, preserved registers and logical x87 stack/control
+word, under both precisions. Fixtures include active/inactive bytes, independent
+slot handles/control gains, wrapped integer multiplication, below/at/above-min
+frequencies, zero/nonzero signed sample rates, cycles spanning below/above the
+table range, and finite,
+infinite and NaN values for the two snd conversion inputs. NaN requested
+frequency, virtual-query side effects and the actual setter implementations are
+outside this comparison. Byte identity is not claimed.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets EngineUpdateOne,EngineUpdateTwo --cases 1024
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets EngineUpdateOne,EngineUpdateTwo --cases 384 --mutation-checks --mutation-source controller
+```
+
+Native playback still uses the direct-RPM update scaffold. The recovered
+controllers are compiled into the recovery library but are not called by the
+demo until their virtual queries, control producer and snd backend are available.
+
+
+Controller-only check: 2,048 original/rebuilt comparisons (1,024 per controller),
+zero failures. All 11 controller mutants were rejected with state/call-order
+mismatches at 384 cases per controller; none survived or failed merely to
+compile. They cover active gates, both clamp limits, product arithmetic, cycle
+offset, zero-rate feedback, second-slot gain/synth/volume and lock ordering.
+The native build passed, and the existing playback smoke passed with 658 packet
+releases, zero underruns and pitch/RPM Spearman correlation 0.858. Native smoke
+continues to exercise the direct-RPM scaffold, not the recovered controllers.
+
+
+The final full MSVC run passed all 20 targets: 20,480 comparisons (1,024 per
+target), zero failures. Each controller ran 855 active and 169 inactive cases;
+one-slot below/at-or-above-minimum counts were 382/473, two-slot 426/429. Each
+controller ran 506 cases at 53-bit and 518 at 64-bit x87 precision. These are
+bounded comparisons with scripted virtual/snd boundaries, not complete caller
+or middleware verification.

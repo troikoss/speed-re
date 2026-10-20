@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Behavioural verifier for the recovered Ginsu granular synthesizer of EA SPEED (UG2 PC v1.2).
 
-The recovered GinsuData.cpp, GinsuSynth.cpp and EngineSoundSetup.cpp sources under
+The recovered GinsuData.cpp, GinsuSynth.cpp, EngineSoundSetup.cpp and EngineSoundController.cpp sources under
 src/Speed/Indep/Src/EAXSound/Ginsu are compiled with
 MSVC 7.1 (wibo) and linked as analysis objects. Each routine of config/SPEED2_EXE_1_2/ginsu.json runs on two
 Unicorn machines with the same fixture: the retail image at the manifest address, and the linked objects at
@@ -40,18 +40,21 @@ from probe_pc_race_reward import ROOT, EXE, GAME_DIR
 BUILD = ROOT / 'build/analysis/ginsu'
 SOURCE_DIR = 'src/Speed/Indep/Src/EAXSound/Ginsu'
 SOURCES = {'data': SOURCE_DIR + '/GinsuData.cpp', 'synth': SOURCE_DIR + '/GinsuSynth.cpp',
-           'setup': SOURCE_DIR + '/EngineSoundSetup.cpp'}
+           'setup': SOURCE_DIR + '/EngineSoundSetup.cpp',
+           'controller': SOURCE_DIR + '/EngineSoundController.cpp'}
 SEED = 0x47494e53
 IMAGE_BASE = 0x400000
 ARENA, ARENA_SIZE = 0x2000000, 0x40000
 OBJ, SYN, SAMPLES, DEST, GIN = ARENA + 0x0000, ARENA + 0x0100, ARENA + 0x0400, ARENA + 0x1800, ARENA + 0x2000
 SETUP, CAR, AUDIO, DATA2, SYN2 = ARENA + 0x38000, ARENA + 0x38200, ARENA + 0x38400, ARENA + 0x38600, ARENA + 0x38700
+CONTROL_VTABLE, CONTROL = ARENA + 0x38800, ARENA + 0x38900
 ALLOC = ARENA + 0x30000
 PKT1, PKT2 = ARENA + 0x3c000, ARENA + 0x3c800  # the two packet buffers of StartSynthesis (2 KB each)
 STACK_BASE, STACK = 0x2100000, 0x2110000
 STACK_ZERO = STACK - 0x8000
 STACK_RANGE = (STACK_ZERO, STACK + 0x100)
 STOP, FXAREA, STUBS = 0x2120000, 0x2121000, 0x2122000
+VIRTUAL = {'Gain38': STUBS + 0x200, 'Value3C': STUBS + 0x210}
 FXSAVE_AT_STOP = b'\x0f\xae\x05' + struct.pack('<I', FXAREA)
 PRECISIONS = (0x027f, 0x037f)
 PRESERVED = (xc.UC_X86_REG_EBX, xc.UC_X86_REG_ESI, xc.UC_X86_REG_EDI, xc.UC_X86_REG_EBP)
@@ -64,6 +67,8 @@ GIN_MAGIC = b'Gnsu2'
 # return kinds: 'al' (bool), 'eax' (int), 'st0' (float left in ST0), None. argument kinds: 'w' raw word,
 # 'p' pointer (identity: arena address or the stack), ('c', n) pointer whose n bytes are logged by value.
 ROUTINES = {
+    'EngineUpdateOne': (0x473e60, '?Update473E60@EngineSound@', 0, None, 'arena', []),
+    'EngineUpdateTwo': (0x474030, '?Update474030@EngineSound@', 0, None, 'arena', []),
     'EngineSetup': (0x47d740, '?Setup47D740@EngineSound@', 0, None, 'arena', []),
     'EngineAllocate': (0x440820, '?EngineSoundAllocate440820@', 0, 'eax', None, ['w', 'w']),
     'Construct': (0x466750, '??0GinsuSynthData@', 0, None, 'arena', []),
@@ -87,6 +92,13 @@ ROUTINES = {
 # mode 'stub': an event with a scripted EAX (see RETURNS); 'retail': a pure leaf run as retail bytes on both sides.
 # 'f' is a function pointer, logged by the name of the routine it names on that side.
 SND = {
+    'VoiceVolume': (0x72412a, '?EngineSnd72412A@', ['w', 'w'], 'VoiceVolume', 'stub'),
+    'VoiceValue': (0x724093, '?EngineSnd724093@', ['w', 'w', 'w'], 'VoiceValue', 'stub'),
+    'VoiceValue2': (0x723d9b, '?EngineSnd723D9B@', ['w', 'w'], 'VoiceValue2', 'stub'),
+    'VoiceValue3': (0x72403e, '?EngineSnd72403E@', ['w', 'w'], 'VoiceValue3', 'stub'),
+    'VoiceValue4': (0x723c41, '?EngineSnd723C41@', ['w', 'w'], 'VoiceValue4', 'stub'),
+    'VoiceValue5': (0x723bc1, '?EngineSnd723BC1@', ['w', 'w', 'w'], 'VoiceValue5', 'stub'),
+
     'HeapAvailable': (0x43e910, '?EngineSoundHeapAvailable43E910@', ['w'], 'HeapAvailable', 'stub'),
     'Malloc': (0x440390, '?bMalloc@', ['w', 'w', 'w', 'w'], 'bMalloc', 'stub'),
     'Lock': (0x721f99, '?SNDSYS_entercritical@', [], 'SNDSYS_entercritical', 'stub'),
@@ -100,13 +112,15 @@ SND = {
     'SetAttr': (0x72423e, '?SND_attrsetdef@', ['p'], 'SND_attrsetdef', 'retail'),
     'SetPlay': (0x721a6b, '?SNDplaysetdef@', ['p'], 'SNDplaysetdef', 'retail'),
 }
-STUB = {'HeapAvailable': STUBS + 0x80, 'Malloc': STUBS + 0x90, 'Lock': STUBS, 'Unlock': STUBS + 0x10, 'Overhead': STUBS + 0x20, 'Create': STUBS + 0x30,
+STUB = {'VoiceVolume': STUBS + 0xa0, 'VoiceValue': STUBS + 0xb0, 'VoiceValue2': STUBS + 0xc0, 'VoiceValue3': STUBS + 0xd0, 'VoiceValue4': STUBS + 0xe0, 'VoiceValue5': STUBS + 0xf0, 'HeapAvailable': STUBS + 0x80, 'Malloc': STUBS + 0x90, 'Lock': STUBS, 'Unlock': STUBS + 0x10, 'Overhead': STUBS + 0x20, 'Create': STUBS + 0x30,
         'Start': STUBS + 0x40, 'Submit': STUBS + 0x50, 'Stop': STUBS + 0x60, 'Destroy': STUBS + 0x70}
 # Retail address of each pure leaf (its bytes run on both sides): SND_attrsetdef 0x72423e..0x72428b and
 # SNDplaysetdef 0x721a6b..0x721aae (both end in RET and call nothing).
-PURE_RANGES = ((0x72423e, 0x72428b), (0x721a6b, 0x721aae))
+PURE_RANGES = ((0x75bed4, 0x75bf49), (0x72423e, 0x72428b), (0x721a6b, 0x721aae))
 # Retail globals read by the recovered code, by MSVC symbol prefix; __fltused is a null symbol.
-SHARED = {'?audio82B884@': 0x82b884, '?engineSoundHeap7EC840@': 0x7ec840,
+SHARED = {'?engineSoundValue82A998@': 0x82a998, '?engineSoundValue82B078@': 0x82b078,
+          '?engineSoundScale78A2E0@': 0x78a2e0, '?engineSoundScale78AF80@': 0x78af80,
+          '__ftol2': 0x75bed4, '__ftol': 0x75bed4, '?audio82B884@': 0x82b884, '?engineSoundHeap7EC840@': 0x7ec840,
           '?ginsuEngineBlockRate78A5B0@': 0x78a5b0, '?ginsuZero7D7D3C@': 0x7d7d3c, '?ginsuOne784250@': 0x784250, '?ginsuHalf784260@': 0x784260,
           '?ginsuThousand784550@': 0x784550, '?ginsuRateScaleA788890@': 0x788890,
           '?ginsuRateScaleB788894@': 0x788894, '?ginsuRateScaleC788898@': 0x788898,
@@ -114,16 +128,17 @@ SHARED = {'?audio82B884@': 0x82b884, '?engineSoundHeap7EC840@': 0x7ec840,
           '?ginsuStepTable7ED950@': 0x7ed950, '__fltused': 0}
 # Retail addresses of the E branch (fz1 == fz2) and of the SampleToCycle found path (0x466c2f).
 E_BRANCH_HOOK, FOUND_HOOK = 0x466e98, 0x466c2f
-TARGETS = ('EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
+TARGETS = ('EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
            'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt',
            'PacketReleaseCallback', 'SynthesisConstruct', 'SynthesisDestruct', 'StartSynthesis')
 LIMITATIONS = [
     'the uninitialised packet words are read without being written by the original (the frame word bit 31, the SNDPACKET ssf and sizeofsamples words, and the fields at 0x3c and 0x44 of the HandlePacketRelease record); the stack is zeroed before each run; isolated entry tests read zero; composed setup may reuse stack words, so composed-setup snd event comparison masks the packet continuation bit and unwritten format/size words, attribute pad/tsdatasize fields and option pads',
     'status word condition bits and exception flags are not compared (only the control word and the logical stack)',
-    'NaN is generated only for CyclePeriod and CeilToInt inputs; a NaN CyclePeriod result compares as NaN class (sign and payload not compared)',
+    'NaN is generated for CyclePeriod, CeilToInt and controller snd-conversion inputs; a NaN CyclePeriod result compares as NaN class (sign and payload not compared)',
     'finite values only for integers within |x| < 2^28 and overlap within [0, 40]',
     'the arena is compared byte for byte; the stack is compared through the events, the return values and the x87 image only',
     'the MSVC 7.1 build passes no /GS flag: this cl.exe reads /GS- as /GS (security cookies appear), and the default compile has none',
+    'engine controllers: virtual slots +0x38/+0x3c are scripted thiscall boundaries; snd setters are logged stubs, not middleware equivalence; the original CRT conversion helper 0x75bed4 runs on both sides',
     'engine setup: heap capacity and bMalloc are scripted boundaries; packet/synth allocation-failure cases use invalid gin magic and a successfully allocated or existing data object to avoid the original null dereference; failure of the data allocation is not exercised',
     'engine setup: the bank table producer and engine object construction are fixtures, not recovered callers; table indexes 0 and 1 are tested without establishing the table bounds',
     'the stateful snd entry points are scripted: their retail bodies do not run, so the player behaviour is not compared here (the native player is checked separately); the scripted EAX is the only result they give',
@@ -285,7 +300,7 @@ def fx_state(uc):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--compiler', choices=('msvc', 'clang-cl'), default='msvc')
-    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup)')
+    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, controller)')
     parser.add_argument('--clang-flag', action='append', default=[], help='extra clang option (via /clang:)')
     parser.add_argument('--cases', type=int, default=1024)
     parser.add_argument('--targets', default='', help='comma separated subset of targets')
@@ -324,7 +339,7 @@ def main():
     for key, p in parsed.items():
         for s in p['symbols'].values():
             if s['section'] != 0 or s['name'] in defined: continue
-            match = [a for prefix, a in SHARED.items() if s['name'].startswith(prefix)]
+            match = [a for prefix, a in SHARED.items() if s['name'] == prefix or (prefix.startswith('?') and s['name'].startswith(prefix))]
             snd = [snd_link[k] for k, spec in SND.items() if s['name'].startswith(spec[1])]
             if len(match) + len(snd) != 1:
                 raise AssertionError(('unresolved external', key, s['name']))
@@ -343,8 +358,8 @@ def main():
     original_ranges = [(spec[0], spec[0] + manifest['functions'][name]['size']) for name, spec in ROUTINES.items()]
     linked_ranges = linked['ranges']
     stub_retail = [spec[0] for spec in SND.values() if spec[4] == 'stub']
-    original_allowed = original_ranges + [(a, a + 1) for a in stub_retail] + list(PURE_RANGES) + [(STOP, STOP + 7)]
-    rebuilt_allowed = linked_ranges + [(STUBS, STUBS + 0xa0), (STOP, STOP + 7)] + list(PURE_RANGES)
+    original_allowed = original_ranges + [(a, a + 1) for a in stub_retail] + list(PURE_RANGES) + [(STOP, STOP + 7), (STUBS + 0x200, STUBS + 0x220)]
+    rebuilt_allowed = linked_ranges + [(STUBS, STUBS + 0x220), (STOP, STOP + 7)] + list(PURE_RANGES)
     inside = lambda ranges, a: any(lo <= a < hi for lo, hi in ranges)
 
     # Gin files: sorted by name, five fixed positions and the last one.
@@ -366,10 +381,11 @@ def main():
         uc.mem_map(STACK_BASE, STACK + 0x1000 - STACK_BASE)
         uc.mem_map(STOP, 0x1000); uc.mem_write(STOP, FXSAVE_AT_STOP)
         uc.mem_map(FXAREA, 0x1000)
+        uc.mem_map(STUBS, 0x1000)
+        for address in VIRTUAL.values(): uc.mem_write(address, b'\xc2\x04\x00')
         if rebuilt:
             uc.mem_map(linked['address'], max(0x1000, linked['allocation']))
             for address, body in linked['blocks']: uc.mem_write(address, body)
-            uc.mem_map(STUBS, 0x1000)
             for address in STUB.values(): uc.mem_write(address, b'\xc3')
         else:
             for spec in SND.values():
@@ -393,6 +409,9 @@ def main():
         for key, spec in SND.items():
             address = rebuilt_entry[key] if rebuilt else spec[0]
             uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], spec[3], None, spec[2], labels[rebuilt], returns, key),
+                        begin=address, end=address)
+        for key, address in VIRTUAL.items():
+            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], key, 'arena', ['w'], labels[rebuilt], returns, key),
                         begin=address, end=address)
         if not rebuilt:
             def count(name, rebuilt=rebuilt):
@@ -517,7 +536,35 @@ def main():
             memory = random_memory()
             returns.clear()
             fixture_globals.clear()
-            if name == 'EngineAllocate':
+            if name in ('EngineUpdateOne', 'EngineUpdateTwo'):
+                write_gin(memory, gin['raw'])
+                write_object(memory, gin, rng)
+                write_synth(memory, synthData28=OBJ, sampleRate24=rng.choice((0, gin['rate'], rng.randrange(-2**31, 2**31))),
+                            currentCycle40=f32(rng.uniform(-1, gin['cyc'] + 1)))
+                memory[DATA2 - ARENA:DATA2 - ARENA + 0xb0] = memory[OBJ - ARENA:OBJ - ARENA + 0xb0]
+                memory[SYN2 - ARENA:SYN2 - ARENA + 0x44] = memory[SYN - ARENA:SYN - ARENA + 0x44]
+                pk(memory, SYN2 + 0x28, '<I', DATA2)
+                for slot, data, synth in ((0, OBJ, SYN), (1, DATA2, SYN2)):
+                    base = SETUP + 0xcc + 0x1c * slot
+                    pk(memory, base, '<II', data, synth)
+                    pk(memory, base + 0x10, '<f', gin['minf'])
+                    pk(memory, base + 0x14, '<i', rng.choice((-10, -1, 0, 5, rng.randrange(-2**31, 2**31))))
+                pk(memory, SETUP, '<I', CONTROL_VTABLE)
+                pk(memory, CONTROL_VTABLE + 0x38, '<II', VIRTUAL['Gain38'], VIRTUAL['Value3C'])
+                pk(memory, SETUP + 0xc0, '<I', CONTROL)
+                pk(memory, SETUP + 0xc8, '<B', rng.choice((0, 1, 1, 1, 128, 255)))
+                pk(memory, SETUP + 0xbc, '<f', rng.choice((0.0, 1.0, -1.0, float('inf'), -float('inf'), float('nan'), 1e30, -1e30, rng.uniform(-1000, 1000))))
+                pk(memory, CONTROL + 0x80, '<ii', rng.randrange(-2**31, 2**31), rng.randrange(-2**31, 2**31))
+                pk(memory, CONTROL + 0xbc, '<f', rng.choice((0.0, -0.0, 0.99, -0.99, float('inf'), -float('inf'), float('nan'), 1e30, -1e30, rng.uniform(-1e6, 1e6))))
+                frequency = rng.choice((0.0, -0.0, gin['minf'], next_f32(gin['minf'], False),
+                                        next_f32(gin['minf'], True), gin['maxf'], rng.uniform(-1000, 10000)))
+                pk(memory, SETUP + 0x104, '<f', frequency)
+                returns.update(Gain38=rng.choice((0, 32768, -32768, 2**31-1, -2**31, rng.randrange(-2**31, 2**31))),
+                               Value3C=[rng.randrange(-2**31, 2**31), rng.randrange(-2**31, 2**31)])
+                for addr in (0x82a998, 0x82b078):
+                    fixture_globals[addr] = struct.pack('<i', rng.choice((-1, 0, 127<<8, 128<<8, rng.randrange(-2**31, 2**31))))
+                words, this = [], SETUP
+            elif name == 'EngineAllocate':
                 returns['Malloc'] = rng.choice((0, ALLOC, ALLOC + 0x1000))
                 words, this = [rng.getrandbits(32), rng.getrandbits(32)], 0
             elif name == 'EngineSetup':
@@ -737,6 +784,12 @@ def main():
                 continue
             names = [e[0] for e in a['events']]
             # The original's run defines the coverage, whatever the comparison says.
+            if name in ('EngineUpdateOne', 'EngineUpdateTwo'):
+                note(name + '-active' if 'Gain38' in names else name + '-inactive')
+                note(name + '-precision-%x' % precision)
+                if 'Gain38' in names:
+                    note(name + '-feedback-rate-zero' if 'CyclePeriod' not in names else name + '-feedback-rate-nonzero')
+                    note(name + '-below-min' if frequency < gin['minf'] else name + '-at-or-above-min')
             if name == 'EngineSetup':
                 note('setup-slots-%d' % names.count('BindToData'))
                 note('setup-allocations-%d' % names.count('bMalloc'))
@@ -779,6 +832,17 @@ def main():
         if failures:
             raise SystemExit('mutation checks need a passing baseline: %d failures in the unmutated run' % len(failures))
         mutations = {
+            'controller-one-gate': ('controller', 'void EngineSound::Update473E60() {\n    if (!activeC8) return;', 'void EngineSound::Update473E60() {\n    if (activeC8) return;'),
+            'controller-two-gate': ('controller', 'void EngineSound::Update474030() {\n    if (!activeC8) return;', 'void EngineSound::Update474030() {\n    if (activeC8) return;'),
+            'controller-clamp-high': ('controller', 'if (value > 127) return 127;', 'if (value > 127) return 126;'),
+            'controller-clamp-low': ('controller', 'if (value < 0) return 0;', 'if (value < 0) return 1;'),
+            'controller-product': ('controller', 'return (int)((unsigned int)a * (unsigned int)b);', 'return (int)((unsigned int)a + (unsigned int)b);'),
+            'controller-cycle-offset': ('controller', 'synth->currentCycle40 + ginsuHalf784260', 'synth->currentCycle40'),
+            'controller-rate-zero': ('controller', 'if (synth->sampleRate24 == 0) return ginsuZero7D7D3C;', 'if (synth->sampleRate24 == 0) return 1.0f;'),
+            'controller-two-gain': ('controller', 'SoundProduct(controlC0->value84, gain)', 'SoundProduct(controlC0->value80, gain)'),
+            'controller-two-synth': ('controller', 'slotsCC[1].synth4->UpdateFrequency(target, 60.0f);', 'slotsCC[0].synth4->UpdateFrequency(target, 60.0f);'),
+            'controller-two-volume': ('controller', 'EngineSnd72412A(slotsCC[1].startResult14, volume10C);', 'EngineSnd72412A(slotsCC[1].startResult14, volume108);'),
+            'controller-two-lock': ('controller', 'slotsCC[1].synth4->UpdateFrequency(target, 60.0f);\n    SNDSYS_leavecritical();', 'SNDSYS_leavecritical();\n    slotsCC[1].synth4->UpdateFrequency(target, 60.0f);'),
             'setup-mode-slots': ('setup', 'mode == 1 && i < 2', 'mode == 1 && i < 1'),
             'setup-data-capacity': ('setup', '>= 0x4b0', '> 0x4b0'),
             'setup-packet-capacity': ('setup', 'size + 0x400 <=', 'size + 0x400 <'),

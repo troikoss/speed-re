@@ -1,8 +1,8 @@
 // Platform scaffolding: the engine sound of the native demo. It binds one retail SOUND/ENGINE/*.gin file, builds the
 // recovered Ginsu synthesizer over it and feeds the engine speed to it every frame. Not recovered: the choice of
-// the file per car (recovered 0x47d740 reads it from the EAXSound tables at +0xdc/+0xe4), the engine controller 0x473e60
-// (volume, pan and pitch through the snd calls at 0x72412a and others) and the number of synthesizers per car
-// (mode byte at car +0x78). See docs/pc-ginsu.md.
+// the file per car (recovered 0x47d740 reads it from the EAXSound tables at +0xdc/+0xe4), integration of the
+// recovered controllers 0x473e60/0x474030 (snd setter/backend and control-state seams), and selection of the car's mode
+// (32-bit value at car +0x78; recovered setup implements its one/two-slot counts). See docs/pc-ginsu.md.
 #ifndef UG2_NATIVE_ENGINE_SOUND_H
 #define UG2_NATIVE_ENGINE_SOUND_H
 

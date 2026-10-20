@@ -90,6 +90,16 @@
       "address": "0x440820",
       "size": 23,
       "sha256": "72f33b7fa3f35c29ad7fdea6d3457bca175c1be0e0f0848b78a8df828286e659"
+    },
+    "EngineUpdateOne": {
+      "address": "0x473e60",
+      "size": 457,
+      "sha256": "ae2e6e336288055e47754cdde715f2a756c6cadf09079e499c63d8a4e8ea8ac9"
+    },
+    "EngineUpdateTwo": {
+      "address": "0x474030",
+      "size": 731,
+      "sha256": "f4476ac71be4fe378ff26d2406341dfe183d0afe4b68d58ccfe619f4bcb473df"
     }
   }
 }
