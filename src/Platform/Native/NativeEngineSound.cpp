@@ -4,6 +4,7 @@
 #include "NativeEngineSound.h"
 #include "NativeAudio.h"
 #include "NativeEngineBankIO.h"
+#include "NativeEngineMixer.h"
 #include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSoundBanks.h"
 #include "../../Speed/Indep/Src/Audio/AudioSystem.h"
 #include "../../Speed/Indep/Src/Physics/VehicleMover.h"
@@ -30,7 +31,7 @@ struct NativeEnginePlayback {
     EngineSound engine;
     EngineSoundControl control;
     EngineSoundVtable vtable;
-    unsigned int level;
+    NativeEngineMixer mixer;
     EngineSoundPhysicsView physics;
     EngineSoundAuxiliary auxiliary;
     EngineSoundShiftView shift;
@@ -245,8 +246,6 @@ bool NativeEngineSound::Load(const char *gameDirectory, MoverModeOwner *owner, c
         if (engine.slotsCC[i].startResult14 >= 0) started_ = true;
     }
     // Native session ownership and vtable ABI bridges into recovered routines.
-    playback_->level = 32767;
-    *reinterpret_cast<unsigned int **>(reinterpret_cast<char *>(&engine) + 0x58) = &playback_->level;
     playback_->vtable.value38 = PlaybackGain;
     playback_->vtable.value3C = PlaybackPan;
     engine.vtable0 = &playback_->vtable;
@@ -310,6 +309,14 @@ bool NativeEngineSound::Load(const char *gameDirectory, MoverModeOwner *owner, c
     audio82B884 = &playback_->audio;
     playback_->master.Activate45DCC0();
     audio82B884 = mixPrevious;
+    // Recovered sound/input resolvers traverse the same single-car manager
+    // list as the listener producer. Original manager allocation remains open.
+    if (!playback_->mixer.Load(gameDirectory, &playback_->audio, &car) ||
+        !*reinterpret_cast<int **>(reinterpret_cast<char *>(&engine) + 0x58)) {
+        snprintf(error, errorSize, "engine mixer map is missing, invalid or did not bind playback");
+        Destroy();
+        return false;
+    }
 
     if (const char *logPath = getenv("UG2_ENGINE_LOG")) {
         log_ = fopen(logPath, "w");

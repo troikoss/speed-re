@@ -2559,11 +2559,11 @@ output slot 0, 3D slot 0, bias 0). The engine descriptor at `0x7ed454`, reached
 by `0x461470`, confirms kind 1/component 0. These are asset observations, not
 whole-pipeline runtime verification.
 
-The recovered binder is compiled but not yet called by the native demo. Its
-live gain/pan values still require original channel construction, fixed-input
-binding and runtime mixing. The demo's explicit overall-gain/centered-pan
-fixture remains until that graph is recovered; no guessed MasterVol field
-replaces the retail mixer output. The goal remains active.
+The initial binder checkpoint compiled this graph without invoking it in the
+native demo. The [native binding checkpoint below](#native-retail-mixer-binding-2026-10-20)
+now invokes it using retail records and recovered setup/attachment methods.
+Live gain/pan values still require fixed-input binding and runtime mixing;
+the explicit overall-gain/centered-pan fixture remains.
 
 Next original graph: `0x485fa0` drives group setup `0x4837c0`, the recovered
 binding caller, then `0x485e90`. Group setup calls `0x477f80`, `0x477eb0`,
@@ -2592,3 +2592,92 @@ are included in the checkpoint.
 UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 256
 UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets MixerBind,MixerAllocate,MixerSetup,AudioResolveSound,AudioResolveInput,AudioFindIndex,CarFindPlayback,CarFindInput --cases 128 --mutation-checks --mutation-name mixer-master-spatial-kind --mutation-name mixer-sub-foreign --mutation-name mixer-map-output --mutation-name mixer-cursor-store --mutation-name mixer-metadata --mutation-name mixer-key-snapshot --mutation-name resolver-sound-tag
 ```
+
+## Native retail mixer binding (2026-10-20)
+
+`NativeEngineSound::Load` now invokes the recovered group binder `0x483900`,
+span-allocation pass `0x478120` (with no native sub-channels yet), master binder
+`0x480420` and sound/input resolvers. `NativeEngineMixer.h` owns a bounded
+single-car scaffold: it loads the player's `SOUND/MIXMAPS/MAPOUTPUT.mxb`,
+selects kind 1/index 0, validates record spans and supplies stable channel,
+spatial-entry, pointer-span and output storage. It creates all 16 master
+channel records and five spatial entries in that retail group; only the
+engine playback object is present in the native playback list, so the
+original resolver's missing-sound branch handles the other channels.
+File/profile selection, array/pool ownership and group construction are native
+seams, not recovered factories or a claim of full original asset parsing.
+
+The playback table at engine `+0x58` is now populated by the original binder
+from the actual retail output map, replacing the direct native `level` pointer
+assignment. The original spatial attachment also writes the existing Spatial
+component's selector and maximum fields from the retail entry. Native vtable
+bridges only forward to the following recovered methods:
+
+| Routine | Original address | Evidence |
+| --- | --- | --- |
+| Channel base setup | `0x477a50` | Stores ID, section pointer, count and encoded channel key; preserves unwritten fields. |
+| Master output setter/query | `0x467400`, `0x467410` | Writes/reads `+0x14`; setter ABI is distinct from the binder's spatial query at the same virtual slot. |
+| Channel record decoder | `0x479030` | Master signed-high-halfword bias, unsigned upper bound, sub lower bound, output setter and diagnostic order; `RET 0xc` establishes three-word callee cleanup. |
+| Spatial entry setup | `0x4683e0` | Packs kind/instance/index keys, retains record/data pointers, initializes level and clears original scratch globals. |
+| Spatial attachment | `0x468430` | Retains input `+4`; copies the selector and maximum of four masked 15-bit ranges. |
+| Spatial key/input/value queries | `0x503b00`, `0x6e18a0`, `0x40bde0` | Return `+0x20`, `+0x1c`, and the address of `+0x10`. |
+
+**Binding is wired; live overall gain/pan mixing is still open.** The scaffold's
+output storage deliberately retains the existing unity-gain (`32767`) and
+centered-pan fixture. It does not run channel runtime `0x477aa0` / `0x467460`
+against unbound fixed-input spans. Fixed-input binding `0x478240`, mix/event
+control production, whole-group factories and their update order remain to
+be recovered and verified before those fixtures can be removed. MasterVol
+continues to run, but its output is not yet connected through that full graph
+to audible overall gain. The original audio enable flag, collision/frontend
+paths, registry/managers and parameter consumers remain separate open seams.
+
+The nine new methods have focused original/rebuilt comparisons of complete
+arena state, declared return values, stack cleanup, preserved registers,
+x87 state and ordered diagnostic arguments. Fixtures cover master/sub decode,
+full-width IDs, signed halfword boundaries and all spatial maximum candidates;
+storage is valid and disjoint. Aliasing, malformed assets, exceptions and
+concurrent mutation are excluded. Five mutations in count masks, signed
+biases, instance encoding, final maximum selection and selector masks are
+rejected by state/call mismatches, with no compile-only rejections. This is
+bounded behavioral evidence; no new byte-identity claim is made.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 256
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 64 --targets MixerChannelSetup,MixerSetOutput,MixerOutput,MixerDecode,MixerSpatialSetup,MixerSpatialAttach,MixerSpatialKey,MixerSpatialInput,MixerSpatialValues --mutation-checks --mutation-source mixer_construct
+cmake --build build/native
+ctest --test-dir build/native --output-on-failure
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/smoke_native_engine_audio.py --frames 600 --car SKYLINE
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/smoke_native_engine_audio.py --frames 600 --car 350Z
+```
+
+The native smoke additionally requires the retail binding diagnostic, so
+compilation alone cannot satisfy the integration check. No retail assets or
+generated disassembly are committed.
+
+Native build and all six CTests pass. In 600-frame audio smokes with retail
+binding active, SKYLINE passes with pitch/RPM correlation 0.845, RMS 2209.9 LSB
+and zero underruns; two-bank 350Z passes with correlation 0.622, RMS 7776.5 LSB
+and zero underruns. The unchanged gate still requires correlation at least
+0.50 and higher mean high-RPM pitch. Earlier 350Z failures remain evidence of
+unresolved variability; one passing run does not establish repeatability or
+retail sound equivalence. The output fixtures and remaining mixer graph are
+still open despite these native integration passes.
+
+Missing and 12-byte truncated map files were also exercised through the demo
+using a temporary symlinked installation. Both report the expected engine
+mixer initialization error and never emit the successful binding diagnostic;
+the original installation is unchanged. These checks cover the native file
+boundary, not arbitrary malformed-map behavior.
+
+The final full regression passes **57472 comparisons across 210 targets**, with
+zero failures and the existing nineteen strict byte-matched leaves unchanged.
+The focused mutation baseline passes 576 comparisons; all five intended
+mutations are rejected by state/call mismatches. The native loader also guards
+against missing components before invoking original spatial attachment; this
+validation does not supply replacement values for absent game components.
+
+Final native boundary checks confirm successful retail binding for both SKYLINE
+and 350Z after the guards were added. A map whose engine spatial entry names
+an absent input component reports the initialization error before attachment,
+without falling back to a guessed input or changing the retail installation.

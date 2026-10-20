@@ -123,6 +123,8 @@ def main():
         counters = COUNTERS.search(result.stdout + result.stderr)
         if result.returncode != 0 or counters is None:
             raise SystemExit('demo failed (exit %d)\n%s' % (result.returncode, result.stderr[-2000:]))
+        if 'mixer bound MAPOUTPUT.mxb kind 1: 16 master channels, 5 spatial entries' not in result.stderr:
+            raise SystemExit('demo did not load and bind the retail engine mixer map')
         callbacks, releases, underruns = (int(value) for value in counters.groups())
     else:
         callbacks = releases = underruns = None

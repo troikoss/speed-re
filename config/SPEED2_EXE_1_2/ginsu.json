@@ -1005,6 +1005,51 @@
       "address": "0x464d00",
       "size": 39,
       "sha256": "978d7ac9d460f9f86c00c0e41c742f65170e21b23ed13c2c86ecc447cb7dc20a"
+    },
+    "MixerChannelSetup": {
+      "address": "0x477a50",
+      "size": 75,
+      "sha256": "81dc8cb0df0f65f5a0aaddb6899829d1531f829d9fc362a7c4dbb50450a0d3ae"
+    },
+    "MixerSetOutput": {
+      "address": "0x467400",
+      "size": 10,
+      "sha256": "5940df69b60defd9e87bf6c4f1f44706b7d3bc501eab25edf30198be533ee258"
+    },
+    "MixerOutput": {
+      "address": "0x467410",
+      "size": 4,
+      "sha256": "01d3abacb68aac3537badfe563d0e21d0244fb61db1d805bcef8f455407fad96"
+    },
+    "MixerDecode": {
+      "address": "0x479030",
+      "size": 163,
+      "sha256": "3b88cf3636b0d75d7a54347a476ae63f251e9c5724f56b29ac5bcafc5b61f11b"
+    },
+    "MixerSpatialSetup": {
+      "address": "0x4683e0",
+      "size": 67,
+      "sha256": "1c46a2db7b1be593b177ed1034c94172df92224a52caf5c76496b85e90962d28"
+    },
+    "MixerSpatialAttach": {
+      "address": "0x468430",
+      "size": 115,
+      "sha256": "49eb14be08ac8cf10c8a04596ee2a204f5114943d7a00c0f70ad0f88eb504d39"
+    },
+    "MixerSpatialKey": {
+      "address": "0x503b00",
+      "size": 4,
+      "sha256": "07ad3a50b1c271e07fb57fb47d2f0e77f3342d41bfa410990cb1320a45035fb2"
+    },
+    "MixerSpatialInput": {
+      "address": "0x6e18a0",
+      "size": 4,
+      "sha256": "0b78473b3a56c63ff2a64431fb600078066cbe407d3dee7ea8fd7575bd7f82d5"
+    },
+    "MixerSpatialValues": {
+      "address": "0x40bde0",
+      "size": 4,
+      "sha256": "108eb05660dfe1a041240deb6da273082575a75017fa45a5f13e0086c713bc3d"
     }
   }
 }

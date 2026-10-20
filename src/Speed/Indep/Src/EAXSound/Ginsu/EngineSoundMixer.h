@@ -14,20 +14,38 @@ struct EngineSoundMixerChannelVtable {
 };
 struct EngineSoundMixerChannel {
     EngineSoundMixerChannelVtable *vtable0;
-    char unidentified4[4];
+    int value4;
     unsigned int value8, valueC;
-    char unidentified10[8];
+    int value10; unsigned int value14;
     unsigned int value18;
     char unidentified1C[0xc];
     int count28, count2C, count30;
     unsigned int *inputs34;
     int *fixed38, *spatial3C, *all40;
-    char unidentified44[4];
+    void *section44;
     int index48;
     int *values4C;
     unsigned int *map50;
+    void Setup477A50(unsigned int id, void *section);
+    void SetOutput467400(unsigned int id);
+    unsigned int Output467410();
 };
 UG2_CHECK_SIZE(EngineSoundMixerChannel, 0x54);
+unsigned int *__stdcall EngineSoundMixerDecode479030(void *section, EngineSoundMixerChannel *channel, unsigned int *record);
+struct EngineSoundMixerSpatial {
+    EngineSoundMixerChannelVtable *vtable0;
+    char *input4;
+    int value8, valueC, value10, value14, value18;
+    unsigned int key1C, key20, *data24, *record28;
+    void Setup4683E0(unsigned int *record, unsigned int instance, unsigned int index);
+    void Attach468430(EngineSoundMixerChannel *, EngineSound *, EngineSoundScheduledNode *input);
+    unsigned int Key503B00();
+    unsigned int Input6E18A0();
+    int *Values40BDE0();
+};
+UG2_CHECK_SIZE(EngineSoundMixerSpatial, 0x2c);
+extern int engineSoundMixerScratch82BC9C, engineSoundMixerScratch82BCA0;
+extern char engineSoundMixerDecodeMaster78BA1C[], engineSoundMixerDecodeSub78B9F0[];
 struct EngineSoundMixerOwner {
     char unidentified0[0x78];
     int *masterInputs78, *subInputs7C;

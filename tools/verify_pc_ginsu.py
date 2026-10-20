@@ -39,7 +39,8 @@ from probe_pc_race_reward import ROOT, EXE, GAME_DIR
 
 BUILD = ROOT / 'build/analysis/ginsu'
 SOURCE_DIR = 'src/Speed/Indep/Src/EAXSound/Ginsu'
-SOURCES = {'mixer': 'src/Speed/Indep/Src/EAXSound/Ginsu/EngineSoundMixer.cpp',
+SOURCES = {'mixer_construct': SOURCE_DIR + '/EngineSoundMixerConstruct.cpp',
+           'mixer': 'src/Speed/Indep/Src/EAXSound/Ginsu/EngineSoundMixer.cpp',
            'mixer_allocate': 'src/Speed/Indep/Src/EAXSound/Ginsu/EngineSoundMixerAllocate.cpp',
            'audio_resolve': 'src/Speed/Indep/Src/Audio/AudioResolve.cpp',
            'audio_mix': 'src/Speed/Indep/Src/Audio/AudioMix.cpp',
@@ -138,12 +139,23 @@ GIN_MAGIC = b'Gnsu2'
 # name: (retail address, rebuilt symbol prefix, callee-popped bytes, return kind, `this` kind, argument kinds)
 # return kinds: 'al' (bool), 'eax' (int), 'st0' (float left in ST0), None. argument kinds: 'w' raw word,
 # 'p' pointer (identity: arena address or the stack), ('c', n) pointer whose n bytes are logged by value.
+MIXER_CONSTRUCT_TARGETS = ('MixerChannelSetup', 'MixerSetOutput', 'MixerOutput', 'MixerDecode', 'MixerSpatialSetup', 'MixerSpatialAttach', 'MixerSpatialKey', 'MixerSpatialInput', 'MixerSpatialValues')
 MIXER_TARGETS = ('MixerBind', 'MixerAllocate', 'MixerSetup', 'AudioResolveSound', 'AudioResolveInput', 'AudioFindIndex', 'CarFindPlayback', 'CarFindInput')
 MASTER_TARGETS = ('AudioMixApply', 'MasterConstruct', 'MasterFactory', 'MasterActivate', 'MasterUpdate', 'MasterModeFind', 'MasterModeQuery', 'MasterFrontend')
 SHIFT_TARGETS = ('ShiftConstruct', 'ShiftFactory', 'ShiftBind', 'ShiftActivate', 'ShiftDependency', 'ShiftAttach', 'ShiftReset', 'ShiftUp', 'ShiftDown', 'ShiftRpm', 'ShiftThrottle', 'ShiftEffects', 'ShiftConfigureEffects', 'ShiftAdvance', 'ShiftUpdate', 'ShiftPost', 'PhysicsThrottle', 'SoundClamp')
 ACCEL_TARGETS = ('AccelConstruct', 'AccelFactory', 'AccelBind', 'AccelActivate', 'AccelDependency', 'AccelAttach', 'AccelConfigure', 'AccelLaunch', 'AccelQueryLaunch', 'AccelQuery', 'AccelRelease', 'AccelRpm', 'AccelThrottle', 'AccelAdvance', 'AccelUpdate', 'ShiftActive', 'OwnerShiftPoint', 'GearShiftPoint', 'EnvelopeTarget')
 AUX_TARGETS = ('SpatialBaseConstruct', 'SpatialConstruct', 'SpatialFactory', 'SpatialBind', 'SpatialActivate', 'SpatialAngle', 'SpatialCompute', 'SpatialSelect', 'SpatialDoppler', 'SpatialUpdate', 'SpatialLimit', 'SpatialValue', 'SpatialDistance2D', 'SpatialNormalize2D', 'SpatialArcSine', 'SampleDefault', 'SampleAllocate', 'SpatialPosition','SpatialOrientation', 'AuxOffsets', 'AuxBackfire', 'AuxCutoff', 'AuxFrame', 'SoundInverse', 'SoundRandom', 'SoundRandomFloat', 'SoundSine', 'SoundNormalize', 'AuxLevel', 'AuxEffects', 'AuxIdle', 'EnvelopeConfigure', 'EnvelopeStep', 'SequenceReset', 'SequenceStep', 'SoundCurve', 'SoundCurveConvert', 'ControlConstruct', 'ControlBind', 'GainCurveConstruct', 'AuxConstruct', 'AuxFactory', 'AuxBind', 'AuxActivate', 'AuxAttach', 'AuxRpm', 'AuxThrottle', 'AuxDependency', 'AuxDescriptor', 'AuxCarValue', 'AuxApproach', 'AuxSequenceConstruct', 'AuxSequenceAppend')
 ROUTINES = {
+    'MixerChannelSetup': (4684368, '?Setup477A50@EngineSoundMixerChannel@', 8, None, 'arena', ['w', 'p']),
+    'MixerSetOutput': (4617216, '?SetOutput467400@EngineSoundMixerChannel@', 4, None, 'arena', ['w']),
+    'MixerOutput': (4617232, '?Output467410@EngineSoundMixerChannel@', 0, 'eax', 'arena', []),
+    'MixerDecode': (4689968, '?EngineSoundMixerDecode479030@', 12, 'eax', None, ['p', 'p', 'p']),
+    'MixerSpatialSetup': (4621280, '?Setup4683E0@EngineSoundMixerSpatial@', 12, None, 'arena', ['p', 'w', 'w']),
+    'MixerSpatialAttach': (4621360, '?Attach468430@EngineSoundMixerSpatial@', 12, None, 'arena', ['p', 'p', 'p']),
+    'MixerSpatialKey': (5257984, '?Key503B00@EngineSoundMixerSpatial@', 0, 'eax', 'arena', []),
+    'MixerSpatialInput': (7215264, '?Input6E18A0@EngineSoundMixerSpatial@', 0, 'eax', 'arena', []),
+    'MixerSpatialValues': (4242912, '?Values40BDE0@EngineSoundMixerSpatial@', 0, 'eax', 'arena', []),
+
     'MixerBind': (4719648, '?Bind480420@EngineSoundMixer@', 0, None, 'arena', []),
     'MixerAllocate': (4686112, '?Allocate478120@EngineSoundMixer@', 0, None, 'arena', []),
     'MixerSetup': (4733184, '?Bind483900@EngineSoundMixerSetup@', 0, None, 'arena', []),
@@ -418,6 +430,10 @@ def snd_ret(key):
 PURE_RANGES = ((0x75bed4, 0x75bf49), (0x72423e, 0x72428b), (0x721a6b, 0x721aae))
 # Retail globals read by the recovered code, by MSVC symbol prefix; __fltused is a null symbol.
 SHARED = {
+    '?engineSoundMixerScratch82BC9C@': 0x82bc9c,
+    '?engineSoundMixerScratch82BCA0@': 0x82bca0,
+    '?engineSoundMixerDecodeMaster78BA1C@': 0x78ba1c,
+    '?engineSoundMixerDecodeSub78B9F0@': 0x78b9f0,
     '?engineSoundMixerSubCount78B7C8@': 0x78b7c8,
     '?engineSoundMixerSubSpatial78B7A0@': 0x78b7a0,
     '?engineSoundMixerMasterCount78BDC4@': 0x78bdc4,
@@ -618,11 +634,12 @@ SHARED.update({
 })
 # Retail addresses of the E branch (fz1 == fz2) and of the SampleToCycle found path (0x466c2f).
 E_BRANCH_HOOK, FOUND_HOOK = 0x466e98, 0x466c2f
-TARGETS = MIXER_TARGETS + MASTER_TARGETS + SHIFT_TARGETS + ACCEL_TARGETS + ('ControlActivate',) + ('CarBind','CarSort','CarSchedule','CarFrame','CarPlayback','EngineForward','ScheduleNoop','ScheduleNoopArg','PhysicsPost','ControlPost','PhysicsFraction','ApproachInt') + ('ListenerUpdate','ListenerFind','ListenerDistance','ListenerAngle') + AUX_TARGETS + ('PhysicsFactory', 'PhysicsHash') + ('PhysicsConstruct', 'PhysicsBind', 'PhysicsActivate', 'PhysicsUpdate', 'PhysicsOverride', 'PhysicsNotify', 'PhysicsMode40', 'PhysicsMode28', 'PhysicsMode10', 'PhysicsRampConstruct', 'PhysicsRampEvaluate', 'PhysicsSpecMaximum', 'PhysicsEngineMaximum', 'SampleConstruct') + ('ControlPrepare', 'ControlOne', 'ControlTwo', 'SampleAdvance', 'SampleFill', 'SampleRecalculate', 'GainCurveLookup', 'GainPendingShift', 'EngineDependency', 'EngineAttach', 'AuxFrequency', 'AuxGain', 'ControlScale', 'ControlUpdate', 'CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
+TARGETS = MIXER_CONSTRUCT_TARGETS + MIXER_TARGETS + MASTER_TARGETS + SHIFT_TARGETS + ACCEL_TARGETS + ('ControlActivate',) + ('CarBind','CarSort','CarSchedule','CarFrame','CarPlayback','EngineForward','ScheduleNoop','ScheduleNoopArg','PhysicsPost','ControlPost','PhysicsFraction','ApproachInt') + ('ListenerUpdate','ListenerFind','ListenerDistance','ListenerAngle') + AUX_TARGETS + ('PhysicsFactory', 'PhysicsHash') + ('PhysicsConstruct', 'PhysicsBind', 'PhysicsActivate', 'PhysicsUpdate', 'PhysicsOverride', 'PhysicsNotify', 'PhysicsMode40', 'PhysicsMode28', 'PhysicsMode10', 'PhysicsRampConstruct', 'PhysicsRampEvaluate', 'PhysicsSpecMaximum', 'PhysicsEngineMaximum', 'SampleConstruct') + ('ControlPrepare', 'ControlOne', 'ControlTwo', 'SampleAdvance', 'SampleFill', 'SampleRecalculate', 'GainCurveLookup', 'GainPendingShift', 'EngineDependency', 'EngineAttach', 'AuxFrequency', 'AuxGain', 'ControlScale', 'ControlUpdate', 'CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
            'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt',
            'PacketReleaseCallback', 'SynthesisConstruct', 'SynthesisDestruct', 'StartSynthesis')
 LIMITATIONS = [
-    'mixer mapping: recovered span allocation, master pointer maps, group binding and sound/input resolvers compose with scripted virtual query/attachment and diagnostic callbacks; kinds 0..2, bounded valid lists/maps/storage, found/missing objects and callback-time pointer/index changes are fixtures; invalid pointers, cycles, malformed assets, allocation overflow, overlapping storage and concurrency are excluded; the native demo does not yet invoke this graph because channel construction, fixed-input binding and runtime mixing remain open; the unused extra stack word on a missing-sound key query is outside the declared no-argument query interface',
+    'mixer construction: nine recovered setup/decode/attachment/query routines compare full arena state, returns, stack and diagnostics; random words and signed-halfword boundaries cover master/sub records, kind/index packing and all four spatial maximum candidates; fixtures use valid disjoint storage and exclude aliasing, malformed assets, exceptions and concurrency; native file validation and ownership are scaffolding, not original parser/factory recovery',
+    'mixer mapping: recovered span allocation, master pointer maps, group binding and sound/input resolvers compose with scripted virtual query/attachment and diagnostic callbacks; kinds 0..2, bounded valid lists/maps/storage, found/missing objects and callback-time pointer/index changes are fixtures; invalid pointers, cycles, malformed assets, allocation overflow, overlapping storage and concurrency are excluded; the native demo invokes group binding and resolvers on retail MAPOUTPUT.mxb with recovered channel decoding and spatial attachment; ownership/profile selection remain native, output values remain unity fixtures, and fixed-input binding and runtime mixing remain open; the unused extra stack word on a missing-sound key query is outside the declared no-argument query interface',
     'shifting: complete lifecycle, up/down setup, seven-state advancement, six envelopes, packed post-update and Physics query run as recovered bodies; carried frames and six-input car scheduling compose them; query callbacks test snapshot/reload boundaries with scripted binary64 results; dependent pointers, player table selectors and kinds 1..3 are valid fixtures, with finite envelope inputs and a quiet NaN at the upshift gate/clamp; invalid dereferences, component/tuning aliasing, exceptions and concurrency are excluded; native mix ownership, full registry/manager and other audio seams remain open',
     'acceleration transitions: complete construction/bind/activation, queries, envelope producers, update and owner/gear shift-point helpers execute recovered code; callbacks can change kind/car/tuning/level at query boundaries; valid kinds 1..3 and gear indices 0..7, separate tuning storage, finite envelope inputs and selected quiet-NaN query inputs are covered; launch/general/return/release states are carried, and actual acceleration runs in composed car scheduling; shifting production, registry/list construction, invalid-kind dereferences, exceptions and concurrency remain outside this evidence',
     'car scheduling: actual sort, owner-gated wrapper, clock handling, component/post and separate playback passes execute, with callback-time table/link/head changes in scripted cases; constructed and carried frames compose the six recovered inputs and actual inactive engine caller, while active retail GIN playback is a native smoke; registry/list creation and full manager dispatch remain seams; sort fixtures have at most six nodes, counts through seven and keys 0..63, excluding cycles, overlong scratch writes and invalid-key original faults; post-update comparisons include full integer wrapping, flag fractions, player/camera and race-count branches, with finite floating inputs and valid dependent pointers',
@@ -793,7 +810,7 @@ def entry_hook(log, name, this_kind, kinds, labels, scripted=None, key=None, eff
         active_kinds=kinds
         if name=='AuxDiagnostic':
             fmt=struct.unpack('<I',bytes(uc.mem_read(esp+8,4)))[0]
-            extra={0x78b7c8:2,0x78b7a0:2,0x78bdc4:3,0x78bd98:2,0x78bd74:2,0x78bd4c:2,0x78bd24:1}.get(fmt,0)
+            extra={0x78b7c8:2,0x78b7a0:2,0x78bdc4:3,0x78bd98:2,0x78bd74:2,0x78bd4c:2,0x78bd24:1,0x78ba1c:3,0x78b9f0:3}.get(fmt,0)
             active_kinds=list(kinds)+['w']*extra
         words = struct.unpack('<%dI' % len(active_kinds), bytes(uc.mem_read(esp + 4, 4 * len(active_kinds)))) if active_kinds else ()
         log.append((name, this, tuple(argument_view(uc, w, k, labels, bool(log and log[0][0] in ('EngineSetup', 'EngineInitialize', 'EngineConstruct'))) for w, k in zip(words, active_kinds))))
@@ -1708,6 +1725,24 @@ def main():
             cartrajectory=False
             preshiftinit=name=='ShiftUpdate' and trial%4==0
             preaccelinit=name=='AccelUpdate' and trial%4==0
+            if name in MIXER_CONSTRUCT_TARGETS:
+                this=ARENA+0x30000;record=ARENA+0x31000;table=ARENA+0x32000;inputnode=ARENA+0x33000
+                words=[]
+                pk(memory,this,'<I',table);pk(memory,this+0x24,'<I',record+4)
+                fixture_code_fields[table+12]='MixerSetOutput'
+                fixture_globals[0x82bc9c]=struct.pack('<I',rng.getrandbits(32))
+                fixture_globals[0x82bca0]=struct.pack('<I',rng.getrandbits(32))
+                id=rng.getrandbits(32)
+                data=rng.choice((0,0x80000000,0xffff0000,0x7fff8000,rng.getrandbits(32)))
+                pk(memory,record,'<III',id,data,rng.getrandbits(32))
+                # Every quadrant maximum and both high-bit masks are sampled.
+                for i in range(6):pk(memory,record+4+i*4,'<I',rng.getrandbits(32))
+                pk(memory,record+4,'<I',data)
+                if name=='MixerChannelSetup':words=[id,record]
+                elif name=='MixerSetOutput':words=[rng.getrandbits(32)]
+                elif name=='MixerDecode':words=[record-16,this,record]
+                elif name=='MixerSpatialSetup':words=[record,rng.getrandbits(32),rng.getrandbits(32)]
+                elif name=='MixerSpatialAttach':words=[ARENA+0x34000,ARENA+0x35000,inputnode]
             if name in MIXER_TARGETS:
                 context,owner,asset,arrays=(ARENA+x for x in (0x30000,0x30200,0x30400,0x30600))
                 manager,car,other,sound,inputnode=(ARENA+x for x in (0x35000,0x35200,0x35300,0x35700,0x35500))
@@ -3485,6 +3520,11 @@ def main():
             assert text.count(before)==1,(key,before)
             return (key,text,text.replace(before,after,1))
         mutations = {
+            'mixer-setup-count-mask': frame_mutation('mixer_construct','count30 = (id >> 16) & 0xff;','count30 = (id >> 16) & 0x7f;'),
+            'mixer-decode-signed': frame_mutation('mixer_construct','-(int)(short)(data >> 16)','-(int)(data >> 16)'),
+            'mixer-spatial-instance': frame_mutation('mixer_construct','key20 = (key & 0xff0000) | instance | index | 0x90000000;','key20 = (key & 0xff0000) | index | 0x90000000;'),
+            'mixer-spatial-last-maximum': frame_mutation('mixer_construct','if (maximum < (data[11] & 0x7fffu)) maximum = data[11] & 0x7fff;',''),
+            'mixer-spatial-mask': frame_mutation('mixer_construct','*data24 & 0xff00','*data24 & 0xff'),
             'mixer-master-spatial-kind': frame_mutation('mixer','if ((id & 0xe0000000) == 0x80000000) ++spatial;','if ((id & 0xe0000000) == 0x80000000 && ((id >> 16) & 0xff) == kind44) ++spatial;'),
             'mixer-sub-foreign': frame_mutation('mixer_allocate','if (inputKind == kind) {','if (inputKind == kind || (id & 0xe0000000) == 0x80000000) {'),
             'mixer-map-output': ('mixer',(ROOT / SOURCES['mixer']).read_text(),(ROOT / SOURCES['mixer']).read_text().replace('((value >> 24) & 0xf)','((value >> 24) & 7)')),
