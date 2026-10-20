@@ -6,17 +6,25 @@
 
 // UG2-only views of the fields read by engine setup and controllers.
 struct EngineSoundCarValue {
-    char unidentified0[8];
+    int value0;
+    int value4;
     int value8;
+    const char *fileC;
+};
+
+struct EngineSoundCarValue84 {
+    const char *file0;
 };
 
 struct EngineSoundCar {
     char unidentified0[0x10];
     int bankIndex10;
-    char unidentified14[0x64];
+    int kind14;
+    char unidentified18[0x60];
     int mode78;
     char unidentified7C[4];
     EngineSoundCarValue *value80;
+    EngineSoundCarValue84 *value84;
 };
 
 struct EngineSoundSlot {
@@ -114,6 +122,10 @@ struct EngineSound {
     EngineSound *Construct45E350();
     EngineSound *Construct473BF0();
     EngineSound *Construct473D30();
+    void Bind463500(EngineSoundCar *car);
+    void LoadBanks465C80(int *count);
+    static void __cdecl BankRead461550(void *object);
+    static void __cdecl BankRead461560(void *object);
     void Setup47D740();
     void Initialize47D920();
     int Value45E390(int index);

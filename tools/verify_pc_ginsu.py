@@ -42,6 +42,8 @@ SOURCE_DIR = 'src/Speed/Indep/Src/EAXSound/Ginsu'
 SOURCES = {'data': SOURCE_DIR + '/GinsuData.cpp', 'synth': SOURCE_DIR + '/GinsuSynth.cpp',
            'setup': SOURCE_DIR + '/EngineSoundSetup.cpp',
            'construction': SOURCE_DIR + '/EngineSoundConstruct.cpp',
+           'banks': SOURCE_DIR + '/EngineSoundBanks.cpp',
+           'bank_path': 'src/Speed/Indep/Libs/bWare/StringConcat.cpp',
            'controller': SOURCE_DIR + '/EngineSoundController.cpp',
            'caller': SOURCE_DIR + '/EngineSoundUpdate.cpp',
            'dispatch': SOURCE_DIR + '/ParameterDispatch.cpp',
@@ -79,6 +81,11 @@ GIN_MAGIC = b'Gnsu2'
 # return kinds: 'al' (bool), 'eax' (int), 'st0' (float left in ST0), None. argument kinds: 'w' raw word,
 # 'p' pointer (identity: arena address or the stack), ('c', n) pointer whose n bytes are logged by value.
 ROUTINES = {
+    'EngineBankLoad': (0x465c80, '?LoadBanks465C80@EngineSound@', 4, None, 'arena', ['p']),
+    'EngineStateBind': (0x463500, '?Bind463500@EngineSound@', 4, None, 'arena', ['p']),
+    'EngineBankPath': (0x43dda0, '_bStringConcat43DDA0', 0, None, None, ['p', 'z', 'z']),
+    'BankReadPrimary': (0x461550, '?BankRead461550@EngineSound@', 0, None, None, ['p']),
+    'BankReadSecondary': (0x461560, '?BankRead461560@EngineSound@', 0, None, None, ['p']),
     'SoundBaseConstruct': (0x45e350, '?Construct45E350@EngineSound@', 0, 'eax', 'arena', []),
     'EngineBaseConstruct': (0x473bf0, '?Construct473BF0@EngineSound@', 0, 'eax', 'arena', []),
     'EngineConstruct': (0x473d30, '?Construct473D30@EngineSound@', 0, 'eax', 'arena', []),
@@ -122,6 +129,8 @@ ROUTINES = {
 # mode 'stub': an event with a scripted EAX (see RETURNS); 'retail': a pure leaf run as retail bytes on both sides.
 # 'f' is a function pointer, logged by the name of the routine it names on that side.
 SND = {
+    'BankFileSize': (0x57d900, '?EngineBankFileSize57D900@', ['z'], 'BankFileSize', 'stub'),
+    'BankRead': (0x57b4a0, '?EngineBankRead57B4A0@', ['p', 'z', 'w', 'w', 'f', 'p'], 'BankRead', 'stub'),
     'ParameterRegister': (0x7358c0, '?EngineParameterRegister7358C0@', ['p', ('c', 0x68), 'p'], 'ParameterRegister', 'stub'),
     'ParameterBind': (0x735840, '?Bind735840@EngineParameterRegistry@', ['p'], 'ParameterBind', 'stub'),
     'DispatchWait': (STUBS + 0x110, '?EngineDispatchWait@', ['w', 'w'], 'DispatchWait', 'stub'),
@@ -146,13 +155,13 @@ SND = {
     'SetAttr': (0x72423e, '?SND_attrsetdef@', ['p'], 'SND_attrsetdef', 'retail'),
     'SetPlay': (0x721a6b, '?SNDplaysetdef@', ['p'], 'SNDplaysetdef', 'retail'),
 }
-STUB = {'ParameterRegister': STUBS + 0x130, 'ParameterBind': STUBS + 0x140, 'DispatchWait': STUBS + 0x110, 'DispatchRelease': STUBS + 0x120, 'VoiceVolume': STUBS + 0xa0, 'VoiceValue': STUBS + 0xb0, 'VoiceValue2': STUBS + 0xc0, 'VoiceValue3': STUBS + 0xd0, 'VoiceValue4': STUBS + 0xe0, 'VoiceValue5': STUBS + 0xf0, 'HeapAvailable': STUBS + 0x80, 'Malloc': STUBS + 0x90, 'Lock': STUBS, 'Unlock': STUBS + 0x10, 'Overhead': STUBS + 0x20, 'Create': STUBS + 0x30,
+STUB = {'BankFileSize': STUBS + 0x150, 'BankRead': STUBS + 0x160, 'ParameterRegister': STUBS + 0x130, 'ParameterBind': STUBS + 0x140, 'DispatchWait': STUBS + 0x110, 'DispatchRelease': STUBS + 0x120, 'VoiceVolume': STUBS + 0xa0, 'VoiceValue': STUBS + 0xb0, 'VoiceValue2': STUBS + 0xc0, 'VoiceValue3': STUBS + 0xd0, 'VoiceValue4': STUBS + 0xe0, 'VoiceValue5': STUBS + 0xf0, 'HeapAvailable': STUBS + 0x80, 'Malloc': STUBS + 0x90, 'Lock': STUBS, 'Unlock': STUBS + 0x10, 'Overhead': STUBS + 0x20, 'Create': STUBS + 0x30,
         'Start': STUBS + 0x40, 'Submit': STUBS + 0x50, 'Stop': STUBS + 0x60, 'Destroy': STUBS + 0x70}
 # Retail address of each pure leaf (its bytes run on both sides): SND_attrsetdef 0x72423e..0x72428b and
 # SNDplaysetdef 0x721a6b..0x721aae (both end in RET and call nothing).
 PURE_RANGES = ((0x75bed4, 0x75bf49), (0x72423e, 0x72428b), (0x721a6b, 0x721aae))
 # Retail globals read by the recovered code, by MSVC symbol prefix; __fltused is a null symbol.
-SHARED = {'?engineSoundConstructionValues82AF90@': 0x82af90, '?engineSoundConstructionValue7ED440@': 0x7ed440, '?engineParameterAllocator8B4F3C@': 0x8b4f3c,
+SHARED = {'?engineBankRecords82B098@': 0x82b098, '?engineBankDirectory7ED164@': 0x7ed164, '?engineSoundConstructionValues82AF90@': 0x82af90, '?engineSoundConstructionValue7ED440@': 0x7ed440, '?engineParameterAllocator8B4F3C@': 0x8b4f3c,
           '?engineParameterRegistry82C538@': 0x82c538, '?engineParameterDescriptor7EDE18@': 0x7ede18,
           '?engineParameterMode850078@': 0x850078, '___CxxFrameHandler': 0x75bfd2, '__except_list': 0, '?engineSoundMutex8B4F38@': 0x8b4f38, '?engineSoundValue82B070@': 0x82b070, '?engineSoundValue82B880@': 0x82b880,
           '?engineSoundScale78AF84@': 0x78af84, '?engineSoundScale78A1C8@': 0x78a1c8, '?audioEnabled7FAAA8@': 0x7faaa8, '?audioObject82BA30@': 0x82ba30, '?engineSoundValue82A998@': 0x82a998, '?engineSoundValue82B078@': 0x82b078,
@@ -165,10 +174,11 @@ SHARED = {'?engineSoundConstructionValues82AF90@': 0x82af90, '?engineSoundConstr
           '?ginsuStepTable7ED950@': 0x7ed950, '__fltused': 0}
 # Retail addresses of the E branch (fz1 == fz2) and of the SampleToCycle found path (0x466c2f).
 E_BRANCH_HOOK, FOUND_HOOK = 0x466e98, 0x466c2f
-TARGETS = ('SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
+TARGETS = ('EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
            'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt',
            'PacketReleaseCallback', 'SynthesisConstruct', 'SynthesisDestruct', 'StartSynthesis')
 LIMITATIONS = [
+    'bank loading: file size and queued reads are scripted; actual completion callbacks execute after return for a selected queue prefix; filesystem/queue implementation equivalence is not claimed; record indices 0..2 (including count aliasing record 0) and bank indices 0..1 are fixtures, not inferred valid bounds; filenames fit the original 64-byte local buffer',
     'engine initialization: normal returns and FS chain restoration are checked; exceptions/unwind are excluded; allocator and registry are scripted boundaries, allocation failure retains the original null dereference and is not exercised; the recovered setup and final dispatcher-value query execute in composition',
     'engine value queries: standalone table indices 0..16 are fixture positions, not an established table bound; controller fixtures alternate original query bodies with scripted callbacks; record production and enabled native audio integration remain open',
     'the uninitialised packet words are read without being written by the original (the frame word bit 31, the SNDPACKET ssf and sizeofsamples words, and the fields at 0x3c and 0x44 of the HandlePacketRelease record); the stack is zeroed before each run; isolated entry tests read zero; composed setup may reuse stack words, so composed-setup snd event comparison masks the packet continuation bit and unwritten format/size words, attribute pad/tsdatasize fields and option pads',
@@ -296,6 +306,13 @@ def pointer_view(uc, w, size):
 
 
 def argument_view(uc, w, kind, labels, mask_undefined=False):
+    if kind == 'z':
+        body = bytearray()
+        for i in range(4096):
+            byte = bytes(uc.mem_read(w + i, 1))
+            if byte == b'\0': return bytes(body)
+            body.extend(byte)
+        raise AssertionError(('unterminated string fixture', hex(w)))
     if kind == 'w': return w
     if kind == 'f': return ('callback', labels.get(w, ('raw', w)))
     if isinstance(kind, tuple):
@@ -349,7 +366,7 @@ def fx_state(uc):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--compiler', choices=('msvc', 'clang-cl'), default='msvc')
-    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, construction, controller, caller, dispatch, values, initialize, lifecycle, audio)')
+    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, construction, controller, caller, dispatch, values, initialize, lifecycle, audio, banks, bank_path)')
     parser.add_argument('--clang-flag', action='append', default=[], help='extra clang option (via /clang:)')
     parser.add_argument('--cases', type=int, default=1024)
     parser.add_argument('--targets', default='', help='comma separated subset of targets')
@@ -434,9 +451,13 @@ def main():
     events = {False: [], True: []}
     counters = {False: {}, True: {}}
     callback_writes = {}
+    pending_reads = {False: [], True: []}
     returns = {}  # scripted EAX of the stateful snd entries for the current run
     labels = {False: {retail_entry['PacketReleaseCallback']: 'PacketReleaseCallback'},
               True: {rebuilt_entry['PacketReleaseCallback']: 'PacketReleaseCallback'}}
+    for rebuilt, entries in ((False, retail_entry), (True, rebuilt_entry)):
+        for name in ('BankReadPrimary', 'BankReadSecondary'):
+            labels[rebuilt][entries[name]] = name
     machines = {}
     for rebuilt in (False, True):
         uc = Uc(UC_ARCH_X86, UC_MODE_32)
@@ -493,6 +514,11 @@ def main():
             address = rebuilt_entry[key] if rebuilt else spec[0]
             uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], spec[3], 'arena' if key == 'ParameterBind' else None, spec[2], labels[rebuilt], returns, key, callback_writes),
                         begin=address, end=address)
+        def enqueue_bank_read(uc, address, size, user, rebuilt=rebuilt):
+            esp = uc.reg_read(xc.UC_X86_REG_ESP)
+            pending_reads[rebuilt].append(struct.unpack('<II', bytes(uc.mem_read(esp + 20, 8))))
+        address = rebuilt_entry['BankRead'] if rebuilt else SND['BankRead'][0]
+        uc.hook_add(UC_HOOK_CODE, enqueue_bank_read, begin=address, end=address)
         for key, address in VIRTUAL.items():
             uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], 'AllocatorFree' if key == 'ParameterFree' else key, None if key == 'ParameterCallback' else 'arena', [('c', 0x68), 'w'] if key == 'ParameterCallback' else ['w', ('c', 12)] if key == 'ParameterAllocate' else ['p', 'w'] if key == 'ParameterFree' else [] if key in ('SoundContext', 'AuxValue38') else ['p'] if key.startswith('Manager') or key == 'SoundBind' else ['w'], labels[rebuilt], returns, key, callback_writes),
                         begin=address, end=address)
@@ -512,7 +538,7 @@ def main():
         snapshots = {}
         for rebuilt in (False, True):
             uc = machines[rebuilt]
-            events[rebuilt].clear(); counters[rebuilt].clear()
+            events[rebuilt].clear(); counters[rebuilt].clear(); pending_reads[rebuilt].clear()
             code_memory = bytearray(memory)
             for address, target in fixture_code_fields.items():
                 pk(code_memory, address, '<I', rebuilt_entry[target] if rebuilt else retail_entry[target])
@@ -541,6 +567,15 @@ def main():
                 raise AssertionError(('state or call order mismatch' if rebuilt else 'original fixture fault', name, str(error), hex(uc.reg_read(xc.UC_X86_REG_EIP)), list(events[rebuilt]))) from error
             assert uc.reg_read(xc.UC_X86_REG_EIP) == STOP + 7, ('state or call order mismatch' if rebuilt else 'original fixture fault', name, 'did not return')
             assert bytes(uc.mem_read(STUBS + 0x1000, 4)) == struct.pack('<I', 0xfedcba98), ('state or call order mismatch', 'SEH chain not restored', name, rebuilt)
+            # The file queue is a boundary: complete a fixture-selected prefix
+            # only after the loader returned, through the actual callback bodies.
+            saved_esp, saved_eax = uc.reg_read(xc.UC_X86_REG_ESP), uc.reg_read(xc.UC_X86_REG_EAX)
+            for callback, client in pending_reads[rebuilt][:complete_reads]:
+                uc.mem_write(STACK, struct.pack('<II', STOP, client))
+                uc.reg_write(xc.UC_X86_REG_ESP, STACK)
+                uc.emu_start(callback, STOP + 7, count=1000)
+                assert uc.reg_read(xc.UC_X86_REG_ESP) == STACK + 4, ('state or call order mismatch', 'bank callback cdecl cleanup')
+            uc.reg_write(xc.UC_X86_REG_ESP, saved_esp); uc.reg_write(xc.UC_X86_REG_EAX, saved_eax)
             arena = bytearray(uc.mem_read(ARENA, ARENA_SIZE))
             for address, target in fixture_code_fields.items():
                 actual = struct.unpack_from('<I', arena, address - ARENA)[0]
@@ -706,7 +741,58 @@ def main():
             fixture_globals.clear()
             fixture_code_fields.clear()
             preconstruct = False
-            if name in ('SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct'):
+            complete_reads = 0
+            if name == 'EngineBankLoad':
+                primary, secondary = ARENA + 0x3b500, ARENA + 0x3b540
+                directory, name0, name1 = ARENA + 0x3b600, ARENA + 0x3b640, ARENA + 0x3b680
+                for address, body in ((directory, b'sound\\Engine\\\0'), (name0, b'GIN_primary.gin\0'), (name1, b'GIN_secondary.gin\0')):
+                    memory[address-ARENA:address-ARENA+len(body)] = body
+                pk(memory, SETUP + 0x9c, '<I', CAR)
+                pk(memory, CAR + 0x80, '<II', primary, secondary)
+                pk(memory, primary, '<iiII', rng.randrange(-2**31,2**31), rng.randrange(-2**31,2**31), 0, name0)
+                pk(memory, secondary, '<I', name1)
+                pk(memory, CAR + 0x10, '<I', rng.randrange(2))
+                pk(memory, CAR + 0x78, '<i', rng.choice((-1, 0, 1, 1, 2)))
+                fixture_globals[0x7ed164] = struct.pack('<I', directory)
+                fixture_globals[0x850078] = struct.pack('<i', rng.choice((-1, 0, 4, 4, 5)))
+                fixture_globals[0x82b884] = struct.pack('<I', AUDIO)
+                fixture_globals[0x7ec840] = struct.pack('<I', rng.getrandbits(32))
+                records = bytearray(rng.getrandbits(8) for _ in range(4*0x2c))
+                alias_count = trial % 4 == 0
+                count = rng.randrange(3)
+                count_ptr = 0x82b098 if alias_count else ARENA + 0x3b700
+                if alias_count: struct.pack_into('<i', records, 0, 0)
+                else: pk(memory, count_ptr, '<i', count)
+                fixture_globals[0x82b098] = bytes(records)
+                sizes = [rng.choice((-1, 0, 1, 1024, 2**31-1025, 2**31-1024, 2**31-1)) for _ in range(2)]
+                capacities = []
+                for size in sizes:
+                    wrapped = ctypes.c_int32(size + 0x400).value
+                    capacities.append(rng.choice((-2**31, 0, 2**31-1, wrapped, ctypes.c_int32(wrapped-1).value)))
+                returns.update(BankFileSize=sizes, HeapAvailable=capacities,
+                               Malloc=[rng.choice((0, ALLOC, ALLOC + 0x4000)) for _ in range(2)],
+                               BankRead=rng.getrandbits(32))
+                callback_writes['BankFileSize'] = [{CAR + 0x10: struct.pack('<I', rng.randrange(2)),
+                                                   0x82b884: struct.pack('<I', AUDIO + 0x100)},
+                                                  {CAR + 0x10: struct.pack('<I', rng.randrange(2)),
+                                                   0x82b884: struct.pack('<I', AUDIO)}]
+                callback_writes['BankRead'] = [{CAR + 0x78: struct.pack('<i', rng.choice((-1, 0, 1)))}, {}]
+                complete_reads = rng.randrange(3)
+                words, this = [count_ptr], SETUP
+                note('bank-count-alias' if alias_count else 'bank-count-arena')
+            elif name == 'EngineStateBind':
+                pk(memory, CAR + 0x14, '<i', rng.choice((-1, 0, 1, 2, 3, rng.randrange(-2**31,2**31))))
+                words, this = [CAR], SETUP
+            elif name == 'EngineBankPath':
+                directory, filename, destination = ARENA + 0x3b600, ARENA + 0x3b640, ARENA + 0x3b700
+                a = rng.choice((b'', b'sound\\Engine\\', b'A'*31))
+                b = rng.choice((b'', b'GIN_test.gin', b'B'*31))
+                for address, body in ((directory, a+b'\0'), (filename, b+b'\0')):
+                    memory[address-ARENA:address-ARENA+len(body)] = body
+                words, this = [rng.choice((destination, directory)), directory, filename], 0
+            elif name in ('BankReadPrimary', 'BankReadSecondary'):
+                words, this = [SETUP], 0
+            elif name in ('SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct'):
                 seed_construction_globals()
                 words, this = [], SETUP
             elif name in ('EngineGain', 'EngineValue'):
@@ -1099,6 +1185,9 @@ def main():
                 else:
                     chosen = [key for key in ('ManagerAC', 'ManagerB0', 'ManagerB4') if key in names]
                     note('create-called-' + (chosen[0] if chosen else 'none'))
+            if name == 'EngineBankLoad':
+                note('bank-reads-%d' % names.count('BankRead'))
+                note('bank-completions-%d' % (names.count('BankReadPrimary') + names.count('BankReadSecondary')))
             if name == 'EngineInitialize':
                 note('initialize-retry' if 'ParameterBind' in names else 'initialize-no-retry')
                 note('initialize-dispatcher' if 'ParameterValue' in names else 'initialize-no-dispatcher')
@@ -1160,7 +1249,28 @@ def main():
     if args.mutation_checks:
         if failures:
             raise SystemExit('mutation checks need a passing baseline: %d failures in the unmutated run' % len(failures))
+        bank_source = (ROOT / SOURCES['banks']).read_text()
+        def bank_mutation(before, after):
+            assert before in bank_source, before
+            return ('banks', bank_source, bank_source.replace(before, after))
         mutations = {
+            'bank-mode': bank_mutation('engineParameterMode850078 == 4', 'engineParameterMode850078 != 4'),
+            'bank-alternate-id': bank_mutation('value8 = car9C->value80->value4;', 'value8 = car9C->value80->value0;'),
+            'bank-counter': bank_mutation('*count = (int)((unsigned int)*count + 1u);', ''),
+            'bank-terminal-word': bank_mutation('.value28 = -1;', '.value28 = 0;'),
+            'bank-capacity-equality': bank_mutation('<= available', '< available'),
+            'bank-capacity-wrap': bank_mutation('(int)((unsigned int)size + 0x400u)', '((__int64)size + 0x400)'),
+            'bank-heap-flags': bank_mutation('| 0x1000', '| 0x2000'),
+            'bank-null-queue': bank_mutation('        EngineBankRead57B4A0', '        if (memory) EngineBankRead57B4A0'),
+            'bank-size-zero': bank_mutation('if (size > 0)', 'if (size >= 0)'),
+            'bank-secondary-mode': bank_mutation('car9C->mode78 == 1', 'car9C->mode78 != 0'),
+            'bank-secondary-name': bank_mutation('car9C->value84->file0', 'car9C->value80->fileC'),
+            'bank-secondary-table': bank_mutation('engineBanksE4[', 'engineBanksDC['),
+            'bank-secondary-callback': bank_mutation('size, BankRead461560, this', 'size, BankRead461550, this'),
+            'bank-callback-width': bank_mutation('static_cast<EngineSound *>(object)->slotsCC[0].value18 = 1;', '*reinterpret_cast<int *>(&static_cast<EngineSound *>(object)->slotsCC[0].value18) = 1;'),
+            'bank-binding-kind': bank_mutation('car->kind14 == 2', 'car->kind14 == 3'),
+            'bank-path-terminator': ('bank_path', 'destination[length] = 0;', 'destination[length] = 1;'),
+            'bank-path-directory': ('bank_path', 'while (*directory)', 'while (0 && *directory)'),
             'construct-base-word-count': ('construction', 'i <= 16', 'i <= 15'),
             'construct-base-wide48': ('construction', '        value48 = 0;', '        words[0x48 / 4] = 0;'),
             'construct-base-table-count': ('construction', 'i < 16', 'i < 15'),

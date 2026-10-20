@@ -1024,3 +1024,7 @@ cameraShakeSecond7EBEA8 = 0x7ebea8;
 cameraShakeMultiplier7870B8 = 0x7870b8;
 cameraShakeDisabled89E7D8 = 0x89e7d8;
 cameraShakeDisabled890108 = 0x890108;
+
+engineBankRecords82B098 = 0x82b098;
+engineBankDirectory7ED164 = 0x7ed164;
+engineParameterMode850078 = 0x850078;

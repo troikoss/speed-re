@@ -17,6 +17,7 @@ file(GLOB UG2_RECOVERED_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Src/EAXSound/Ginsu/*.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Src/Audio/*.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Strings.cpp
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/StringConcat.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Formatting.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/FormattingSink.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/FormattingCore.cpp
@@ -34,7 +35,8 @@ add_library(ug2native STATIC
     src/Platform/Native/NativeWorld.cpp
     src/Platform/Native/NativeCollision.cpp
     src/Platform/Native/NativeAudio.cpp
-    src/Platform/Native/NativeEngineSound.cpp)
+    src/Platform/Native/NativeEngineSound.cpp
+    src/Platform/Native/NativeEngineBankIO.cpp)
 target_compile_options(ug2native PRIVATE ${UG2_ARCH_FLAGS} -O2 -Wall
     -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
 
@@ -118,4 +120,13 @@ target_link_options(ug2audiodispatch_native_test PRIVATE -m32 -no-pie)
 if(BUILD_TESTING)
     add_test(NAME audio_dispatch_native COMMAND ug2audiodispatch_native_test)
     set_tests_properties(audio_dispatch_native PROPERTIES TIMEOUT 10)
+endif()
+
+# Asset-free bank filesystem adapter check; original scheduler equivalence is excluded.
+add_executable(ug2enginebankio_native_test src/Platform/Native/EngineBankIONativeTest.cpp src/Platform/Native/NativeEngineBankIO.cpp)
+target_compile_options(ug2enginebankio_native_test PRIVATE ${UG2_ARCH_FLAGS} -O1 -g
+    -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+target_link_options(ug2enginebankio_native_test PRIVATE -m32 -no-pie)
+if(BUILD_TESTING)
+    add_test(NAME engine_bank_io_native COMMAND ug2enginebankio_native_test)
 endif()

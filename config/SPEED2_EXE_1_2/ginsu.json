@@ -190,6 +190,31 @@
       "address": "0x473d30",
       "size": 84,
       "sha256": "3a852537dd8012e45ad51b3036e4fa7550ca76f8f83b8365ce649463814fe238"
+    },
+    "EngineBankLoad": {
+      "address": "0x465c80",
+      "size": 536,
+      "sha256": "f9beaaa9a0e4f14eeaa83bd5d6a137e9f3d179ba0673522ca224c4dda581d400"
+    },
+    "EngineStateBind": {
+      "address": "0x463500",
+      "size": 59,
+      "sha256": "ed76815cb6620b44b78bd795e637e20ae756dbae76c27645edb8b67c02d52361"
+    },
+    "EngineBankPath": {
+      "address": "0x43dda0",
+      "size": 66,
+      "sha256": "6329a5d5dcb163d24a18a03ce415bdedf838e8f8dc3594f80394961b3cbd50f3"
+    },
+    "BankReadPrimary": {
+      "address": "0x461550",
+      "size": 12,
+      "sha256": "a7fc2670dc91d9a187615dd91e74e466158ee40da736f8c8717b7a3299b18b2c"
+    },
+    "BankReadSecondary": {
+      "address": "0x461560",
+      "size": 12,
+      "sha256": "a45df5258a651f702fe88b123c1cd32bd439c1dbe47159168f280dc337fbc978"
     }
   }
 }

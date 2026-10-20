@@ -1,15 +1,15 @@
-// Platform scaffolding for the engine sound (see NativeEngineSound.h). The recovered routines are the Ginsu ones;
-// setup and engine construction are recovered; file choice, car/table construction,
-// controller wiring and heap backend remain scaffold.
+// Native adapter around recovered engine construction, bank loading and Ginsu setup.
+// Car-record production, controller wiring, file I/O and heap backend remain seams.
 #include "NativeEngineSound.h"
 #include "NativeAudio.h"
+#include "NativeEngineBankIO.h"
+#include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSoundBanks.h"
 #include "../../Speed/Indep/Src/Audio/AudioSystem.h"
 #include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSound.h"
 
 #include <SDL2/SDL.h>
 #include <stdlib.h>
 #include <string.h>
-#include <string>
 
 extern Audio82B884 *audio82B884;
 
@@ -29,48 +29,35 @@ NativeEngineSound::~NativeEngineSound() {
 
 bool NativeEngineSound::Load(const char *gameDirectory, const char *ginName, char *error, int errorSize) {
     Destroy();
-    const std::string path = std::string(gameDirectory) + "/SOUND/ENGINE/" + ginName;
-    FILE *file = fopen(path.c_str(), "rb");
-    if (!file) {
-        snprintf(error, errorSize, "engine sound %s not found", path.c_str());
+    // CLI filename and mode/index 0 still stand in for the original car-state
+    // record producer. Path construction, bank allocation and queued reads now
+    // run through 0x465c80, with native file I/O drained before slot setup.
+    if (strlen(engineBankDirectory7ED164) + strlen(ginName) >= 64) {
+        snprintf(error, errorSize, "engine sound filename is too long");
         return false;
     }
-    fseek(file, 0, SEEK_END);
-    const long length = ftell(file);
-    fseek(file, 0, SEEK_SET);
-    if (length <= 0x20) {
-        fclose(file);
-        snprintf(error, errorSize, "engine sound %s is too short", path.c_str());
-        return false;
-    }
-    gin_ = static_cast<unsigned char *>(malloc((size_t)length));
-    const size_t got = fread(gin_, 1, (size_t)length, file);
-    fclose(file);
-    if (got != (size_t)length) {
-        snprintf(error, errorSize, "engine sound %s could not be read", path.c_str());
-        Destroy();
-        return false;
-    }
-
-    if (memcmp(gin_, "Gnsu2", 5) != 0) {
-        snprintf(error, errorSize, "engine sound %s is not a Gnsu2 data block", path.c_str());
-        Destroy();
-        return false;
-    }
-
-    // Scaffold until EAXSound's table loader and car state are recovered:
-    // one selected gin, bank index 0 and mode 0. The original constructor
-    // supplies the engine fields and both fresh slots.
-    // Only setup reads these temporary views; synthesis retains the allocated
-    // data and packet memory, not either view. Restore the session audio object.
     Audio82B884 banks = {};
-    banks.engineBanksDC[0] = gin_;
+    EngineSoundCarValue primary = {};
+    primary.fileC = ginName;
     EngineSoundCar car = {};
+    car.value80 = &primary;
     EngineSound engine;
     engine.Construct473D30();
     engine.car9C = &car;
+    NativeEngineBankIOBegin(gameDirectory);
     Audio82B884 *previous = audio82B884;
     audio82B884 = &banks;
+    int count = 0;
+    engine.LoadBanks465C80(&count);
+    int length = 0;
+    const bool loaded = NativeEngineBankIODrain(error, errorSize, &length);
+    gin_ = static_cast<unsigned char *>(banks.engineBanksDC[0]);
+    if (!loaded || !gin_ || length <= 0x20 || memcmp(gin_, "Gnsu2", 5) != 0) {
+        audio82B884 = previous;
+        if (loaded) snprintf(error, errorSize, "engine sound %s is missing, too short or not Gnsu2", ginName);
+        Destroy();
+        return false;
+    }
     engine.Setup47D740();
     audio82B884 = previous;
     data_ = engine.slotsCC[0].data0;

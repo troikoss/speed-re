@@ -126,11 +126,15 @@ twice on the main thread and once inside the audio callback, and completed 27 ca
 300 ms without deadlock. The demo exercises the same path: every released packet nests
 `SNDSYS_entercritical` inside the callback.
 
-`NativeEngineSound.cpp` reads the chosen gin and calls recovered setup `0x47d740`, then calls
-`UpdateFrequency(rpm, 60.0f)` once per frame. The default gin is `GIN_Nissan_Skyline.gin`
-(`--engine-gin` chooses another file). The per-car choice is not recovered. Setup temporarily receives a native EAXSound bank
-view, bank index 0, car mode 0 and a fresh slot with start result -1; the prior audio
-object is restored before returning. These are explicit construction seams. The
+`NativeEngineSound.cpp` calls recovered construction `0x473d30`, bank loading
+`0x465c80` with queued native file I/O, and setup `0x47d740`, then calls
+`UpdateFrequency(rpm, 60.0f)` once per frame. The default gin is
+`GIN_Nissan_Skyline.gin` (`--engine-gin` chooses another file). The per-car
+record producer is not recovered. Loading and setup temporarily receive a
+native EAXSound bank view, bank index 0 and car mode 0; the recovered constructor
+supplies the fresh slots. The prior audio object is restored before returning.
+The [bank-loading checkpoint](#engine-bank-loading-and-state-binding-2026-10-20)
+describes the remaining input and file-backend seams. The
 recovered allocator wrapper `0x440820` calls the existing native `bMalloc` backend
 (`calloc`); native heap-capacity query `0x43e910` returns an unbounded capacity
 (`INT_MAX`) because this heap has no bWare partition budget. The game-side
@@ -820,8 +824,98 @@ counts, byte/word widths, parent calls, globals, slot counts/start defaults,
 control pointer and final vtable. A separate 30-frame `--no-audio` native run
 also passed.
 
-The next bank-table producer is now identified at `0x465c80`: live Ghidra
-reads show stores through `*0x82b884` to indexed `+0xdc` and `+0xe4`, filename
-construction through `0x43dda0`, size query `0x57d900` and queued read
-`0x57b4a0`. Its source, input record producer and native I/O integration remain
-open; identifying that body does not establish recovered bank selection.
+The bank loader identified at `0x465c80` is recovered in the next checkpoint.
+Its input record producer remains open.
+
+## Engine bank loading and state binding (2026-10-20)
+
+`EngineSoundBanks.cpp` recovers loader `0x465c80..0x465e97` (536 contiguous
+bytes), state binding `0x463500` (59 bytes), and the two 12-byte completion
+callbacks `0x461550`/`0x461560`. `bWare/StringConcat.cpp` recovers the 66-byte
+concatenation helper `0x43dda0`; its original name is unknown. All five spans
+are fingerprinted in `ginsu.json`, based on original instructions and live
+Ghidra reads. No byte identity is claimed for these bodies.
+
+The loader fills an 11-word record at `0x82b098 + *count * 0x2c`. Every field
+store re-reads `*count`, including when that pointer aliases record storage.
+It sets word 0 to 1, chooses word 4 and opaque word 8 using global
+`0x850078 == 4` and car `+0x80` words 4/0, copies directory pointer
+`0x7ed164`, clears words `+0x10..+0x24`, sets `+0x28` to -1, and increments
+`*count` with 32-bit wrap. The directory is `sound\Engine\` at `0x789230`.
+The opaque words are preserved without inferring the remaining record layout.
+
+It concatenates that directory and car `+0x80` record's filename at `+0x0c`
+into an unchecked 64-byte local buffer, then calls size query `0x57d900`.
+Positive sizes compare signed, wrapped `size + 0x400` against heap capacity
+`0x43e910`; allocation `0x440820` uses `(heap & 7) | 0x1000`. The resulting
+pointer is stored through the re-read audio global and car bank index at
+EAXSound `+0xdc`. Even a null allocation is passed to queued read
+`0x57b4a0(destination, filename, 0, size, callback, clientdata)`. This is a
+six-argument cdecl boundary, confirmed by the caller's stack cleanup.
+Missing/nonpositive sizes retain the old bank pointer. After the first read
+call returns, mode at car `+0x78` is re-read; mode 1 repeats the process with
+car `+0x84` record's filename at `+0` and EAXSound `+0xe4`. Completion writes
+exactly one byte at engine `+0xe4` or `+0x100`, respectively.
+
+The binder retains the supplied state at engine `+0x44`, sets byte `+0xa0`,
+and sets engine `+0x9c` only for state kind `+0x14` equal to 1 or 2. It has no
+null-input guard. Native playback still binds its temporary car pointer
+directly; recovery of the binder does not establish the state producer.
+
+`NativeEngineSound::Load` now runs the recovered loader between construction
+and setup. The temporary record still supplies the CLI filename, mode/index
+0, and zero opaque words. A native guard rejects paths too long for the
+original local buffer. `NativeEngineBankIO.cpp` translates Windows separators,
+resolves Linux filename case, queries size, and queues copied filenames and
+read arguments. Explicit draining reads the queued ranges in order and then
+calls the recovered completion bodies before setup. Failed native reads
+report an error without calling completion. This backend is platform
+scaffolding: original file metadata caching, request identifiers, streaming
+scheduler, error behavior and interleavings are not established equivalent.
+The asset-free `ug2enginebankio_native_test` covers copied filename lifetime,
+deferred ordered callbacks, range reads, case resolution, missing files,
+null destinations and short reads.
+
+The original/rebuilt verifier compares dirty object/record bytes, global
+bank pointers, ordered boundary calls, return/stack cleanup, preserved
+registers and x87 state. Cases include count aliasing record 0, both global
+modes, missing/empty files, equality and signed overflow at the capacity
+check, null allocation, both banks, and scripted file callbacks that change
+mode, bank index and audio receiver. A selected prefix of queued completion
+bodies executes after the loader returns. Fixture record indices 0..2 and
+bank indices 0..1 are not inferred valid bounds; fixture paths fit 64 bytes.
+Filesystem and original queue implementation equivalence are not claimed.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 1024
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets EngineBankLoad,EngineStateBind,EngineBankPath,BankReadPrimary,BankReadSecondary --cases 64 --mutation-checks --mutation-source banks --mutation-source bank_path
+cmake --build build/native
+build/native/ug2enginebankio_native_test
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/smoke_native_engine_audio.py --frames 600
+```
+
+All 17 bank/binding/path mutants were rejected with comparison mismatches,
+with no survivors or compile-only rejections. They cover record mode/word
+selection, counter, terminal word, capacity equality/wrap, allocation flags,
+null read queueing, zero size, secondary mode/name/table/callback, callback
+byte width, binding kind, path terminator and directory copying.
+
+Actual per-car record production, state construction, enabled game audio,
+controller/control-state production, parameter registration and consumers,
+snd setter backends, collision and frontend/HUD audio remain open. The
+original table at `0x7f0de0` has a `0x4c` record stride; the Skyline record at
+`0x7f108c` contains pointers to `CAR_09_ENG_MB_EE.abk`,
+`CAR_09_ENG_MB_SPU.abk`, and `GIN_Nissan_Skyline.gin`. These binary reads
+identify data, not the runtime selection algorithm or valid table bounds.
+
+The final native build and asset-free CTest check passed. The final 600-frame
+audio smoke produced 949 packet releases with zero underrun frames and
+pitch/RPM rank correlation 0.792. This executes recovered construction,
+bank loading, completion callbacks and setup; per-frame RPM still follows
+the native scaffold, so the smoke does not verify original controllers.
+
+Final full regression: 43 targets, 44,032 original/rebuilt comparisons
+(1,024 per target), zero failures. The two existing value-query leaves
+retained their separately reported MSVC byte identity. Bank fixtures exercised
+zero/one/two queued reads in 200/654/170 cases, zero/one/two completions in
+480/499/45 cases, and count-pointer aliasing in 256 cases.

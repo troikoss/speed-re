@@ -12,6 +12,8 @@ char *nfs_strcpy(char *dest, const char *src);
 char *nfs_strncpy(char *dest, const char *src, int maxlen);
 int nfs_strcmp(const char *a, const char *b);
 int nfs_stricmp(const char *a, const char *b);
+// 0x43dda0: two-source concatenation; original symbol name unknown.
+void bStringConcat43DDA0(char *destination, const char *directory, const char *filename);
 int nfs_strncmp(const char *a, const char *b, int maxlen);
 }
 
