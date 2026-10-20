@@ -1,5 +1,5 @@
 // Native adapter around recovered engine construction, bank loading and Ginsu setup.
-// Registry/list ownership, shift/accel inputs, file I/O and heap remain seams.
+// Registry/list ownership, shifting inputs, file I/O and heap remain seams.
 // Recovered sort, component scheduling and post passes execute through ABI bridges.
 #include "NativeEngineSound.h"
 #include "NativeAudio.h"
@@ -10,6 +10,7 @@
 #include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSoundPhysics.h"
 #include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSoundSpatial.h"
 #include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSoundSchedule.h"
+#include "../../Speed/Indep/Src/EAXSound/Ginsu/EngineSoundAccel.h"
 
 #include <SDL2/SDL.h>
 #include <stdlib.h>
@@ -34,7 +35,7 @@ struct NativeEnginePlayback {
     EngineSoundAuxiliaryVtable auxiliaryVtable;
     EngineSoundSpatialComponent spatial;
     EngineSoundSpatialVtable spatialVtable;
-    EngineSoundScheduleVtable physicsVtable, controlVtable;
+    EngineSoundScheduleVtable physicsVtable, controlVtable, accelVtable;
 };
 
 // Notification ownership is still absent. Normal native playback explicitly
@@ -77,6 +78,9 @@ void __fastcall ControlUpdate(EngineSoundScheduledNode *value, void *, float dur
     reinterpret_cast<EngineSoundControl *>(value)->Update47C3D0(duration);
 }
 void __fastcall ControlPost(EngineSoundScheduledNode *value) { reinterpret_cast<EngineSoundControl *>(value)->Post470940(); }
+void __fastcall AccelUpdate(EngineSoundScheduledNode *value, void *, float duration) {
+    reinterpret_cast<EngineSoundAccelView *>(value)->Update4831A0(duration);
+}
 void __fastcall SpatialUpdate(EngineSoundScheduledNode *value, void *, float duration) {
     reinterpret_cast<EngineSoundSpatialComponent *>(value)->Update471DC0(duration);
 }
@@ -92,17 +96,18 @@ void InitialiseSchedule(NativeEnginePlayback *session) {
         reinterpret_cast<EngineSoundScheduledNode *>(&session->physics),
         reinterpret_cast<EngineSoundScheduledNode *>(&session->spatial),
         reinterpret_cast<EngineSoundScheduledNode *>(&session->auxiliary),
-        reinterpret_cast<EngineSoundScheduledNode *>(&session->control)};
-    const unsigned int ids[] = {0, 8, 5, 6};
+        reinterpret_cast<EngineSoundScheduledNode *>(&session->control),
+        reinterpret_cast<EngineSoundScheduledNode *>(&session->accel)};
+    const unsigned int ids[] = {0, 8, 5, 6, 4};
     // Registry/factory ownership remains native. 0x476890 supplies this key
     // encoding; 0x464a10 sorts the original low-seven-bit component IDs.
-    for (int i = 0; i < 4; ++i) {
+    for (int i = 0; i < 5; ++i) {
         inputs[i]->key4C = ((((unsigned int)session->car.kind14 << 5) |
                              (unsigned int)session->car.bankIndex10) << 7 | ids[i]) << 4;
-        inputs[i]->next50 = i == 3 ? 0 : inputs[i+1];
+        inputs[i]->next50 = i == 4 ? 0 : inputs[i+1];
     }
     session->car.first1C = inputs[0];
-    session->car.count2C = 4;
+    session->car.count2C = 5;
     session->car.first20 = reinterpret_cast<EngineSoundScheduledNode *>(&session->engine);
     session->car.Sort464A10();
     session->physicsVtable.update14 = PhysicsUpdate;
@@ -111,6 +116,9 @@ void InitialiseSchedule(NativeEnginePlayback *session) {
     session->controlVtable.update14 = ControlUpdate;
     session->controlVtable.post18 = ControlPost;
     inputs[3]->vtable0 = &session->controlVtable;
+    session->accelVtable.update14 = AccelUpdate;
+    session->accelVtable.post18 = EmptyPost;
+    inputs[4]->vtable0 = &session->accelVtable;
     inputs[1]->vtable0->update14 = SpatialUpdate;
     inputs[1]->vtable0->post18 = EmptyPost;
     inputs[2]->vtable0->update14 = AuxiliaryUpdate;
@@ -249,11 +257,15 @@ bool NativeEngineSound::Load(const char *gameDirectory, MoverModeOwner *owner, c
     auxiliary.vtable0 = &playback_->auxiliaryVtable;
     auxiliary.average90.vtable0 = auxiliary.averageB8.vtable0 = &averageVtable;
     auxiliary.Bind45C550(&car);
-    // Neutral shift/accel components are explicit fixtures until their producers
-    // are recovered. No guessed shift or accel transition is synthesized.
+    // Shifting remains an explicit fixture until its complete producer runs.
     auxiliary.shift6C = &playback_->shift;
     auxiliary.accel70 = &playback_->accel;
     auxiliary.physics74 = &physics;
+    playback_->accel.Construct45C9C0();
+    playback_->accel.Bind45CA80(&car);
+    playback_->accel.auxiliary6C = &auxiliary;
+    playback_->accel.shift70 = &playback_->shift;
+    playback_->accel.Activate45CB10();
     playback_->spatial.Construct471D60();
     playback_->spatial.Bind45DAC0(&car);
     playback_->spatial.Activate45BAD0();
@@ -319,6 +331,10 @@ void NativeEngineSound::Update(float rpm, float duration, int frame) {
         fprintf(log_, "# spatial %d %d %d %d %.6f\n", frame,
                 playback_->spatial.listenerD0, playback_->spatial.value4,
                 playback_->spatial.value8, playback_->spatial.averageA8.averageC);
+        fprintf(log_, "# acceleration %d %d %.2f %.2f %.3f %u\n", frame,
+                playback_->accel.valueC8, playback_->accel.value88,
+                playback_->accel.valueC0, playback_->accel.valueA4,
+                (unsigned int)playback_->accel.flagD8);
         fflush(log_);
     }
 }

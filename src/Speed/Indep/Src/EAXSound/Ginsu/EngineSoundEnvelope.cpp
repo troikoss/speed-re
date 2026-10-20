@@ -3,6 +3,13 @@
 #include "Ginsu.h"
 extern float engineGainTwoScale78A6C8;
 
+// 0x47aaa0: retain the target word before and after the actual envelope step.
+void EngineSoundEnvelope::StepTarget47AAA0(float duration, float target) {
+    *reinterpret_cast<unsigned int *>(&secondC) = *reinterpret_cast<unsigned int *>(&target);
+    Step46B100(duration);
+    if (flag18) *reinterpret_cast<unsigned int *>(&value14) = *reinterpret_cast<unsigned int *>(&target);
+}
+
 // 0x459990: compare the unrounded duration product after storing a copy.
 void EngineSoundEnvelope::Configure459990(float first, float second, int milliseconds, int kind) {
     const double raw = (double)milliseconds * engineSoundSequenceMilliseconds78435C;

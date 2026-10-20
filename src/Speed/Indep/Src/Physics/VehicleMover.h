@@ -687,6 +687,7 @@ struct MoverModeOwner {
     void UpdateEffects5F5730(float distance); // 0x5f5730, not recovered
     bool HasPendingShift(); // 0x5ecd70
     WheelVector *GetPosition(); // 0x401890
+    float AudioShiftPoint5ECD30(int gear);
     WheelVector *GetVelocity(); // 0x4018a0
     int GetWheelState(int wheel); // 0x5ed470
     void GetBodyBox(float *first, float *second); // 0x5ec250

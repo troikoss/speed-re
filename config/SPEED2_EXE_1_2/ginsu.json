@@ -740,6 +740,101 @@
       "address": "0x45d050",
       "size": 22,
       "sha256": "b6ddc4340da2da51b2d6820409338eca69a757532665324120488dc3f1f0fbdc"
+    },
+    "AccelConstruct": {
+      "address": "0x45c9c0",
+      "size": 185,
+      "sha256": "dbcaae9ff74c7d636e1e67b51c3c400f4ee2ee9543cebc3d9223b0a226d00aec"
+    },
+    "AccelFactory": {
+      "address": "0x46ffa0",
+      "size": 64,
+      "sha256": "cb1587cac4d62dbe0e72cc173a6d8806c786154d0ac23516e8a6f278f17e4905"
+    },
+    "AccelBind": {
+      "address": "0x45ca80",
+      "size": 134,
+      "sha256": "0b168c19e49913d56f5f365e3ebff46d1a261f3d5a1382c80c99213761259876"
+    },
+    "AccelActivate": {
+      "address": "0x45cb10",
+      "size": 37,
+      "sha256": "4a55091917c7e83a3b32d34e4259afa6e4f63139495a2fbf1a30b31deb7721df"
+    },
+    "AccelDependency": {
+      "address": "0x45cb40",
+      "size": 34,
+      "sha256": "f978151d933557e849b5b5f80630a235a244beeb9215b5debe4ffd508051118c"
+    },
+    "AccelAttach": {
+      "address": "0x46ffe0",
+      "size": 71,
+      "sha256": "b83500203da684a8bacb6c88e95944a569a6a970ef27775047062c92ecc6d775"
+    },
+    "AccelConfigure": {
+      "address": "0x45cb70",
+      "size": 183,
+      "sha256": "4637005b762a22f302eba29b55b472177e6a17198174be363678a311f6948979"
+    },
+    "AccelLaunch": {
+      "address": "0x45cc30",
+      "size": 245,
+      "sha256": "574240520ae79a4e0342f5b1de4dbd9e11ec4fa9748f8f459a6a8a36ded84648"
+    },
+    "AccelQueryLaunch": {
+      "address": "0x45cd30",
+      "size": 138,
+      "sha256": "69984d31d5b8f99829e29c354c8c78f020ff80489a223e0d644bd455ecb9898d"
+    },
+    "AccelQuery": {
+      "address": "0x470030",
+      "size": 179,
+      "sha256": "8475cebe962a241d33c3c1cb1b53297b957a868d1f7a726ab331e8ff578daa59"
+    },
+    "AccelRelease": {
+      "address": "0x45cdc0",
+      "size": 59,
+      "sha256": "1896313950d31f84cc85aeb2021ffe2be0810b53817bd824f02bef3e8326f46e"
+    },
+    "AccelRpm": {
+      "address": "0x47c1a0",
+      "size": 108,
+      "sha256": "07e59a0b0621b4ed211de401327df39a4194696fed4d79e3de09f9a255655e57"
+    },
+    "AccelThrottle": {
+      "address": "0x47c220",
+      "size": 102,
+      "sha256": "99ce77ba2f2a93538a27e74faa2e92f4c83ffd7b70c80f20c41969ea712a17ae"
+    },
+    "AccelAdvance": {
+      "address": "0x47c290",
+      "size": 297,
+      "sha256": "89b1410c2b354642721657caf16f017e700d04305565f00044be99d1827622f5"
+    },
+    "AccelUpdate": {
+      "address": "0x4831a0",
+      "size": 165,
+      "sha256": "f767c98ba062ac63dc6af7bbe8920edef9dcd99818d9982dfa8b1024126b7d77"
+    },
+    "ShiftActive": {
+      "address": "0x45c090",
+      "size": 19,
+      "sha256": "8ab192a87a1d5d17f52897c15bda16e5998047dc56978a8e61a15fb79afbc5b4"
+    },
+    "OwnerShiftPoint": {
+      "address": "0x5ecd30",
+      "size": 53,
+      "sha256": "af3755ab3f82f4355d116561846b9b61404a907dab1f47b9003e1f04bf37758c"
+    },
+    "GearShiftPoint": {
+      "address": "0x5947b0",
+      "size": 14,
+      "sha256": "6d9253740acb26e0e7cf28f4b7f07d18dc0284f5cb6f6d43999b621be041f315"
+    },
+    "EnvelopeTarget": {
+      "address": "0x47aaa0",
+      "size": 40,
+      "sha256": "80fb8abc4955effb66862031af242e2ca3d7e67e8d4c7b0d0afa51cf6b18d665"
     }
   }
 }

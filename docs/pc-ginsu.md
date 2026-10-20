@@ -2075,3 +2075,138 @@ still miss the high-RPM gate. The complete audio objective remains open.
 UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 256
 UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets ControlActivate,CarFrame,CarSchedule --cases 128 --mutation-checks --mutation-source control_lifecycle --mutation-name schedule-control-activate --mutation-name schedule-control-gains
 ```
+
+## Acceleration-transition component and native input (2026-10-20)
+
+`EngineSoundAccel.cpp` / `EngineSoundAccelLifecycle.cpp` recover the complete
+`SFXCTL_AccelTrans` component (type 4, allocation `0xdc`, table `0x789fb8`).
+The native session now constructs, binds and activates it, publishes its
+auxiliary/shifting dependencies, and runs it through the original scheduler.
+Sorting places it after Physics and before auxiliary, HybridMotor and spatial.
+The previous acceleration-state fixture is removed. Shifting remains a
+separate explicit fixture until its complete producer is recovered.
+
+| Original address | Recovered routine |
+| --- | --- |
+| `0x45c9c0`, `0x46ffa0` | Construction and factory |
+| `0x45ca80`, `0x45cb10` | Binding and activation |
+| `0x45cb40`, `0x46ffe0` | Dependency IDs and attachment |
+| `0x45cb70`, `0x45cc30` | General and launch envelope setup |
+| `0x45cd30`, `0x470030`, `0x45cdc0` | Launch, general and release queries |
+| `0x47c1a0`, `0x47c220`, `0x47c290` | RPM, throttle and complete advancement |
+| `0x4831a0` | Complete component update |
+| `0x45c090` | Shifting activity query, complete EAX result |
+| `0x5ecd30`, `0x5947b0` | Owner and drivetrain shift-point queries |
+| `0x47aaa0` | Envelope step with a replaced target |
+
+Construction preserves dirty padding and unidentified fields; activation
+initializes only the observed flag/state words. Binding retains its kind-1/2/3
+constraint and subsequent invalid-kind dereference, performs the actual car
+virtual query, then reloads kind and the typed car before choosing tuning.
+Kind 1 indexes the `0x7f3248` records from primary-record `+0x18`; other valid
+kinds consume one bounded random value to choose `0x7f3284` or `0x7f32c0`.
+Attachment queries the supplied descriptor before selecting dependency 3 or 5;
+unknown IDs retain the existing diagnostic boundary.
+
+The three queries retain extended subtraction/product comparisons and their
+x87 unordered behavior. Several rejection tests reject a strict less-than
+rather than accepting only greater-or-equal; quiet NaNs can therefore pass.
+The general query snapshots RPM before the actual owner shift-point call, then
+reloads later car state. The owner query preserves the separate drivetrain
+call/tail boundary for mover kind 1, the alternate layout for kind 3, and the
+zero result for other kinds. Neither query introduces a gear bound. These
+bodies are recovered separately from the existing HUD convenience wrapper,
+which had inlined the kind-1 field read.
+
+Setup preserves exact integer loading for tuning deltas and milliseconds,
+rounded duration stores followed by unrounded zero comparisons, raw snapshots,
+and explicit envelope initialization instead of replacing those stores with a
+configure call. Advancement steps the level, RPM and throttle paths in order,
+then transitions launch state 2 to return state 3, converts active transitions
+to release state 4 on throttle release, and finishes states 1/3/4 when the RPM
+envelope completes. It captures the old RPM and release duration before the
+auxiliary virtual frequency call, then reloads tuning and level for the next
+configuration. The full caller retains active timing, raw previous/current
+throttle flags, rising-edge selection, falling-edge notification and its final
+advancement call. Existing envelope stepping and curves execute recovered code.
+
+`EngineSoundEnvelope::StepTarget47AAA0` replaces the target word, calls the
+actual step, and copies the supplied target to the output if the envelope is
+complete. That final copy also matters when stepping an already-complete
+object, whose ordinary step leaves the output untouched. The new paths keep
+unknown fields offset-based and do not synthesize shift or transition rules.
+
+The first 128-case run passed 2432 comparisons across the nineteen new targets.
+The expanded composed run passed 6400 comparisons: twenty-one selected targets
+at 256 cases each, 512 carried acceleration updates, and 512 carried complete
+car-scheduler frames. The acceleration trajectory visits states 0/1/2/3/4 for
+280/36/36/60/100 frames and produces four release notifications across the two
+x87 precisions. Separate cases cover negative/out-of-range states, large signed
+tuning integers, zero/negative durations, raw byte flags, both random tuning
+choices, callback-time car/kind/tuning/level changes, and selected quiet NaNs.
+Both results of every transition query are exercised. Explicit binary guards
+prevent rebuilt execution from entering the retail helper bodies.
+
+The actual acceleration constructor/bind/activation now also run in composed
+car frames, with the original raw vtable relocated to the rebuilt update.
+The standalone auxiliary/gain cases retain controlled acceleration inputs where
+that is their documented boundary. Shifting production, original registry/list
+construction, invalid pointers/kinds, aliases between tuning and component
+storage, nonfinite envelope inputs, exceptions and concurrency remain excluded.
+Gear indices 0..7 are fixtures rather than a claim that the original checks
+those bounds. These comparisons establish bounded behavior, not a whole-game
+or acoustic match.
+
+`UG2_ENGINE_LOG` now includes `# acceleration frame state rpm88 throttleC0
+levelA4 releaseD8` diagnostics. The native scheduler owns five recovered inputs
+(IDs 0/4/5/6/8) and its existing playback object. Registry and manager ownership,
+shifting, Tunnel/MasterVol, overall packed level/pan, notification/parameter
+consumers, collision audio and flag-gated frontend/HUD paths remain open.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets AccelConstruct,AccelFactory,AccelBind,AccelActivate,AccelDependency,AccelAttach,AccelConfigure,AccelLaunch,AccelQueryLaunch,AccelQuery,AccelRelease,AccelRpm,AccelThrottle,AccelAdvance,AccelUpdate,ShiftActive,OwnerShiftPoint,GearShiftPoint,EnvelopeTarget,CarFrame,CarSchedule --cases 256
+```
+
+Eight of the nine initial mutations were rejected by state/call mismatches.
+The integer-duration mutation initially used a cast that MSVC retained in
+extended precision; it did not actually introduce the intended early rounding.
+Replacing it with an explicit volatile binary32 store produced the intended
+fault and was rejected in a separate run. All nine intended errors are thus
+rejected, with no compile-only rejections. The mutation baselines each passed
+3712 comparisons, including 1024 carried acceleration/car frames.
+Gear shift-point reading, shifting activity and acceleration activation also
+match their complete 14/19/37-byte original bodies; dependency selection retains
+behavioral verification without a byte-match claim.
+
+The native build and all six CTest checks pass. Latest 600-frame SKYLINE
+output has RMS 2222 LSB, 650 packet releases, zero underruns and pitch/RPM
+correlation 0.854 (pass); 350Z has RMS 9154 LSB, 1700 releases, zero underruns
+and correlation 0.517 (pass against 0.50). The acceleration diagnostics show
+SKYLINE states 0/2/3 for 510/29/61 frames and 350Z for 522/29/49 frames.
+Neither native profile enters general/release state or sets the release
+notification flag; those paths are covered by the carried binary comparisons.
+Neither enters the high-RPM gate. These finite native observations supersede
+the preceding smoke results without establishing stability or retail acoustic
+equivalence; the complete audio goal remains active.
+
+Next shifting graph: frame `0x483130` calls upshift `0x46ec70` or downshift
+`0x46ee60`, then advancement `0x482d50`. Its helpers are `0x47bf20`,
+`0x47bea0`, `0x46f000`, `0x46f080` and reset `0x45c430`. Post-update is
+`0x45c210`. Binding `0x45c330` selects tuning records with a confirmed
+`0x60` byte stride (`LEA index*3; SHL 5`); constructor `0x45c0d0`, activation
+`0x45c3d0` and full `0x15c` layout still need recovery. Physics virtual `+0x24`
+is `0x45d300`, a float query of Physics `+0x84`. These inspected bodies remain
+open; only the separate activity query is recovered in this checkpoint.
+
+Final full regression passed 45824 comparisons across 167 targets with zero
+failures, including 3072 carried steps. Seventeen strict leaf byte checks
+pass; the larger acceleration routines retain behavioral verification only.
+The five-component scheduler sequence still reaches both delayed HybridMotor
+pulse requests, while the acceleration sequence retains all state/notification
+coverage described above. Native fixture removal does not close the original
+shifting, registry/manager or other inventoried audio seams.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 256
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets AccelConstruct,AccelFactory,AccelBind,AccelActivate,AccelDependency,AccelAttach,AccelConfigure,AccelLaunch,AccelQueryLaunch,AccelQuery,AccelRelease,AccelRpm,AccelThrottle,AccelAdvance,AccelUpdate,ShiftActive,OwnerShiftPoint,GearShiftPoint,EnvelopeTarget,CarFrame,CarSchedule --cases 128 --mutation-checks --mutation-name accel-edge --mutation-name accel-unordered-release --mutation-name accel-delay-equality --mutation-name accel-bind-reload --mutation-name accel-duration-integer --mutation-name accel-release-snapshot --mutation-name accel-return-state --mutation-name accel-step-order --mutation-name accel-target-copy
+```

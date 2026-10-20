@@ -12,6 +12,7 @@ struct EngineSoundEnvelope {
     char unidentified19[3];
     void Configure459990(float first, float second, int milliseconds, int kind);
     void Step46B100(float duration);
+    void StepTarget47AAA0(float duration, float target);
 };
 UG2_CHECK_SIZE(EngineSoundEnvelope, 0x1c);
 int EngineSoundCurve468160(unsigned int kind, unsigned int value, unsigned char mode);

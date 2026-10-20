@@ -39,7 +39,10 @@ from probe_pc_race_reward import ROOT, EXE, GAME_DIR
 
 BUILD = ROOT / 'build/analysis/ginsu'
 SOURCE_DIR = 'src/Speed/Indep/Src/EAXSound/Ginsu'
-SOURCES = {'schedule': SOURCE_DIR + '/EngineSoundSchedule.cpp',
+SOURCES = {'accel': SOURCE_DIR + '/EngineSoundAccel.cpp',
+           'accel_lifecycle': SOURCE_DIR + '/EngineSoundAccelLifecycle.cpp',
+           'accel_shiftpoint': SOURCE_DIR + '/EngineSoundShiftPoint.cpp',
+           'schedule': SOURCE_DIR + '/EngineSoundSchedule.cpp',
            'schedule_post': SOURCE_DIR + '/EngineSoundSchedulePost.cpp',
            'listeners': SOURCE_DIR + '/EngineSoundListeners.cpp',
            'listener_find': 'src/Speed/Indep/Src/Audio/AudioFindListener.cpp',
@@ -122,8 +125,28 @@ GIN_MAGIC = b'Gnsu2'
 # name: (retail address, rebuilt symbol prefix, callee-popped bytes, return kind, `this` kind, argument kinds)
 # return kinds: 'al' (bool), 'eax' (int), 'st0' (float left in ST0), None. argument kinds: 'w' raw word,
 # 'p' pointer (identity: arena address or the stack), ('c', n) pointer whose n bytes are logged by value.
+ACCEL_TARGETS = ('AccelConstruct', 'AccelFactory', 'AccelBind', 'AccelActivate', 'AccelDependency', 'AccelAttach', 'AccelConfigure', 'AccelLaunch', 'AccelQueryLaunch', 'AccelQuery', 'AccelRelease', 'AccelRpm', 'AccelThrottle', 'AccelAdvance', 'AccelUpdate', 'ShiftActive', 'OwnerShiftPoint', 'GearShiftPoint', 'EnvelopeTarget')
 AUX_TARGETS = ('SpatialBaseConstruct', 'SpatialConstruct', 'SpatialFactory', 'SpatialBind', 'SpatialActivate', 'SpatialAngle', 'SpatialCompute', 'SpatialSelect', 'SpatialDoppler', 'SpatialUpdate', 'SpatialLimit', 'SpatialValue', 'SpatialDistance2D', 'SpatialNormalize2D', 'SpatialArcSine', 'SampleDefault', 'SampleAllocate', 'SpatialPosition','SpatialOrientation', 'AuxOffsets', 'AuxBackfire', 'AuxCutoff', 'AuxFrame', 'SoundInverse', 'SoundRandom', 'SoundRandomFloat', 'SoundSine', 'SoundNormalize', 'AuxLevel', 'AuxEffects', 'AuxIdle', 'EnvelopeConfigure', 'EnvelopeStep', 'SequenceReset', 'SequenceStep', 'SoundCurve', 'SoundCurveConvert', 'ControlConstruct', 'ControlBind', 'GainCurveConstruct', 'AuxConstruct', 'AuxFactory', 'AuxBind', 'AuxActivate', 'AuxAttach', 'AuxRpm', 'AuxThrottle', 'AuxDependency', 'AuxDescriptor', 'AuxCarValue', 'AuxApproach', 'AuxSequenceConstruct', 'AuxSequenceAppend')
 ROUTINES = {
+    'AccelConstruct': (0x45c9c0, '?Construct45C9C0@EngineSoundAccelView@', 0, 'eax', 'arena', []),
+    'AccelFactory': (0x46ffa0, '?CreateEngineSoundAccel46FFA0@', 0, 'eax', None, []),
+    'AccelBind': (0x45ca80, '?Bind45CA80@EngineSoundAccelView@', 4, None, 'arena', ['p']),
+    'AccelActivate': (0x45cb10, '?Activate45CB10@EngineSoundAccelView@', 0, None, 'arena', []),
+    'AccelDependency': (0x45cb40, '?Dependency45CB40@EngineSoundAccelView@', 4, 'eax', 'arena', ['w']),
+    'AccelAttach': (0x46ffe0, '?Attach46FFE0@EngineSoundAccelView@', 4, None, 'arena', ['p']),
+    'AccelConfigure': (0x45cb70, '?Configure45CB70@EngineSoundAccelView@', 0, None, 'arena', []),
+    'AccelLaunch': (0x45cc30, '?Configure45CC30@EngineSoundAccelView@', 0, None, 'arena', []),
+    'AccelQueryLaunch': (0x45cd30, '?Query45CD30@EngineSoundAccelView@', 0, 'al', 'arena', []),
+    'AccelQuery': (0x470030, '?Query470030@EngineSoundAccelView@', 0, 'al', 'arena', []),
+    'AccelRelease': (0x45cdc0, '?Query45CDC0@EngineSoundAccelView@', 0, 'al', 'arena', []),
+    'AccelRpm': (0x47c1a0, '?Advance47C1A0@EngineSoundAccelView@', 4, None, 'arena', ['w']),
+    'AccelThrottle': (0x47c220, '?Advance47C220@EngineSoundAccelView@', 4, None, 'arena', ['w']),
+    'AccelAdvance': (0x47c290, '?Advance47C290@EngineSoundAccelView@', 4, None, 'arena', ['w']),
+    'AccelUpdate': (0x4831a0, '?Update4831A0@EngineSoundAccelView@', 4, None, 'arena', ['w']),
+    'ShiftActive': (0x45c090, '?IsActive45C090@EngineSoundShiftView@', 0, 'eax', 'arena', []),
+    'OwnerShiftPoint': (0x5ecd30, '?AudioShiftPoint5ECD30@MoverModeOwner@', 4, 'st0', 'arena', ['w']),
+    'GearShiftPoint': (0x5947b0, '?AudioUpshift5947B0@Drivetrain@', 4, 'st0', 'arena', ['w']),
+    'EnvelopeTarget': (0x47aaa0, '?StepTarget47AAA0@EngineSoundEnvelope@', 8, None, 'arena', ['w', 'w']),
     'ControlActivate': (0x45d050, '?Activate45D050@EngineSoundControl@', 0, None, 'arena', []),
     'CarBind': (0x464ba0, '?Bind464BA0@EngineSoundCar@', 4, None, 'arena', ['p']),
     'CarSort': (0x464a10, '?Sort464A10@EngineSoundCar@', 0, None, 'arena', []),
@@ -342,6 +365,18 @@ def snd_ret(key):
 PURE_RANGES = ((0x75bed4, 0x75bf49), (0x72423e, 0x72428b), (0x721a6b, 0x721aae))
 # Retail globals read by the recovered code, by MSVC symbol prefix; __fltused is a null symbol.
 SHARED = {
+    '?engineSoundAccelTuning7F3248@': 0x7f3248,
+    '?engineSoundAccelTuning7F3284@': 0x7f3284,
+    '?engineSoundAccelTuning7F32C0@': 0x7f32c0,
+    '?engineSoundAccelRise788614@': 0x788614,
+    '?engineSoundAccelLevel788610@': 0x788610,
+    '?engineSoundAccelDelta788618@': 0x788618,
+    '?engineSoundAccelSpeed787AF4@': 0x787af4,
+    '?engineSoundAccelLow789FDC@': 0x789fdc,
+    '?engineSoundAccelHigh789FE0@': 0x789fe0,
+    '?engineSoundAccelRpmMargin78429C@': 0x78429c,
+    '?engineSoundAccelRpmLow78759C@': 0x78759c,
+    '?engineSoundAccelDelay7844C0@': 0x7844c0,
     '?engineSoundSpeed78426C@': 0x78426c,
     '?engineSoundSpeedScale786460@': 0x786460,
     '?engineSoundSpeedScale7875BC@': 0x7875bc,
@@ -491,10 +526,11 @@ SHARED.update({
 })
 # Retail addresses of the E branch (fz1 == fz2) and of the SampleToCycle found path (0x466c2f).
 E_BRANCH_HOOK, FOUND_HOOK = 0x466e98, 0x466c2f
-TARGETS = ('ControlActivate',) + ('CarBind','CarSort','CarSchedule','CarFrame','CarPlayback','EngineForward','ScheduleNoop','ScheduleNoopArg','PhysicsPost','ControlPost','PhysicsFraction','ApproachInt') + ('ListenerUpdate','ListenerFind','ListenerDistance','ListenerAngle') + AUX_TARGETS + ('PhysicsFactory', 'PhysicsHash') + ('PhysicsConstruct', 'PhysicsBind', 'PhysicsActivate', 'PhysicsUpdate', 'PhysicsOverride', 'PhysicsNotify', 'PhysicsMode40', 'PhysicsMode28', 'PhysicsMode10', 'PhysicsRampConstruct', 'PhysicsRampEvaluate', 'PhysicsSpecMaximum', 'PhysicsEngineMaximum', 'SampleConstruct') + ('ControlPrepare', 'ControlOne', 'ControlTwo', 'SampleAdvance', 'SampleFill', 'SampleRecalculate', 'GainCurveLookup', 'GainPendingShift', 'EngineDependency', 'EngineAttach', 'AuxFrequency', 'AuxGain', 'ControlScale', 'ControlUpdate', 'CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
+TARGETS = ACCEL_TARGETS + ('ControlActivate',) + ('CarBind','CarSort','CarSchedule','CarFrame','CarPlayback','EngineForward','ScheduleNoop','ScheduleNoopArg','PhysicsPost','ControlPost','PhysicsFraction','ApproachInt') + ('ListenerUpdate','ListenerFind','ListenerDistance','ListenerAngle') + AUX_TARGETS + ('PhysicsFactory', 'PhysicsHash') + ('PhysicsConstruct', 'PhysicsBind', 'PhysicsActivate', 'PhysicsUpdate', 'PhysicsOverride', 'PhysicsNotify', 'PhysicsMode40', 'PhysicsMode28', 'PhysicsMode10', 'PhysicsRampConstruct', 'PhysicsRampEvaluate', 'PhysicsSpecMaximum', 'PhysicsEngineMaximum', 'SampleConstruct') + ('ControlPrepare', 'ControlOne', 'ControlTwo', 'SampleAdvance', 'SampleFill', 'SampleRecalculate', 'GainCurveLookup', 'GainPendingShift', 'EngineDependency', 'EngineAttach', 'AuxFrequency', 'AuxGain', 'ControlScale', 'ControlUpdate', 'CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
            'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt',
            'PacketReleaseCallback', 'SynthesisConstruct', 'SynthesisDestruct', 'StartSynthesis')
 LIMITATIONS = [
+    'acceleration transitions: complete construction/bind/activation, queries, envelope producers, update and owner/gear shift-point helpers execute recovered code; callbacks can change kind/car/tuning/level at query boundaries; valid kinds 1..3 and gear indices 0..7, separate tuning storage, finite envelope inputs and selected quiet-NaN query inputs are covered; launch/general/return/release states are carried, and actual acceleration runs in composed car scheduling; shifting production, registry/list construction, invalid-kind dereferences, exceptions and concurrency remain outside this evidence',
     'car scheduling: actual sort, owner-gated wrapper, clock handling, component/post and separate playback passes execute, with callback-time table/link/head changes in scripted cases; constructed and carried frames compose the four recovered inputs and actual inactive engine caller, while active retail GIN playback is a native smoke; registry/list creation, shift/accel production and full manager dispatch remain seams; sort fixtures have at most six nodes, counts through seven and keys 0..63, excluding cycles, overlong scratch writes and invalid-key original faults; post-update comparisons include full integer wrapping, flag fractions, player/camera and race-count branches, with finite floating inputs and valid dependent pointers',
     'listener production: full 0x46d7e0 and 0x4690b0 execute recovered code, including unchanged bDistance/HudAngleUnits; manager topology, owners/player records/cameras and sound-state +0xa8 are fixtures; missing camera paths retain state, and composed/carried cases execute actual spatial construction/update and cutoff; one/two-player finite-coordinate paths are covered, while cycles, invalid pointers, absent first owner with live second owner, null race-state dereference, exceptions and concurrent list mutation are excluded; native manager ownership/scheduling and downstream Doppler/voice consumers remain seams',
     'spatial component: original/rebuilt construction, binding, activation, virtual selection, mode-specific distances/angles and Doppler averaging execute recovered code, including unchanged Normalize2/HudArcSineUnits; listener readiness/coordinate arrays and the audio root are fixtures, not recovered listener production 0x46d7e0; valid indices 0/1, finite positions and nonnegative allocation capacities are exercised; exceptions, concurrency, arbitrary indices and full attenuation/pan consumers remain outside this evidence; both pure helper roots stay extended through selection, and a scripted average callback checks the post-callback raw-word copy',
@@ -729,7 +765,7 @@ def main():
     # These leaves have no relocations. Only claim complete byte identity
     # when COFF places a single function in the section and its size agrees.
     query_byte_matching = {}
-    for name, source_key in (('EngineGain', 'values'), ('EngineValue', 'values'), ('AuxFrequency', 'control'), ('AuxGain', 'control'), ('AuxCarValue', 'auxiliary'), ('AuxApproach', 'aux_sequence'), ('GainCurveConstruct', 'gain_curve_construct'), ('SpatialPosition','spatial_position'), ('SpatialOrientation','spatial_orientation'), ('CarBind','schedule'), ('EngineForward','schedule'), ('ScheduleNoop','schedule'), ('ScheduleNoopArg','schedule'), ('ControlActivate','control_lifecycle')):
+    for name, source_key in (('EngineGain', 'values'), ('EngineValue', 'values'), ('AuxFrequency', 'control'), ('AuxGain', 'control'), ('AuxCarValue', 'auxiliary'), ('AuxApproach', 'aux_sequence'), ('GainCurveConstruct', 'gain_curve_construct'), ('SpatialPosition','spatial_position'), ('SpatialOrientation','spatial_orientation'), ('CarBind','schedule'), ('EngineForward','schedule'), ('ScheduleNoop','schedule'), ('ScheduleNoopArg','schedule'), ('ControlActivate','control_lifecycle'), ('GearShiftPoint','accel_shiftpoint'), ('ShiftActive','accel_lifecycle'), ('AccelActivate','accel_lifecycle'), ('AccelDependency','accel_lifecycle')):
         spec = ROUTINES[name]
         symbol = next(s for s in parsed[source_key]['symbols'].values() if s['name'].startswith(spec[1]))
         section = parsed[source_key]['sections'][symbol['section'] - 1]
@@ -840,6 +876,7 @@ def main():
                 uc.mem_write(table+slot,struct.pack('<I',rebuilt_entry[target] if rebuilt else retail_entry[target]))
         for table,slots in ((0x78a008,{0x14:'PhysicsUpdate',0x18:'PhysicsPost'}),
                             (0x789fe4,{0x14:'ControlUpdate',0x18:'ControlPost'}),
+                            (0x789fb8,{0x14:'AccelUpdate',0x18:'ScheduleNoop'}),
                             (0x789f70,{0x14:'AuxFrame',0x18:'ScheduleNoop',0x2c:'AuxLevel'}),
                             (0x78ab68,{0x14:'SpatialUpdate',0x18:'ScheduleNoop'}),
                             (0x78af30,{0x24:'ScheduleNoopArg',0x28:'EngineForward',0x34:'ScheduleNoop',0x48:'EngineUpdate'})):
@@ -926,6 +963,15 @@ def main():
             uc.reg_write(xc.UC_X86_REG_FPTAG, 0xffff)
             for reg, value in zip(PRESERVED, PRESERVED_VALUES): uc.reg_write(reg, value)
             try:
+                if preaccelinit and name=='AccelUpdate':
+                    for target,arguments in (('AccelConstruct',[]),('AccelBind',[CAR]),('AccelActivate',[])):
+                        uc.mem_write(STACK,struct.pack('<I',STOP)+b''.join(struct.pack('<I',w) for w in arguments))
+                        uc.reg_write(xc.UC_X86_REG_ESP,STACK);uc.reg_write(xc.UC_X86_REG_ECX,this)
+                        uc.emu_start(rebuilt_entry[target] if rebuilt else retail_entry[target],STOP+7,count=MAX_INSTRUCTIONS)
+                        assert uc.reg_read(xc.UC_X86_REG_ESP)==STACK+4+ROUTINES[target][2],('state or call order mismatch','accel lifecycle stack',target)
+                    uc.mem_write(this+0x6c,bytes(code_memory[this-ARENA+0x6c:this-ARENA+0x74]))
+                    uc.mem_write(STACK,struct.pack('<I',STOP)+b''.join(struct.pack('<I',w&0xffffffff) for w in words))
+                    uc.reg_write(xc.UC_X86_REG_ESP,STACK);uc.reg_write(xc.UC_X86_REG_ECX,this)
                 if precarinit and name in ('CarFrame','CarSchedule'):
                     def invoke_schedule(target,receiver,arguments):
                         uc.mem_write(STACK,struct.pack('<I',STOP)+b''.join(struct.pack('<I',w&0xffffffff) for w in arguments))
@@ -935,18 +981,20 @@ def main():
                     for target,receiver,arguments in (
                         ('PhysicsConstruct',ARENA+0x3a400,[]),('PhysicsBind',ARENA+0x3a400,[CAR]),('PhysicsActivate',ARENA+0x3a400,[]),
                         ('AuxConstruct',AUXILIARY,[]),('AuxBind',AUXILIARY,[CAR]),
+                        ('AccelConstruct',ARENA+0x3a200,[]),('AccelBind',ARENA+0x3a200,[CAR]),('AccelActivate',ARENA+0x3a200,[]),
                         ('SpatialConstruct',ARENA+0x33000,[]),('SpatialBind',ARENA+0x33000,[CAR]),('SpatialActivate',ARENA+0x33000,[]),
                         ('ControlConstruct',CONTROL,[]),('ControlBind',CONTROL,[CAR]),('ControlActivate',CONTROL,[]),
                         ('EngineConstruct',SETUP,[]),('EngineStateBind',SETUP,[CAR])):
                         invoke_schedule(target,receiver,arguments)
                     uc.mem_write(ARENA+0x3a46c,b'\x01')
                     uc.mem_write(AUXILIARY+0x6c,struct.pack('<IIII',ARENA+0x3a000,ARENA+0x3a200,ARENA+0x3a400,ARENA+0x33000))
+                    uc.mem_write(ARENA+0x3a26c,struct.pack('<II',AUXILIARY,ARENA+0x3a000))
                     uc.mem_write(CONTROL+0x6c,struct.pack('<III',AUXILIARY,ARENA+0x3a000,ARENA+0x3a200))
                     uc.mem_write(SETUP+0xb8,struct.pack('<I',AUXILIARY));uc.mem_write(SETUP+0xc0,struct.pack('<I',CONTROL))
                     invoke_schedule('AuxActivate',AUXILIARY,[])
-                    nodes=[ARENA+0x3a400,ARENA+0x33000,AUXILIARY,CONTROL]
-                    for i,(node,key) in enumerate(zip(nodes,(0,8,5,6))):uc.mem_write(node+0x4c,struct.pack('<II',key<<4,nodes[i+1] if i<3 else 0))
-                    uc.mem_write(CAR+0x1c,struct.pack('<II',nodes[0],SETUP));uc.mem_write(CAR+0x2c,struct.pack('<i',4))
+                    nodes=[ARENA+0x3a400,ARENA+0x33000,AUXILIARY,CONTROL,ARENA+0x3a200]
+                    for i,(node,key) in enumerate(zip(nodes,(0,8,5,6,4))):uc.mem_write(node+0x4c,struct.pack('<II',key<<4,nodes[i+1] if i<4 else 0))
+                    uc.mem_write(CAR+0x1c,struct.pack('<II',nodes[0],SETUP));uc.mem_write(CAR+0x2c,struct.pack('<i',5))
                     invoke_schedule('CarSort',CAR,[])
                     uc.mem_write(STACK,struct.pack('<I',STOP)+b''.join(struct.pack('<I',w&0xffffffff) for w in words))
                     uc.reg_write(xc.UC_X86_REG_ESP,STACK);uc.reg_write(xc.UC_X86_REG_ECX,this)
@@ -1489,13 +1537,15 @@ def main():
         fixture_globals[0x82bb78]=struct.pack('<III',0x82be70,0x82bf10,0)
         for address in (0x82be70,0x82becc,0x82bedc,0x82bf10,0x82bf20,0x82c670,0x82c6c4):fixture_globals[address]=struct.pack('<4f',1.,0.,10.,20.)
         pk(memory,CAR+0xa8,'<i',0)
+        pk(memory,ARENA+0x3b318,'<i',trial%3)
         pk(memory,CAR+0x14,'<i',1 if trial%2 else 2)
         pk(memory,ARENA+0x3a600+0x430,'<f',10.)
         pk(memory,ARENA+0x3a600+0x390,'<4B',1,1,1,1)
         pk(memory,ARENA+0x36238,'<I',0)
         for component in (ARENA+0x3a400,ARENA+0x33000,AUXILIARY,CONTROL):pk(memory,component+0x5c,'<ff',0.,1/60.)
 
-    preauxinit = postauxcontrol = auxtrajectory = prespatialinit = precarinit = composedcar = cartrajectory = False
+    preauxinit = postauxcontrol = auxtrajectory = prespatialinit = precarinit = composedcar = cartrajectory = preaccelinit = False
+    accel_sequence_seed=None
     schedule_sequence_seed=None
     spatial_sequence_seed = None
     listener_sequence_seed = None
@@ -1525,7 +1575,70 @@ def main():
             composedcar=name in ('CarFrame','CarSchedule') and trial%4==0
             precarinit=composedcar
             cartrajectory=False
-            if name in ('CarBind','CarSort','CarSchedule','CarFrame','CarPlayback','EngineForward','ScheduleNoop','ScheduleNoopArg'):
+            preaccelinit=name=='AccelUpdate' and trial%4==0
+            if name in ACCEL_TARGETS:
+                seed_auxiliary(memory,trial)
+                this=ARENA+0x3a200;words=[]
+                owner=ARENA+0x3a600;shift=ARENA+0x3a000;physics=ARENA+0x3a400
+                pk(memory,this+0x44,'<I',CAR);pk(memory,this+0x68,'<III',CAR,AUXILIARY,shift if trial%5 else 0)
+                pk(memory,this+0xd4,'<I',ARENA+0x33400)
+                pk(memory,ARENA+0x33400,'<fiiii',rng.uniform(-100.,100.),rng.choice((-2**31,2**31-1,-1000,0,1000)),rng.choice((-2**31,-1,0,1,100,500,0x1000001,2**31-1)),rng.choice((0,50,100,500)),rng.choice((0,1,100,500)))
+                pk(memory,this+0x58,'<B',trial%2);pk(memory,this+0x5c,'<ff',rng.choice((0.,0.1,1.,5.,100.)),rng.choice((0.001,0.016,0.1)))
+                pk(memory,this+0xc8,'<ifBB',(-1,0,1,2,3,4,5)[trial%7],rng.choice((0.,0.1,1.,4.)),trial%2,(trial//2)%2)
+                pk(memory,this+0xd8,'<B',trial%3)
+                for offset in (0x74,0x90,0xac):
+                    pk(memory,this+offset,'<4fifB',rng.choice((0.,0.05,0.2)),rng.choice((0.01,0.1,0.2)),rng.uniform(-100.,100.),rng.uniform(-100.,100.),(0,1,2,3,6)[(trial+offset)%5],rng.uniform(-100.,100.),trial%3==0)
+                pk(memory,CAR+0x14,'<i',1+(trial%3));pk(memory,CAR+0x50,'<i',trial%8)
+                pk(memory,CAR+0x48,'<f',rng.choice((500.,1000.,2000.,4000.,6000.)))
+                pk(memory,CAR+0x54,'<f',rng.choice((0.,10.,25.,100.)))
+                pk(memory,CAR+0x4c,'<B',trial%3!=0)
+                pk(memory,ARENA+0x3b300+0x18,'<i',trial%3)
+                pk(memory,physics+0x90,'<f',rng.choice((0.,5.,25.)));pk(memory,physics+0xd8,'<B',trial%4==0)
+                pk(memory,shift+0x78,'<i',(-1,0,1,3,4,7)[trial%6])
+                pk(memory,owner+0x430,'<f',rng.choice((-1.,0.,0.001,10.,100.)))
+                pk(memory,owner+0x28,'<i',(0,1,2,3)[trial%4]);pk(memory,owner+0x34,'<I',ARENA+0x33500)
+                pk(memory,ARENA+0x3354c,'<I',ARENA+0x33800);pk(memory,ARENA+0x33524,'<I',ARENA+0x33a00)
+                for i in range(8):
+                    pk(memory,ARENA+0x33884+i*4,'<f',1000.+i*750.)
+                    pk(memory,ARENA+0x33b9c+i*4,'<f',2000.+i*500.)
+                fixture_globals[0x89e7b0]=struct.pack('<i',(0,1,8)[trial%3])
+                if name=='AccelFactory':
+                    this=0;returns['HeapAvailable']=(-1,0,0x4da,0x4db,0x4dc,2**31-1)[trial%6];returns['Malloc']=0 if (trial//6)%2 else ALLOC
+                    fixture_globals[0x7ec840]=struct.pack('<i',trial%32)
+                elif name=='AccelBind':words=[CAR]
+                elif name=='AccelDependency':words=[(-1,0,1,2,3,2**31-1)[trial%6]&0xffffffff]
+                elif name=='AccelAttach':
+                    component=ARENA+0x3bbe0;pk(memory,component,'<I',ARENA+0x3bb80);pk(memory,ARENA+0x3bb84,'<I',VIRTUAL['SoundContext'])
+                    returns['SoundContext']=AUX_RESULT
+                    pk(memory,AUX_RESULT,'<I',(rng.getrandbits(32)&~0xfff0)|((3,5,0,1,4,8,0xfff)[trial%7]<<4));words=[component]
+                elif name in ('AccelRpm','AccelThrottle','AccelAdvance','AccelUpdate'):words=[fw(rng.choice((0.,0.001,0.016,0.1,0.5,-0.01)))]
+                elif name=='ShiftActive':this=shift
+                elif name=='OwnerShiftPoint':this=owner;words=[trial%8]
+                elif name=='GearShiftPoint':this=ARENA+0x33800;words=[trial%8]
+                elif name=='EnvelopeTarget':this+=0x74;words=[fw(rng.choice((0.,0.01,0.1,0.5))),fw(rng.uniform(-100.,100.))]
+                if name in ('AccelQueryLaunch','AccelQuery','AccelRelease') and trial%8 in (0,1):
+                    pk(memory,this+0xc8,'<i',0);pk(memory,this+0x70,'<I',0)
+                    pk(memory,CAR+0x50,'<i',2 if name=='AccelQueryLaunch' else 4)
+                    pk(memory,CAR+0x48,'<f',500. if name=='AccelQueryLaunch' else 6500. if name=='AccelRelease' else 3500.)
+                    pk(memory,CAR+0x54,'<f',30.);pk(memory,physics+0x90,'<f',0.);pk(memory,physics+0xd8,'<B',0)
+                    pk(memory,owner+0x430,'<f',0.);pk(memory,owner+0x28,'<i',1)
+                    pk(memory,this+0x5c,'<f',2.);pk(memory,this+0xcc,'<f',0.)
+                    fixture_globals[0x89e7b0]=bytes(4)
+                    if trial%8==0:
+                        field=(CAR+0x48,CAR+0x54,owner+0x430,this+0x5c)[(trial//8)%4]
+                        pk(memory,field,'<I',0x7fc12345)
+                if name=='AccelBind' and trial%4==1:
+                    fixture_code_fields.pop(ARENA+0x3bb44,None)
+                    pk(memory,ARENA+0x3bb44,'<I',VIRTUAL['SoundContext']);returns['SoundContext']=2
+                    pk(memory,ARENA+0x3b800+0x80,'<I',ARENA+0x33440);pk(memory,ARENA+0x33458,'<i',2)
+                    callback_writes['SoundContext']={CAR+0x14:struct.pack('<i',1),this+0x68:struct.pack('<I',ARENA+0x3b800)}
+                if name in ('AccelAdvance','AccelUpdate') and trial%4==1:
+                    pk(memory,this+0xc8,'<i',1);pk(memory,CAR+0x4c,'<B',0)
+                    fixture_code_fields.pop(AUX_VTABLE+0x34,None);pk(memory,AUX_VTABLE+0x34,'<I',VIRTUAL['AuxValue38'])
+                    pk(memory,AUX_RESULT,'<d',5000.+2**-17)
+                    pk(memory,ARENA+0x33420,'<fiiii',0.5,1000,100,50,1000)
+                    callback_writes['AuxValue38']={this+0xd4:struct.pack('<I',ARENA+0x33420),this+0xa4:struct.pack('<f',0.875),CAR+0x48:struct.pack('<f',9999.)}
+            elif name in ('CarBind','CarSort','CarSchedule','CarFrame','CarPlayback','EngineForward','ScheduleNoop','ScheduleNoopArg'):
                 this=CAR;words=[]
                 nodes=[ARENA+0x31000+i*0x100 for i in range(6)]
                 table,alternate,car_table=ARENA+0x32000,ARENA+0x32100,ARENA+0x32200
@@ -2483,6 +2596,8 @@ def main():
                 aux_sequence_seed=(bytes(memory),dict(fixture_globals),dict(fixture_code_fields),dict(returns))
             if name=='CarFrame' and trial==0:
                 schedule_sequence_seed=(bytes(memory),dict(fixture_globals),dict(fixture_code_fields),dict(returns))
+            if name=='AccelUpdate' and trial==1:
+                accel_sequence_seed=(bytes(memory),dict(fixture_globals),dict(fixture_code_fields),dict(returns))
             if name == 'PhysicsUpdate' and trial == 0:
                 physics_sequence_seed = (bytes(memory), dict(fixture_globals), dict(fixture_code_fields), dict(returns))
             if name == 'SpatialUpdate' and trial == 1:
@@ -2497,6 +2612,12 @@ def main():
                 continue
             names = [e[0] for e in a['events']]
             # The original's run defines the coverage, whatever the comparison says.
+            if name in ('AccelQueryLaunch','AccelQuery','AccelRelease'):note(name+'-true' if a['eax']&255 else name+'-false')
+            if name=='AccelUpdate':
+                note('accel-state-%d'%struct.unpack_from('<i',a['arena'],ARENA+0x3a200+0xc8-ARENA)[0])
+                if preaccelinit:note('accel-constructed-update')
+                if 'AccelLaunch' in names:note('accel-launch-enter')
+                if 'AccelConfigure' in names:note('accel-general-enter')
             if name=='ListenerUpdate':
                 for key,value in a['counters'].items():
                     if key.startswith('listener-'):paths[key]=paths.get(key,0)+value
@@ -2830,6 +2951,45 @@ def main():
         paths['listener-spatial-cutoff-steps']=steps
     postlisteners=prelistenerspatial=False
 
+    if accel_sequence_seed is not None:
+        name='AccelUpdate'
+        steps=0
+        for precision in PRECISIONS:
+            memory=bytearray(accel_sequence_seed[0])
+            fixture_globals.clear();fixture_globals.update(accel_sequence_seed[1])
+            fixture_code_fields.clear();fixture_code_fields.update(accel_sequence_seed[2])
+            returns.clear();returns.update(accel_sequence_seed[3]);callback_writes.clear()
+            preconstruct=preselect=precontrol=prephysics=observe_gains=preauxinit=postauxcontrol=auxtrajectory=prespatialinit=False
+            postlisteners=prelistenerspatial=composedcar=precarinit=cartrajectory=False
+            this=ARENA+0x3a200
+            pk(memory,CAR+0x14,'<i',1);pk(memory,ARENA+0x3b318,'<i',0)
+            pk(memory,this+0x70,'<I',ARENA+0x3a000);pk(memory,ARENA+0x3a078,'<i',0)
+            pk(memory,ARENA+0x3a4d8,'<B',0);pk(memory,ARENA+0x3a490,'<f',0.)
+            pk(memory,this+0x5c,'<f',0.);pk(memory,this+0xcc,'<f',0.)
+            pk(memory,ARENA+0x3a600+0x28,'<i',1)
+            fixture_globals[0x89e7b0]=bytes(4)
+            for frame in range(256):
+                preaccelinit=frame==0
+                launching=frame<36 or 118<=frame<141
+                active=5<=frame<36 or 51<=frame<60 or 95<=frame<113 or 118<=frame<141
+                rpm=500. if launching else 3500. if active else 6500.
+                pk(memory,CAR+0x48,'<f',rpm);pk(memory,CAR+0x50,'<i',2 if launching else 4)
+                pk(memory,CAR+0x54,'<f',80.);pk(memory,CAR+0x4c,'<B',active)
+                pk(memory,ARENA+0x3a600+0x430,'<f',0. if launching else 20.)
+                pk(memory,AUXILIARY+0x128,'<f',rpm+125.)
+                attempts[name]+=1
+                try:
+                    a,b=run(name,memory,[fw(0.05)],precision,this)
+                    check(name,precision,a,b)
+                except AssertionError as error:
+                    record_failure(name,frame,precision,AssertionError(('state or call order mismatch','accel trajectory',error)));break
+                counts[name]+=1;steps+=1
+                note('accel-carried-state-%d'%struct.unpack_from('<i',a['arena'],this-ARENA+0xc8)[0])
+                if a['arena'][this-ARENA+0xd8]:note('accel-carried-release-flag')
+                memory=bytearray(a['arena']);fixture_globals.update(a['globals'])
+        paths['accel-carried-steps']=steps
+    preaccelinit=False
+
     if schedule_sequence_seed is not None:
         name='CarFrame'
         steps=0
@@ -2961,6 +3121,15 @@ def main():
             assert text.count(before)==1,(key,before)
             return (key,text,text.replace(before,after,1))
         mutations = {
+            'accel-edge': frame_mutation('accel','const unsigned char previous = flagD0;','const unsigned char previous = 0;'),
+            'accel-unordered-release': frame_mutation('accel','if (car68->value48 < engineSoundAccelHigh789FE0)','if (!(car68->value48 >= engineSoundAccelHigh789FE0))'),
+            'accel-delay-equality': frame_mutation('accel','(double)time5C - valueCC < engineSoundAccelDelay7844C0','(double)time5C - valueCC <= engineSoundAccelDelay7844C0'),
+            'accel-bind-reload': frame_mutation('accel_lifecycle','    value64 = car68->vtable0->value44(car68);\n    if (state44->kind14 == 1)','    const int kind = state44->kind14;\n    value64 = car68->vtable0->value44(car68);\n    if (kind == 1)'),
+            'accel-duration-integer': frame_mutation('accel','const double duration = (double)tuningD4->value8','const volatile float roundedDuration = (float)tuningD4->value8;\n    const double duration = (double)roundedDuration'),
+            'accel-release-snapshot': frame_mutation('accel','rpm->Configure459990(first, current, milliseconds, 6);','rpm->Configure459990(first, current, tuningD4->value10, 6);'),
+            'accel-return-state': frame_mutation('accel','            valueC8 = 3;','            valueC8 = 1;'),
+            'accel-step-order': frame_mutation('accel','    Advance47C1A0(duration);\n    Advance47C220(duration);','    Advance47C220(duration);\n    Advance47C1A0(duration);'),
+            'accel-target-copy': frame_mutation('envelope','    if (flag18) *reinterpret_cast<unsigned int *>(&value14) = *reinterpret_cast<unsigned int *>(&target);',''),
             'schedule-control-activate': frame_mutation('control_lifecycle','    active58 = 1;','    active58 = 0;'),
             'schedule-control-gains': frame_mutation('control_lifecycle','    value84 = 0;',''),
             'schedule-clock-duration': frame_mutation('schedule','node->vtable0->update14(node, 0, duration);','node->vtable0->update14(node, 0, delta38);'),

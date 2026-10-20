@@ -333,6 +333,7 @@ struct Drivetrain {
     int SelectGear(int request, float engineSpeed);
     void ApplyShiftAdjustment(float engineSpeed);
     float GetShiftPoint(int gear, char useAlternate);
+    float AudioUpshift5947B0(int gear);
     float GetWheelDerivedValue();
     float GetWheelDerivedRate();
     float GetAverageWheelScalar();
