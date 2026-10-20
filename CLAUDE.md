@@ -1,27 +1,33 @@
 # Repository Guidelines
 
-## Branch Mission: `x64`
+## Branch Mission: `arm64`
 
-This branch owns the shared 64-bit portability layer and the first playable
-Linux x86-64 demo milestone. Follow `docs/ARM64_PORTING_PLAN.md`. Its downstream
-`arm64` branch consumes shared fixes for Linux AArch64 first, then Android.
-The immediate target is current-demo parity, including the common audio baseline,
-not complete game recovery. Runtime port implementation is still pending.
+This branch delivers Linux AArch64 demo parity first, then Android `arm64-v8a`
+on the same branch. Follow `docs/ARM64_PORTING_PLAN.md`. Consume validated shared
+64-bit portability work from upstream `x64`; keep this ARM64 mission when merging
+its guidance changes. The immediate target is current-demo parity, including the
+common audio baseline, not complete game recovery. Runtime port implementation
+is still pending.
 
-- Build one reusable address/layout/allocation/callback layer for both 64-bit
-  architectures. Keep original pointer fields four bytes and retain all observed
-  size/offset assertions; never truncate host pointers or disable checks to build.
+- Reuse the `x64` address/layout/allocation/callback layer. Keep original pointer
+  fields four bytes and all observed size/offset assertions; never truncate host
+  pointers, disable checks to build, or create a competing portability framework.
 - Separate original records/code tokens from host objects and typed callbacks.
-  Do not depend on low host mappings, native C++ vtable layout, or x86 calling
-  conventions for portable records. Preserve original algorithms and call order.
+  Replace x86-only instructions and ABI dependencies with evidenced, tested
+  adapters. Preserve original algorithms, call boundaries and arithmetic order.
 - Preserve i386 builds and legacy original/rebuilt verification. Report byte
   matching, bounded numeric behavior and platform integration separately.
 - Use measured numeric parity: preserve operation order and explicit conversions,
   disable fast math/contraction, and investigate discrete outcome differences.
   Do not silently loosen the acceptance limits in the porting plan.
-- Defer Android integration and new-architecture mod-loader support. Existing
-  i386 mod support remains. Keep portable scaffolding separate from recovered code.
-- Current build commands below are **i386 baseline commands**, not x86-64 support.
+- Validate Linux AArch64, then its GLES renderer, before Android integration.
+  Require real-device graphics/audio/controller/performance evidence; emulation
+  alone does not establish platform support. No hardware is yet certified.
+- Android starts with landscape GLES 3.0 and gamepad controls. Keep asset import,
+  lifecycle, storage and graphics services in platform scaffolding. Retain the
+  executable fingerprint check and user-supplied retail data dependency; package
+  no game data. Defer touch driving and ARM64 native plugins; retain i386 mods.
+- Current build commands below are **i386 baseline commands**, not ARM64 support.
   Add verified architecture-specific commands only after implementing the profiles;
   planned profile names in the porting document are not existing CMake options.
 
