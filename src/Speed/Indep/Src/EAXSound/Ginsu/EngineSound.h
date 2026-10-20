@@ -269,20 +269,46 @@ struct EngineSoundAuxiliaryVtable {
 
 struct EngineSoundSpatialComponent;
 struct EngineSoundSpatialVtable {
-    void *unidentified0[11];
+    void *unidentified0[9];
+    void (__fastcall *value24)(EngineSoundSpatialComponent *, void *, int);
+    void *unidentified28;
     void (__fastcall *value2C)(EngineSoundSpatialComponent *, void *, float *);
     void (__fastcall *value30)(EngineSoundSpatialComponent *, void *, void *);
 };
-// Observed 0xd8-byte 3DCarPos allocation; only the currently used fields
-// are named. Full construction/update and the +8 producer remain open.
+// UG2 3DCarPos/base-position component, observed allocation 0xd8.
 struct EngineSoundSpatialComponent {
     EngineSoundSpatialVtable *vtable0;
-    int unidentified4;
-    int value8;
-    char unidentifiedC[0x64];
+    int value4, value8, valueC, value10;
+    char unidentified14[0x30];
+    EngineSoundCar *state44;
+    char unidentified48[0x10];
+    unsigned char active58;
+    char unidentified59[3];
+    float time5C, delta60;
+    int value64;
+    EngineSoundCar *car68;
+    int mode6C;
     float *position70;
     void *orientation74;
-    char unidentified78[0x60];
+    float snapshot78[2];
+    char unidentified80[8];
+    int limits88[6];
+    float currentA0, previousA4;
+    SampleAverage averageA8;
+    int listenerD0;
+    unsigned char flagD4, flagD5, flagD6;
+    char unidentifiedD7;
+    EngineSoundSpatialComponent *Construct45DD60();
+    EngineSoundSpatialComponent *Construct471D60();
+    void Bind45DAC0(EngineSoundCar *car);
+    void Activate45BAD0();
+    void Angle45DE60();
+    void Compute45DF00();
+    void Select45E100(int listener);
+    void Doppler45E1F0(int listener, float duration);
+    void Update471DC0(float duration);
+    void Limit45DE30(int index, int limit);
+    float Value45DE50(int value);
     void SetPosition45E1D0(float *position);
     void SetOrientation45E1E0(void *orientation);
 };

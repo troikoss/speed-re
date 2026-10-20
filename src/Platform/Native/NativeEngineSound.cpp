@@ -15,6 +15,7 @@
 extern Audio82B884 *audio82B884;
 
 struct NativeEnginePlayback {
+    Audio82B884 audio;
     EngineSoundCar car;
     EngineSoundCarValue overrideRecord;
     EngineSound engine;
@@ -57,8 +58,10 @@ void __fastcall AuxiliaryThrottleUpdate(EngineSoundAuxiliary *value, void *, flo
 void __fastcall AuxiliaryLevel(EngineSoundAuxiliary *value, void *, float duration) { value->ProduceLevel45C6C0(duration); }
 void __fastcall AuxiliaryEffects(EngineSoundAuxiliary *value, void *, float duration) { value->ProduceEffects46F610(duration); }
 void __fastcall AuxiliaryOffsets(EngineSoundAuxiliary *value, void *, float duration) { value->ProduceOffsets45C7A0(duration); }
-// The original callbacks retain pointers; spatial attenuation/pan production
-// still remains outside this native session.
+void __fastcall SpatialSelect(EngineSoundSpatialComponent *value, void *, int listener) {
+    value->Select45E100(listener);
+}
+// The original callbacks retain pointers into auxiliary/vehicle storage.
 void __fastcall SpatialPosition(EngineSoundSpatialComponent *value, void *, float *position) {
     value->SetPosition45E1D0(position);
 }
@@ -126,7 +129,8 @@ bool NativeEngineSound::Load(const char *gameDirectory, MoverModeOwner *owner, c
     fprintf(stderr, "ug2demo: engine banks %s%s%s (mode %d%s)\n", filenames[0],
             slots == 2 ? ", " : "", slots == 2 ? filenames[1] : "", car.mode78,
             ginOverride ? ", CLI override" : ", recovered selection");
-    Audio82B884 banks = {};
+    Audio82B884 &banks = playback_->audio;
+    banks.Construct4585A0();
     EngineSound &engine = playback_->engine;
     engine.Construct473D30();
     engine.Bind463500(&car);
@@ -189,14 +193,19 @@ bool NativeEngineSound::Load(const char *gameDirectory, MoverModeOwner *owner, c
     auxiliary.shift6C = &playback_->shift;
     auxiliary.accel70 = &playback_->accel;
     auxiliary.physics74 = &physics;
+    playback_->spatial.Construct471D60();
+    playback_->spatial.Bind45DAC0(&car);
+    playback_->spatial.Activate45BAD0();
+    playback_->spatial.averageA8.vtable0 = &averageVtable;
+    playback_->spatialVtable.value24 = SpatialSelect;
     playback_->spatialVtable.value2C = SpatialPosition;
     playback_->spatialVtable.value30 = SpatialDirection;
     playback_->spatial.vtable0 = &playback_->spatialVtable;
     auxiliary.spatial78 = &playback_->spatial;
     auxiliary.Activate45C5A0();
-    // The spatial +8 producer remains a fixture (zero in the value-initialized
-    // session); the recovered cutoff now consumes it. Full auxiliary update
-    // dispatches the actual producers through the ABI bridges above.
+    // Listener production 0x46d7e0 is still missing. The recovered spatial
+    // update observes the actual not-ready globals and publishes -1 distances;
+    // do not manufacture camera/listener inputs or an attenuation curve.
     InitialiseControlSession(playback_);
     engine.auxiliaryB8 = &auxiliary;
     engine.controlC0 = &playback_->control;
@@ -221,10 +230,16 @@ void NativeEngineSound::Update(float rpm, float duration, int frame) {
     // state +0x400 / owner +0x440. Consume that original field directly;
     // the raw RPM argument is used only by the diagnostic log.
     playback_->car.time34 += duration;
+    Audio82B884 *previous = audio82B884;
+    audio82B884 = &playback_->audio;
     playback_->physics.Update484C50(duration);
+    // Parent manager ordering remains a native scheduling seam. The retained
+    // position pointer addresses the auxiliary's most recent position snapshot.
+    playback_->spatial.Update471DC0(duration);
     playback_->auxiliary.Update47C010(duration);
     playback_->control.Update47C3D0(duration);
     playback_->engine.Update474310();
+    audio82B884 = previous;
     if (log_ != 0) {
         fprintf(log_, "%u %d %.2f\n", (unsigned int)SDL_GetTicks(), frame, rpm);
         fprintf(log_, "# playback %d %d %.2f %d %d %d %d\n", frame,
@@ -241,6 +256,9 @@ void NativeEngineSound::Update(float rpm, float duration, int frame) {
                 playback_->auxiliary.valueE0, playback_->auxiliary.value118,
                 playback_->auxiliary.valueFC, playback_->auxiliary.value124,
                 playback_->auxiliary.sequence154.index70, playback_->auxiliary.sequence154.flag78);
+        fprintf(log_, "# spatial %d %d %d %d %.6f\n", frame,
+                playback_->spatial.listenerD0, playback_->spatial.value4,
+                playback_->spatial.value8, playback_->spatial.averageA8.averageC);
         fflush(log_);
     }
 }
@@ -261,6 +279,7 @@ void NativeEngineSound::Destroy() {
         if (playback_->auxiliary.average90.samples10) playback_->auxiliary.average90.Destroy();
         if (playback_->auxiliary.averageB8.samples10) playback_->auxiliary.averageB8.Destroy();
         if (playback_->control.averageC4.samples10) playback_->control.averageC4.Destroy();
+        if (playback_->spatial.averageA8.samples10) playback_->spatial.averageA8.Destroy();
     }
     delete playback_;
     playback_ = 0;

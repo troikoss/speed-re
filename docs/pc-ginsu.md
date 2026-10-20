@@ -1758,3 +1758,83 @@ the high-RPM gate; that transition is covered by the carried binary comparisons.
 The complete audio objective remains open, including real shift/accel/spatial
 production, overall level/pan, notification/parameter consumers, manager
 lifecycle and the other inventoried audio paths.
+
+## Spatial component recovery and native integration (2026-10-20)
+
+The native session now constructs, binds and activates `SFXCTL_3DCarPos`,
+executes its recovered update `0x471dc0` each frame, and destroys its sample
+average on cleanup. The session owns a persistent `Audio82B884`, initialized
+by original constructor `0x4585a0`, for both bank loading and frame execution.
+The global root is scoped to those calls and restored afterward. Native ABI
+bridges dispatch selection, averaging and the already recovered pointer setters.
+
+| Original address | Recovered body |
+| --- | --- |
+| `0x45dd60`, `0x471d60`, `0x47c7a0` | Base construction, derived construction and factory |
+| `0x45dac0`, `0x45bad0` | Kind-dependent binding and activation |
+| `0x45de30`, `0x45de50` | Limit update and integer-to-ST0 query |
+| `0x45de60`, `0x45df00` | Angle word and mode-specific planar distances |
+| `0x45e100`, `0x45e1f0`, `0x471dc0` | Listener selection, Doppler average and frame caller |
+| `0x401150` | Planar distance helper |
+| `0x576880`, `0x5768a0` | Default sample-average construction and separate allocation |
+
+The complete `0xd8` layout preserves dirty fields left unwritten by construction.
+The getter at `0x45de50` consumes an unused stack argument (`RET 4`) and leaves
+its integer exact in ST0. Default average construction leaves its sample pointer
+untouched; separate allocation preserves the count, ring index, sum and average.
+The factory retains the strict heap threshold and null-allocation return.
+
+Selection keeps three rounded deltas and one extended delta. Both square roots
+remain extended through the comparison; spilling the first to binary64 changes
+some two-listener decisions under 64-bit x87 precision. Equality/unordered
+selects listener 1. Geometry preserves shared point/direction pointers, the low
+angle word, mode-specific partial writes, and the early not-ready return.
+Doppler uses the component's stored delta, honors the root's `+0x13` gate,
+executes actual average insertion/recalculation, then re-reads the current value
+for the final raw-word copy. Existing `Normalize2` (`0x43ce50`) and
+`HudArcSineUnits` (`0x43c490`) compile unchanged and execute as recovered code.
+Only AX is defined by the latter's return. Unexecuted relocations elsewhere in
+those shared files are reported and point to unmapped execution traps.
+
+The focused 256-case run passed 4608 comparisons, including 256 carried spatial
+updates at both x87 precisions. An additional 64-case baseline passed 1344
+comparisons and rejected all eight mutations by state/call mismatches: readiness
+gate, partial writes, listener tie, stored delta, cross product, heap threshold,
+unwritten sample pointer and allocation reset. Scripted average callbacks test
+the post-callback current-value read. The listener arrays remain fixtures;
+finite positions, valid listener indices and nonnegative capacities limit this
+evidence. These new bodies have behavioral verification; the existing nine
+strict leaf byte checks remain separate.
+
+The native parent schedule is Physics, spatial, auxiliary, HybridMotor, playback.
+Its manager ordering is still a platform seam. Spatial's retained position pointer
+addresses the auxiliary's latest snapshot. Listener-state producer `0x46d7e0`
+has been located but is not yet recovered or linked. The demo therefore follows
+the original not-ready branch: both distances are -1 and the Doppler average is
+1. No camera/listener coordinates are synthesized. `UG2_ENGINE_LOG` includes
+`# spatial frame listener distance4 distance8 average` diagnostics. This replaces
+the previous spatial `+8` zero fixture without claiming full positional audio.
+Overall packed level/pan, shift/accel, notifications, parameter consumers and
+manager lifecycle remain open, along with the other inventoried audio paths.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 256
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets SpatialBaseConstruct,SpatialConstruct,SpatialFactory,SpatialBind,SpatialActivate,SpatialAngle,SpatialCompute,SpatialSelect,SpatialDoppler,SpatialUpdate,SpatialLimit,SpatialValue,SpatialDistance2D,SpatialNormalize2D,SpatialArcSine,SampleDefault,SampleAllocate --cases 64 --mutation-checks --mutation-source spatial --mutation-source spatial_geometry --mutation-source spatial_lifecycle --mutation-source average_allocate
+```
+
+The final native build and all three audio/backend tests pass. Final 600-frame
+SKYLINE output has RMS 1728 LSB, 931 packet releases, zero underruns and
+pitch/RPM correlation 0.752 (pass). The two-bank 350Z has RMS 8441 LSB,
+1390 releases and zero underruns, but correlation 0.484 remains below the
+unchanged 0.50 threshold. Neither profile enters the high-RPM gate. Both
+produce 600 spatial diagnostics with the original not-ready distances and
+unity average. These are native integration observations, not a comparison
+against retail acoustic output.
+
+The final full regression passed 35328 comparisons across 131 targets with zero
+failures: 256 independent cases each plus 1792 carried steps (including 256
+spatial steps). It exercised 64 constructed and 192 direct spatial updates,
+55 average-callback mutations, both selected listeners and modes 0..5.
+All nine existing strict leaf byte checks pass. The complete audio goal remains
+active; integrating this component does not close the listener/manager or other
+remaining audio seams.

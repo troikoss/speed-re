@@ -39,7 +39,13 @@ from probe_pc_race_reward import ROOT, EXE, GAME_DIR
 
 BUILD = ROOT / 'build/analysis/ginsu'
 SOURCE_DIR = 'src/Speed/Indep/Src/EAXSound/Ginsu'
-SOURCES = {'spatial_position': SOURCE_DIR + '/EngineSoundSpatialPosition.cpp',
+SOURCES = {'spatial': SOURCE_DIR + '/EngineSoundSpatial.cpp',
+           'spatial_lifecycle': SOURCE_DIR + '/EngineSoundSpatialLifecycle.cpp',
+           'spatial_geometry': SOURCE_DIR + '/EngineSoundSpatialGeometry.cpp',
+           'spatial_normalize': 'src/Speed/Indep/Src/World/WCollision.cpp',
+           'spatial_arcsine': 'src/Speed/Indep/Src/Hud/HudMinimap.cpp',
+           'average_allocate': 'src/Speed/Indep/Libs/bWare/SampleAverageAllocate.cpp',
+           'spatial_position': SOURCE_DIR + '/EngineSoundSpatialPosition.cpp',
            'spatial_orientation': SOURCE_DIR + '/EngineSoundSpatialOrientation.cpp',
            'aux_producers': SOURCE_DIR + '/EngineSoundAuxiliaryProducers.cpp',
            'aux_frame': SOURCE_DIR + '/EngineSoundAuxiliaryUpdate.cpp',
@@ -110,8 +116,26 @@ GIN_MAGIC = b'Gnsu2'
 # name: (retail address, rebuilt symbol prefix, callee-popped bytes, return kind, `this` kind, argument kinds)
 # return kinds: 'al' (bool), 'eax' (int), 'st0' (float left in ST0), None. argument kinds: 'w' raw word,
 # 'p' pointer (identity: arena address or the stack), ('c', n) pointer whose n bytes are logged by value.
-AUX_TARGETS = ('SpatialPosition','SpatialOrientation', 'AuxOffsets', 'AuxBackfire', 'AuxCutoff', 'AuxFrame', 'SoundInverse', 'SoundRandom', 'SoundRandomFloat', 'SoundSine', 'SoundNormalize', 'AuxLevel', 'AuxEffects', 'AuxIdle', 'EnvelopeConfigure', 'EnvelopeStep', 'SequenceReset', 'SequenceStep', 'SoundCurve', 'SoundCurveConvert', 'ControlConstruct', 'ControlBind', 'GainCurveConstruct', 'AuxConstruct', 'AuxFactory', 'AuxBind', 'AuxActivate', 'AuxAttach', 'AuxRpm', 'AuxThrottle', 'AuxDependency', 'AuxDescriptor', 'AuxCarValue', 'AuxApproach', 'AuxSequenceConstruct', 'AuxSequenceAppend')
+AUX_TARGETS = ('SpatialBaseConstruct', 'SpatialConstruct', 'SpatialFactory', 'SpatialBind', 'SpatialActivate', 'SpatialAngle', 'SpatialCompute', 'SpatialSelect', 'SpatialDoppler', 'SpatialUpdate', 'SpatialLimit', 'SpatialValue', 'SpatialDistance2D', 'SpatialNormalize2D', 'SpatialArcSine', 'SampleDefault', 'SampleAllocate', 'SpatialPosition','SpatialOrientation', 'AuxOffsets', 'AuxBackfire', 'AuxCutoff', 'AuxFrame', 'SoundInverse', 'SoundRandom', 'SoundRandomFloat', 'SoundSine', 'SoundNormalize', 'AuxLevel', 'AuxEffects', 'AuxIdle', 'EnvelopeConfigure', 'EnvelopeStep', 'SequenceReset', 'SequenceStep', 'SoundCurve', 'SoundCurveConvert', 'ControlConstruct', 'ControlBind', 'GainCurveConstruct', 'AuxConstruct', 'AuxFactory', 'AuxBind', 'AuxActivate', 'AuxAttach', 'AuxRpm', 'AuxThrottle', 'AuxDependency', 'AuxDescriptor', 'AuxCarValue', 'AuxApproach', 'AuxSequenceConstruct', 'AuxSequenceAppend')
 ROUTINES = {
+    'SpatialBaseConstruct': (0x45dd60, '?Construct45DD60@EngineSoundSpatialComponent@', 0, 'eax', 'arena', []),
+    'SpatialConstruct': (0x471d60, '?Construct471D60@EngineSoundSpatialComponent@', 0, 'eax', 'arena', []),
+    'SpatialFactory': (0x47c7a0, '?CreateEngineSoundSpatial47C7A0@', 0, 'eax', None, []),
+    'SpatialBind': (0x45dac0, '?Bind45DAC0@EngineSoundSpatialComponent@', 4, None, 'arena', ['p']),
+    'SpatialActivate': (0x45bad0, '?Activate45BAD0@EngineSoundSpatialComponent@', 0, None, 'arena', []),
+    'SpatialAngle': (0x45de60, '?Angle45DE60@EngineSoundSpatialComponent@', 0, None, 'arena', []),
+    'SpatialCompute': (0x45df00, '?Compute45DF00@EngineSoundSpatialComponent@', 0, None, 'arena', []),
+    'SpatialSelect': (0x45e100, '?Select45E100@EngineSoundSpatialComponent@', 4, None, 'arena', ['w']),
+    'SpatialDoppler': (0x45e1f0, '?Doppler45E1F0@EngineSoundSpatialComponent@', 8, None, 'arena', ['w', 'w']),
+    'SpatialUpdate': (0x471dc0, '?Update471DC0@EngineSoundSpatialComponent@', 4, None, 'arena', ['w']),
+    'SpatialLimit': (0x45de30, '?Limit45DE30@EngineSoundSpatialComponent@', 8, None, 'arena', ['w', 'w']),
+    'SpatialValue': (0x45de50, '?Value45DE50@EngineSoundSpatialComponent@', 4, 'st0', 'arena', ['w']),
+    'SpatialDistance2D': (0x401150, '?EngineSoundDistance2D401150@', 0, 'st0', None, [('c', 8), ('c', 8)]),
+    'SpatialNormalize2D': (0x43ce50, '?Normalize2@@', 0, None, None, ['p', ('c', 8)]),
+    'SpatialArcSine': (0x43c490, '?HudArcSineUnits@@', 0, 'ax', None, ['w']),
+    'SampleDefault': (0x576880, '?ConstructDefault576880@SampleAverage@', 0, 'eax', 'arena', []),
+    'SampleAllocate': (0x5768a0, '?Allocate5768A0@SampleAverage@', 4, None, 'arena', ['w']),
+
     'SpatialPosition': (0x45e1d0, '?SetPosition45E1D0@EngineSoundSpatialComponent@', 4, None, 'arena', ['p']),
     'SpatialOrientation': (0x45e1e0, '?SetOrientation45E1E0@EngineSoundSpatialComponent@', 4, None, 'arena', ['p']),
     'AuxOffsets': (0x45c7a0, '?ProduceOffsets45C7A0@EngineSoundAuxiliary@', 4, None, 'arena', ['w']),
@@ -295,6 +319,26 @@ def snd_ret(key):
 PURE_RANGES = ((0x75bed4, 0x75bf49), (0x72423e, 0x72428b), (0x721a6b, 0x721aae))
 # Retail globals read by the recovered code, by MSVC symbol prefix; __fltused is a null symbol.
 SHARED = {
+    '?engineSoundSpatialReady82BB40@': 0x82bb40,
+    '?engineSoundSpatialMode82BC14@': 0x82bc14,
+    '?engineSoundSpatialDirection82BB78@': 0x82bb78,
+    '?engineSoundSpatialPoint82BB7C@': 0x82bb7c,
+    '?engineSoundSpatialAngle82BB80@': 0x82bb80,
+    '?engineSoundSpatialBE70@': 0x82be70,
+    '?engineSoundSpatialBECC@': 0x82becc,
+    '?engineSoundSpatialBEDC@': 0x82bedc,
+    '?engineSoundSpatialBF10@': 0x82bf10,
+    '?engineSoundSpatialBF20@': 0x82bf20,
+    '?engineSoundSpatialC670@': 0x82c670,
+    '?engineSoundSpatialC6C4@': 0x82c6c4,
+    '?engineSoundDoppler7887FC@': 0x7887fc,
+    '?hudArcSineTable7EA628@': 0x7ea628,
+    '?hudZero7D7D3C@': 0x7d7d3c,
+    '?hudOne784250@': 0x784250,
+    '?hudFixedScale784238@': 0x784238,
+    '?hudFixedUnit784278@': 0x784278,
+    '?hudNegativeFixed786DB4@': 0x786db4,
+
     # Relocations in unexecuted collision bodies; the execution guard excludes the ticker.
     '?collisionHulls86B598@': 0x86b598,
     '?bGetTicker@': 0x43bdf0,
@@ -406,6 +450,7 @@ TARGETS = AUX_TARGETS + ('PhysicsFactory', 'PhysicsHash') + ('PhysicsConstruct',
            'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt',
            'PacketReleaseCallback', 'SynthesisConstruct', 'SynthesisDestruct', 'StartSynthesis')
 LIMITATIONS = [
+    'spatial component: original/rebuilt construction, binding, activation, virtual selection, mode-specific distances/angles and Doppler averaging execute recovered code, including unchanged Normalize2/HudArcSineUnits; listener readiness/coordinate arrays and the audio root are fixtures, not recovered listener production 0x46d7e0; valid indices 0/1, finite positions and nonnegative allocation capacities are exercised; exceptions, concurrency, arbitrary indices and full attenuation/pan consumers remain outside this evidence; both pure helper roots stay extended through selection, and a scripted average callback checks the post-callback raw-word copy',
     'auxiliary frame: direct and virtual producers, shared random seed, sine, normalization and cutoff curves execute recovered code; spatial setters run as recovered code in composed frames; other spatial callbacks and shift/accel components remain fixtures; positions/orientations are finite; exceptions, concurrency, invalid pointers and arbitrary table indices are excluded',
     'envelope/sequence: complete step bodies and curve helper/conversion run; active fixture indices stay within six entries, table inputs within 0..32767; both x87 precisions compare finite motion and hold/completion branches; invalid pointers/table indices, asynchronous state mutation and exception execution remain outside evidence',
 
@@ -652,11 +697,18 @@ def main():
     # Each snd entry resolves to its stub (stateful) or to its retail bytes (pure leaf).
     snd_link = {key: (STUB[key] if spec[4] == 'stub' else spec[0]) for key, spec in SND.items()}
     externals = {}
+    unexecuted_relocations = {}
     for key, p in parsed.items():
         for s in p['symbols'].values():
             if s['section'] != 0 or s['name'] in defined: continue
             match = [a for prefix, a in SHARED.items() if s['name'] == prefix or (prefix.startswith('?') and s['name'].startswith(prefix))]
             snd = [snd_link[k] for k, spec in SND.items() if s['name'].startswith(spec[1])]
+            if len(match)+len(snd)==0 and key in ('spatial_normalize','spatial_arcsine'):
+                # These relocations belong to unexecuted bodies in the shared
+                # file. An accidental use faults at an unmapped trap address.
+                externals[s['name']]=0x7f000000+16*len(unexecuted_relocations)
+                unexecuted_relocations[s['name']]=key
+                continue
             if len(match) + len(snd) != 1:
                 raise AssertionError(('unresolved external', key, s['name']))
             externals[s['name']] = match[0] if match else snd[0]
@@ -734,6 +786,9 @@ def main():
 
         for slot,target in ((0x24,'AuxRpm'),(0x28,'AuxThrottle'),(0x2c,'AuxLevel'),(0x30,'AuxEffects'),(0x3c,'AuxOffsets')):
             uc.mem_write(0x789f70+slot,struct.pack('<I',rebuilt_entry[target] if rebuilt else retail_entry[target]))
+
+        for table in (0x78a0b4,0x78ab68):
+            uc.mem_write(table+0x24,struct.pack('<I',rebuilt_entry['SpatialSelect'] if rebuilt else retail_entry['SpatialSelect']))
 
         # Original WaitForSingleObject/ReleaseMutex IAT entries; both sides use
         # the same stdcall stand-ins and record the exact arguments.
@@ -813,6 +868,16 @@ def main():
             uc.reg_write(xc.UC_X86_REG_FPTAG, 0xffff)
             for reg, value in zip(PRESERVED, PRESERVED_VALUES): uc.reg_write(reg, value)
             try:
+                if prespatialinit:
+                    for target, arguments in (('SpatialConstruct', []), ('SpatialBind', [CAR]),
+                                              ('SpatialActivate', []), ('SpatialPosition', [AUXILIARY+0x80]),
+                                              ('SpatialOrientation', [ARENA+0x3a690])):
+                        uc.mem_write(STACK,struct.pack('<I',STOP)+b''.join(struct.pack('<I',w) for w in arguments))
+                        uc.reg_write(xc.UC_X86_REG_ESP,STACK);uc.reg_write(xc.UC_X86_REG_ECX,this)
+                        uc.emu_start(rebuilt_entry[target] if rebuilt else retail_entry[target],STOP+7,count=MAX_INSTRUCTIONS)
+                        assert uc.reg_read(xc.UC_X86_REG_ESP)==STACK+4+ROUTINES[target][2],('state or call order mismatch','spatial prelude stack',target)
+                    uc.mem_write(STACK,struct.pack('<I',STOP)+b''.join(struct.pack('<I',w&0xffffffff) for w in words))
+                    uc.reg_write(xc.UC_X86_REG_ESP,STACK);uc.reg_write(xc.UC_X86_REG_ECX,this)
                 if auxtrajectory and not preauxinit:
                     uc.mem_write(STACK,struct.pack('<II',STOP,fw(1/60.)))
                     uc.reg_write(xc.UC_X86_REG_ESP,STACK);uc.reg_write(xc.UC_X86_REG_ECX,ARENA+0x3a400)
@@ -941,6 +1006,7 @@ def main():
         if b['esp'] != a['esp']: problems.append(('esp', hex(a['esp']), hex(b['esp'])))
         if a['regs'] != b['regs']: problems.append(('preserved registers', a['regs'], b['regs']))
         if b['fx']['cw'] != precision: problems.append(('rebuilt control word', hex(b['fx']['cw'])))
+        if kind == 'ax' and (a['eax'] & 0xffff)!=(b['eax'] & 0xffff): problems.append(('AX',a['eax']&0xffff,b['eax']&0xffff))
         if kind == 'al' and (a['eax'] & 0xff) != (b['eax'] & 0xff): problems.append(('AL', a['eax'] & 0xff, b['eax'] & 0xff))
         if kind == 'eax' and a['eax'] != b['eax']: problems.append(('EAX', hex(a['eax']), hex(b['eax'])))
         fa, fb = a['fx'], b['fx']
@@ -1305,7 +1371,8 @@ def main():
         for i in range(4):pk(memory,control_samples+i*4,'<f',0.)
         pk(memory,CONTROL+0xec,'<8f',0.,0.,1000.,1000.,1.,1.,0.,0.)
 
-    preauxinit = postauxcontrol = auxtrajectory = False
+    preauxinit = postauxcontrol = auxtrajectory = prespatialinit = False
+    spatial_sequence_seed = None
     aux_sequence_seed = frame_sequence_seed = None
     physics_sequence_seed = None
     for trial in range(args.cases):
@@ -1321,6 +1388,7 @@ def main():
             preselect = False
             precontrol = False
             prephysics = name == 'PhysicsUpdate' and trial % 4 == 0
+            prespatialinit = name == 'SpatialUpdate' and trial % 4 == 0
             preauxinit = name in ('AuxRpm','AuxThrottle','AuxActivate','AuxFrame') and trial % 4 == 0
             postauxcontrol = name in ('AuxRpm','AuxFrame') and preauxinit
             observe_gains = name in ('ControlOne', 'ControlTwo', 'ControlUpdate', 'EngineUpdate')
@@ -1328,7 +1396,63 @@ def main():
             if name in AUX_TARGETS:
                 seed_auxiliary(memory,trial)
                 words, this = [], AUXILIARY
-                if name in ('SpatialPosition','SpatialOrientation'):
+                if name in ('SpatialBaseConstruct','SpatialConstruct','SpatialFactory','SpatialBind','SpatialActivate','SpatialAngle','SpatialCompute','SpatialSelect','SpatialDoppler','SpatialUpdate','SpatialLimit','SpatialValue','SpatialDistance2D','SpatialNormalize2D','SpatialArcSine','SampleDefault','SampleAllocate'):
+                    this=ARENA+0x33000
+                    for address,size in ((0x82bb40,8),(0x82bc14,4),(0x82bb78,12),(0x82be70,16),(0x82becc,16),(0x82bedc,16),(0x82bf10,16),(0x82bf20,16),(0x82c670,16),(0x82c6c4,16)):
+                        fixture_globals[address]=bytes(size)
+                    fixture_globals[0x82bb40]=struct.pack('<II',int(trial%4 in (1,3)),int(trial%4 in (2,3)))
+                    fixture_globals[0x82bc14]=struct.pack('<I',(trial//4)%6)
+                    fixture_globals[0x82bb78]=struct.pack('<III',0x82be70,0x82bf10,rng.getrandbits(32))
+                    for address in (0x82be70,0x82becc,0x82bedc,0x82bf10,0x82bf20,0x82c670,0x82c6c4):
+                        fixture_globals[address]=struct.pack('<4f',*(rng.uniform(-100.,100.) for _ in range(4)))
+                    if trial%4:
+                        for address in (0x82be70,0x82becc,0x82c6c4):
+                            angles=[rng.uniform(-math.pi,math.pi) for _ in range(2)]
+                            fixture_globals[address]=struct.pack('<4f',*(v for angle in angles for v in (math.cos(angle),math.sin(angle))))
+                    if trial%8==3:
+                        # Equal listener distances exercise the index-1 tie.
+                        fixture_globals[0x82bedc]=struct.pack('<4f',10.,20.,10.,20.)
+                    audio=ARENA+0x34000
+                    fixture_globals[0x82b884]=struct.pack('<I',audio)
+                    pk(memory,audio+0x13,'<B',int(trial%7==0));pk(memory,audio+0x84,'<i',trial%2)
+                    pk(memory,this+0x70,'<II',AUXILIARY+0x80 if trial%5 else 0,ARENA+0x3a690 if trial%3 else 0)
+                    pk(memory,AUXILIARY+0x80,'<3f',rng.uniform(-100.,100.),rng.uniform(-100.,100.),rng.uniform(-100.,100.))
+                    pk(memory,this+0x78,'<2f',rng.uniform(-100.,100.),rng.uniform(-100.,100.))
+                    pk(memory,this+0x58,'<B',trial%2);pk(memory,this+0x5c,'<ff',rng.uniform(0.,100.),rng.choice((0.01,0.016,0.1,1.)))
+                    pk(memory,this+0x6c,'<i',trial%4)
+                    pk(memory,this+0xa0,'<ff',rng.choice((-1.,0.,10.,100.)),rng.choice((-1.,0.,10.,100.)))
+                    pk(memory,this+0xd0,'<i',trial%2)
+                    pk(memory,this+0xa8,'<IBBBBffI',ARENA+0x3bf00,4,4,4,trial%4,0.,0.,this+0xbc)
+                    for i in range(5):pk(memory,this+0xbc+i*4,'<f',0.)
+                    table=ARENA+0x33200
+                    pk(memory,this,'<I',table);fixture_code_fields[table+0x24]='SpatialSelect'
+                    words=[]
+                    if name=='SpatialFactory':
+                        this=0;returns['HeapAvailable']=(-1,0,0x4d6,0x4d7,0x4d8,2**31-1)[trial%6]
+                        returns['Malloc']=0 if (trial//6)%2 else ALLOC
+                        fixture_globals[0x7ec840]=struct.pack('<i',trial%32)
+                    elif name=='SpatialBind':words=[CAR];pk(memory,CAR+0x14,'<i',(-1,0,1,2,3,4)[trial%6])
+                    elif name=='SpatialSelect':words=[trial%2]
+                    elif name=='SpatialDoppler':
+                        words=[trial%2,fw(0.5)]
+                        if trial%4==2:
+                            # A virtual callback can replace the current value
+                            # before the final raw-word previous-value copy.
+                            fixture_code_fields.pop(ARENA+0x3bf04,None)
+                            pk(memory,ARENA+0x3bf04,'<I',VIRTUAL['AuxAverage'])
+                            callback_writes['AuxAverage']={this+0xa0:struct.pack('<f',123.25)}
+                    elif name=='SpatialUpdate':words=[fw(rng.choice((0.01,0.016,0.1,1.)))]
+                    elif name=='SpatialLimit':words=[trial%6,rng.choice((-1,0,5000,5001,2**31-1))&0xffffffff]
+                    elif name=='SpatialValue':
+                        words=[rng.getrandbits(32)]
+                        pk(memory,this+8,'<i',rng.choice((-2**31,2**31-1,-1,0,0x1000001)))
+                    elif name=='SpatialDistance2D':this=0;words=[AUXILIARY+0x80,ARENA+0x3a660]
+                    elif name=='SpatialNormalize2D':this=0;words=[ARENA+0x33400,AUXILIARY+0x80]
+                    elif name=='SpatialArcSine':this=0;words=[fw(rng.choice((-1.,0.,1.,-.5,.5,rng.uniform(-1.,1.))))]
+                    elif name=='SampleDefault':this=ARENA+0x33400
+                    elif name=='SampleAllocate':
+                        this=ARENA+0x33400;words=[trial%13];returns['AverageMalloc']=ALLOC
+                elif name in ('SpatialPosition','SpatialOrientation'):
                     this=ARENA+0x33000
                     words=[rng.choice((0,AUXILIARY+0x80,ARENA+0x3a690,0x7ed368,0xdeadbeef))]
                 elif name in ('AuxFrame','AuxOffsets','AuxBackfire','AuxCutoff'):
@@ -2112,6 +2236,8 @@ def main():
                 aux_sequence_seed=(bytes(memory),dict(fixture_globals),dict(fixture_code_fields),dict(returns))
             if name == 'PhysicsUpdate' and trial == 0:
                 physics_sequence_seed = (bytes(memory), dict(fixture_globals), dict(fixture_code_fields), dict(returns))
+            if name == 'SpatialUpdate' and trial == 1:
+                spatial_sequence_seed = (bytes(memory),dict(fixture_globals),dict(fixture_code_fields),dict(returns))
             attempts[name] += 1
             try:
                 a, b = run(name, memory, words, precision, this)
@@ -2120,6 +2246,14 @@ def main():
                 continue
             names = [e[0] for e in a['events']]
             # The original's run defines the coverage, whatever the comparison says.
+            if name in ('SpatialSelect','SpatialUpdate'):
+                listener=struct.unpack_from('<i',a['arena'],ARENA+0x330d0-ARENA)[0]
+                note('spatial-listener-%d'%listener)
+                if name=='SpatialUpdate':note('spatial-constructed-update' if prespatialinit else 'spatial-direct-update')
+            if name=='SpatialCompute':note('spatial-mode-%d'%struct.unpack('<I',fixture_globals[0x82bc14])[0])
+            if name=='SpatialDoppler':
+                note('spatial-doppler-disabled' if memory[0x34013] else 'spatial-doppler-enabled')
+                if 'AuxAverage' in names:note('spatial-doppler-callback-mutation')
             if name == 'ManagerFind':
                 note('find-bound' if 'SoundBind' in names else 'find-missed')
                 note('find-queries-%d' % names.count('SoundContext'))
@@ -2377,6 +2511,36 @@ def main():
                 fixture_globals.update(a['globals'])
         paths['aux-frame-sequence-steps' if name=='AuxFrame' else 'aux-sequence-steps']=steps
 
+    prespatialinit = False
+    if spatial_sequence_seed is not None:
+        name='SpatialUpdate'
+        steps=0
+        for precision in PRECISIONS:
+            memory=bytearray(spatial_sequence_seed[0])
+            fixture_globals.clear();fixture_globals.update(spatial_sequence_seed[1])
+            fixture_code_fields.clear();fixture_code_fields.update(spatial_sequence_seed[2])
+            returns.clear();returns.update(spatial_sequence_seed[3]);callback_writes.clear()
+            preconstruct=preselect=precontrol=prephysics=observe_gains=preauxinit=postauxcontrol=auxtrajectory=False
+            this=ARENA+0x33000
+            for frame in range(128):
+                prespatialinit=frame==0
+                pk(memory,ARENA+0x34013,'<B',int(96<=frame<104))
+                pk(memory,ARENA+0x34084,'<i',(frame//16)%2)
+                fixture_globals[0x82bb40]=struct.pack('<II',int(frame>=8),int(frame>=32))
+                pk(memory,AUXILIARY+0x80,'<3f',frame*0.75,30.*math.sin(frame/12.),0.)
+                pk(memory,this+0x58,'<B',int(frame%7!=0))
+                pk(memory,this+0x6c,'<i',(frame//24)%4)
+                attempts[name]+=1
+                try:
+                    a,b=run(name,memory,[fw(1/60.)],precision,this)
+                    check(name,precision,a,b)
+                except AssertionError as error:
+                    record_failure(name,frame,precision,AssertionError(('state or call order mismatch','spatial sequence',error)));break
+                counts[name]+=1;steps+=1;memory=bytearray(a['arena'])
+                fixture_globals.update(a['globals'])
+        paths['spatial-sequence-steps']=steps
+    prespatialinit=False
+
     for target in ('EnvelopeStep','SequenceStep'):
         if target not in selected: continue
         steps=0
@@ -2418,7 +2582,7 @@ def main():
     report_counts = dict(counts)
     total = sum(counts.values())
     failed_counts = {name: sum(1 for f in failures if f[0] == name) for name in selected}
-    report = dict(compiler=args.compiler, query_byte_matching=query_byte_matching, attempts=attempts, comparisons=report_counts, total=total, paths=dict(sorted(paths.items())),
+    report = dict(compiler=args.compiler, unexecuted_relocations=unexecuted_relocations, query_byte_matching=query_byte_matching, attempts=attempts, comparisons=report_counts, total=total, paths=dict(sorted(paths.items())),
                   failures=failed_counts, failure_total=len(failures),
                   first_failures={name: 'trial %d precision %#x: %s' % next((f[1], f[2], f[3][:4000]) for f in failures if f[0] == name)
                                   for name in selected if failed_counts[name]},
@@ -2475,6 +2639,14 @@ def main():
             assert text.count(before)==1,(key,before)
             return (key,text,text.replace(before,after,1))
         mutations = {
+            'spatial-ready-gate': frame_mutation('spatial','!engineSoundSpatialReady82BB40[index] && !engineSoundSpatialReady82BB40[0]','!engineSoundSpatialReady82BB40[index] || !engineSoundSpatialReady82BB40[0]'),
+            'spatial-partial-mode': frame_mutation('spatial','case 2: case 3:\n','case 2: case 3:\n        value8 = -1;\n'),
+            'spatial-tie': frame_mutation('spatial','!(sqrt((double)ay * ay + (double)ax * ax) <','!(sqrt((double)ay * ay + (double)ax * ax) <='),
+            'spatial-doppler-delta': frame_mutation('spatial','previousA4) / delta60','previousA4) / duration'),
+            'spatial-angle-cross': frame_mutation('spatial_geometry','normal[0] * engineSoundSpatialDirection82BB78[1]','normal[1] * engineSoundSpatialDirection82BB78[1]'),
+            'spatial-factory-threshold': frame_mutation('spatial_lifecycle','> 0x4d7','>= 0x4d7'),
+            'spatial-default-pointer': frame_mutation('average_allocate','    value4 = 4;','    samples10 = 0;\n    value4 = 4;'),
+            'spatial-allocate-reset': frame_mutation('average_allocate','    capacity5 = (unsigned char)capacity;','    count6 = next7 = 0;\n    capacity5 = (unsigned char)capacity;'),
             'offset-modulus': frame_mutation('aux_producers','value14C - (unsigned short)step) % 65535u','value14C - (unsigned short)step) % 65536u'),
             'offset-period-clamp': frame_mutation('aux_producers','rpmPeriod > 10000) rpmPeriod = 10000','rpmPeriod > 10000) rpmPeriod = 9999'),
             'backfire-repeat': frame_mutation('aux_producers','        flag152 = 0;',''),

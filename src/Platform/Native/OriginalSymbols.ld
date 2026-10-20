@@ -1117,3 +1117,17 @@ engineSoundCutoffOrigin78AAA8 = 0x78aaa8;
 engineSoundCutoffPosition78AAA4 = 0x78aaa4;
 engineSoundCutoffLow7885D4 = 0x7885d4;
 engineSoundPositionScale784554 = 0x784554;
+
+engineSoundSpatialReady82BB40 = 0x82bb40;
+engineSoundSpatialMode82BC14 = 0x82bc14;
+engineSoundSpatialDirection82BB78 = 0x82bb78;
+engineSoundSpatialPoint82BB7C = 0x82bb7c;
+engineSoundSpatialAngle82BB80 = 0x82bb80;
+engineSoundSpatialBE70 = 0x82be70;
+engineSoundSpatialBECC = 0x82becc;
+engineSoundSpatialBEDC = 0x82bedc;
+engineSoundSpatialBF10 = 0x82bf10;
+engineSoundSpatialBF20 = 0x82bf20;
+engineSoundSpatialC670 = 0x82c670;
+engineSoundSpatialC6C4 = 0x82c6c4;
+engineSoundDoppler7887FC = 0x7887fc;

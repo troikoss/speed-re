@@ -570,6 +570,91 @@
       "address": "0x45e1e0",
       "size": 10,
       "sha256": "7ed72a491eeeeb25a633645a193a3bf4428d9f32bf960a2fdf606ac2e4c67aa4"
+    },
+    "SpatialBaseConstruct": {
+      "address": "0x45dd60",
+      "size": 208,
+      "sha256": "6a898893575446afcf48128d71e3b81e69f481190b28e7c904b7f3b7d6b157f3"
+    },
+    "SpatialConstruct": {
+      "address": "0x471d60",
+      "size": 18,
+      "sha256": "3263ab0648a140a524cdf7993ec34cb83a168d5cdfed39d00ea41d5a0844f72c"
+    },
+    "SpatialFactory": {
+      "address": "0x47c7a0",
+      "size": 64,
+      "sha256": "6c45a14218d1ce71727494f02e658395cf1b062b66b65ca32ddb873d71318a2d"
+    },
+    "SpatialBind": {
+      "address": "0x45dac0",
+      "size": 44,
+      "sha256": "ac1961a1bca5524eff5f34e2ef9fb59fbc66e4c1a1e96d3f1eb0a9dfbc01cef2"
+    },
+    "SpatialActivate": {
+      "address": "0x45bad0",
+      "size": 5,
+      "sha256": "2736bd715cabb518af5a83987953ecb3afa80a9fc33ad400899ae6838567963e"
+    },
+    "SpatialAngle": {
+      "address": "0x45de60",
+      "size": 153,
+      "sha256": "f97c28eb49a264477f31cee8222c70aeea0dead937ff7c5a5c50830eee28da58"
+    },
+    "SpatialCompute": {
+      "address": "0x45df00",
+      "size": 491,
+      "sha256": "d28cd1aba3447f8d76d3c5a5a13e885d4e738f1240ee61888cf96316cfd1c143"
+    },
+    "SpatialSelect": {
+      "address": "0x45e100",
+      "size": 204,
+      "sha256": "fd2cc1a8aedd7cda71252203359c994951e54b6e01e005afb46ed94287d40f10"
+    },
+    "SpatialDoppler": {
+      "address": "0x45e1f0",
+      "size": 159,
+      "sha256": "d465cebc19d0b647b6e69c5e042593fa5634a2d2644664fbfd6b93c5366be31e"
+    },
+    "SpatialUpdate": {
+      "address": "0x471dc0",
+      "size": 59,
+      "sha256": "b1a958ef701fedd032226d5c5e5d4928c7ce7fa6dd5a3fbec3d65038cb0af31e"
+    },
+    "SpatialLimit": {
+      "address": "0x45de30",
+      "size": 27,
+      "sha256": "3c1742afdb42f096ce1a3197e4d9a79e2456a69d904f99ac7a0f35af252d7e5b"
+    },
+    "SpatialValue": {
+      "address": "0x45de50",
+      "size": 6,
+      "sha256": "fd6ddba12448358df917e253b2078d1952b099d0111d0120800d0791942e5a4b"
+    },
+    "SpatialDistance2D": {
+      "address": "0x401150",
+      "size": 35,
+      "sha256": "f1f9365ee016438f0e8569bc0a50b782c0ce888560f36b2e5024b5ec6c493f02"
+    },
+    "SpatialNormalize2D": {
+      "address": "0x43ce50",
+      "size": 87,
+      "sha256": "ba0b43f5acbd99bcfee13a1e4a8b88bda6400e915c1369f00be5e6dbe7136f20"
+    },
+    "SpatialArcSine": {
+      "address": "0x43c490",
+      "size": 216,
+      "sha256": "e8bad2acff9eb89450d2632da31e859c2ce65e0cc50ca9b20159d74de38298a8"
+    },
+    "SampleDefault": {
+      "address": "0x576880",
+      "size": 30,
+      "sha256": "d731c1bfb46fcfdd50ddf7629dcea61d48742c1e12a926f5fe21abe32cb75532"
+    },
+    "SampleAllocate": {
+      "address": "0x5768a0",
+      "size": 57,
+      "sha256": "faa7e062b54bb064f6050ecc920b4ec13e1702d731bf5e26e39b358d2e1eb3b3"
     }
   }
 }

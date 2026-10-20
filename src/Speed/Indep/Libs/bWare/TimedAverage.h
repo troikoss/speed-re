@@ -16,6 +16,8 @@ struct SampleAverage {
     float *samples10;
     float inlineSamples14[5];
 
+    SampleAverage *ConstructDefault576880();
+    void Allocate5768A0(int capacity);
     SampleAverage *Construct(int capacity); // 0x579f20
     void Destroy(); // 0x5768e0
     void AdvanceSample(float value); // 0x576970
