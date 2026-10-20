@@ -18,7 +18,7 @@ Compared per case: the whole fixture arena (object, sample buffers and gin table
 EAX, or the x87 ST0 for float routines), ESP, EBX/ESI/EDI/EBP, the FXSAVE control word, the logical x87 stack
 (abridged tag, TOP and the ST(i) registers of the FXSAVE image) and the ordered event list.
 
-Documented limitations are listed in the report. Byte matching for the two value-query leaves is reported separately."""
+Documented limitations are listed in the report. Byte matching for the packed value-query and auxiliary float-query leaves is reported separately."""
 
 import argparse
 import ctypes
@@ -42,6 +42,7 @@ SOURCE_DIR = 'src/Speed/Indep/Src/EAXSound/Ginsu'
 SOURCES = {'data': SOURCE_DIR + '/GinsuData.cpp', 'synth': SOURCE_DIR + '/GinsuSynth.cpp',
            'setup': SOURCE_DIR + '/EngineSoundSetup.cpp',
            'construction': SOURCE_DIR + '/EngineSoundConstruct.cpp',
+           'control': SOURCE_DIR + '/EngineSoundControl.cpp',
            'selection': SOURCE_DIR + '/EngineSoundSelection.cpp',
            'upgrade_queries': 'src/Speed/Indep/Src/Physics/PhysicsUpgradeQueries.cpp',
            'banks': SOURCE_DIR + '/EngineSoundBanks.cpp',
@@ -83,6 +84,12 @@ GIN_MAGIC = b'Gnsu2'
 # return kinds: 'al' (bool), 'eax' (int), 'st0' (float left in ST0), None. argument kinds: 'w' raw word,
 # 'p' pointer (identity: arena address or the stack), ('c', n) pointer whose n bytes are logged by value.
 ROUTINES = {
+    'EngineDependency': (0x461490, '?Dependency461490@EngineSound@', 4, 'eax', 'arena', ['w']),
+    'EngineAttach': (0x4614e0, '?Attach4614E0@EngineSound@', 4, None, 'arena', ['p']),
+    'AuxFrequency': (0x45c530, '?Value45C530@EngineSoundAuxiliary@', 0, 'st0', 'arena', []),
+    'AuxGain': (0x45c540, '?Value45C540@EngineSoundAuxiliary@', 0, 'st0', 'arena', []),
+    'ControlScale': (0x45d190, '?Scale45D190@EngineSoundControl@', 0, None, 'arena', []),
+    'ControlUpdate': (0x47c3d0, '?Update47C3D0@EngineSoundControl@', 4, None, 'arena', ['w']),
     'CarSoundSelect': (0x4593b0, '?Select4593B0@EngineSoundCar@', 4, None, 'arena', ['p']),
     'CarSoundIndex': (0x459240, '?EngineSoundCarIndex459240@', 0, 'eax', None, ['w']),
     'CarStateConstruct': (0x479660, '?Construct479660@EngineSoundCar@', 0, 'eax', 'arena', []),
@@ -136,6 +143,9 @@ ROUTINES = {
 # mode 'stub': an event with a scripted EAX (see RETURNS); 'retail': a pure leaf run as retail bytes on both sides.
 # 'f' is a function pointer, logged by the name of the routine it names on that side.
 SND = {
+    'ControlPrepare': (0x45d0a0, '?Prepare45D0A0@EngineSoundControl@', [], 'ControlPrepare', 'stub'),
+    'ControlOne': (0x4701a0, '?ModeOne4701A0@EngineSoundControl@', ['w'], 'ControlOne', 'stub'),
+    'ControlTwo': (0x470540, '?ModeTwo470540@EngineSoundControl@', ['w'], 'ControlTwo', 'stub'),
     'BankFileSize': (0x57d900, '?EngineBankFileSize57D900@', ['z'], 'BankFileSize', 'stub'),
     'BankRead': (0x57b4a0, '?EngineBankRead57B4A0@', ['p', 'z', 'w', 'w', 'f', 'p'], 'BankRead', 'stub'),
     'ParameterRegister': (0x7358c0, '?EngineParameterRegister7358C0@', ['p', ('c', 0x68), 'p'], 'ParameterRegister', 'stub'),
@@ -162,13 +172,13 @@ SND = {
     'SetAttr': (0x72423e, '?SND_attrsetdef@', ['p'], 'SND_attrsetdef', 'retail'),
     'SetPlay': (0x721a6b, '?SNDplaysetdef@', ['p'], 'SNDplaysetdef', 'retail'),
 }
-STUB = {'BankFileSize': STUBS + 0x150, 'BankRead': STUBS + 0x160, 'ParameterRegister': STUBS + 0x130, 'ParameterBind': STUBS + 0x140, 'DispatchWait': STUBS + 0x110, 'DispatchRelease': STUBS + 0x120, 'VoiceVolume': STUBS + 0xa0, 'VoiceValue': STUBS + 0xb0, 'VoiceValue2': STUBS + 0xc0, 'VoiceValue3': STUBS + 0xd0, 'VoiceValue4': STUBS + 0xe0, 'VoiceValue5': STUBS + 0xf0, 'HeapAvailable': STUBS + 0x80, 'Malloc': STUBS + 0x90, 'Lock': STUBS, 'Unlock': STUBS + 0x10, 'Overhead': STUBS + 0x20, 'Create': STUBS + 0x30,
+STUB = {'ControlPrepare': STUBS + 0x170, 'ControlOne': STUBS + 0x180, 'ControlTwo': STUBS + 0x190, 'BankFileSize': STUBS + 0x150, 'BankRead': STUBS + 0x160, 'ParameterRegister': STUBS + 0x130, 'ParameterBind': STUBS + 0x140, 'DispatchWait': STUBS + 0x110, 'DispatchRelease': STUBS + 0x120, 'VoiceVolume': STUBS + 0xa0, 'VoiceValue': STUBS + 0xb0, 'VoiceValue2': STUBS + 0xc0, 'VoiceValue3': STUBS + 0xd0, 'VoiceValue4': STUBS + 0xe0, 'VoiceValue5': STUBS + 0xf0, 'HeapAvailable': STUBS + 0x80, 'Malloc': STUBS + 0x90, 'Lock': STUBS, 'Unlock': STUBS + 0x10, 'Overhead': STUBS + 0x20, 'Create': STUBS + 0x30,
         'Start': STUBS + 0x40, 'Submit': STUBS + 0x50, 'Stop': STUBS + 0x60, 'Destroy': STUBS + 0x70}
 # Retail address of each pure leaf (its bytes run on both sides): SND_attrsetdef 0x72423e..0x72428b and
 # SNDplaysetdef 0x721a6b..0x721aae (both end in RET and call nothing).
 PURE_RANGES = ((0x75bed4, 0x75bf49), (0x72423e, 0x72428b), (0x721a6b, 0x721aae))
 # Retail globals read by the recovered code, by MSVC symbol prefix; __fltused is a null symbol.
-SHARED = {'?engineSoundPrimary7F0DE0@': 0x7f0de0, '?engineSoundSecondary7F1AA8@': 0x7f1aa8, '?engineSoundChoices7F2230@': 0x7f2230, '?engineBankRecords82B098@': 0x82b098, '?engineBankDirectory7ED164@': 0x7ed164, '?engineSoundConstructionValues82AF90@': 0x82af90, '?engineSoundConstructionValue7ED440@': 0x7ed440, '?engineParameterAllocator8B4F3C@': 0x8b4f3c,
+SHARED = {'?engineControlMinimum784550@': 0x784550, '?engineControlMaximum784500@': 0x784500, '?engineControlScale78A290@': 0x78a290, '?engineSoundPrimary7F0DE0@': 0x7f0de0, '?engineSoundSecondary7F1AA8@': 0x7f1aa8, '?engineSoundChoices7F2230@': 0x7f2230, '?engineBankRecords82B098@': 0x82b098, '?engineBankDirectory7ED164@': 0x7ed164, '?engineSoundConstructionValues82AF90@': 0x82af90, '?engineSoundConstructionValue7ED440@': 0x7ed440, '?engineParameterAllocator8B4F3C@': 0x8b4f3c,
           '?engineParameterRegistry82C538@': 0x82c538, '?engineParameterDescriptor7EDE18@': 0x7ede18,
           '?engineParameterMode850078@': 0x850078, '___CxxFrameHandler': 0x75bfd2, '__except_list': 0, '?engineSoundMutex8B4F38@': 0x8b4f38, '?engineSoundValue82B070@': 0x82b070, '?engineSoundValue82B880@': 0x82b880,
           '?engineSoundScale78AF84@': 0x78af84, '?engineSoundScale78A1C8@': 0x78a1c8, '?audioEnabled7FAAA8@': 0x7faaa8, '?audioObject82BA30@': 0x82ba30, '?engineSoundValue82A998@': 0x82a998, '?engineSoundValue82B078@': 0x82b078,
@@ -181,10 +191,11 @@ SHARED = {'?engineSoundPrimary7F0DE0@': 0x7f0de0, '?engineSoundSecondary7F1AA8@'
           '?ginsuStepTable7ED950@': 0x7ed950, '__fltused': 0}
 # Retail addresses of the E branch (fz1 == fz2) and of the SampleToCycle found path (0x466c2f).
 E_BRANCH_HOOK, FOUND_HOOK = 0x466e98, 0x466c2f
-TARGETS = ('CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
+TARGETS = ('EngineDependency', 'EngineAttach', 'AuxFrequency', 'AuxGain', 'ControlScale', 'ControlUpdate', 'CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
            'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt',
            'PacketReleaseCallback', 'SynthesisConstruct', 'SynthesisDestruct', 'StartSynthesis')
 LIMITATIONS = [
+    'control update: prepare 0x45d0a0 and mode gain producers 0x4701a0/0x470540 are scripted boundaries, with callback writes testing later input reads; query +0x34 alternates actual float-field getter and scripted binary64 result; the actual conversion tail runs; this does not establish complete control production or native controller integration',
     'car sound selection: original constant tables are used on both sides; flags and upgrade levels are actual recovered queries, with the original CRT conversion helper; tested car types cover 0..30 and the default arm, not exhaustive 32-bit values; the source participant setup remains supplied by native race scaffolding',
     'bank loading: file size and queued reads are scripted; actual completion callbacks execute after return for a selected queue prefix; filesystem/queue implementation equivalence is not claimed; record indices 0..2 (including count aliasing record 0) and bank indices 0..1 are fixtures, not inferred valid bounds; filenames fit the original 64-byte local buffer',
     'engine initialization: normal returns and FS chain restoration are checked; exceptions/unwind are excluded; allocator and registry are scripted boundaries, allocation failure retains the original null dereference and is not exercised; the recovered setup and final dispatcher-value query execute in composition',
@@ -196,7 +207,7 @@ LIMITATIONS = [
     'the arena is compared byte for byte; the stack is compared through the events, the return values and the x87 image only',
     'the MSVC 7.1 build passes no /GS flag: this cl.exe reads /GS- as /GS (security cookies appear), and the default compile has none',
     'car sound creation: fixtures alternate scripted manager entries with composed lookup/enqueue bodies; sound-object context/bind queries remain scripted; pool creation, device setup and a composed car constructor remain outside this comparison; queue indexes are limited to 0..15',
-    'engine update: the auxiliary virtual float query supplies binary64 values in ST0 and scripted writes to globals/control state; callback dispatch executes the recovered list traversal with scripted OS mutex and callback entries; producer of control +0xf8 and native controller wiring remain outside this comparison',
+    'engine update: one quarter compose recovered dependency attachment, outer HybridMotor update, float queries and conversion tail before the actual engine caller/controllers; prepare and mode gain production remain scripted, while other fixtures retain direct control inputs; auxiliary query alternates binary64 scripted values and recovered float getter; native controller wiring remains open',
     'engine controllers: virtual slots +0x38/+0x3c alternate recovered query bodies and scripted thiscall boundaries; snd setters are logged stubs, not middleware equivalence; the original CRT conversion helper 0x75bed4 runs on both sides',
     'engine setup: heap capacity and bMalloc are scripted boundaries; packet/synth allocation-failure cases use invalid gin magic and a successfully allocated or existing data object to avoid the original null dereference; failure of the data allocation is not exercised',
     'engine setup: the bank table producer remains a fixture; one quarter of setup/initialization fixtures prepend actual engine construction then the native adapter temporary car binding; table indexes 0 and 1 are tested without establishing the table bounds',
@@ -374,7 +385,7 @@ def fx_state(uc):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--compiler', choices=('msvc', 'clang-cl'), default='msvc')
-    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, construction, controller, caller, dispatch, values, initialize, lifecycle, audio, banks, bank_path, selection, upgrade_queries)')
+    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, construction, controller, caller, dispatch, values, initialize, lifecycle, audio, banks, bank_path, selection, upgrade_queries, control)')
     parser.add_argument('--clang-flag', action='append', default=[], help='extra clang option (via /clang:)')
     parser.add_argument('--cases', type=int, default=1024)
     parser.add_argument('--targets', default='', help='comma separated subset of targets')
@@ -406,14 +417,14 @@ def main():
                                    os.path.relpath(source, ROOT)], cwd=ROOT, check=True)
         objects.append((key, obj))
     parsed = {key: read_object(obj) for key, obj in objects}
-    # These two leaves have no relocations. Only claim complete byte identity
+    # These leaves have no relocations. Only claim complete byte identity
     # when COFF places a single function in the section and its size agrees.
     query_byte_matching = {}
-    for name in ('EngineGain', 'EngineValue'):
+    for name, source_key in (('EngineGain', 'values'), ('EngineValue', 'values'), ('AuxFrequency', 'control'), ('AuxGain', 'control')):
         spec = ROUTINES[name]
-        symbol = next(s for s in parsed['values']['symbols'].values() if s['name'].startswith(spec[1]))
-        section = parsed['values']['sections'][symbol['section'] - 1]
-        functions = [s for s in parsed['values']['symbols'].values()
+        symbol = next(s for s in parsed[source_key]['symbols'].values() if s['name'].startswith(spec[1]))
+        section = parsed[source_key]['sections'][symbol['section'] - 1]
+        functions = [s for s in parsed[source_key]['symbols'].values()
                      if s['section'] == symbol['section'] and s['kind'] == 32]
         body = bytes(section['body'][symbol['value']:])
         size = manifest['functions'][name]['size']
@@ -493,10 +504,10 @@ def main():
             uc.mem_map(linked['address'], max(0x1000, linked['allocation']))
             for address, body in linked['blocks']: uc.mem_write(address, body)
             for key, address in STUB.items():
-                uc.mem_write(address, b'\xc2\x08\x00' if key == 'DispatchWait' else b'\xc2\x04\x00' if key in ('DispatchRelease', 'ParameterBind') else b'\xc3')
+                uc.mem_write(address, b'\xc2\x08\x00' if key == 'DispatchWait' else b'\xc2\x04\x00' if key in ('DispatchRelease', 'ParameterBind', 'ControlOne', 'ControlTwo') else b'\xc3')
         else:
             for key, spec in SND.items():
-                if spec[4] == 'stub': uc.mem_write(spec[0], b'\xc2\x08\x00' if key == 'DispatchWait' else b'\xc2\x04\x00' if key in ('DispatchRelease', 'ParameterBind') else b'\xc3')
+                if spec[4] == 'stub': uc.mem_write(spec[0], b'\xc2\x08\x00' if key == 'DispatchWait' else b'\xc2\x04\x00' if key in ('DispatchRelease', 'ParameterBind', 'ControlOne', 'ControlTwo') else b'\xc3')
 
         # Original WaitForSingleObject/ReleaseMutex IAT entries; both sides use
         # the same stdcall stand-ins and record the exact arguments.
@@ -520,7 +531,7 @@ def main():
             uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], name, spec[4], spec[5], labels[rebuilt]), begin=address, end=address)
         for key, spec in SND.items():
             address = rebuilt_entry[key] if rebuilt else spec[0]
-            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], spec[3], 'arena' if key == 'ParameterBind' else None, spec[2], labels[rebuilt], returns, key, callback_writes),
+            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], spec[3], 'arena' if key in ('ParameterBind', 'ControlPrepare', 'ControlOne', 'ControlTwo') else None, spec[2], labels[rebuilt], returns, key, callback_writes),
                         begin=address, end=address)
         def enqueue_bank_read(uc, address, size, user, rebuilt=rebuilt):
             esp = uc.reg_read(xc.UC_X86_REG_ESP)
@@ -573,6 +584,17 @@ def main():
                         uc.reg_write(xc.UC_X86_REG_ESP, STACK); uc.reg_write(xc.UC_X86_REG_ECX, receiver)
                         uc.emu_start(rebuilt_entry[target] if rebuilt else retail_entry[target], STOP + 7, count=MAX_INSTRUCTIONS)
                         assert uc.reg_read(xc.UC_X86_REG_ESP) == STACK + 4 + ROUTINES[target][2], ('state or call order mismatch', 'selection composition stack', target)
+                    uc.mem_write(STACK, struct.pack('<I', STOP) + b''.join(struct.pack('<I', w & 0xffffffff) for w in words))
+                    uc.reg_write(xc.UC_X86_REG_ESP, STACK); uc.reg_write(xc.UC_X86_REG_ECX, this)
+                if precontrol:
+                    for target, receiver, arguments in (
+                            ('EngineAttach', SETUP, [AUXILIARY]),
+                            ('EngineAttach', SETUP, [CONTROL]),
+                            ('ControlUpdate', CONTROL, [fw(1/60.)])):
+                        uc.mem_write(STACK, struct.pack('<I', STOP) + b''.join(struct.pack('<I', w) for w in arguments))
+                        uc.reg_write(xc.UC_X86_REG_ESP, STACK); uc.reg_write(xc.UC_X86_REG_ECX, receiver)
+                        uc.emu_start(rebuilt_entry[target] if rebuilt else retail_entry[target], STOP + 7, count=MAX_INSTRUCTIONS)
+                        assert uc.reg_read(xc.UC_X86_REG_ESP) == STACK + 4 + ROUTINES[target][2], ('state or call order mismatch', 'control composition stack', target)
                     uc.mem_write(STACK, struct.pack('<I', STOP) + b''.join(struct.pack('<I', w & 0xffffffff) for w in words))
                     uc.reg_write(xc.UC_X86_REG_ESP, STACK); uc.reg_write(xc.UC_X86_REG_ECX, this)
                 if preconstruct:
@@ -773,8 +795,59 @@ def main():
             fixture_code_fields.clear()
             preconstruct = False
             preselect = False
+            precontrol = False
             complete_reads = 0
-            if name == 'CarSoundSelect':
+            if name == 'EngineDependency':
+                words, this = [rng.choice((-1, 0, 1, 2, 3, 4, 0x80000000, rng.getrandbits(32))) & 0xffffffff], SETUP
+            elif name == 'EngineAttach':
+                pk(memory, AUXILIARY, '<I', AUX_VTABLE)
+                pk(memory, AUX_VTABLE + 4, '<I', VIRTUAL['SoundContext'])
+                returns['SoundContext'] = AUX_RESULT
+                packed = (rng.getrandbits(32) & ~0xfff0) | (rng.choice((0, 4, 5, 6, 7, 8, 9, 0xfff)) << 4)
+                pk(memory, AUX_RESULT, '<I', rng.getrandbits(32))
+                callback_writes['SoundContext'] = {AUX_RESULT: struct.pack('<I', packed)}
+                words, this = [AUXILIARY], SETUP
+            elif name in ('AuxFrequency', 'AuxGain'):
+                for offset in (0x128, 0x130):
+                    pk(memory, AUXILIARY + offset, '<f', rng.choice((-1e10, -0.0, 0., 0.5, 1., 1000., 10000., rng.uniform(-1e10, 1e10))))
+                words, this = [], AUXILIARY
+            elif name in ('ControlScale', 'ControlUpdate'):
+                aux2, car2 = ARENA + 0x3b000, ARENA + 0x3b800
+                primary, secondary = ARENA + 0x3b500, ARENA + 0x3b580
+                for auxiliary in (AUXILIARY, aux2):
+                    pk(memory, auxiliary, '<I', AUX_VTABLE)
+                    for offset in (0xfc, 0x118):
+                        pk(memory, auxiliary + offset, '<f', rng.choice((-2., -0., 0., 0.5, 1., 2., 1e10, float('inf'), -float('inf'), float('nan'))))
+                    pk(memory, auxiliary + 0x128, '<f', rng.choice((0., 999., 1000., next_f32(1000., True), 5000., 10000., 10001.)))
+                pk(memory, CONTROL + 0x6c, '<I', AUXILIARY)
+                for offset in (0xb8, 0x7c, 0x80, 0x84):
+                    pk(memory, CONTROL + offset, '<i', rng.choice((-2**31, 2**31-1, 0, -1, 1, 16777217, rng.randrange(-2**31, 2**31))))
+                words, this = [], CONTROL
+                if name == 'ControlUpdate':
+                    for car, record in ((CAR, primary), (car2, secondary)):
+                        pk(memory, car + 0x80, '<I', record)
+                        pk(memory, car + 0x78, '<i', rng.choice((-1, 0, 1, 2, 256)))
+                        pk(memory, record + 0x1c, '<ff', rng.uniform(-10000., 20000.), rng.uniform(-10000., 20000.))
+                    pk(memory, CONTROL + 0x68, '<I', CAR)
+                    pk(memory, CONTROL + 0x58, '<B', rng.choice((0, 1, 128, 255)))
+                    pk(memory, CONTROL + 0x5c, '<f', rng.uniform(-100., 100.))
+                    if trial % 2:
+                        fixture_code_fields[AUX_VTABLE + 0x34] = 'AuxFrequency'
+                        note('control-query-recovered')
+                    else:
+                        pk(memory, AUX_VTABLE + 0x34, '<I', VIRTUAL['AuxValue38'])
+                        query = rng.choice((0., -0., 1000., math.nextafter(1000., -math.inf), math.nextafter(1000., math.inf), 10000., math.nextafter(10000., -math.inf), math.nextafter(10000., math.inf), 20000., float('nan'), float('inf'), -float('inf')))
+                        pk(memory, AUX_RESULT, '<d', query)
+                        callback_writes['AuxValue38'] = {CONTROL + 0x68: struct.pack('<I', rng.choice((CAR, car2)))}
+                        note('control-query-scripted')
+                    callback_writes['ControlPrepare'] = {CONTROL + 0x68: struct.pack('<I', rng.choice((CAR, car2))), CONTROL + 0x6c: struct.pack('<I', rng.choice((AUXILIARY, aux2)))}
+                    for key in ('ControlOne', 'ControlTwo'):
+                        changes = {CONTROL + 0x6c: struct.pack('<I', rng.choice((AUXILIARY, aux2)))}
+                        for offset in (0xb8, 0x7c, 0x80, 0x84):
+                            changes[CONTROL + offset] = struct.pack('<i', rng.randrange(-2**31, 2**31))
+                        callback_writes[key] = changes
+                    words = [fw(rng.choice((-1., -0., 0., 1/60., 1., 100.)))]
+            elif name == 'CarSoundSelect':
                 context = seed_selection(memory, trial)
                 fixture_globals[0x850078] = struct.pack('<i', rng.choice((-1, 0, 4, 5)))
                 words, this = [context], CAR
@@ -978,7 +1051,29 @@ def main():
                         AUXILIARY + 0x134: struct.pack('<i', rng.randrange(-2000, 3000)),
                         CONTROL + 0xc0: bytes([rng.choice((0, 1, 255))]),
                     }
-                composed_values = trial % 2 == 1
+                precontrol = name == 'EngineUpdate' and trial % 4 == 0
+                if precontrol:
+                    pk(memory, CONTROL, '<I', CONTROL_VTABLE)
+                    pk(memory, CONTROL_VTABLE + 4, '<I', VIRTUAL['SoundContext'])
+                    pk(memory, AUX_VTABLE + 4, '<I', VIRTUAL['SoundContext'])
+                    returns['SoundContext'] = {AUXILIARY: AUX_RESULT, CONTROL: AUX_RESULT + 4}
+                    pk(memory, AUX_RESULT, '<II', 5 << 4, 6 << 4)
+                    pk(memory, CONTROL + 0x68, '<II', CAR, AUXILIARY)
+                    pk(memory, CONTROL + 0x58, '<B', rng.choice((0, 1, 255)))
+                    pk(memory, CONTROL + 0x5c, '<f', rng.uniform(0., 100.))
+                    pk(memory, CAR + 0x80, '<I', ARENA + 0x3b500)
+                    pk(memory, ARENA + 0x3b500 + 0x1c, '<ff', gin['maxf'], gin['minf'])
+                    pk(memory, AUXILIARY, '<I', AUX_VTABLE)
+                    pk(memory, AUXILIARY + 0xfc, '<f', rng.choice((0., 0.5, 1.)))
+                    pk(memory, AUXILIARY + 0x118, '<f', rng.choice((0., 0.5, 1.)))
+                    pk(memory, AUXILIARY + 0x128, '<f', rng.choice((0., 1000., 3000., 10000., 15000.)))
+                    pk(memory, AUXILIARY + 0x130, '<f', rng.uniform(0., 100.))
+                    fixture_code_fields[AUX_VTABLE + 0x34] = 'AuxFrequency'
+                    fixture_code_fields[AUX_VTABLE + 0x38] = 'AuxGain'
+                    for key in ('ControlOne', 'ControlTwo'):
+                        callback_writes[key] = {CONTROL + offset: struct.pack('<i', rng.randrange(32768)) for offset in (0xb8, 0x7c, 0x80, 0x84)}
+                    note('engine-control-composed')
+                composed_values = trial % 2 == 1 or precontrol
                 if composed_values:
                     make_values(memory)
                     fixture_code_fields[CONTROL_VTABLE + 0x38] = 'EngineGain'
@@ -1238,6 +1333,8 @@ def main():
                 else:
                     chosen = [key for key in ('ManagerAC', 'ManagerB0', 'ManagerB4') if key in names]
                     note('create-called-' + (chosen[0] if chosen else 'none'))
+            if name == 'ControlUpdate':
+                note('control-mode-one' if 'ControlOne' in names else 'control-mode-two')
             if name == 'CarSoundSelect':
                 note('selection-grade-%d' % struct.unpack_from('<i', a['arena'], CAR - ARENA + 0x94)[0])
                 note('selection-mode-%d' % struct.unpack_from('<i', a['arena'], CAR - ARENA + 0x78)[0])
@@ -1254,7 +1351,7 @@ def main():
                 note('dispatch-callbacks-%d' % names.count('ParameterCallback'))
             if name == 'EngineUpdate':
                 note('update-one' if 'EngineUpdateOne' in names else 'update-two')
-                note('update-parameters' if 'AuxValue38' in names else 'update-no-parameters')
+                note('update-parameters' if 'AuxValue38' in names or 'AuxGain' in names else 'update-no-parameters')
                 note('update-dispatch' if 'ParameterDispatch' in names else 'update-no-dispatch')
                 note('update-active' if active else 'update-inactive')
                 note('update-precision-%x' % precision)
@@ -1313,7 +1410,25 @@ def main():
         def selection_mutation(before, after):
             assert before in selection_source, before
             return ('selection', selection_source, selection_source.replace(before, after))
+        control_source = (ROOT / SOURCES['control']).read_text()
+        def control_mutation(before, after):
+            assert before in control_source, before
+            return ('control', control_source, control_source.replace(before, after))
         mutations = {
+            'control-dependency-range': control_mutation('index > 3u', 'index > 2u'),
+            'control-descriptor-shift': control_mutation('descriptor >> 4', 'descriptor >> 5'),
+            'control-attach-slot': control_mutation('controlC0 = reinterpret_cast<EngineSoundControl *>(component)', 'auxiliaryB8 = reinterpret_cast<EngineSoundAuxiliary *>(component)'),
+            'control-frequency-query': control_mutation('Value45C530() { return value128;', 'Value45C530() { return value130;'),
+            'control-gain-query': control_mutation('Value45C540() { return value130;', 'Value45C540() { return value128;'),
+            'control-scale-b8': control_mutation('engine->valueFC * (double)valueB8', 'engine->value118 * (double)valueB8'),
+            'control-scale-gains': control_mutation('* engine->value118', '* engine->valueFC'),
+            'control-scale-final': control_mutation('value84 = (int)((double)saved84 * engine->value118);', 'value84 = 0;'),
+            'control-active-time': control_mutation('if (active58)', 'if (!active58)'),
+            'control-upper-clamp': control_mutation('if (engineControlMaximum784500 < rounded)', 'if (engineControlMinimum784550 < rounded)'),
+            'control-frequency-scale': control_mutation('* engineControlScale78A290', '* 1.0f'),
+            'control-frequency-endpoints': control_mutation('record->value1C - record->value20', 'record->value20 - record->value1C'),
+            'control-mode': control_mutation('if (car68->mode78)', 'if (car68->mode78 == 1)'),
+            'control-tail': control_mutation('    Scale45D190();', ''),
             'selection-car-map': selection_mutation('case 10: return 9;', 'case 10: return 10;'),
             'selection-default': selection_mutation('default: return 18;', 'default: return 0;'),
             'selection-priority': selection_mutation('IsSelected599610(0x18)', 'IsSelected599610(0xf)'),

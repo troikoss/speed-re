@@ -1032,3 +1032,7 @@ engineParameterMode850078 = 0x850078;
 engineSoundPrimary7F0DE0 = 0x7f0de0;
 engineSoundSecondary7F1AA8 = 0x7f1aa8;
 engineSoundChoices7F2230 = 0x7f2230;
+
+engineControlMinimum784550 = 0x784550;
+engineControlMaximum784500 = 0x784500;
+engineControlScale78A290 = 0x78a290;

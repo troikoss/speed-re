@@ -240,6 +240,36 @@
       "address": "0x5995e0",
       "size": 21,
       "sha256": "d20ca2f60c8a5af98aacb5502dd285a2c3601e0451c55ddaf9ca6cc7f36d856d"
+    },
+    "EngineDependency": {
+      "address": "0x461490",
+      "size": 54,
+      "sha256": "a1b2bb97d6480e565d79b858b41c624474c12ef555ea83dba52037c074408093"
+    },
+    "EngineAttach": {
+      "address": "0x4614e0",
+      "size": 84,
+      "sha256": "41149ff169c8ff91d5fd7ae2305b756ae124a132cbbefef3437e7fd0274f3445"
+    },
+    "AuxFrequency": {
+      "address": "0x45c530",
+      "size": 7,
+      "sha256": "eb9fed5e39084c70b54c2cf6671a58b0bceca9b5ed532c01585ee19dc69cc767"
+    },
+    "AuxGain": {
+      "address": "0x45c540",
+      "size": 7,
+      "sha256": "e59e4e7e2733bb6c18244a330726115535419b1472f36b5d82dc6f4dbbb9f9b1"
+    },
+    "ControlScale": {
+      "address": "0x45d190",
+      "size": 96,
+      "sha256": "2a935e1d8f83b41fba488c7d5aded045e771a6cac562c29b53c46c80b587cc2b"
+    },
+    "ControlUpdate": {
+      "address": "0x47c3d0",
+      "size": 192,
+      "sha256": "2fd48dd89abd17f46fdff53c7ebc42c636a959978e9c68dce363e0687355008e"
     }
   }
 }

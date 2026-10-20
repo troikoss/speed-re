@@ -1057,3 +1057,135 @@ binding, plus 768 bank-load fixtures retaining direct input control for
 aliasing and boundary coverage. The two pre-existing value-query leaves
 retain their separate MSVC byte identity. No new byte-matching claim is made
 for this selection checkpoint.
+
+## Outer engine control update and component binding (2026-10-20)
+
+`EngineSoundControl.cpp` recovers six original routines, each fingerprinted
+in `ginsu.json`: engine dependency enumeration `0x461490` (54 bytes),
+component attachment `0x4614e0` (84 bytes), linked float queries `0x45c530` and
+`0x45c540` (7 bytes each), control conversion tail `0x45d190` (96 bytes), and
+outer HybridMotor update `0x47c3d0` (192 contiguous bytes). The original
+instruction listings and decompilation establish the read/call boundaries;
+existing Ghidra labels are not treated as source evidence.
+
+Dependency indices 0..3 return IDs 5..8; unsigned values outside that range
+return -1. Attachment calls the supplied component's virtual `+4` descriptor
+query, then uses bits 4..15 of its first word to install the supplied pointer
+at engine `+0xb8` (5), `+0xc0` (6), `+0xc4` (7), or `+0xb4` (8). Unknown IDs
+leave those fields alone. No null guard or fallback component is added.
+The supplied pointer is retained across the query.
+
+The linked queries load binary32 fields `+0x128` and `+0x130` into ST0 and
+return without another store. MSVC byte matching for these leaves checks
+single-function COFF sections, no relocations, exact seven-byte sizes and
+identical bytes. Their field producers remain open. This matching claim
+is separate from behavioral evidence for the remaining routines.
+
+The outer update conditionally copies duration to control `+0x60` and adds
+it to time `+0x5c` when byte `+0x58` is nonzero. It always calls prepare
+`0x45d0a0`, then re-reads linked object `+0x6c` and calls virtual `+0x34`.
+An FST copies that result to binary32 while the first comparison retains
+the returned ST0 value. The lower/upper constants at `0x784550`/`0x784500`
+are 1000/10000. It writes frequency `+0xf8` using
+`(clamped - lower) * float[0x78a290] * (primary[+0x1c] - primary[+0x20]) + primary[+0x20]`.
+The scale's binary32 bits are `0x38e90453`. NaN query comparisons take the
+lower-bound branch. Record fields remain offset-named; no tuning semantics
+beyond those original reads are inferred.
+
+Mode at linked car state `+0x78` is then read: zero calls `0x4701a0`, any
+nonzero word calls `0x470540`, both with the original duration word. Finally
+`0x45d190` re-reads the linked object, multiplies integer control `+0xb8` by
+its float `+0xfc`, and integers `+0x7c`/`+0x80`/`+0x84` by float `+0x118`,
+with one original CRT truncation after each product. The integer loads are
+exact FILD/FIMUL operands, without a preceding binary32 rounding. The source
+retains the loads of the next integer before storing the preceding result.
+The linked pointer is saved once, while its scaling field is re-read for
+each product, matching the original.
+
+The verifier compares dirty arenas, ordered calls, selected globals, stack
+cleanup, preserved registers, and x87 stack/control word under 53- and 64-bit
+round-to-nearest precision. Standalone cases cover dependency defaults,
+descriptor fields and query-time writes, dirty neighboring bytes, float
+query return contracts, full signed integer scaling, non-finite factors,
+conditional time updates, both modes including non-1 nonzero values, clamp
+boundaries and nextafter inputs. Virtual `+0x34` alternates actual recovered
+query bodies with scripted binary64 returns. Prepare and mode callbacks can
+change the linked car/object pointers and result fields to check later reads.
+Status/exception flags and concurrent interleavings are not established.
+
+One quarter of existing `EngineUpdate` fixtures now prepend actual attachment
+of the auxiliary and control components, then the actual outer control update,
+then execute recovered `0x474310`, its selected controller, and parameter
+dispatch. Both auxiliary queries use recovered bodies in that composition.
+The original and rebuilt conversion tails execute independently; the original
+CRT helper remains shared. Prepare `0x45d0a0` and gain producers
+`0x4701a0`/`0x470540` remain scripted boundaries, so the comparison does not
+establish complete gain production, component construction, or native use.
+
+This checkpoint adds verified recovered source to the native archive, but
+**does not wire this new control layer into demo playback**. Its unrecovered
+prepare/mode dependencies have no native replacement implementation. The demo
+continues to use recovered selection/binding/loading/setup and its documented
+slot-0 direct-RPM scaffold. Control-state production, actual mode gains,
+parameter records/consumers, snd setters, manager pools, the forced disable
+flag, collision and frontend/HUD audio remain open. Replacing those inputs
+with guessed values would not establish original controller integration.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 1024
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets EngineDependency,EngineAttach,AuxFrequency,AuxGain,ControlScale,ControlUpdate,EngineUpdate --cases 64 --mutation-checks --mutation-source control
+cmake --build build/native
+ctest --test-dir build/native -R 'engine_bank_io_native|audio_dispatch_native' --output-on-failure
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/smoke_native_engine_audio.py --frames 600 --car SKYLINE
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/smoke_native_engine_audio.py --frames 600 --car 350Z
+```
+
+Focused comparison passed 896 cases (128 per seven targets), including 32
+composed engine updates after component attachment and control production.
+Native build and both asset-free audio tests passed. The SKYLINE 600-frame
+regression retained zero underruns, 841 packet releases and pitch/RPM rank
+correlation 0.774. These playback checks exercise the existing native path,
+not the newly recovered control layer.
+
+The 350Z 600-frame regression produced 1,274 packet releases and zero
+underruns, but **failed** the pitch/RPM smoke criterion: correlation 0.435
+against the existing 0.50 threshold. This remains an open native integration
+failure. The demo still feeds only slot 0 while its selected secondary bank
+runs at setup frequency with fixed backend gain; the incomplete blend limits
+interpretation of a mixed-output zero-crossing pitch measure. The new control
+routines are not linked into `ug2demo` (confirmed by native symbol inspection),
+so this run does not exercise or validate them. No threshold was weakened and
+the failure is not counted as a playback pass.
+
+Setter analysis leads for the remaining backend (no implementation claim):
+`0x72412a` scales its integer argument by float `0x78a94c` and updates linked
+voice word `+0x38`; `0x724093` uses signed 16-bit pan words and calls
+`0x724fc5`, whose channel-vector consumer is `0x725878`; `0x723d9b` stores a
+16-bit value at voice `+0x8c` and recomputes `+0x8e` through `0x7277da` with a
+12-bit product shift. `0x72403e` delegates to `0x72505e`, which calls an optional
+function pointer at output record `+0x78` with its client word `+0x60` and the
+supplied value. These observations do not establish a filter algorithm.
+`0x723c41` updates one byte at voice `+0x5f`, while `0x723bc1` writes a scaled
+per-output float through voice `+0x64`. Original handle validation `0x725480`
+checks low-byte slot, active byte `+0x6d`, and full generation word, returning
+-8 for invalid handles; every setter first returns -10 when the device flag
+is clear. Native packet-player slot handles do not yet model that full voice
+registry. Their consumers must be investigated before claiming setter or
+mixer equivalence.
+
+All 14 control-layer mutants were rejected with comparison mismatches at
+64 cases per each of seven targets, with no survivors or compile-only
+rejections. They cover dependency bounds, descriptor bits/destination,
+query offsets, scaling fields/final store, time gate, upper clamp, frequency
+scale/endpoints, nonzero mode choice and the conversion-tail call. The final
+full-suite fixture additionally composes both recovered packed gain/value
+queries with the new attachment/control prelude; their record producer is
+still supplied by fixtures.
+
+Final full regression passed 55,296 original/rebuilt comparisons across 54
+targets (1,024 per target), zero failures. It includes 256 engine updates
+composed after actual dependency attachment, outer control production,
+conversion tail, both auxiliary float queries and packed gain/value queries;
+prepare and mode gain producers remain scripted. The four queried leaves
+retain separately reported MSVC byte identity. The 350Z native pitch smoke
+failure remains open and is excluded from this behavioral-verification pass.

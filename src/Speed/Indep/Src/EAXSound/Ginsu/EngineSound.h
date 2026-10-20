@@ -12,7 +12,10 @@ struct EngineSoundCarValue {
     const char *fileC;
     int value10;
     int value14;
-    char unidentified18[0x34];
+    int value18;
+    float value1C;
+    float value20;
+    char unidentified24[0x28];
 };
 
 struct EngineSoundCarValue84 {
@@ -67,8 +70,21 @@ struct EngineSoundVtable {
     int (__fastcall *value3C)(EngineSound *, void *, int);
 };
 
+struct EngineSoundAuxiliary;
+struct EngineSoundComponent;
+
 struct EngineSoundControl {
-    char unidentified0[0x7c];
+    char unidentified0[0x58];
+    unsigned char active58;
+    char unidentified59[3];
+    float time5C;
+    float delta60;
+    char unidentified64[4];
+    EngineSoundCar *car68;
+    EngineSoundAuxiliary *engine6C;
+    void *value70;
+    void *value74;
+    char unidentified78[4];
     int value7C;
     int value80;
     int value84;
@@ -78,6 +94,15 @@ struct EngineSoundControl {
     unsigned char flagC0;
     char unidentifiedC1[0x37];
     float frequencyF8;
+    float valueFC;
+    float value100;
+    float value104;
+    float value108;
+    void Update47C3D0(float duration);
+    void Scale45D190();
+    void Prepare45D0A0(); // original dependency, not yet recovered
+    void ModeOne4701A0(float duration); // original one-bank gain producer, not yet recovered
+    void ModeTwo470540(float duration); // original two-bank gain producer, not yet recovered
 };
 
 struct EngineParameterCallback {
@@ -126,15 +151,33 @@ struct EngineSoundParameters {
 
 struct EngineSoundAuxiliary;
 struct EngineSoundAuxiliaryVtable {
-    void *unidentified0[14];
+    void *unidentified0[13];
+    float (__fastcall *value34)(EngineSoundAuxiliary *);
     float (__fastcall *value38)(EngineSoundAuxiliary *);
 };
 
 struct EngineSoundAuxiliary {
     EngineSoundAuxiliaryVtable *vtable0;
-    char unidentified4[0x130];
+    char unidentified4[0xf8];
+    float valueFC;
+    char unidentified100[0x18];
+    float value118;
+    char unidentified11C[0xc];
+    float value128;
+    char unidentified12C[4];
+    float value130;
     int value134;
     int value138;
+    float Value45C530();
+    float Value45C540();
+};
+
+struct EngineSoundComponentVtable {
+    void *unidentified0;
+    unsigned int *(__fastcall *descriptor4)(EngineSoundComponent *);
+};
+struct EngineSoundComponent {
+    EngineSoundComponentVtable *vtable0;
 };
 
 struct EngineSound {
@@ -142,6 +185,8 @@ struct EngineSound {
     EngineSound *Construct473BF0();
     EngineSound *Construct473D30();
     void Bind463500(EngineSoundCar *car);
+    int Dependency461490(int index);
+    void Attach4614E0(EngineSoundComponent *component);
     void LoadBanks465C80(int *count);
     static void __cdecl BankRead461550(void *object);
     static void __cdecl BankRead461560(void *object);
@@ -190,6 +235,12 @@ UG2_CHECK_OFFSET(EngineSound, slotsCC, 0xcc);
 UG2_CHECK_OFFSET(EngineSound, frequency104, 0x104);
 UG2_CHECK_OFFSET(EngineSound, volume108, 0x108);
 UG2_CHECK_OFFSET(EngineSound, volume10C, 0x10c);
+UG2_CHECK_OFFSET(EngineSoundCarValue, value1C, 0x1c);
+UG2_CHECK_OFFSET(EngineSoundCarValue, value20, 0x20);
+UG2_CHECK_OFFSET(EngineSoundControl, active58, 0x58);
+UG2_CHECK_OFFSET(EngineSoundControl, car68, 0x68);
+UG2_CHECK_OFFSET(EngineSoundControl, engine6C, 0x6c);
+UG2_CHECK_SIZE(EngineSoundControl, 0x10c);
 UG2_CHECK_OFFSET(EngineSoundControl, value80, 0x80);
 UG2_CHECK_OFFSET(EngineSoundControl, value84, 0x84);
 UG2_CHECK_OFFSET(EngineSoundControl, valueBC, 0xbc);
@@ -200,7 +251,15 @@ UG2_CHECK_OFFSET(EngineSoundControl, frequencyF8, 0xf8);
 UG2_CHECK_SIZE(EngineSoundParameters, 0x6c);
 UG2_CHECK_OFFSET(EngineSoundParameters, value38, 0x38);
 UG2_CHECK_OFFSET(EngineSoundParameters, value68, 0x68);
+UG2_CHECK_OFFSET(EngineSoundAuxiliary, valueFC, 0xfc);
+UG2_CHECK_OFFSET(EngineSoundAuxiliary, value118, 0x118);
+UG2_CHECK_OFFSET(EngineSoundAuxiliary, value128, 0x128);
+UG2_CHECK_OFFSET(EngineSoundAuxiliary, value130, 0x130);
 UG2_CHECK_OFFSET(EngineSoundAuxiliary, value134, 0x134);
+UG2_CHECK_OFFSET(EngineSoundAuxiliaryVtable, value34, 0x34);
+extern float engineControlMinimum784550;
+extern float engineControlMaximum784500;
+extern float engineControlScale78A290;
 
 // bWare allocation wrapper 0x440820; available-byte query 0x43e910 remains a heap seam.
 void *EngineSoundAllocate440820(int size, int flags);
