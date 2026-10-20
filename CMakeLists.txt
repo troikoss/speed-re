@@ -21,6 +21,7 @@ file(GLOB UG2_RECOVERED_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Formatting.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/FormattingSink.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/FormattingCore.cpp
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/SampleAverageUpdate.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/TimedAverage.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/bSlotPool.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Compression.cpp)
@@ -120,6 +121,19 @@ target_link_options(ug2audiodispatch_native_test PRIVATE -m32 -no-pie)
 if(BUILD_TESTING)
     add_test(NAME audio_dispatch_native COMMAND ug2audiodispatch_native_test)
     set_tests_properties(audio_dispatch_native PROPERTIES TIMEOUT 10)
+endif()
+
+# Asset-free controller volume integration against captured SDL disk audio.
+add_executable(ug2audioplayback_native_test src/Platform/Native/AudioPlaybackNativeTest.cpp)
+target_compile_options(ug2audioplayback_native_test PRIVATE ${UG2_ARCH_FLAGS} -O1 -g
+    -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+target_include_directories(ug2audioplayback_native_test PRIVATE /usr/include/SDL2)
+target_link_directories(ug2audioplayback_native_test PRIVATE /usr/lib/i386-linux-gnu)
+target_link_libraries(ug2audioplayback_native_test ug2native -l:libSDL2-2.0.so.0)
+target_link_options(ug2audioplayback_native_test PRIVATE -m32 -no-pie)
+if(BUILD_TESTING)
+    add_test(NAME audio_playback_native COMMAND ug2audioplayback_native_test)
+    set_tests_properties(audio_playback_native PROPERTIES TIMEOUT 10)
 endif()
 
 # Asset-free bank filesystem adapter check; original scheduler equivalence is excluded.

@@ -13,6 +13,14 @@ Sources: `src/Speed/Indep/Src/EAXSound/Ginsu/{Ginsu.h,GinsuData.cpp,GinsuSynth.c
 Engine setup: `src/Speed/Indep/Src/EAXSound/Ginsu/{EngineSound.h,EngineSoundSetup.cpp,EngineSoundController.cpp,EngineSoundUpdate.cpp}`.
 Native seams: `src/Platform/Native/{NativeAudio.cpp,NativeAudio.h,NativeEngineSound.cpp,NativeEngineSound.h}`.
 
+Current native status: recovered selection/loading/setup and playback caller/controllers
+run in the demo, including both mode-1 banks. The newly recovered prepare/gain
+layer is verified separately and awaits original component input production.
+See [gain recovery](#engine-prepare-and-gain-production-2026-10-20) and
+[native wiring](#native-playback-controller-wiring-2026-10-20) for current
+results and remaining seams. Dated checkpoints preserve their earlier results;
+the latest sections supersede earlier statements about native wiring.
+
 ## Recovered routines
 
 | Address | Routine | Notes |
@@ -39,10 +47,10 @@ Native seams: `src/Platform/Native/{NativeAudio.cpp,NativeAudio.h,NativeEngineSo
 | `0x463cc0` | `AudioCarSoundManager::FindCarSound463CC0` | looks up and binds a sound object; query/bind methods remain seams |
 | `0x463f10` | `AudioQueuedCarSoundManager::QueueCar463F10` | queues the car at +0x20 and increments count +0x60; returns null |
 | `0x440820` | `EngineSoundAllocate440820` | bWare allocation wrapper; heap backend remains native |
-| `0x47d740` | `EngineSound::Setup47D740` | one/two-slot setup; native demo calls mode 0 with a scaffold bank view |
-| `0x473e60` | `EngineSound::Update473E60` | one-slot controller; recovered and verified, native integration open |
-| `0x474030` | `EngineSound::Update474030` | two-slot controller; recovered and verified, native integration open |
-| `0x474310` | `EngineSound::Update474310` | control frequency source, one/two-slot selection and parameter-block tail; recovered and verified, native integration open |
+| `0x47d740` | `EngineSound::Setup47D740` | one/two-slot setup; native demo uses recovered per-car mode/records and a temporary bank view |
+| `0x473e60` | `EngineSound::Update473E60` | one-slot controller; recovered, verified and wired |
+| `0x474030` | `EngineSound::Update474030` | two-slot controller; recovered, verified and wired |
+| `0x474310` | `EngineSound::Update474310` | control frequency source, one/two-slot selection and parameter-block tail; playback wired, parameter consumers open |
 
 The frequency range in the `.gin` header is engine RPM: `GIN_Mazda_Miata_DCL.gin`
 spans about 2171 to 6852.
@@ -96,12 +104,12 @@ alone): 0 mismatches.
   block, `+0xc` the maximum frequency, `+0x10` the minimum frequency, `+0x14` the start result.
   The mode `[[this+0x9c]+0x78]` selects one slot (mode 0), two slots (mode 1) or none.
 - The gin for a slot is read from the table at `0x82b884`: slot 0 from `+0xdc[index]`, slot 1
-  from `+0xe4[index]`, with `index = [[this+0x9c]+0x10]`. The table fill is not recovered.
+  from `+0xe4[index]`, with `index = [[this+0x9c]+0x10]`. Recovered loader `0x465c80` fills these tables through the native I/O backend.
 - The memory block is `overhead(8) + 4 + 4 * ceil((0x788898 + 0x788894) * 0x78a5b0)` bytes.
   With the 48000.0 block rate at `0x78a5b0` that is 2624 bytes: two 552-sample packet buffers
   plus the player.
 - `StartSynthesis` is called with the gin's minimum frequency (`0x47d8f9`).
-- The engine controller `0x473e60` (recovered, not wired natively) makes snd calls for the voice (`0x72412a`
+- The engine controller `0x473e60` (recovered and wired natively) makes snd calls for the voice (`0x72412a`
   with the voice handle at `+0xe0` and a value clamped to 0..127 at `+0x108`, and further
   calls for pitch and pan), then calls
   `UpdateFrequency(arg, 60.0f)` on `[this+0xd0]`, which is slot 0's synthesizer. `0x473fc7`
@@ -117,9 +125,10 @@ Each player mixes mono packets to both outputs with linear resampling from the p
 (24000 or 32000 Hz in the retail gins) and a scaffold gain of 0.5. A packet is released when
 its last frame is read; the release callback runs on the audio thread with the device lock
 held, and HandlePacketRelease submits the same buffer again. Up to eight players, each with a
-queue of up to 32 packets. Not modelled: the volume, pitch and pan options (the retail
-controller sets the voice volume, so the native output does not depend on `vol = 0`), voices,
-render modes and the frame-count callback.
+queue of up to 32 packets. Controller volume and Q12 pitch now reach this mixer through
+native snd adapters. Initial start attributes/options are still ignored. Pan/elevation,
+cutoff and effect values are retained without audible DSP. Voice graphs/generations,
+render modes, pan vectors, filters/effect sends and the frame-count callback remain open.
 
 SDL's device lock is recursive. A scratch program (SDL 2.32.10, disk driver) locked the device
 twice on the main thread and once inside the audio callback, and completed 27 callbacks in
@@ -133,9 +142,10 @@ file I/O, and setup `0x47d740`. The selected car type and upgrade state now
 choose the filename(s) and mode. `--engine-gin` explicitly overrides this with
 one bank. A temporary EAXSound view and manager ownership/index assignment
 remain native; the prior audio object is restored before returning. Both
-setup slots are retained and cleaned up. The per-frame scaffold still calls
-`UpdateFrequency(rpm, 60.0f)` only on slot 0; a mode-1 secondary slot remains at
-its setup frequency because original controllers/gains are not wired.
+setup slots and the engine/car session state persist until cleanup. Each unpaused frame
+now executes recovered caller `0x474310` and its selected playback controller, updating
+both mode-1 banks. Raw RPM and constant full-level/centered inputs remain native seams;
+the original prepare/gain/input-production chain is not wired.
 See the [selection checkpoint](#per-car-engine-record-selection-2026-10-20).
 The
 recovered allocator wrapper `0x440820` calls the existing native `bMalloc` backend
@@ -143,7 +153,7 @@ recovered allocator wrapper `0x440820` calls the existing native `bMalloc` backe
 (`INT_MAX`) because this heap has no bWare partition budget. The game-side
 capacity checks and allocation flags remain in recovered code.
 
-Headless check (`tools/smoke_native_engine_audio.py --frames 600`, final run): 6.92 s of
+Earlier scaffold headless check (`tools/smoke_native_engine_audio.py --frames 600`): 6.92 s of
 output, RMS 6125 LSB, peak 16072 with no clipped samples, 595 callbacks, 627 packets released,
 0 underrun frames. Across 47 windows of 100 ms the rpm ranged from 850 to 5756. The
 zero-crossing pitch averaged 21.7 Hz in the low-rpm third and 208.3 Hz in the high-rpm third;
@@ -207,19 +217,21 @@ Limitations (see the verifier's report for the full list):
   there. The native player is checked by the behaviour smoke test and the helper byte check
   above, not by Unicorn.
 - Status-word condition bits and exception flags are not compared.
-- NaN inputs are only exercised for `CyclePeriod` and the ceiling helper.
+- Nonfinite inputs are exercised for selected math/average/control routines, not every pointer or state field.
 
 ## Seams and next steps
 
-- The snd library behind the seam (voices, mixer, volume `0x72412a`, pitch and pan) is not
-  recovered. The native player applies no volume, so the controller's volume is absent.
-- The controllers `0x473e60` and `0x474030` are recovered and behaviorally checked,
-  including the second slot's feed. Native integration remains open: the control-state
-  producer, virtual queries, parameter callback registration/consumers, the producer of the per-car gin table
-  at `0x82b884`, virtual gain/spatial queries and snd setters. The demo still feeds
-  one synthesizer directly with engine RPM.
-- Not yet located in UG2: a stop or current-pitch routine of the synthesizer,
-  and any callers of the synthesizer beyond the engine setup.
+- Native volume and Q12 pitch adapters now reach SDL output. The retail voice
+  registry, pan vectors, filters, effects and output callback consumers remain open.
+- Both recovered playback controllers run natively. The newly recovered
+  prepare/gain/outer-control layer still needs original component construction,
+  initialization and auxiliary/physics/shift/accel input production before wiring.
+  Raw RPM and fixed full-level/centered session inputs remain explicit scaffolding.
+- Parameter callback dispatch is recovered, while registry behavior and actual
+  consumers remain open. Manager pools, forced audio disable, collision and
+  frontend/HUD audio remain inventoried gaps.
+- Earlier dated checkpoints below retain their historical verification results;
+  current integration and gain verification are described in the final sections.
 
 
 ## Engine setup recovery (2026-10-20)
@@ -1189,3 +1201,145 @@ conversion tail, both auxiliary float queries and packed gain/value queries;
 prepare and mode gain producers remain scripted. The four queried leaves
 retain separately reported MSVC byte identity. The 350Z native pitch smoke
 failure remains open and is excluded from this behavioral-verification pass.
+
+## Engine prepare and gain production (2026-10-20)
+
+This checkpoint supersedes the prepare/gain boundaries in the preceding
+outer-control checkpoint. `EngineSoundControlGains.cpp` recovers prepare
+`0x45d0a0` (230 bytes), one-bank gain production `0x4701a0` (893 contiguous
+bytes), and two-bank gain production `0x470540` (996 contiguous bytes).
+The latter spans end before their jump tables. `SampleAverageUpdate.cpp`
+recovers ring advance `0x576970` (84 bytes), fill `0x576a10` (70 bytes),
+and recalculation `0x576910` (92 bytes). The composed verifier also executes
+existing recovered curve lookup `0x576790` (190 bytes) and pending-shift query
+`0x5ecd70` (26 bytes), rather than scripting their outputs. All eight targets
+have fingerprints in `config/SPEED2_EXE_1_2/ginsu.json`.
+
+Prepare computes car `+0x48` minus the saved value, and auxiliary `+0x128`
+minus `+0x12c`, then selects ring advance or fill using linked component
+`+0xd8`, accel `+0xc8`, and shift `+0x78`/`+0x7c`. Its final virtual call
+recalculates the average; it is not a float getter. Recalculation multiplies
+the old sum by zero before accumulating, preserving propagation of an initial
+nonfinite sum. Capacity zero, inline/external storage, byte ring/count fields,
+and the two sum stores in advance are retained.
+
+One-bank production selects fixed or interpolated primary-record targets,
+limits changes by 0.2 and cutoff changes by 6000, and derives cutoff from a
+virtual auxiliary query with a 24000 upper bound and the linked integer
+`+0x138`. Its temporary idle flag is visible to that query and subsequently
+cleared. The record pointer is retained across the query while later record
+words and the current linked-object pointer are re-read. Integer output
+conversion uses normalization float `0x78aab4` (bits `0x3803126f`).
+
+Two-bank production uses absolute average delta, separate primary/secondary
+thresholds and tuning, and a curve sampled at control frequency `+0xf8`.
+Five ordered virtual gain queries contribute to the blend and three output
+gains. The first two queries retain the engine pointer saved before curve
+lookup; subsequent queries re-read the current pointer. Record pointers and
+individual words have different read boundaries across these calls. Its
+normalization float `0x78a6c8` (bits `0x38000100`) differs from the one-bank
+constant and is rounded to binary32 before the third query. Original wrapped
+integer subtraction, truncation order and asymmetric intermediate float
+stores in smoothing are preserved. Duration is passed/popped but unused by
+both gain routines.
+
+The fixtures alternate recovered auxiliary query bodies with scripted
+binary64 query returns that mutate engine/car pointers and tuning words.
+They observe the transient idle flag at query entry. Actual curve, average
+and pending-shift routines run in composition. Deterministic scenarios cover
+fixed/interpolated tuning, direct/smoothed output, accel/shift decisions and
+car `+0x54` threshold equality; standalone average cases include capacity zero
+and nonfinite values. In addition to independent fixtures, 64 successive
+control updates per x87 precision carry the compared arena forward while
+mode, RPM, throttle query value, shift/accel inputs and pending-shift state
+change. These are finite behavioral comparisons, not complete coverage or
+new byte-matching claims. Component producers/construction remain open, and
+integer gain fixtures are bounded to 0..32767.
+
+## Native playback controller wiring (2026-10-20)
+
+`NativeEngineSound` now owns persistent car/override/control/engine state.
+Each unpaused frame places the existing raw physics RPM input in control
+`+0xf8` and calls actual recovered `EngineSound::Update474310`. That caller
+selects actual `Update473E60` or `Update474030`; both mode-1 synthesizers now
+receive per-frame frequency updates. The recovered packed queries
+`0x45e390`/`0x45e3b0` execute through native ABI bridges. Symbol inspection
+confirms all three playback routines and both packed queries in `ug2demo`.
+A `# playback` log row records frame, mode, frequency feedback, both volumes,
+and both synthesizer target positions, alongside the existing RPM log.
+
+This wiring deliberately retains the previously documented native raw-RPM,
+constant full-level and centered-input seams. It does not call the newly
+recovered prepare/gain/outer-control routines with guessed component state.
+Original component initialization, auxiliary/shift/accel/physics producers,
+parameter registry/consumers and activation remain required for that next
+integration. The parameter pointer remains null; the caller returns after
+its playback controller. Manager/session ownership, bank view and cleanup
+remain native. This is not original game-audio equivalence.
+
+The native snd adapters accept the recovered controller's volume and unsigned
+Q12 pitch multiplier and apply them to SDL packet mixing. They preserve the
+existing 0.5 mix headroom and centered mono output. Pan/elevation, cutoff and
+effect values are retained without implementing a guessed pan vector,
+filter or effect algorithm. Slot validation still replaces the retail voice
+generation registry. These are explicit middleware backend seams, not
+recovered snd implementations; voice graphs, DSP and optional output callback
+consumers remain unverified. Setters are called inside the recovered
+controllers' device critical sections.
+
+Native build, audio-dispatch/bank-I/O tests and the new asset-free
+`audio_playback_native` test passed. The latter feeds a constant packet through
+actual SDL disk output and verifies full, zero and partial volume levels in
+the captured PCM. Native snd defaults still passed 256 byte-for-byte fixture
+pairs. A 600-frame SKYLINE smoke had 594 packet releases, zero underruns,
+RMS 6108.9 and pitch/RPM correlation 0.878. A 600-frame 350Z smoke had 970
+releases, zero underruns, RMS 11684.5 and correlation 0.537, passing the unchanged
+0.50 criterion. Its log contains 130 distinct primary and 111 secondary
+synthesizer target positions across 600 controller frames. These checks
+validate native playback integration only. The earlier 350Z failure remains
+recorded above; this single passing mixed-output run does not establish
+original accel/decel blending or robust pitch behavior across all cars.
+
+```sh
+cmake --build build/native
+ctest --test-dir build/native -R 'audio_playback_native|audio_dispatch_native|engine_bank_io_native' --output-on-failure
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/smoke_native_engine_audio.py --frames 600 --car SKYLINE
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/smoke_native_engine_audio.py --frames 600 --car 350Z
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_native_snd_helpers.py
+```
+
+Next input-producer lead (binary analysis, not recovered source): Physics
+component table `0x78a008` has update `0x484c50` in slot `+0x14`, constructor
+`0x45d210`, bind `0x45d4f0` and activation `0x45d370`. Its normal update reads
+owner gear `+0x434`, input throttle `+0x20c` and engine value `+0x440`, publishing
+car-state `+0x44`/`+0x48`/`+0x4c`/`+0x50`/`+0x54`. The `+0x48` value is
+normalized using component endpoints `+0x78`/`+0x7c`, multiplication by float
+`0x78c194` (9000), and addition of float `0x784550` (1000); it is not raw RPM.
+Car-state `+0x54` receives the percentage throttle input. The component also
+has mode/override and blown-engine notification branches, which cannot be
+silently omitted when recovering it. Auxiliary query producer `0x46f7d0`
+chooses among this state and shift/accel state, maintains an average and
+publishes `+0x128`/`+0x12c`; `0x45c710` produces `+0x130` through a separate
+average and offset. These findings locate the next integration work, and do
+not justify a raw-RPM/throttle stand-in for these original producers.
+
+Final source regression passed 16,000 original/rebuilt comparisons across
+62 targets (256 independent cases per target plus 128 carried control steps),
+zero failures. Query-time mutations additionally change primary/secondary
+integer gain words and auxiliary normalization words to check reads across
+virtual calls. All four previously matched packed/auxiliary query leaves
+retain their separately reported MSVC byte identity. The shared timed-average
+regression passed 6,030 comparisons after the header extension. All 21 gain
+mutants and four average-update mutants were rejected by state/call mismatches
+at 64 cases per selected target, with no survivors or compile-only rejections.
+The sequence failure-reporting path now wraps contextual errors correctly,
+and mutation survivors make the verifier exit unsuccessfully. Native override,
+missing-bank, overlong-filename and no-audio checks also passed at 30 frames.
+The full inventoried audio goal remains open.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets ControlPrepare,ControlOne,ControlTwo,ControlUpdate,EngineUpdate --cases 64 --mutation-checks --mutation-source gains
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets SampleAdvance,SampleFill,SampleRecalculate --cases 64 --mutation-checks --mutation-source sample_update
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_timed_average.py
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 256
+```

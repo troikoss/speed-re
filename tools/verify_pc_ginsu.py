@@ -42,6 +42,10 @@ SOURCE_DIR = 'src/Speed/Indep/Src/EAXSound/Ginsu'
 SOURCES = {'data': SOURCE_DIR + '/GinsuData.cpp', 'synth': SOURCE_DIR + '/GinsuSynth.cpp',
            'setup': SOURCE_DIR + '/EngineSoundSetup.cpp',
            'construction': SOURCE_DIR + '/EngineSoundConstruct.cpp',
+           'gains': SOURCE_DIR + '/EngineSoundControlGains.cpp',
+           'sample_update': 'src/Speed/Indep/Libs/bWare/SampleAverageUpdate.cpp',
+           'gain_curve': 'src/Speed/Indep/Src/Physics/PairCurveLookup.cpp',
+           'gain_shift': 'src/Speed/Indep/Src/Physics/DrivetrainClutchInput.cpp',
            'control': SOURCE_DIR + '/EngineSoundControl.cpp',
            'selection': SOURCE_DIR + '/EngineSoundSelection.cpp',
            'upgrade_queries': 'src/Speed/Indep/Src/Physics/PhysicsUpgradeQueries.cpp',
@@ -84,6 +88,14 @@ GIN_MAGIC = b'Gnsu2'
 # return kinds: 'al' (bool), 'eax' (int), 'st0' (float left in ST0), None. argument kinds: 'w' raw word,
 # 'p' pointer (identity: arena address or the stack), ('c', n) pointer whose n bytes are logged by value.
 ROUTINES = {
+    'ControlPrepare': (0x45d0a0, '?Prepare45D0A0@EngineSoundControl@', 0, None, 'arena', []),
+    'ControlOne': (0x4701a0, '?ModeOne4701A0@EngineSoundControl@', 4, None, 'arena', ['w']),
+    'ControlTwo': (0x470540, '?ModeTwo470540@EngineSoundControl@', 4, None, 'arena', ['w']),
+    'SampleAdvance': (0x576970, '?AdvanceSample@SampleAverage@', 4, None, 'arena', ['w']),
+    'SampleFill': (0x576a10, '?FillSamples@SampleAverage@', 4, None, 'arena', ['w']),
+    'SampleRecalculate': (0x576910, '?RecalculateSamples@SampleAverage@', 0, None, 'arena', []),
+    'GainCurveLookup': (0x576790, '?Lookup@DriveFeedbackCurve@', 4, 'st0', 'arena', ['w']),
+    'GainPendingShift': (0x5ecd70, '?HasPendingShift@MoverModeOwner@', 0, 'al', 'arena', []),
     'EngineDependency': (0x461490, '?Dependency461490@EngineSound@', 4, 'eax', 'arena', ['w']),
     'EngineAttach': (0x4614e0, '?Attach4614E0@EngineSound@', 4, None, 'arena', ['p']),
     'AuxFrequency': (0x45c530, '?Value45C530@EngineSoundAuxiliary@', 0, 'st0', 'arena', []),
@@ -143,9 +155,6 @@ ROUTINES = {
 # mode 'stub': an event with a scripted EAX (see RETURNS); 'retail': a pure leaf run as retail bytes on both sides.
 # 'f' is a function pointer, logged by the name of the routine it names on that side.
 SND = {
-    'ControlPrepare': (0x45d0a0, '?Prepare45D0A0@EngineSoundControl@', [], 'ControlPrepare', 'stub'),
-    'ControlOne': (0x4701a0, '?ModeOne4701A0@EngineSoundControl@', ['w'], 'ControlOne', 'stub'),
-    'ControlTwo': (0x470540, '?ModeTwo470540@EngineSoundControl@', ['w'], 'ControlTwo', 'stub'),
     'BankFileSize': (0x57d900, '?EngineBankFileSize57D900@', ['z'], 'BankFileSize', 'stub'),
     'BankRead': (0x57b4a0, '?EngineBankRead57B4A0@', ['p', 'z', 'w', 'w', 'f', 'p'], 'BankRead', 'stub'),
     'ParameterRegister': (0x7358c0, '?EngineParameterRegister7358C0@', ['p', ('c', 0x68), 'p'], 'ParameterRegister', 'stub'),
@@ -172,13 +181,13 @@ SND = {
     'SetAttr': (0x72423e, '?SND_attrsetdef@', ['p'], 'SND_attrsetdef', 'retail'),
     'SetPlay': (0x721a6b, '?SNDplaysetdef@', ['p'], 'SNDplaysetdef', 'retail'),
 }
-STUB = {'ControlPrepare': STUBS + 0x170, 'ControlOne': STUBS + 0x180, 'ControlTwo': STUBS + 0x190, 'BankFileSize': STUBS + 0x150, 'BankRead': STUBS + 0x160, 'ParameterRegister': STUBS + 0x130, 'ParameterBind': STUBS + 0x140, 'DispatchWait': STUBS + 0x110, 'DispatchRelease': STUBS + 0x120, 'VoiceVolume': STUBS + 0xa0, 'VoiceValue': STUBS + 0xb0, 'VoiceValue2': STUBS + 0xc0, 'VoiceValue3': STUBS + 0xd0, 'VoiceValue4': STUBS + 0xe0, 'VoiceValue5': STUBS + 0xf0, 'HeapAvailable': STUBS + 0x80, 'Malloc': STUBS + 0x90, 'Lock': STUBS, 'Unlock': STUBS + 0x10, 'Overhead': STUBS + 0x20, 'Create': STUBS + 0x30,
+STUB = {'BankFileSize': STUBS + 0x150, 'BankRead': STUBS + 0x160, 'ParameterRegister': STUBS + 0x130, 'ParameterBind': STUBS + 0x140, 'DispatchWait': STUBS + 0x110, 'DispatchRelease': STUBS + 0x120, 'VoiceVolume': STUBS + 0xa0, 'VoiceValue': STUBS + 0xb0, 'VoiceValue2': STUBS + 0xc0, 'VoiceValue3': STUBS + 0xd0, 'VoiceValue4': STUBS + 0xe0, 'VoiceValue5': STUBS + 0xf0, 'HeapAvailable': STUBS + 0x80, 'Malloc': STUBS + 0x90, 'Lock': STUBS, 'Unlock': STUBS + 0x10, 'Overhead': STUBS + 0x20, 'Create': STUBS + 0x30,
         'Start': STUBS + 0x40, 'Submit': STUBS + 0x50, 'Stop': STUBS + 0x60, 'Destroy': STUBS + 0x70}
 # Retail address of each pure leaf (its bytes run on both sides): SND_attrsetdef 0x72423e..0x72428b and
 # SNDplaysetdef 0x721a6b..0x721aae (both end in RET and call nothing).
 PURE_RANGES = ((0x75bed4, 0x75bf49), (0x72423e, 0x72428b), (0x721a6b, 0x721aae))
 # Retail globals read by the recovered code, by MSVC symbol prefix; __fltused is a null symbol.
-SHARED = {'?engineControlMinimum784550@': 0x784550, '?engineControlMaximum784500@': 0x784500, '?engineControlScale78A290@': 0x78a290, '?engineSoundPrimary7F0DE0@': 0x7f0de0, '?engineSoundSecondary7F1AA8@': 0x7f1aa8, '?engineSoundChoices7F2230@': 0x7f2230, '?engineBankRecords82B098@': 0x82b098, '?engineBankDirectory7ED164@': 0x7ed164, '?engineSoundConstructionValues82AF90@': 0x82af90, '?engineSoundConstructionValue7ED440@': 0x7ed440, '?engineParameterAllocator8B4F3C@': 0x8b4f3c,
+SHARED = {'?sampleAverageZero7D7D3C@': 0x7d7d3c, '?sampleAverageOne784250@': 0x784250, '?engineGainPrepareScale788620@': 0x788620, '?engineGainStep78861C@': 0x78861c, '?engineGainCutoffStep788624@': 0x788624, '?engineGainCutoffMaximum7885D8@': 0x7885d8, '?engineGainCarLimit7843E8@': 0x7843e8, '?engineGainOneScale78AAB4@': 0x78aab4, '?engineGainTwoScale78A6C8@': 0x78a6c8, '?engineGainNegativePercent784364@': 0x784364, '?engineGainPercent78425C@': 0x78425c, '?pairCurveEpsilon@': 0x787594, '?clutchEngagedThreshold@': 0x78a7dc, '?clutchReleasedThreshold@': 0x7844f4, '?engineControlMinimum784550@': 0x784550, '?engineControlMaximum784500@': 0x784500, '?engineControlScale78A290@': 0x78a290, '?engineSoundPrimary7F0DE0@': 0x7f0de0, '?engineSoundSecondary7F1AA8@': 0x7f1aa8, '?engineSoundChoices7F2230@': 0x7f2230, '?engineBankRecords82B098@': 0x82b098, '?engineBankDirectory7ED164@': 0x7ed164, '?engineSoundConstructionValues82AF90@': 0x82af90, '?engineSoundConstructionValue7ED440@': 0x7ed440, '?engineParameterAllocator8B4F3C@': 0x8b4f3c,
           '?engineParameterRegistry82C538@': 0x82c538, '?engineParameterDescriptor7EDE18@': 0x7ede18,
           '?engineParameterMode850078@': 0x850078, '___CxxFrameHandler': 0x75bfd2, '__except_list': 0, '?engineSoundMutex8B4F38@': 0x8b4f38, '?engineSoundValue82B070@': 0x82b070, '?engineSoundValue82B880@': 0x82b880,
           '?engineSoundScale78AF84@': 0x78af84, '?engineSoundScale78A1C8@': 0x78a1c8, '?audioEnabled7FAAA8@': 0x7faaa8, '?audioObject82BA30@': 0x82ba30, '?engineSoundValue82A998@': 0x82a998, '?engineSoundValue82B078@': 0x82b078,
@@ -191,11 +200,11 @@ SHARED = {'?engineControlMinimum784550@': 0x784550, '?engineControlMaximum784500
           '?ginsuStepTable7ED950@': 0x7ed950, '__fltused': 0}
 # Retail addresses of the E branch (fz1 == fz2) and of the SampleToCycle found path (0x466c2f).
 E_BRANCH_HOOK, FOUND_HOOK = 0x466e98, 0x466c2f
-TARGETS = ('EngineDependency', 'EngineAttach', 'AuxFrequency', 'AuxGain', 'ControlScale', 'ControlUpdate', 'CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
+TARGETS = ('ControlPrepare', 'ControlOne', 'ControlTwo', 'SampleAdvance', 'SampleFill', 'SampleRecalculate', 'GainCurveLookup', 'GainPendingShift', 'EngineDependency', 'EngineAttach', 'AuxFrequency', 'AuxGain', 'ControlScale', 'ControlUpdate', 'CarSoundSelect', 'CarSoundIndex', 'CarStateConstruct', 'UpgradeSelected', 'UpgradeLevel', 'EngineBankLoad', 'EngineStateBind', 'EngineBankPath', 'BankReadPrimary', 'BankReadSecondary', 'SoundBaseConstruct', 'EngineBaseConstruct', 'EngineConstruct', 'EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
            'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt',
            'PacketReleaseCallback', 'SynthesisConstruct', 'SynthesisDestruct', 'StartSynthesis')
 LIMITATIONS = [
-    'control update: prepare 0x45d0a0 and mode gain producers 0x4701a0/0x470540 are scripted boundaries, with callback writes testing later input reads; query +0x34 alternates actual float-field getter and scripted binary64 result; the actual conversion tail runs; this does not establish complete control production or native controller integration',
+    'control gains: prepare, ring updates/recalculation, pending-shift query, curve lookup and both gain producers execute recovered code; virtual +0x38 alternates recovered float getter and scripted binary64 values with pointer/tuning mutations; fixture gain words and engine normalization values stay within 0..32767; input-state/component producers, invalid pointers and native wiring remain open; two 64-step sequences carry ring/smoothing state under changing fixture inputs',
     'car sound selection: original constant tables are used on both sides; flags and upgrade levels are actual recovered queries, with the original CRT conversion helper; tested car types cover 0..30 and the default arm, not exhaustive 32-bit values; the source participant setup remains supplied by native race scaffolding',
     'bank loading: file size and queued reads are scripted; actual completion callbacks execute after return for a selected queue prefix; filesystem/queue implementation equivalence is not claimed; record indices 0..2 (including count aliasing record 0) and bank indices 0..1 are fixtures, not inferred valid bounds; filenames fit the original 64-byte local buffer',
     'engine initialization: normal returns and FS chain restoration are checked; exceptions/unwind are excluded; allocator and registry are scripted boundaries, allocation failure retains the original null dereference and is not exercised; the recovered setup and final dispatcher-value query execute in composition',
@@ -207,7 +216,7 @@ LIMITATIONS = [
     'the arena is compared byte for byte; the stack is compared through the events, the return values and the x87 image only',
     'the MSVC 7.1 build passes no /GS flag: this cl.exe reads /GS- as /GS (security cookies appear), and the default compile has none',
     'car sound creation: fixtures alternate scripted manager entries with composed lookup/enqueue bodies; sound-object context/bind queries remain scripted; pool creation, device setup and a composed car constructor remain outside this comparison; queue indexes are limited to 0..15',
-    'engine update: one quarter compose recovered dependency attachment, outer HybridMotor update, float queries and conversion tail before the actual engine caller/controllers; prepare and mode gain production remain scripted, while other fixtures retain direct control inputs; auxiliary query alternates binary64 scripted values and recovered float getter; native controller wiring remains open',
+    'engine update: one quarter compose recovered dependency attachment, outer HybridMotor update, float queries and conversion tail before the actual engine caller/controllers; prepare, both gain producers, average/curve and pending-shift query now run as recovered bodies, while other fixtures retain direct control inputs; auxiliary query alternates binary64 scripted values and recovered float getter; native controller wiring remains open',
     'engine controllers: virtual slots +0x38/+0x3c alternate recovered query bodies and scripted thiscall boundaries; snd setters are logged stubs, not middleware equivalence; the original CRT conversion helper 0x75bed4 runs on both sides',
     'engine setup: heap capacity and bMalloc are scripted boundaries; packet/synth allocation-failure cases use invalid gin magic and a successfully allocated or existing data object to avoid the original null dereference; failure of the data allocation is not exercised',
     'engine setup: the bank table producer remains a fixture; one quarter of setup/initialization fixtures prepend actual engine construction then the native adapter temporary car binding; table indexes 0 and 1 are tested without establishing the table bounds',
@@ -385,7 +394,7 @@ def fx_state(uc):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--compiler', choices=('msvc', 'clang-cl'), default='msvc')
-    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, construction, controller, caller, dispatch, values, initialize, lifecycle, audio, banks, bank_path, selection, upgrade_queries, control)')
+    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, construction, controller, caller, dispatch, values, initialize, lifecycle, audio, banks, bank_path, selection, upgrade_queries, control, gains, sample_update, gain_curve, gain_shift)')
     parser.add_argument('--clang-flag', action='append', default=[], help='extra clang option (via /clang:)')
     parser.add_argument('--cases', type=int, default=1024)
     parser.add_argument('--targets', default='', help='comma separated subset of targets')
@@ -504,10 +513,10 @@ def main():
             uc.mem_map(linked['address'], max(0x1000, linked['allocation']))
             for address, body in linked['blocks']: uc.mem_write(address, body)
             for key, address in STUB.items():
-                uc.mem_write(address, b'\xc2\x08\x00' if key == 'DispatchWait' else b'\xc2\x04\x00' if key in ('DispatchRelease', 'ParameterBind', 'ControlOne', 'ControlTwo') else b'\xc3')
+                uc.mem_write(address, b'\xc2\x08\x00' if key == 'DispatchWait' else b'\xc2\x04\x00' if key in ('DispatchRelease', 'ParameterBind') else b'\xc3')
         else:
             for key, spec in SND.items():
-                if spec[4] == 'stub': uc.mem_write(spec[0], b'\xc2\x08\x00' if key == 'DispatchWait' else b'\xc2\x04\x00' if key in ('DispatchRelease', 'ParameterBind', 'ControlOne', 'ControlTwo') else b'\xc3')
+                if spec[4] == 'stub': uc.mem_write(spec[0], b'\xc2\x08\x00' if key == 'DispatchWait' else b'\xc2\x04\x00' if key in ('DispatchRelease', 'ParameterBind') else b'\xc3')
 
         # Original WaitForSingleObject/ReleaseMutex IAT entries; both sides use
         # the same stdcall stand-ins and record the exact arguments.
@@ -531,7 +540,7 @@ def main():
             uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], name, spec[4], spec[5], labels[rebuilt]), begin=address, end=address)
         for key, spec in SND.items():
             address = rebuilt_entry[key] if rebuilt else spec[0]
-            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], spec[3], 'arena' if key in ('ParameterBind', 'ControlPrepare', 'ControlOne', 'ControlTwo') else None, spec[2], labels[rebuilt], returns, key, callback_writes),
+            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], spec[3], 'arena' if key == 'ParameterBind' else None, spec[2], labels[rebuilt], returns, key, callback_writes),
                         begin=address, end=address)
         def enqueue_bank_read(uc, address, size, user, rebuilt=rebuilt):
             esp = uc.reg_read(xc.UC_X86_REG_ESP)
@@ -541,9 +550,18 @@ def main():
         for key, address in VIRTUAL.items():
             uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], 'AllocatorFree' if key == 'ParameterFree' else key, None if key == 'ParameterCallback' else 'arena', [('c', 0x68), 'w'] if key == 'ParameterCallback' else ['w', ('c', 12)] if key == 'ParameterAllocate' else ['p', 'w'] if key == 'ParameterFree' else [] if key in ('SoundContext', 'AuxValue38') else ['p'] if key.startswith('Manager') or key == 'SoundBind' else ['w'], labels[rebuilt], returns, key, callback_writes),
                         begin=address, end=address)
+        def observe_gain(uc, address, size, user, rebuilt=rebuilt):
+            if observe_gains:
+                events[rebuilt].append(('gain-state', bytes(uc.mem_read(CONTROL + 0xc0, 1))))
+        for address in (VIRTUAL['AuxValue38'], rebuilt_entry['AuxGain'] if rebuilt else retail_entry['AuxGain']):
+            uc.hook_add(UC_HOOK_CODE, observe_gain, begin=address, end=address)
         if not rebuilt:
             def count(name, rebuilt=rebuilt):
                 return lambda uc, address, size, user: counters[rebuilt].__setitem__(name, counters[rebuilt].get(name, 0) + 1)
+            for address, label in ((0x470286,'gain-one-interpolate'), (0x470336,'gain-one-fixed'), (0x4702cc,'gain-one-idle-flag'),
+                                   (0x4703c2,'gain-one-smooth'), (0x470494,'gain-one-direct'), (0x470697,'gain-two-primary'),
+                                   (0x4706f6,'gain-two-secondary'), (0x470727,'gain-two-smooth'), (0x4707b1,'gain-two-direct')):
+                uc.hook_add(UC_HOOK_CODE, count(label), begin=address, end=address)
             uc.hook_add(UC_HOOK_CODE, count('E'), begin=E_BRANCH_HOOK, end=E_BRANCH_HOOK)
             uc.hook_add(UC_HOOK_CODE, count('found'), begin=FOUND_HOOK, end=FOUND_HOOK)
         machines[rebuilt] = uc
@@ -784,6 +802,101 @@ def main():
             pk(memory, context + 0x300 + index * 4, '<f', rng.choice((-100., -0.51, -0.5, 0., 0.49, 0.5, 1.5, 2.49, 2.5, 3., 3.5, 100.)))
         return context
 
+    def seed_gain_inputs(memory, trial, preserve=False):
+        owner, mover, drive = ARENA + 0x3a000, ARENA + 0x3a200, ARENA + 0x3a300
+        physics, shift, accel = ARENA + 0x3ba00, ARENA + 0x3bc00, ARENA + 0x3bd00
+        samples, pairs, average_vtable = ARENA + 0x3be00, ARENA + 0x3be40, ARENA + 0x3bf00
+        pk(memory, owner + 0x28, '<i', rng.choice((0, 1, 1, 2)))
+        pk(memory, owner + 0x34, '<I', mover)
+        pk(memory, mover + 0x4c, '<I', drive)
+        pk(memory, drive + 0x48, '<i', rng.choice((0, 0, -1, 1)))
+        pk(memory, physics + 0xd8, '<B', rng.choice((0, 0, 1)))
+        pk(memory, shift + 0x78, '<ii', rng.choice((-1, 0, 0, 1, 2, 3, 4, 5, 6, 7, 8)), rng.choice((0, 1, 2, 3)))
+        pk(memory, accel + 0xc8, '<i', rng.choice((-1, 0, 0, 1, 2)))
+        for car_index, car in enumerate((CAR, ARENA + 0x3b800)):
+            pk(memory, car + 0x30, '<I', owner)
+            pk(memory, car + 0x40, '<I', physics)
+            pk(memory, car + 0x48, '<f', rng.uniform(-100., 100.))
+            pk(memory, car + 0x4c, '<B', rng.choice((0, 1, 255)))
+            pk(memory, car + 0x54, '<f', rng.choice((0., 5., next_f32(5., False), next_f32(5., True), 10.)))
+            if not preserve or car_index: pk(memory, car + 0x78, '<i', rng.choice((0, 1)))
+            primary = ARENA + 0x3b500 + car_index * 0x100
+            secondary = primary + 0x80
+            pk(memory, car + 0x80, '<II', primary, secondary)
+            if not preserve: pk(memory, primary + 0x1c, '<ff', 6000., 1000.)
+            elif car_index:
+                memory[primary-ARENA+0x1c:primary-ARENA+0x24] = memory[0x3b51c:0x3b524]
+            pk(memory, primary + 0x24, '<iif', rng.randrange(32768), rng.randrange(32768), rng.choice((0.1, 1., 100., 1000.)))
+            for offset in (0x30,0x34,0x38,0x3c,0x40,0x44): pk(memory, primary + offset, '<f', rng.uniform(-1., 2.))
+            pk(memory, primary + 0x48, '<i', rng.randrange(24001))
+            pk(memory, secondary + 4, '<ii', rng.randrange(32768), rng.randrange(32768))
+            pk(memory, secondary + 0x1c, '<f', rng.choice((0.1, 1., 100., 1000.)))
+            for offset in (0x24,0x28,0x2c,0x30): pk(memory, secondary + offset, '<f', rng.uniform(-1., 2.))
+        # Ensure every branch family occurs before random callback mutations.
+        case_trial = trial // 4 if name == 'EngineUpdate' else trial
+        case = case_trial % 12
+        pk(memory, physics + 0xd8, '<B', 1 if case == 0 else 0)
+        pk(memory, owner + 0x28, '<i', 1 if case_trial % 2 or case == 5 else 2)
+        pk(memory, drive + 0x48, '<i', 1 if case == 5 or case_trial % 2 == 0 else 0)
+        pk(memory, shift + 0x78, '<ii', (0,0,0,0,0,2,3,5,7,7,4,-1)[case], 2 if case == 8 else 0)
+        pk(memory, accel + 0xc8, '<i', 1 if case == 3 else 2 if case == 4 else 0)
+        for car in (CAR, ARENA + 0x3b800):
+            pk(memory, car + 0x4c, '<B', 1 if case in (2,9) else 0)
+            pk(memory, car + 0x54, '<f', next_f32(5., True) if case == 2 else 5.)
+        pk(memory, CONTROL + 0x44, '<I', CAR)
+        pk(memory, CONTROL + 0x70, '<II', shift, accel)
+        for auxiliary in (AUXILIARY, ARENA + 0x3b000):
+            pk(memory, auxiliary, '<I', AUX_VTABLE)
+            pk(memory, auxiliary + 0xe0, '<i', rng.randrange(32768))
+            pk(memory, auxiliary + 0x12c, '<f', rng.uniform(0., 15000.))
+            pk(memory, auxiliary + 0x130, '<f', rng.uniform(0., 100.))
+            pk(memory, auxiliary + 0x138, '<i', rng.randrange(25001))
+            if not preserve:
+                pk(memory, auxiliary + 0xfc, '<f', rng.choice((0.,0.5,1.)))
+                pk(memory, auxiliary + 0x118, '<f', rng.choice((0.,0.5,1.)))
+                pk(memory, auxiliary + 0x128, '<f', rng.uniform(0.,15000.))
+        fixture_code_fields[AUX_VTABLE + 0x38] = 'AuxGain'
+        pk(memory, CONTROL + 0xc4, '<I', average_vtable)
+        fixture_code_fields[average_vtable + 4] = 'SampleRecalculate'
+        capacity = rng.randrange(1,6)
+        pk(memory, CONTROL + 0xc9, '<BBB', capacity, rng.randrange(capacity + 1), rng.randrange(capacity))
+        pk(memory, CONTROL + 0xcc, '<ffI', rng.uniform(-100.,100.), rng.uniform(-100.,100.), samples)
+        for i in range(5): pk(memory, samples+i*4, '<f', rng.uniform(-100.,100.))
+        pk(memory, CONTROL + 0xf4, '<f', rng.uniform(-100.,100.))
+        if not preserve:
+            pk(memory, CONTROL + 0x68, '<II', CAR, AUXILIARY)
+            pk(memory, CONTROL + 0xbc, '<f', rng.uniform(-1000.,25000.))
+            pk(memory, CONTROL + 0xf8, '<f', rng.uniform(0.,15000.))
+            pk(memory, CONTROL + 0xfc, '<ff', rng.uniform(-1.,2.),rng.uniform(-1.,2.))
+        pk(memory, CONTROL + 0x88, '<Ii', pairs, 5)
+        for i, coordinate in enumerate((-1000., 0., 1000., 5000., 20000.)):
+            pk(memory, pairs + 8*i, '<ff', coordinate, rng.uniform(0.,1.))
+        if name in ('ControlOne', 'ControlTwo', 'ControlUpdate', 'EngineUpdate'):
+            scripted = (case_trial // 12) % 2 == 0
+            if scripted:
+                fixture_code_fields.pop(AUX_VTABLE + 0x38, None)
+                pk(memory, AUX_VTABLE + 0x38, '<I', VIRTUAL['AuxValue38'])
+                prior = callback_writes.get('AuxValue38', {})
+                # A scripted RPM query at +0x34 occurs before gain queries.
+                prefix = [prior] if name == 'ControlUpdate' and trial % 2 == 0 else []
+                changes = []
+                for i in range(8):
+                    effect = {AUX_RESULT: struct.pack('<d', rng.choice((0., 0.01, 1., 50., 99.99, 100., rng.uniform(-10.,110.)))),
+                              CONTROL + 0x68: struct.pack('<I', rng.choice((CAR, ARENA + 0x3b800))),
+                              CONTROL + 0x6c: struct.pack('<I', rng.choice((AUXILIARY, ARENA + 0x3b000)))}
+                    for record in (ARENA+0x3b500, ARENA+0x3b600):
+                        effect[record + 0x24] = struct.pack('<ii', rng.randrange(32768), rng.randrange(32768))
+                        effect[record + 0x48] = struct.pack('<i', rng.randrange(24001))
+                        effect[record + 0x84] = struct.pack('<ii', rng.randrange(32768), rng.randrange(32768))
+                    for auxiliary in (AUXILIARY, ARENA+0x3b000):
+                        effect[auxiliary + 0xe0] = struct.pack('<i', rng.randrange(32768))
+                        effect[auxiliary + 0x138] = struct.pack('<i', rng.randrange(25001))
+                    changes.append(effect)
+                callback_writes['AuxValue38'] = prefix + changes
+                note('gain-queries-scripted')
+            else: note('gain-queries-recovered')
+        return owner
+
     for trial in range(args.cases):
         precision = rng.choice(PRECISIONS)
         gin = gins[rng.randrange(len(gins))]
@@ -796,8 +909,23 @@ def main():
             preconstruct = False
             preselect = False
             precontrol = False
+            observe_gains = name in ('ControlOne', 'ControlTwo', 'ControlUpdate', 'EngineUpdate')
             complete_reads = 0
-            if name == 'EngineDependency':
+            if name in ('ControlPrepare', 'ControlOne', 'ControlTwo', 'SampleAdvance', 'SampleFill', 'SampleRecalculate', 'GainCurveLookup', 'GainPendingShift'):
+                owner = seed_gain_inputs(memory, trial)
+                if name == 'ControlPrepare': words, this = [], CONTROL
+                elif name in ('ControlOne', 'ControlTwo'): words, this = [fw(rng.uniform(0.,1.))], CONTROL
+                elif name in ('SampleAdvance','SampleFill'): words, this = [fw(rng.choice((0., -0., float('inf'), -float('inf'), float('nan'), rng.uniform(-100.,100.))))], CONTROL + 0xc4
+                elif name == 'SampleRecalculate': words, this = [], CONTROL + 0xc4
+                elif name == 'GainCurveLookup':
+                    pk(memory, CONTROL + 0x8c, '<i', rng.choice((-1,0,1,2,3,4,5)))
+                    words, this = [fw(rng.choice((-1000., 0., 1000., 5000., 20000., float('nan'), rng.uniform(-2000.,25000.))))], CONTROL + 0x88
+                else: words, this = [], owner
+                if name in ('SampleAdvance','SampleFill','SampleRecalculate'):
+                    if trial % 7 == 0: pk(memory, CONTROL + 0xc9, '<BBB', 0, 0, 0)
+                    if trial % 5 == 0: pk(memory, CONTROL + 0xcc, '<f', rng.choice((float('nan'), float('inf'), -float('inf'))))
+                    if trial % 3 == 0: pk(memory, CONTROL + 0xd4, '<I', CONTROL + 0xd8)
+            elif name == 'EngineDependency':
                 words, this = [rng.choice((-1, 0, 1, 2, 3, 4, 0x80000000, rng.getrandbits(32))) & 0xffffffff], SETUP
             elif name == 'EngineAttach':
                 pk(memory, AUXILIARY, '<I', AUX_VTABLE)
@@ -840,12 +968,7 @@ def main():
                         pk(memory, AUX_RESULT, '<d', query)
                         callback_writes['AuxValue38'] = {CONTROL + 0x68: struct.pack('<I', rng.choice((CAR, car2)))}
                         note('control-query-scripted')
-                    callback_writes['ControlPrepare'] = {CONTROL + 0x68: struct.pack('<I', rng.choice((CAR, car2))), CONTROL + 0x6c: struct.pack('<I', rng.choice((AUXILIARY, aux2)))}
-                    for key in ('ControlOne', 'ControlTwo'):
-                        changes = {CONTROL + 0x6c: struct.pack('<I', rng.choice((AUXILIARY, aux2)))}
-                        for offset in (0xb8, 0x7c, 0x80, 0x84):
-                            changes[CONTROL + offset] = struct.pack('<i', rng.randrange(-2**31, 2**31))
-                        callback_writes[key] = changes
+                    seed_gain_inputs(memory, trial, preserve=True)
                     words = [fw(rng.choice((-1., -0., 0., 1/60., 1., 100.)))]
             elif name == 'CarSoundSelect':
                 context = seed_selection(memory, trial)
@@ -1070,8 +1193,7 @@ def main():
                     pk(memory, AUXILIARY + 0x130, '<f', rng.uniform(0., 100.))
                     fixture_code_fields[AUX_VTABLE + 0x34] = 'AuxFrequency'
                     fixture_code_fields[AUX_VTABLE + 0x38] = 'AuxGain'
-                    for key in ('ControlOne', 'ControlTwo'):
-                        callback_writes[key] = {CONTROL + offset: struct.pack('<i', rng.randrange(32768)) for offset in (0xb8, 0x7c, 0x80, 0x84)}
+                    seed_gain_inputs(memory, trial, preserve=True)
                     note('engine-control-composed')
                 composed_values = trial % 2 == 1 or precontrol
                 if composed_values:
@@ -1333,6 +1455,8 @@ def main():
                 else:
                     chosen = [key for key in ('ManagerAC', 'ManagerB0', 'ManagerB4') if key in names]
                     note('create-called-' + (chosen[0] if chosen else 'none'))
+            for label, count_value in a['counters'].items():
+                if label.startswith('gain-'): paths[label] = paths.get(label, 0) + count_value
             if name == 'ControlUpdate':
                 note('control-mode-one' if 'ControlOne' in names else 'control-mode-two')
             if name == 'CarSoundSelect':
@@ -1390,6 +1514,56 @@ def main():
                 record_failure(name, trial, precision, error)
                 continue
             counts[name] += 1
+    # Carry matching object/ring state forward through mode/shift changes.
+    # Every step is compared before its state becomes the next input.
+    sequence_steps = 0
+    if 'ControlUpdate' in selected:
+        name = 'ControlUpdate'
+        for precision in PRECISIONS:
+            memory = random_memory()
+            fixture_globals.clear(); fixture_code_fields.clear(); callback_writes.clear(); returns.clear()
+            preconstruct = preselect = precontrol = False
+            complete_reads = 0; observe_gains = True
+            seed_gain_inputs(memory, 0)
+            callback_writes.clear()
+            fixture_code_fields[AUX_VTABLE + 0x34] = 'AuxFrequency'
+            fixture_code_fields[AUX_VTABLE + 0x38] = 'AuxGain'
+            pk(memory, CONTROL + 0x58, '<B', 1)
+            pk(memory, CONTROL + 0x5c, '<f', 0.)
+            pk(memory, CONTROL + 0xf4, '<f', 0.)
+            pk(memory, CONTROL + 0xc9, '<BBB', 4, 0, 0)
+            pk(memory, CONTROL + 0xcc, '<ff', 0., 0.)
+            for i in range(5): pk(memory, ARENA + 0x3be00 + i*4, '<f', 0.)
+            pk(memory, AUXILIARY + 0xe0, '<i', 32767)
+            pk(memory, AUXILIARY + 0xfc, '<f', 1.)
+            pk(memory, AUXILIARY + 0x118, '<f', 1.)
+            pk(memory, AUXILIARY + 0x138, '<i', 20000)
+            previous = 0.
+            for frame in range(64):
+                pk(memory, CAR + 0x48, '<f', (frame % 11 - 5) * 3.25)
+                pk(memory, CAR + 0x78, '<i', (frame // 8) % 2)
+                pk(memory, CAR + 0x4c, '<B', (frame // 4) % 2)
+                pk(memory, CAR + 0x54, '<f', 0. if frame % 3 else 10.)
+                pk(memory, ARENA + 0x3ba00 + 0xd8, '<B', frame % 7 == 0)
+                pk(memory, ARENA + 0x3bc00 + 0x78, '<ii', (0,2,3,5,7,4)[(frame // 4) % 6], 2 if frame % 5 == 0 else 0)
+                pk(memory, ARENA + 0x3bd00 + 0xc8, '<i', (frame // 3) % 3)
+                pk(memory, ARENA + 0x3a000 + 0x28, '<i', 1)
+                pk(memory, ARENA + 0x3a300 + 0x48, '<i', frame % 5 == 0)
+                current = 850. + (frame % 17) * 500.
+                pk(memory, AUXILIARY + 0x128, '<fff', current, previous, (0.,25.,100.,75.)[(frame // 4) % 4])
+                previous = current
+                attempts[name] += 1
+                try:
+                    a, b = run(name, memory, [fw(1/60.)], precision, CONTROL)
+                    check(name, precision, a, b)
+                except AssertionError as error:
+                    record_failure(name, frame, precision, AssertionError(('state or call order mismatch', 'gain sequence', error)))
+                    break
+                counts[name] += 1
+                sequence_steps += 1
+                memory = bytearray(a['arena'])
+        paths['control-sequence-steps'] = sequence_steps
+
     report_counts = dict(counts)
     total = sum(counts.values())
     failed_counts = {name: sum(1 for f in failures if f[0] == name) for name in selected}
@@ -1414,7 +1588,36 @@ def main():
         def control_mutation(before, after):
             assert before in control_source, before
             return ('control', control_source, control_source.replace(before, after))
+        gain_source = (ROOT / SOURCES['gains']).read_text()
+        def gain_mutation(before, after):
+            assert before in gain_source, before
+            return ('gains', gain_source, gain_source.replace(before, after))
         mutations = {
+            'gain-prepare-delta': gain_mutation('engine6C->value128 - engine6C->value12C', 'engine6C->value12C - engine6C->value128'),
+            'gain-prepare-fill': gain_mutation('averageC4.FillSamples(', 'averageC4.AdvanceSample('),
+            'gain-prepare-recalculate': gain_mutation('    static_cast<EngineAverageVtable *>(averageC4.vtable0)->recalculate4(&averageC4);', ''),
+            'gain-prepare-shift': gain_mutation('value70->value78 == 5', 'value70->value78 == 4'),
+            'gain-one-threshold': gain_mutation('car68->value54 > engineGainCarLimit7843E8', 'car68->value54 >= engineGainCarLimit7843E8'),
+            'gain-one-idle-flag': gain_mutation('        flagC0 = 1;', ''),
+            'gain-one-fixed': gain_mutation('targetFirst = record->value40;', 'targetFirst = record->value44;'),
+            'gain-direct-selection': gain_mutation('if (value74->valueC8 == 1) smooth = false;', 'if (value74->valueC8 == 1) smooth = true;'),
+            'gain-cutoff-cap': gain_mutation('if ((double)engine->value138 < cutoffValue)', 'if ((double)engine->value138 > cutoffValue)'),
+            'gain-smoothing-step': gain_mutation('engineGainStep78861C', 'ginsuOne784250'),
+            'gain-one-normalization': gain_mutation('engineGainOneScale78AAB4', 'engineGainTwoScale78A6C8'),
+            'gain-one-record': gain_mutation('value7C = (int)(((double)car->value80->value24 * value100) * factor);', 'value7C = (int)(((double)car->value80->value28 * value100) * factor);'),
+            'gain-two-absolute': gain_mutation('fabs((double)averageC4.averageC)', '(double)averageC4.averageC'),
+            'gain-two-secondary-threshold': gain_mutation('car->value84->value1C', 'car->value80->value2C'),
+            'gain-two-curve': gain_mutation('volatile float curve = curve88.Lookup(frequencyF8);', 'volatile float curve = 0.0f;'),
+            'gain-two-repeat-query': gain_mutation('const double secondGain = savedEngine->vtable0->value38(savedEngine);', 'const double secondGain = firstGain;'),
+            'gain-two-base-difference': gain_mutation('(unsigned int)primaryRecord->value24 - (unsigned int)secondaryBase', '(unsigned int)primaryRecord->value24 + (unsigned int)secondaryBase'),
+            'gain-two-blend': gain_mutation('(ginsuOne784250 - blend) + blend * value100', 'blend * value100'),
+            'gain-two-normalization': gain_mutation('engineGainTwoScale78A6C8', 'engineGainOneScale78AAB4'),
+            'gain-two-volume-percent': gain_mutation('value80 = (int)((((gain * primaryRecord->value28) * factor) * valueFC) * engineGainPercent78425C);', 'value80 = (int)(((gain * primaryRecord->value28) * factor) * valueFC);'),
+            'gain-two-complement': gain_mutation('ginsuOne784250 - gain * engineGainPercent78425C', 'gain * engineGainPercent78425C'),
+            'average-subtract-old': ('sample_update', 'sum8 = sum8 - *sample;', 'sum8 = sum8 + *sample;'),
+            'average-ring-wrap': ('sample_update', 'next7 >= capacity5', 'next7 > capacity5'),
+            'average-fill-index': ('sample_update', '    count6 = capacity5;', '    next7 = 0;\n    count6 = capacity5;'),
+            'average-recalculate-zero': ('sample_update', 'sum8 = sum8 * sampleAverageZero7D7D3C;', 'sum8 = 0.0f;'),
             'control-dependency-range': control_mutation('index > 3u', 'index > 2u'),
             'control-descriptor-shift': control_mutation('descriptor >> 4', 'descriptor >> 5'),
             'control-attach-slot': control_mutation('controlC0 = reinterpret_cast<EngineSoundControl *>(component)', 'auxiliaryB8 = reinterpret_cast<EngineSoundAuxiliary *>(component)'),
@@ -1631,7 +1834,7 @@ def main():
                                          total=len(mutations))
     (BUILD / 'verification.json').write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps({k: v for k, v in report.items() if k != 'fingerprints'}, indent=2))
-    if failures or report.get('mutation_checks', {}).get('rejected_without_mismatch_text'):
+    if failures or report.get('mutation_checks', {}).get('rejected_without_mismatch_text') or report.get('mutation_checks', {}).get('survived'):
         sys.exit(1)
 
 

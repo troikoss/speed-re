@@ -162,6 +162,22 @@ def main():
     print('Spearman correlation of pitch with rpm: %.3f' % rho)
 
     failures = []
+    playback = [line.split()[2:] for line in log_path.read_text().splitlines()
+                if line.startswith('# playback ')]
+    if not playback:
+        failures.append('no recovered playback-controller frame records')
+    else:
+        modes = {int(row[1]) for row in playback}
+        primary_targets = {int(row[5]) for row in playback}
+        secondary_targets = {int(row[6]) for row in playback}
+        print('playback controller: %d frames, modes %s, %d primary / %d secondary targets'
+              % (len(playback), sorted(modes), len(primary_targets), len(secondary_targets)))
+        if len(primary_targets) < 2:
+            failures.append('primary playback target never changes')
+        if 1 in modes and len(secondary_targets) < 2:
+            failures.append('secondary playback target never changes in two-bank mode')
+        if any(not (0 <= int(row[3]) <= 127 and 0 <= int(row[4]) <= 127) for row in playback):
+            failures.append('playback volume outside the controller bounds')
     if overall_rms <= RMS_THRESHOLD:
         failures.append('output is silent (RMS %.1f <= %.1f)' % (overall_rms, RMS_THRESHOLD))
     if releases is None or releases == 0:

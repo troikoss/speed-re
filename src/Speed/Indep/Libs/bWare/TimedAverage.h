@@ -18,6 +18,9 @@ struct SampleAverage {
 
     SampleAverage *Construct(int capacity); // 0x579f20
     void Destroy(); // 0x5768e0
+    void AdvanceSample(float value); // 0x576970
+    void FillSamples(float value); // 0x576a10
+    void RecalculateSamples(); // 0x576910
 };
 
 struct TimedAverage : SampleAverage {
