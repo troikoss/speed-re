@@ -258,30 +258,19 @@ void DrawWheel(DrivetrainWheel *wheel) {
 // orientation, and the wheel frames written by 0x5921b0.
 void DrawCarModel(NativeCarModel *model, NativeVehicle *vehicle) {
     MoverBody *body = vehicle->mover->body20;
-    CarPhysicsRecord *record = vehicle->mover->record54;
     DrivetrainAuxiliary *state = vehicle->owner->State();
     float frame[16];
     memcpy(frame, body->matrixD0.elements, sizeof(frame));
     frame[12] = state->origin10.x;
     frame[13] = state->origin10.y;
     frame[14] = state->origin10.z;
-    // Recovered original 0x5f6820, as called by 0x631250/0x6316d0 with view 0: car-local tyre and
-    // brake frames. Platform seam: the unrecovered draw 0x620ae0 combines them with the body
-    // frame (done in NativeCarModel::Draw) and places the wheels sideways itself: it zeroes the
-    // frames' y translation (0x627462) and builds per-wheel y-scale matrices from render-info
-    // +0x420 (0x6271c5). Scaffold: keep the record's y and mirror the positive-y wheels, because
-    // the stock wheel solid's outer face and normals point -y (mirroring the other side shows the
-    // rim's back). The tyre is then centred on the wheel plane in NativeCarModel::Draw as a
-    // stand-in for the unrecovered lateral offset of 0x620ae0.
-    WheelMatrix tires[4], brakes[4];
+    // Recovered 0x5f6820 (car-local tyre and brake frames) and 0x5ec7f0 (third set), view 0, as called by
+    // 0x631250/0x6316d0. The recovered wheel block 0x62700e..0x62df66 composes them with the body frame
+    // in NativeCarModel::Draw.
+    WheelMatrix tires[4], brakes[4], third[4];
     vehicle->owner->GetWheelRenderMatrices(tires, brakes, 0);
-    float wheels[4][16], spins[4][16];
-    bool mirrored[4];
-    for (int i = 0; i < 4; ++i) {
-        memcpy(spins[i], tires[i].elements, sizeof(spins[i]));
-        memcpy(wheels[i], brakes[i].elements, sizeof(wheels[i]));
-        mirrored[i] = record->wheels10[i].position0.y > 0.0f;
-    }
+    vehicle->owner->GetWheelSpinMatrices(third, 0);
+    model->SetCarTypeRow(vehicle->carTypeRow);
     GLfloat light[4] = {0.35f, 0.25f, 0.9f, 0.0f};
     // Scaffold lighting roughly matching the night-time baked colours of the track.
     GLfloat ambient[4] = {0.22f, 0.22f, 0.27f, 1.0f};
@@ -296,11 +285,11 @@ void DrawCarModel(NativeCarModel *model, NativeVehicle *vehicle) {
     glEnable(GL_NORMALIZE);
     glEnable(GL_ALPHA_TEST);
     glAlphaFunc(GL_GREATER, 0.02f);
-    model->Draw(frame, wheels, spins, mirrored, false);
+    model->Draw(frame, tires, brakes, third, false);
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_FALSE);
-    model->Draw(frame, wheels, spins, mirrored, true);
+    model->Draw(frame, tires, brakes, third, true);
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
     glDisable(GL_ALPHA_TEST);

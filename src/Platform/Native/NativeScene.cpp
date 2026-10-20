@@ -1,6 +1,8 @@
 // Platform scaffolding: OpenGL drawing of UG2's own car assets.
 #include "NativeScene.h"
 
+#include "../../Speed/Indep/Src/World/CarRenderWheels.h"
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -184,7 +186,6 @@ bool NativeCarModel::Load(const char *gameDirectory, const char *carName, Native
         return false;
     }
     wheel_.solid = wheel;
-    wheelCentreY_ = (wheel->minimum[1] + wheel->maximum[1]) * 0.5f;
     wheel_.opaqueList = Build(*wheel, false);
     wheel_.translucentList = Build(*wheel, true);
     frontBrake_.solid = front;
@@ -193,43 +194,39 @@ bool NativeCarModel::Load(const char *gameDirectory, const char *carName, Native
     frontBrake_.translucentList = front ? Build(*front, true) : 0;
     rearBrake_.opaqueList = rear ? Build(*rear, false) : 0;
     rearBrake_.translucentList = rear ? Build(*rear, true) : 0;
+
+    // Recovered CarRenderInfo for the wheel block. The solids are the stock KIT00 solids: the tyre
+    // solid for all four wheels (no separate rear wheel in the demo), the brake solids per axle. The
+    // car object has no rim parts (the 0x61fe10 flags and the SPINNEROFFSET records stay zero) and its
+    // gate byte +0x855 is set. Every view slot maps to the same solids.
+    wheelInfo_ = new CarRenderWheelInfo;
+    memset(wheelInfo_, 0, sizeof(*wheelInfo_));
+    carObject_ = new unsigned char[0x1000];
+    memset(carObject_, 0, 0x1000);
+    carObject_[0x855] = 1;
+    wheelInfo_->carObject = carObject_;
+    for (int slot = 0; slot < 4; ++slot) {
+        wheelInfo_->solid1B48[0][slot] = reinterpret_cast<CarRenderSolid *>(&wheel_);
+        wheelInfo_->solid1B48[1][slot] = reinterpret_cast<CarRenderSolid *>(&frontBrake_);
+        wheelInfo_->solid1B68[0][slot] = reinterpret_cast<CarRenderSolid *>(&wheel_);
+        wheelInfo_->solid1B68[1][slot] = reinterpret_cast<CarRenderSolid *>(&rearBrake_);
+    }
+    wheelInfo_->wheelPresent2D78 = 1;
+    wheelInfo_->wheelPresent2D98 = 1;
+    wheelInfo_->wheelPresent2DB8 = 1;
+    wheelInfo_->wheelPresent2DD8 = 1;
     return true;
 }
 
-void NativeCarModel::Draw(const float *body, const float wheels[4][16], const float spins[4][16],
-                          const bool mirrored[4], bool translucent) {
+void NativeCarModel::Draw(const float *body, WheelMatrix tires[4], WheelMatrix brakes[4], WheelMatrix third[4],
+                          bool translucent) {
     glPushMatrix();
     glMultMatrixf(body);
     for (size_t i = 0; i < body_.size(); ++i) glCallList(translucent ? body_[i].translucentList : body_[i].opaqueList);
     glPopMatrix();
-    for (int w = 0; w < 4; ++w) {
-        const NativeDrawSolid &brake = w < 2 ? frontBrake_ : rearBrake_;
-        GLuint lists[2] = {translucent ? wheel_.translucentList : wheel_.opaqueList,
-                           translucent ? brake.translucentList : brake.opaqueList};
-        const float *frames[2] = {spins[w], wheels[w]};
-        for (int k = 0; k < 2; ++k) {
-            if (!lists[k]) continue;
-            glPushMatrix();
-            // Platform seam standing in for the unrecovered draw 0x620ae0: the wheel frames are
-            // car-local (0x5f6820), so the car body frame is applied first.
-            glMultMatrixf(body);
-            glMultMatrixf(frames[k]);
-            if (mirrored[w]) {
-                glScalef(1.0f, -1.0f, 1.0f);
-                glFrontFace(GL_CW);
-            }
-            // Scaffold standing in for the lateral offset of 0x620ae0 (0x6271c5..0x62738d,
-            // render-info +0x420/+0x430/+0x434, not recovered): the tyre solid spans local y
-            // [-0.017, 0.234] with its outer face at y~0, so the recovered wheel plane would put
-            // the face on the plane and the hub-centred brake would poke through the rim. Centre
-            // the tyre width on the plane instead (after the mirror, so both sides match).
-            // The tyre radius (model 0.354 vs spec 0.327) is not scaled.
-            if (k == 0) glTranslatef(0.0f, -wheelCentreY_, 0.0f);
-            glCallList(lists[k]);
-            glFrontFace(GL_CCW);
-            glPopMatrix();
-        }
-    }
+    // Wheels, brakes and the third-set solids: the recovered wheel block composes the car-local frames
+    // with the body frame and draws through the seams in NativeCarWheels.cpp.
+    if (wheelInfo_) NativeRunCarWheelBlock(wheelInfo_, carTypeRow_, body, tires, brakes, third, translucent);
 }
 
 GLuint NativeTrackModel::Build(const NativeSolid &solid, int pass) {

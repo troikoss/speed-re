@@ -39,6 +39,8 @@ struct NativeVehicle {
     char carName[32];
     // Platform asset seam: CarTypeInfo +0x720 camera table.
     CameraSettingsTable cameraSettings;
+    // Platform asset seam: this car's 0x890-byte CarTypeInfo row (ri+8 of the wheel layout 0x61fe10).
+    const unsigned char *carTypeRow;
 };
 
 struct NativeSkidSegment {

@@ -27,21 +27,31 @@ private:
     std::map<unsigned int, Entry> uploaded_;
 };
 
+struct WheelMatrix;
+struct CarRenderWheelInfo;
+
 struct NativeDrawSolid {
     const NativeSolid *solid;
     GLuint opaqueList;
     GLuint translucentList;
 };
 
+// Runs the recovered wheel layout 0x61fe10 and the wheel block 0x62700e..0x62df66 on the render info `ri`.
+// Solids are drawn through the platform seams in NativeCarWheels.cpp (with the GL list of each solid).
+void NativeRunCarWheelBlock(CarRenderWheelInfo *ri, const unsigned char *carTypeRow, const float *body,
+                            WheelMatrix tires[4], WheelMatrix brakes[4], WheelMatrix third[4], bool translucent);
+
 class NativeCarModel {
 public:
     bool Load(const char *gameDirectory, const char *carName, NativeTextureCache *textures, char *error,
               int errorSize);
-    // `body` is the column-major render matrix of the car origin; `wheels` the four car-local
-    // brake frames and `spins` the four car-local tyre frames (0x5f6820 outputs), composed with
-    // `body` here.
-    void Draw(const float *body, const float wheels[4][16], const float spins[4][16], const bool mirrored[4],
+    // `body` is the column-major render matrix of the car origin (the body frame of the wheel block).
+    // `tires`, `brakes` and `third` are the car-local frames of 0x5f6820 (arg5, arg6) and 0x5ec7f0 (arg7);
+    // the recovered wheel block 0x62700e..0x62df66 (CarWheelDraw) composes them with `body` and draws.
+    void Draw(const float *body, WheelMatrix tires[4], WheelMatrix brakes[4], WheelMatrix third[4],
               bool translucent);
+    // Platform seam: CarTypeInfo row of the car (ri+8 for 0x61fe10).
+    void SetCarTypeRow(const unsigned char *row) { carTypeRow_ = row; }
     int SolidCount() const { return (int)solids_.size(); }
     int TexturedParts() const { return texturedParts_; }
     int Parts() const { return parts_; }
@@ -52,7 +62,9 @@ private:
     std::vector<NativeSolid> solids_;
     std::vector<NativeDrawSolid> body_;
     NativeDrawSolid wheel_;
-    float wheelCentreY_ = 0.0f;  // scaffold: tyre solid's mid y, see Draw
+    CarRenderWheelInfo *wheelInfo_ = 0;   // recovered CarRenderInfo of the wheel block (ri)
+    unsigned char *carObject_ = 0;        // ri+4 car object: gate byte, no rim parts
+    const unsigned char *carTypeRow_ = 0;
     NativeDrawSolid frontBrake_;
     NativeDrawSolid rearBrake_;
     std::map<unsigned int, unsigned int> replacements_;

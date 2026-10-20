@@ -270,24 +270,91 @@ used-texture setup `0x631e20`, resolved with lights off and no damage: `WINDOW_*
 `<CAR>_KIT00_BRAKELIGHT_OFF`, `BRAKELIGHT_CENTRE` → `<CAR>_CENTRE_BRAKELIGHT_OFF`. Scaffold
 choices: windows bind GLOBALB's `WINDOW`; the paint/vinyl layers (`<CAR>_SKIN1` and the
 unnamed body-panel and skirt keys `0x3c84d757`/`0xa7366ae6`) are drawn in a fixed colour;
-lighting is fixed-function OpenGL. The wheel model is drawn at the car-local
-frames returned by the recovered `MoverModeOwner::GetWheelRenderMatrices` (`0x5f6820`, view 0;
-frames written by `0x5921b0`), as the render callers `0x631250`/`0x6316d0` obtain them. Platform
-seam standing in for the unrecovered draw `0x620ae0`: `NativeCarModel::Draw` composes each frame
-with the car body frame (`matrixD0` with `origin10`) and mirrors the wheels whose record position y
-is positive (glScale -1 on y): the stock tyre solid (`<CAR>_KIT00_FRONT_WHEEL_A`, SKYLINE bounds
-y [-0.017, 0.234], x/z radius 0.354) has its outer face (sidewall and the rim disc, which is only a
-texture) at local y~0 with normals toward -y and the tread running to +0.224, so mirroring the
-other side drew the back of the rim. As a stand-in for the lateral offset of `0x620ae0`, the tyre
-(not the brake, which is hub-centred) is translated by minus the mid of its y bounds so its width
-is centred on the wheel plane; the brake then sits behind the rim face. The model radius (0.354)
-is not scaled to the physics spec radius (0.327). The original side handling is inside `0x620ae0` and not
-recovered: it zeroes the y translation of the tyre, brake and spin frames (`0x627462`..`0x627481`)
-and builds per-wheel matrices whose y scale comes from render-info `+0x420[w]`
-(`0x6271c5`..`0x62738d`). The spin-matrix getter `0x5ec7f0`
-(`GetWheelSpinMatrices`) is recovered but not drawn. The procedural fallback `DrawWheel` (no model
-loaded) still composes `DrivetrainWheel` `matrix30`/`matrix70` natively. The wheels still do not match the original. The remaining native wheel seams are listed in
+lighting is fixed-function OpenGL. The wheels, brakes and the third-set solids are drawn by the recovered wheel block
+(`CarWheelDraw`, original `0x62700e`..`0x62df66` of the car draw `0x620ae0`; see
+[car wheel block](#car-wheel-block-recovered)). `DrawCarModel` passes the car-local frames of
+`MoverModeOwner::GetWheelRenderMatrices` (`0x5f6820`, tyres and brakes) and
+`GetWheelSpinMatrices` (`0x5ec7f0`, third set), view 0, and `NativeCarModel::Draw` passes the body frame
+(`matrixD0` with `origin10`) as the block's body matrix. The old mirror (`glScalef(1,-1,1)`), the
+centring translation and the `mirrored[]` choice are gone. The fallback `DrawWheel` (no model
+loaded) still composes `DrivetrainWheel` `matrix30`/`matrix70` natively.
+
+## Car wheel block (recovered)
+
+Recovered in `src/Speed/Indep/Src/World/CarRenderWheels.cpp` (routines `CarRenderWheelLayout` = `0x61fe10`,
+`CarWheelDraw` = `0x62700e`..`0x62df66`, with the generated chain stages). Verifier:
+`tools/verify_pc_wheel_draw.py` with `config/SPEED2_EXE_1_2/wheel-draw.json`. Behaviour and byte matching are
+reported separately: the verifier compares the callee event sequence and the arena bytes of the original and of the
+MSVC 7.1 build run in Unicorn; byte identity of the compiled code is not claimed.
+
+Per block (wheel `w`, E = tyre or third frame of wheel `w`, spun by a rotation about x when the 16-bit spin term is set
+for wheels 0 and 1; `set0`, `set1`, `set3` are the block's per-wheel frames; `BODY` is the body matrix):
+
+| Block | Wheel | Frame | Product chain | Solid (native) | World matrix | Extra record | Flags |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | 0 | tyre | `set0[0] x R180`, `x E`, `x set1[0]`, `x BODY` | front tyre (`ri+0x1b48`) | `A1+0x00` | `A3+0x000` | `[+0xcc]\|[+0x1ac]\|arg8` |
+| 2 | 0 | brake | `set0[0] x R180`, `x E`, `x set3[0]`, `x BODY` | front brake (`ri+0x1b58`) | `A2+0x00` | `A4+0x000` | `[+0x1ac]\|arg8` |
+| 3 | 1 | tyre | `set0[1] x E`, `x set1[1]`, `x BODY` (no R180) | front tyre | `A1+0x40` | `A3+0x1c0` | `[+0xcc]\|[+0x1ac]\|arg8` |
+| 4 | 1 | brake | `set0[1] x E`, `x set3[1]`, `x BODY` | front brake | `A2+0x40` | `A4+0x1c0` | `[+0x1ac]\|arg8` |
+| 5 | 2 | tyre | `set0[2] x E`, `x set1[2]`, `x BODY` | rear tyre (`ri+0x1b68`; `ri+0x1b6c` on the LOD path) | `A1+0x80` | `A3+0x380` | `[+0xcc]\|[+0x1ac]\|arg8` |
+| 6 | 2 | brake | `set0[2] x E`, `x set3[2]`, `x BODY` | rear brake (`ri+0x1b78`) | `A2+0x80` | `A4+0x380` | `[+0x1ac]\|arg8` |
+| 7 | 3 | tyre | `set0[3] x R180`, `x E`, `x set1[3]`, `x BODY` | rear tyre (`ri+0x1b68`; `ri+0x1b6c` on the LOD path, as block 5) | `A1+0xc0` | `A3+0x540` | `[+0xcc]\|[+0x1ac]\|arg8` |
+| 8 | 3 | brake | `set0[3] x R180`, `x E`, `x set3[3]`, `x BODY` | rear brake (`ri+0x1b78`) | `A2+0xc0` | `A4+0x540` | `[+0x1ac]\|arg8` |
+
+`A1`..`A4` are the four allocations of the block, in this order: `UG2WheelAllocMatrices(4)` twice (`A1` tyre worlds,
+`A2` brake worlds) and `UG2WheelAllocRecords(0x700)` twice (`A3` tyre records, `A4` brake records). A block runs when its
+wheel's presence byte (`ri+0x2d78/0x2d98/0x2db8/0x2dd8`) is set and, when the owner pointer `ri+0x000` is set, the owner's
+byte `+0x3f4+w` is non-zero (`WheelPresence`). Brake blocks also need the spinner (`ri+0x1b58` non-null). Each draw needs a
+non-null solid. The summation order of each element differs between blocks, so the stage routines `WheelChainBlock1`..
+`WheelChainBlock8` in `CarRenderWheels.cpp` were transcribed per block from the instruction stream by a generator that is
+not part of the repository. Blocks 2, 4, 6 and 8 use the `set3` frames: element 13 of `set3` is the brake-side translation.
+
+The block's native seams are listed in
 [the replacement inventory](NATIVE_REPLACEMENT_INVENTORY.md#car-wheel-rendering-seams).
+
+### Verification (wheel block)
+
+- `build/venv/bin/python tools/verify_pc_wheel_draw.py --mutation-checks`, with `UG2_DIR` set to the game directory (or
+  `UG2_EXE` to the executable). The executable's SHA-256 is checked against `config/SPEED2_EXE_1_2/wheel-draw.json`.
+  Results in `build/analysis/wheel-draw/verification.json`: 512 layout cases (`0x61fe10`, real `0x60fef0` lookup) and
+  2048 block cases (`0x62700e`..`0x62df66`), with 28869 compared callee events (`Alloc4` 3062, `Alloc700` 3062, `D3DX`
+  3320, `SetSlot` 5460, `Visible` 6804, `DrawSolid` 4963, `Fn60d700` 1586, `Fn620600` 612), the four set frames compared
+  with the original frame cells, and the whole arena.
+  Case coverage: 899 with non-zero spin bytes for views 0 and 1 (spin pre-rotation), 324 with LOD gate 6 at view clamp 0
+  (the rear LOD substitution is reachable; it applies when the `Fn60d700` result is below the threshold), and 352 with
+  LOD gate 3 (the tail, views 0 to 2).
+- Mutation checks: 12 of 12 wrong variants rejected. Each variant runs 128 block cases and 64 layout cases and must fail
+  with the "state or call order mismatch" message: `tyre-flag-cc-dropped`, `spin-sign-wheel1`,
+  `spin-translation-not-restored`, `stage-result-rounding`, `lod-threshold-direction`, `tail-gate-value`,
+  `rear-brake-solid`, `brake-zero-element`, `pivot-column`, `block1-copy-source`, `solid-link-key`, `layout-rear-flag`.
+- Limitations reported by the verifier: random and special values only (exhaustive float coverage is not established);
+  the LOD gate, threshold and width globals are fixture values, not game runtime values; the body matrix (`EBX`) is an
+  explicit input; the spin values produced by the image constants are only 0, 637 and 1274; byte identity of the
+  compiled code is not established.
+- Behaviour (native, visual check only): `build/native/ug2demo --game "$UG2_DIR" --car SKYLINE --frames 60 --orbit 90
+  --screenshot build/wheels_orbit90.ppm`, converted to PNG. The tyres sit in the arches and the brake discs show inside
+  the rims. This is not a pixel comparison, and the spin is zero in the demo.
+
+### Remaining seams and limitations
+
+- `DrawSolid` (`0x5c5930`): the native seam draws the solid's GL list with the world matrix. It ignores the flags, the
+  extra record and the zero argument, and does not set `glFrontFace` for the R180 wheels (GL backend seam).
+- Visibility `0x48f660` (native: visible; the block ignores its result), LOD helpers `0x60d700`/`0x620600` (the demo
+  gate is 0, so neither is called), solid slots `0x48d860` (no slot tables; the link values `ri+0x390`/`0x3ac` are zero
+  in the demo), rim-part records `0x60fef0` (none in the demo; the `SPINNEROFFSET` offsets stay zero).
+- The spin term reads the car's sub-object bytes `+0x353`/`+0x354` (`0x59a420`). The demo has no such state, so the
+  spin is zero and the tyres do not turn. The layout inputs of the wheel block `ri+0x400..0x43c` come from `CarTypeInfo`
+  and the parts. The caller inputs of `0x620ae0` are not recovered: the demo passes slot index 0 (frame `+0xd8`), view
+  clamp 0 (frame `+0xf4`), flags `+0xcc` and `+0x1ac` of 0, and `arg8` 0x401.
+- Widths `ri+0x430`/`ri+0x434` (the `MARKER_BRAKE` values, see the replacement inventory) are zero in the demo. They only
+  feed `set2`, which no draw reads, so they do not change the drawn wheels.
+- Constants of the image are checked by the verifier (`IMAGE_CONSTANTS`). The LOD gate and threshold globals
+  (`0x8654a4`, `0x8a1c5c`) and the width overrides (`0x7a668c`, `0x7a6690`) are fixture values in the verifier. The demo
+  sets the gate, the threshold and the overrides to 0, and the one and beta runtime values (`0x784250`, `0x8026c4`) to
+  1.0 and 0.184.
+- Intermediate float values are kept at the original precision (53-bit or 64-bit, both checked by the verifier). The
+  native build uses x87 without `-ffloat-store`, so its intermediate precision follows the compiler and may differ in the
+  last bit.
 
 ## Drive camera and HUD (fifth pass)
 

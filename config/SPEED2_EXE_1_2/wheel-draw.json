@@ -1,0 +1,106 @@
+{
+  "executable": "speed2.exe (PC v1.2)",
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "scope": "Wheel placement 0x61fe10 and wheel block 0x62700e..0x62df66 of the car draw 0x620ae0",
+  "functions": {
+    "CarRenderWheelLayout": {
+      "address": "0x61fe10",
+      "size": 296,
+      "sha256": "b0cccdf10302e62085c1fafbfb04dc023f9368ba5c0a93f24897611905b30d50"
+    },
+    "CarWheelDraw": {
+      "address": "0x62700e",
+      "size": 28504,
+      "sha256": "8b5a37bc96413be3d9d9c0a89bbe9f0856c4fdadba599609b083c6ac732b44eb"
+    },
+    "SpinTerm59a420": {
+      "address": "0x59a420",
+      "size": 40,
+      "sha256": "309022777a2f85420a8b2555ed274f975e759ee0503e8e01bc100c2571ce7366"
+    },
+    "DrawSolid5c5930": {
+      "address": "0x5c5930",
+      "size": 694,
+      "sha256": "97ea3070360ad5626a5b26887c7e9781fa246264d50e26644c700001d41d1f03"
+    },
+    "Visible48f660": {
+      "address": "0x48f660",
+      "size": 49,
+      "sha256": "6b02f1ba4129df221cada242c8cac87c4712bdab676a427d0bb4d507ed6ff2b9"
+    },
+    "SetSlot48d860": {
+      "address": "0x48d860",
+      "size": 48,
+      "sha256": "6c6385f5ab2c90910ca93e027bfe001c728f1156dc1742ca770050ac91d82c4e"
+    },
+    "Fn60d700": {
+      "address": "0x60d700",
+      "size": 227,
+      "sha256": "8b77cacdb0707542cf1297ebfb5e2682a761f1c4d4b1835de80ffaa9d2b2eb8c"
+    },
+    "Fn620600": {
+      "address": "0x620600",
+      "size": 1246,
+      "sha256": "b0e451d17efb32ca8c8d94fe3e0e494ce7f9e42c08ea00dcfa40d46a64f26edd"
+    },
+    "Alloc401e80": {
+      "address": "0x401e80",
+      "size": 69,
+      "sha256": "b92e43bcabc20db7c9c27e3be451c42064750bc1bc230e3209888bfd142da73f"
+    },
+    "Alloc401e30": {
+      "address": "0x401e30",
+      "size": 80,
+      "sha256": "31cf6bf4e962c2e641dca444de21b0d1cafaf2c80b909466be1e29e66381c0f2"
+    },
+    "PartFind60fef0": {
+      "address": "0x60fef0",
+      "size": 129,
+      "sha256": "28e22739bde9f008daa9f6b3ac6dc0241127d1ed1b66038bc859e6c4c9936aa8"
+    },
+    "BodyMatrixCopy4012b0": {
+      "address": "0x4012b0",
+      "size": 138,
+      "sha256": "788d7c12fd4ca91a8187e390be060b48e9160de82d666ed1c0edfa11dbe5ec76"
+    },
+    "RotateMatrixX5bacf0": {
+      "address": "0x5bacf0",
+      "size": 174,
+      "sha256": "4329db0d57b3bef2b85f70695d9fc7b0a2a4b6e35465d65bce08471b47daf2c4"
+    },
+    "RotateMatrixZ5bae60": {
+      "address": "0x5bae60",
+      "size": 47,
+      "sha256": "31765ed2b6cb0e5e579d6612656cc20b25d48000c106e44bfe5b4839af46c3b2"
+    },
+    "RotateMatrixY5bada0": {
+      "address": "0x5bada0",
+      "size": 176,
+      "sha256": "a771d87769b3873729e97ea9fa19ab35fc832d460dc921c125ba8aaeb276f61f"
+    },
+    "bStringHash43db50": {
+      "address": "0x43db50",
+      "size": 32,
+      "sha256": "951c69e8b10372ae1bb86d5d0c47e42e4c63846ecfa1834c8478e8ebb2c1d580"
+    },
+    "sin16_43c2b0": {
+      "address": "0x43c2b0",
+      "size": 149,
+      "sha256": "28aa1379fa075563ecd392b072ae7a25b675a3a6bad682807a215137f3fb22a1"
+    },
+    "cos16_43c370": {
+      "address": "0x43c370",
+      "size": 13,
+      "sha256": "a9fbb648871a6b280f896107327368091100abcc7abaf3cd8b79e1672099b602"
+    }
+  },
+  "stubs_unrecovered": [
+    "DrawSolid5c5930",
+    "Visible48f660",
+    "SetSlot48d860",
+    "Fn60d700",
+    "Fn620600",
+    "Alloc401e80",
+    "Alloc401e30"
+  ]
+}

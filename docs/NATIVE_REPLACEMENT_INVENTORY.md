@@ -30,7 +30,7 @@ recorded in the section tables below.
 | # | Item | Diff. | Imp. |
 | --- | --- | --- | --- |
 | 1 | Collision: ~~GJK `0x5b3390`, impulse `0x5af0e0`~~ (verified 2026-10-19; one GJK fix), ~~cylinders `0x5a23d0`/`0x5a2780`~~ (recovered 2026-10-19), ~~world objects `0x5b31f0`/`0x5b1390`/`0x5adb20`/`0x5add50`/`0x48bc50`~~ (recovered 2026-10-19; slot `0x8c` and the creation function remain seams) | 3–4 | 4 |
-| 2 | Car wheel draw `0x620ae0` wheel block: placement, side scale, width (see [wheel seams](#car-wheel-rendering-seams)); getters `0x5f6820`/`0x5ec7f0` done | 4 | 4 |
+| 2 | Car wheel draw: wheel block `0x62700e`..`0x62df66` of `0x620ae0` recovered (`CarRenderWheels.cpp`, verified 2026-10-20 by `verify_pc_wheel_draw.py`); layout `0x61fe10` recovered. Open: seams `0x5c5930` (GL state), `0x48f660`/`0x60d700`/`0x620600` (visibility and LOD gates), `0x48d860` (solid slots), `0x60fef0` (rim records), the car spin sub-object `+0x353`/`+0x354` and the caller's `k`/view clamp (see [wheel seams](#car-wheel-rendering-seams)) | 3 | 4 |
 | 3 | Camera seams: ~~pushes~~, ~~cockpit tests `0x445fc0`/`0x5f14f0`~~ (recovered 2026-10-19), ~~shake `0x572a50`/`0x452ed0`, finalisation `0x447280`~~ (recovered 2026-10-19), ~~collision shake `0x572e50`~~ with the view shake states `0x572810`/`0x5728c0`/`0x5729e0` (recovered 2026-10-19), ~~chase frame branch of `0x445e00`~~ (recovered 2026-10-19 with the heading follower steering `0x445c20`); item 3 is done | 2–3 | 3 |
 | 4 | CarTypeInfo/tuning chunk loaders | 3 | 3 |
 | 5 | HUD feature construction and mask caller | 3 | 3 |
@@ -117,7 +117,7 @@ recorded in the section tables below.
 | No depth sorting of blended draws | `NativeScene.cpp` | Original draw ordering | 4 | 2 | |
 | Fixed paint colour for SKIN1; no vinyls, damage or light switching | `NativeScene.cpp:114–140` | Skin builder, `0x638190`, `0x631e20` | 4 | 2 | Details and the other body seams: [car body rendering seams](#car-body-rendering-seams). |
 | Scaffold lighting and horizon colour | `DemoMain.cpp:266`, `:673` | Time-of-day/fog colour selection | 4 | 2 | |
-| ~~Wheel render frames composed natively from `DrivetrainWheel` `matrix30`×`matrix70`~~ (done) | `DemoMain.cpp` `DrawCarModel` | `0x5f6820` (recovered, wired in), `0x5ec7f0` (recovered, not drawn) | — | — | Remaining seam: unrecovered draw `0x620ae0` (body-frame composition and positive-y mirroring in `NativeCarModel::Draw`; the original zeroes frame y and scales from render-info `+0x420`). Fallback `DrawWheel` unchanged. Remaining seams: [car wheel rendering seams](#car-wheel-rendering-seams). |
+| ~~Wheel render frames composed natively from `DrivetrainWheel` `matrix30`×`matrix70`~~ (done); wheel block recovered 2026-10-20 | `DemoMain.cpp` `DrawCarModel`, `NativeCarModel::Draw` | `0x5f6820`, `0x5ec7f0` (recovered and verified), `0x61fe10` and `0x62700e`..`0x62df66` (recovered and verified) | — | — | Remaining seams: [car wheel rendering seams](#car-wheel-rendering-seams). Fallback `DrawWheel` unchanged. |
 
 ### Car body rendering seams
 
@@ -149,28 +149,30 @@ repeated here. Addresses are call-graph leads, not verified boundaries.
 
 ### Car wheel rendering seams
 
-Snapshot 2026-10-19. The wheels still do not look right in the demo: they sit too low in the
-arches in both the old and new frame paths, and only the side choice of the mirroring was
-corrected visually. The getters `0x5f6820`/`0x5ec7f0` are recovered and verified
-(`verify_pc_wheel_render.py`). Everything after them is native. The original chain is the
-render callers `0x631250`/`0x6316d0`, which call `0x5f6820` (tyres, brakes) and `0x5ec7f0` (a third
-set) and pass them with the body matrix (car `+0x5a0` or `+0x50`) and car `+0x560`/`+0xd0` to the
-car draw `0x620ae0` (66 KB, not recovered; Ghidra's decompiler times out on it). Addresses below
-are disassembly leads, not verified boundaries.
+Snapshot 2026-10-20. The wheel block of the car draw is recovered: `CarRenderWheelLayout` (`0x61fe10`) and
+`CarWheelDraw` (`0x62700e`..`0x62df66`, the setup of the per-wheel sets, the spin pre-rotation, the solid links, the
+eight draws and the LOD tail) in `src/Speed/Indep/Src/World/CarRenderWheels.cpp`, verified by
+`tools/verify_pc_wheel_draw.py` (2048 block cases, 512 layout cases, mutation checks). The getters `0x5f6820` and
+`0x5ec7f0` are recovered and verified by `verify_pc_wheel_render.py`. The callers `0x631250`/`0x6316d0` pass the
+tyre, brake and third frames and the body matrix to `0x620ae0`; the demo calls the block the same way
+(`DrawCarModel` -> `NativeCarModel::Draw` -> `NativeRunCarWheelBlock`). The block's chain per wheel is in
+[the demo document](NATIVE_DEMO.md#car-wheel-block-recovered).
 
 | Native piece | Where | Replace with | Diff. | Imp. | Notes |
 | --- | --- | --- | --- | --- | --- |
-| Body-frame composition: each car-local frame is multiplied under the body frame (`matrixD0` with `origin10`) | `NativeScene.cpp` `NativeCarModel::Draw` | `0x620ae0` wheel block (`0x62710d`..`0x6274b4` and the draws after it); `0x4012b0` is called 32 times there | 4 | 4 | The parent frame the original uses (its body argument versus `+0x560`/`+0xd0`) is not established. |
-| Lateral placement and side: the record's wheel y is kept, and positive-y wheels are mirrored with `glScalef(1,-1,1)` | `DemoMain.cpp` `DrawCarModel`, `NativeCarModel::Draw` | `0x620ae0`: zeroes element 13 (y translation) of the tyre, brake and third-set frames (`0x627462`..`0x627481`), then builds four per-wheel matrix sets on the stack (`+0x200`, `+0x3d0`, `+0x4d0`, `+0x5d0`, stride 0x40) | 4 | 4 | Element 5 (y scale) = width × render-info `+0x420[w]` (falls back to `[0x8026c4]` when zero); element 13 = −(lateral offset); the front wheels (offset < 0x80) also subtract an offset from elements 14 of three sets (`0x627432`..`0x62745b`). Measured on SKYLINE: the tyre solid's outer face/normals point -y (y [-0.017, 0.234], radius 0.354), hence the mirror; the scaffold also translates the tyre by minus its mid y (brake unchanged) to centre it on the wheel plane. The tyre radius is not scaled to the spec radius 0.327. The stock `FRONT_WHEEL_A` is a hollow tyre: no rim solid is drawn, so the brake shows through the centre. Lead for the original brake placement: `0x638190` reads `+0x430`/`+0x434` from the `MARKER_BRAKE` marker (string `0x7a8d14`, field `+0x44`) of the wheel models; in SKYLINE GEOMETRY.BIN that marker (chunk `0x0013401a`) has y translation 0.0974. |
-| Wheel width/size scaling absent (model drawn at authored size) | `NativeCarModel::Draw` | `0x620ae0` `0x62700e`..`0x627086`: front/rear widths from render-info `+0x430`/`+0x434` unless the globals `0x7a668c`/`0x7a6690` are non-zero | 3 | 4 | `+0x430`/`+0x434` are written by the CarRenderInfo constructor `0x638190` at `0x6390ef`/`0x639102` from field `+0x44` of the solids at render-info `+0x1b48`/`+0x1b68`. A likely cause of the low or oversized look. |
-| Spin angle / extra rotation computed in the draw | — | `0x620ae0` `0x6270a2`..`0x627102`: `0x59a420` on car `+0x10`, scaled by `0x7a6754`/`0x784238`, `0x75bed4`, reduced with the 0xb60b60b7 reciprocal (divide by 360) | 3 | 2 | Purpose unproven; not applied natively. |
-| Third frame set `0x5ec7f0` not drawn | `DemoMain.cpp` | `0x620ae0` argument 7 (`[ebp+0x20]`) | 2 | 2 | Recovered (`GetWheelSpinMatrices`); its role in the draw is unknown. |
-| Wheel/brake solid selection: `<CAR>_KIT00_FRONT_WHEEL_A` for all four wheels, `FRONT_BRAKE_A`/`REAR_BRAKE_A` by axle, always LOD A | `NativeScene.cpp` `NativeCarModel::Load` | CarRenderInfo `0x638190` model slots `+0x1b48`/`+0x1b68` (wheel), `+0x1b78`, `+0x1ba8` (brake loop at `0x626f80` via `0x48d860`, `0x5c5930`) | 3 | 3 | Rear wheel and rim/kit choices are not original; no LOD selection. |
-| Solid draw and render state: GL display lists, no culling, `glFrontFace` toggled for mirrored wheels, fixed-function lighting | `NativeScene.cpp` | Solid draw `0x5c5930` (8 calls in the wheel block), `0x48f660`, `0x620600`, `0x60d700`; D3D path (`0x5c7ea0`, `0x5c5020`) | 5 | 3 | GL stays the backend. The culling and lighting decisions should follow the original states. |
-| View flag: `0x5f6820` is called with view 0, so the rest-pose branch (`value5B0` bit) is never chosen per view | `DemoMain.cpp` | View index from the callers `0x631250`/`0x6316d0` (`param_1 + 4`) | 1 | 1 | |
-| Procedural fallback `DrawWheel` composes `DrivetrainWheel` `matrix30`×`matrix70` when no car model loads | `DemoMain.cpp` | None (pure scaffold) | — | 1 | Keep, or remove once model loading is reliable. |
+| Solid draw `0x5c5930` (eight calls in the block) | `NativeCarWheels.cpp` `CarRenderView::DrawSolid` | Draw of the solid's native list with the world matrix (opaque or translucent pass) | 5 | 3 | Flags, extra record and the zero argument are ignored. `glFrontFace` is not changed for the R180 wheels (GL backend seam). |
+| Visibility/LOD test `0x48f660` (eight calls) | `NativeCarWheels.cpp` `UG2WheelVisible` | Native visibility; the block ignores the result | 2 | 2 | Demo never culls wheels. |
+| LOD helpers `0x60d700` (float result) and `0x620600` (secondary draw) | `NativeCarWheels.cpp` | Used only under LOD gates 6 and 3 | 3 | 2 | The demo sets the gate to 0, so neither is called; the gate is an image global (`0x8654a4`). |
+| Solid slot table `0x48d860` (`SetSlot`) | `NativeCarWheels.cpp` `CarRenderSolid::SetSlot` | Solid slot table with keys `0x22719fa9`, `0xfd102a92`, `0x12049251` | 3 | 2 | No-op in the demo; the link values `ri+0x390`/`0x3ac` are zero there. The slot semantics are unproven. |
+| Rim part records `0x60fef0` (`SPINNEROFFSET`) | `NativeCarWheels.cpp` `CarRenderPart::FindRecord` | Rim part records from the car's parts | 3 | 2 | Returns none in the demo, so `ri+0x438` stays zero. Recovered `0x61fe10` is verified against the original lookup. |
+| Spin term `0x59a420` on car `+0x10` | `CarRenderWheels.cpp` `SpinTerm` (recovered); car data not native | Car sub-object bytes `+0x353`/`+0x354` from the native car state | 3 | 2 | The demo sets both to zero, so the tyres do not turn. The 16-bit spin (`[esp+0xc8]`) is zero for views above 1. |
+| Allocations `0x401e80` (matrices) and `0x401e30` (records) | `NativeCarWheels.cpp` | Scratch storage per block | 1 | 1 | Two allocations of each kind in the block's order. |
+| Caller inputs of the block: view clamp, slot `k` (`[esp+0xd8]`), flags `[esp+0xcc]`/`[esp+0x1ac]`, arg8 `0x401`, body pool block `EBX` | `NativeCarWheels.cpp` `NativeRunCarWheelBlock` | The callers `0x631250`/`0x6316d0` and the prologue of `0x620ae0` | 4 | 3 | Set to view 0, clamp 0, `k` 0, flags 0 and `0x401` in the demo. `EBX` is the body frame. These values come from the caller and are not recovered. |
+| Widths `ri+0x430`/`ri+0x434` (`MARKER_BRAKE`) | `NativeCarWheels.cpp` (zero) | Constructor `0x638190` values from the marker `+0x44` of the brake solids | 2 | 1 | Only feed `set2`, which no draw reads; no visible effect. |
+| Solid choice: `<CAR>_KIT00_FRONT_WHEEL_A` for all four wheels; `FRONT_BRAKE_A`/`REAR_BRAKE_A` by axle, always LOD A | `NativeScene.cpp` `NativeCarModel::Load` | CarRenderInfo `0x638190` slots `ri+0x1b48`, `ri+0x1b58` (brake loop), `ri+0x1b68`, `ri+0x1b78`, `ri+0x1b6c` (LOD substitute) | 3 | 3 | Rear wheel mesh and kit choices are not original; no LOD selection. |
+| Wheel/brake mirroring (`glScalef(1,-1,1)`), centring translation and `glFrontFace` toggling | removed | Recovered sets and R180 (wheels 0 and 3) in the block | — | — | Removed in favour of the recovered frames; the screenshots show the tyres in the arches. |
+| Procedural fallback `DrawWheel` composes `DrivetrainWheel` `matrix30`×`matrix70` when no car model loads | `DemoMain.cpp` | None (pure scaffold) | — | 1 | Kept as the fallback. |
 | Mod bridge exports `matrix30`/`matrix70` | `NativeModBridge.cpp` | — | — | — | Outside recovery scope; not a render seam. |
-
 ## 7. FEng engine (shared by HUD and menus)
 
 | Native piece | Where | Replace with | Diff. | Imp. | Notes |

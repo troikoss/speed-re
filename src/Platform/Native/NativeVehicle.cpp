@@ -674,6 +674,7 @@ bool CreateNativeVehicle(NativeVehicle *vehicle, const char *gameDirectory, cons
     if (!LoadCarTypeInfo(gameDirectory, carName, &vehicle->cameraSettings, &carIndex, carTypeName, error, errorSize)) {
         return false;
     }
+    vehicle->carTypeRow = carTypeInfoTable + carIndex * 0x890;
     // The car constructor creates the CarCollisionBody (0x5aec20) from the car's collision
     // hull (CARS/<car>/GEOMETRY.BIN chunk 0x80034020).
     if (!LoadCarHulls(gameDirectory, carName, carTypeName, error, errorSize)) {

@@ -53,7 +53,7 @@ target_link_libraries(ug2sim -Wl,--start-group ug2native ug2recovered -Wl,--end-
 target_link_options(ug2sim PRIVATE ${UG2_LINK_FLAGS})
 
 add_executable(ug2demo src/Platform/Native/DemoMain.cpp src/Platform/Native/NativeAssets.cpp
-    src/Platform/Native/NativeScene.cpp src/Platform/Native/NativeFng.cpp src/Platform/Native/NativeHud.cpp
+    src/Platform/Native/NativeScene.cpp src/Platform/Native/NativeCarWheels.cpp src/Platform/Native/NativeFng.cpp src/Platform/Native/NativeHud.cpp
     src/Platform/Native/NativeFormatting.cpp
     src/Platform/Native/NativePause.cpp src/Platform/Native/NativePauseOptions.cpp src/Platform/Native/NativeControls.cpp)
 target_compile_options(ug2demo PRIVATE ${UG2_ARCH_FLAGS} -O2 -Wall -D_REENTRANT
