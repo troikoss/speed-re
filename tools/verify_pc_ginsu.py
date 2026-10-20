@@ -44,6 +44,9 @@ SOURCES = {'data': SOURCE_DIR + '/GinsuData.cpp', 'synth': SOURCE_DIR + '/GinsuS
            'controller': SOURCE_DIR + '/EngineSoundController.cpp',
            'caller': SOURCE_DIR + '/EngineSoundUpdate.cpp',
            'dispatch': SOURCE_DIR + '/ParameterDispatch.cpp',
+           'values': SOURCE_DIR + '/EngineSoundValues.cpp',
+           'initialize': SOURCE_DIR + '/EngineSoundInitialize.cpp',
+           'lifecycle': SOURCE_DIR + '/ParameterLifecycle.cpp',
            'audio': 'src/Speed/Indep/Src/Audio/AudioSystem.cpp'}
 SEED = 0x47494e53
 IMAGE_BASE = 0x400000
@@ -61,7 +64,8 @@ STOP, FXAREA, STUBS = 0x2120000, 0x2121000, 0x2122000
 VIRTUAL = {'Gain38': STUBS + 0x200, 'Value3C': STUBS + 0x210,
            'ManagerAC': STUBS + 0x220, 'ManagerB0': STUBS + 0x230, 'ManagerB4': STUBS + 0x240,
            'SoundBind': STUBS + 0x250, 'SoundContext': STUBS + 0x260, 'AuxValue38': STUBS + 0x270,
-           'ParameterCallback': STUBS + 0x280}
+           'ParameterCallback': STUBS + 0x280,
+           'ParameterAllocate': STUBS + 0x290, 'ParameterFree': STUBS + 0x2a0}
 FXSAVE_AT_STOP = b'\x0f\xae\x05' + struct.pack('<I', FXAREA)
 PRECISIONS = (0x027f, 0x037f)
 PRESERVED = (xc.UC_X86_REG_EBX, xc.UC_X86_REG_ESI, xc.UC_X86_REG_EDI, xc.UC_X86_REG_EBP)
@@ -74,6 +78,14 @@ GIN_MAGIC = b'Gnsu2'
 # return kinds: 'al' (bool), 'eax' (int), 'st0' (float left in ST0), None. argument kinds: 'w' raw word,
 # 'p' pointer (identity: arena address or the stack), ('c', n) pointer whose n bytes are logged by value.
 ROUTINES = {
+    'EngineGain': (0x45e390, '?Value45E390@EngineSound@', 4, 'eax', 'arena', ['w']),
+    'EngineValue': (0x45e3b0, '?Value45E3B0@EngineSound@', 4, 'eax', 'arena', ['w']),
+    'EngineInitialize': (0x47d920, '?Initialize47D920@EngineSound@', 0, None, 'arena', []),
+    'ParameterGetAllocator': (0x734df0, '?EngineParameterGetAllocator734DF0@', 0, 'eax', None, ['p']),
+    'ParameterLock': (0x734e40, '?EngineParameterLock734E40@', 0, 'eax', None, []),
+    'ParameterUnlock': (0x734e60, '?EngineParameterUnlock734E60@', 0, 'eax', None, []),
+    'ParameterFree': (0x458160, '?EngineParameterFree458160@', 0, None, None, ['p']),
+    'ParameterValue': (0x735070, '?Value735070@EngineParameterDispatcher@', 4, 'eax', 'arena', ['p']),
     'ParameterDispatch': (0x735580, '?Dispatch735580@EngineParameterDispatcher@', 4, 'eax', 'arena', [('c', 0x68)]),
     'EngineUpdate': (0x474310, '?Update474310@EngineSound@', 0, None, 'arena', []),
     'ManagerFind': (0x463cc0, '?FindCarSound463CC0@AudioCarSoundManager@', 4, 'eax', 'arena', ['p']),
@@ -106,6 +118,8 @@ ROUTINES = {
 # mode 'stub': an event with a scripted EAX (see RETURNS); 'retail': a pure leaf run as retail bytes on both sides.
 # 'f' is a function pointer, logged by the name of the routine it names on that side.
 SND = {
+    'ParameterRegister': (0x7358c0, '?EngineParameterRegister7358C0@', ['p', ('c', 0x68), 'p'], 'ParameterRegister', 'stub'),
+    'ParameterBind': (0x735840, '?Bind735840@EngineParameterRegistry@', ['p'], 'ParameterBind', 'stub'),
     'DispatchWait': (STUBS + 0x110, '?EngineDispatchWait@', ['w', 'w'], 'DispatchWait', 'stub'),
     'DispatchRelease': (STUBS + 0x120, '?EngineDispatchRelease@', ['w'], 'DispatchRelease', 'stub'),
     'VoiceVolume': (0x72412a, '?EngineSnd72412A@', ['w', 'w'], 'VoiceVolume', 'stub'),
@@ -128,13 +142,15 @@ SND = {
     'SetAttr': (0x72423e, '?SND_attrsetdef@', ['p'], 'SND_attrsetdef', 'retail'),
     'SetPlay': (0x721a6b, '?SNDplaysetdef@', ['p'], 'SNDplaysetdef', 'retail'),
 }
-STUB = {'DispatchWait': STUBS + 0x110, 'DispatchRelease': STUBS + 0x120, 'VoiceVolume': STUBS + 0xa0, 'VoiceValue': STUBS + 0xb0, 'VoiceValue2': STUBS + 0xc0, 'VoiceValue3': STUBS + 0xd0, 'VoiceValue4': STUBS + 0xe0, 'VoiceValue5': STUBS + 0xf0, 'HeapAvailable': STUBS + 0x80, 'Malloc': STUBS + 0x90, 'Lock': STUBS, 'Unlock': STUBS + 0x10, 'Overhead': STUBS + 0x20, 'Create': STUBS + 0x30,
+STUB = {'ParameterRegister': STUBS + 0x130, 'ParameterBind': STUBS + 0x140, 'DispatchWait': STUBS + 0x110, 'DispatchRelease': STUBS + 0x120, 'VoiceVolume': STUBS + 0xa0, 'VoiceValue': STUBS + 0xb0, 'VoiceValue2': STUBS + 0xc0, 'VoiceValue3': STUBS + 0xd0, 'VoiceValue4': STUBS + 0xe0, 'VoiceValue5': STUBS + 0xf0, 'HeapAvailable': STUBS + 0x80, 'Malloc': STUBS + 0x90, 'Lock': STUBS, 'Unlock': STUBS + 0x10, 'Overhead': STUBS + 0x20, 'Create': STUBS + 0x30,
         'Start': STUBS + 0x40, 'Submit': STUBS + 0x50, 'Stop': STUBS + 0x60, 'Destroy': STUBS + 0x70}
 # Retail address of each pure leaf (its bytes run on both sides): SND_attrsetdef 0x72423e..0x72428b and
 # SNDplaysetdef 0x721a6b..0x721aae (both end in RET and call nothing).
 PURE_RANGES = ((0x75bed4, 0x75bf49), (0x72423e, 0x72428b), (0x721a6b, 0x721aae))
 # Retail globals read by the recovered code, by MSVC symbol prefix; __fltused is a null symbol.
-SHARED = {'?engineSoundMutex8B4F38@': 0x8b4f38, '?engineSoundValue82B070@': 0x82b070, '?engineSoundValue82B880@': 0x82b880,
+SHARED = {'?engineParameterAllocator8B4F3C@': 0x8b4f3c,
+          '?engineParameterRegistry82C538@': 0x82c538, '?engineParameterDescriptor7EDE18@': 0x7ede18,
+          '?engineParameterMode850078@': 0x850078, '___CxxFrameHandler': 0x75bfd2, '__except_list': 0, '?engineSoundMutex8B4F38@': 0x8b4f38, '?engineSoundValue82B070@': 0x82b070, '?engineSoundValue82B880@': 0x82b880,
           '?engineSoundScale78AF84@': 0x78af84, '?engineSoundScale78A1C8@': 0x78a1c8, '?audioEnabled7FAAA8@': 0x7faaa8, '?audioObject82BA30@': 0x82ba30, '?engineSoundValue82A998@': 0x82a998, '?engineSoundValue82B078@': 0x82b078,
           '?engineSoundScale78A2E0@': 0x78a2e0, '?engineSoundScale78AF80@': 0x78af80,
           '__ftol2': 0x75bed4, '__ftol': 0x75bed4, '?audio82B884@': 0x82b884, '?engineSoundHeap7EC840@': 0x7ec840,
@@ -145,10 +161,12 @@ SHARED = {'?engineSoundMutex8B4F38@': 0x8b4f38, '?engineSoundValue82B070@': 0x82
           '?ginsuStepTable7ED950@': 0x7ed950, '__fltused': 0}
 # Retail addresses of the E branch (fz1 == fz2) and of the SampleToCycle found path (0x466c2f).
 E_BRANCH_HOOK, FOUND_HOOK = 0x466e98, 0x466c2f
-TARGETS = ('ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
+TARGETS = ('EngineGain', 'EngineValue', 'EngineInitialize', 'ParameterGetAllocator', 'ParameterLock', 'ParameterUnlock', 'ParameterFree', 'ParameterValue', 'ParameterDispatch', 'EngineUpdate', 'ManagerFind', 'ManagerQueue', 'AudioConstruct', 'CarSoundCreate', 'ManagerInitialize', 'EngineUpdateOne', 'EngineUpdateTwo', 'EngineSetup', 'EngineAllocate', 'Construct', 'BindToData', 'FrequencyToSample', 'CycleToSample', 'CyclePeriod', 'SampleToCycle',
            'DecodeBlock', 'GetSamples', 'SetSynthData', 'UpdateFrequency', 'HandlePacketRelease', 'CeilToInt',
            'PacketReleaseCallback', 'SynthesisConstruct', 'SynthesisDestruct', 'StartSynthesis')
 LIMITATIONS = [
+    'engine initialization: normal returns and FS chain restoration are checked; exceptions/unwind are excluded; allocator and registry are scripted boundaries, allocation failure retains the original null dereference and is not exercised; the recovered setup and final dispatcher-value query execute in composition',
+    'engine value queries: standalone table indices 0..16 are fixture positions, not an established table bound; controller fixtures alternate original query bodies with scripted callbacks; record production and enabled native audio integration remain open',
     'the uninitialised packet words are read without being written by the original (the frame word bit 31, the SNDPACKET ssf and sizeofsamples words, and the fields at 0x3c and 0x44 of the HandlePacketRelease record); the stack is zeroed before each run; isolated entry tests read zero; composed setup may reuse stack words, so composed-setup snd event comparison masks the packet continuation bit and unwritten format/size words, attribute pad/tsdatasize fields and option pads',
     'status word condition bits and exception flags are not compared (only the control word and the logical stack)',
     'NaN is generated for CyclePeriod, CeilToInt and controller snd-conversion inputs; a NaN CyclePeriod result compares as NaN class (sign and payload not compared)',
@@ -157,7 +175,7 @@ LIMITATIONS = [
     'the MSVC 7.1 build passes no /GS flag: this cl.exe reads /GS- as /GS (security cookies appear), and the default compile has none',
     'car sound creation: fixtures alternate scripted manager entries with composed lookup/enqueue bodies; sound-object context/bind queries remain scripted; pool creation, device setup and a composed car constructor remain outside this comparison; queue indexes are limited to 0..15',
     'engine update: the auxiliary virtual float query supplies binary64 values in ST0 and scripted writes to globals/control state; callback dispatch executes the recovered list traversal with scripted OS mutex and callback entries; producer of control +0xf8 and native controller wiring remain outside this comparison',
-    'engine controllers: virtual slots +0x38/+0x3c are scripted thiscall boundaries; snd setters are logged stubs, not middleware equivalence; the original CRT conversion helper 0x75bed4 runs on both sides',
+    'engine controllers: virtual slots +0x38/+0x3c alternate recovered query bodies and scripted thiscall boundaries; snd setters are logged stubs, not middleware equivalence; the original CRT conversion helper 0x75bed4 runs on both sides',
     'engine setup: heap capacity and bMalloc are scripted boundaries; packet/synth allocation-failure cases use invalid gin magic and a successfully allocated or existing data object to avoid the original null dereference; failure of the data allocation is not exercised',
     'engine setup: the bank table producer and engine object construction are fixtures, not recovered callers; table indexes 0 and 1 are tested without establishing the table bounds',
     'the stateful snd entry points are scripted: their retail bodies do not run, so the player behaviour is not compared here (the native player is checked separately); the scripted EAX is the only result they give',
@@ -295,7 +313,7 @@ def entry_hook(log, name, this_kind, kinds, labels, scripted=None, key=None, eff
         esp = uc.reg_read(xc.UC_X86_REG_ESP)
         this = pointer_view(uc, uc.reg_read(xc.UC_X86_REG_ECX), 0) if this_kind else None
         words = struct.unpack('<%dI' % len(kinds), bytes(uc.mem_read(esp + 4, 4 * len(kinds)))) if kinds else ()
-        log.append((name, this, tuple(argument_view(uc, w, k, labels, bool(log and log[0][0] == 'EngineSetup')) for w, k in zip(words, kinds))))
+        log.append((name, this, tuple(argument_view(uc, w, k, labels, bool(log and log[0][0] in ('EngineSetup', 'EngineInitialize'))) for w, k in zip(words, kinds))))
         if scripted is not None and key in scripted:
             value = scripted[key]
             if isinstance(value, list):
@@ -327,7 +345,7 @@ def fx_state(uc):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--compiler', choices=('msvc', 'clang-cl'), default='msvc')
-    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, controller, caller, dispatch, audio)')
+    parser.add_argument('--replace', action='append', default=[], help='key=path: compile this file instead of the recovered source (keys: data, synth, setup, controller, caller, dispatch, values, initialize, lifecycle, audio)')
     parser.add_argument('--clang-flag', action='append', default=[], help='extra clang option (via /clang:)')
     parser.add_argument('--cases', type=int, default=1024)
     parser.add_argument('--targets', default='', help='comma separated subset of targets')
@@ -359,6 +377,20 @@ def main():
                                    os.path.relpath(source, ROOT)], cwd=ROOT, check=True)
         objects.append((key, obj))
     parsed = {key: read_object(obj) for key, obj in objects}
+    # These two leaves have no relocations. Only claim complete byte identity
+    # when COFF places a single function in the section and its size agrees.
+    query_byte_matching = {}
+    for name in ('EngineGain', 'EngineValue'):
+        spec = ROUTINES[name]
+        symbol = next(s for s in parsed['values']['symbols'].values() if s['name'].startswith(spec[1]))
+        section = parsed['values']['sections'][symbol['section'] - 1]
+        functions = [s for s in parsed['values']['symbols'].values()
+                     if s['section'] == symbol['section'] and s['kind'] == 32]
+        body = bytes(section['body'][symbol['value']:])
+        size = manifest['functions'][name]['size']
+        comparable = len(functions) == 1 and not section['relocations']
+        query_byte_matching[name] = dict(compared=comparable, original_size=size, rebuilt_section_tail_size=len(body),
+                                         identical=comparable and len(body) == size and body == image[spec[0] - IMAGE_BASE:spec[0] - IMAGE_BASE + size])
     defined = {s['name'] for p in parsed.values() for s in p['symbols'].values() if s['section'] > 0}
     # Each snd entry resolves to its stub (stateful) or to its retail bytes (pure leaf).
     snd_link = {key: (STUB[key] if spec[4] == 'stub' else spec[0]) for key, spec in SND.items()}
@@ -385,8 +417,8 @@ def main():
     original_ranges = [(spec[0], spec[0] + manifest['functions'][name]['size']) for name, spec in ROUTINES.items()]
     linked_ranges = linked['ranges']
     stub_retail = [spec[0] for spec in SND.values() if spec[4] == 'stub']
-    original_allowed = original_ranges + [(a, a + 1) for a in stub_retail] + list(PURE_RANGES) + [(STOP, STOP + 7), (STUBS + 0x200, STUBS + 0x290)]
-    rebuilt_allowed = linked_ranges + [(STUBS, STUBS + 0x290), (STOP, STOP + 7)] + list(PURE_RANGES)
+    original_allowed = original_ranges + [(a, a + 1) for a in stub_retail] + list(PURE_RANGES) + [(STOP, STOP + 7), (STUBS + 0x200, STUBS + 0x2b0)]
+    rebuilt_allowed = linked_ranges + [(STUBS, STUBS + 0x2b0), (STOP, STOP + 7)] + list(PURE_RANGES)
     inside = lambda ranges, a: any(lo <= a < hi for lo, hi in ranges)
 
     # Gin files: sorted by name, five fixed positions and the last one.
@@ -410,17 +442,28 @@ def main():
         uc.mem_map(STOP, 0x1000); uc.mem_write(STOP, FXSAVE_AT_STOP)
         uc.mem_map(FXAREA, 0x1000)
         uc.mem_map(STUBS, 0x1000)
+        tib, gdt = STUBS + 0x1000, STUBS + 0x2000
+        uc.mem_map(tib, 0x1000); uc.mem_map(gdt, 0x1000)
+        def descriptor(base, limit, access, flags=0xc):
+            return ((limit & 0xffff) | (base & 0xffffff) << 16 | access << 40 | (limit >> 16 & 0xf) << 48
+                    | flags << 52 | (base >> 24) << 56)
+        uc.mem_write(gdt + 8, struct.pack('<3Q', descriptor(0, 0xfffff, 0x9b), descriptor(0, 0xfffff, 0x93),
+                                        descriptor(tib, 0xfff, 0x93, 4)))
+        uc.reg_write(xc.UC_X86_REG_GDTR, (0, gdt, 0x1f, 0))
+        for reg, selector in ((xc.UC_X86_REG_CS, 8), (xc.UC_X86_REG_SS, 16), (xc.UC_X86_REG_DS, 16),
+                              (xc.UC_X86_REG_ES, 16), (xc.UC_X86_REG_FS, 24)):
+            uc.reg_write(reg, selector)
         for key, address in VIRTUAL.items():
-            body = b'\xdd\x05' + struct.pack('<I', AUX_RESULT) + b'\xc3' if key == 'AuxValue38' else b'\xc3' if key in ('SoundContext', 'ParameterCallback') else b'\xc2\x04\x00'
+            body = b'\xdd\x05' + struct.pack('<I', AUX_RESULT) + b'\xc3' if key == 'AuxValue38' else b'\xc3' if key in ('SoundContext', 'ParameterCallback') else b'\xc2\x08\x00' if key in ('ParameterAllocate', 'ParameterFree') else b'\xc2\x04\x00'
             uc.mem_write(address, body)
         if rebuilt:
             uc.mem_map(linked['address'], max(0x1000, linked['allocation']))
             for address, body in linked['blocks']: uc.mem_write(address, body)
             for key, address in STUB.items():
-                uc.mem_write(address, b'\xc2\x08\x00' if key == 'DispatchWait' else b'\xc2\x04\x00' if key == 'DispatchRelease' else b'\xc3')
+                uc.mem_write(address, b'\xc2\x08\x00' if key == 'DispatchWait' else b'\xc2\x04\x00' if key in ('DispatchRelease', 'ParameterBind') else b'\xc3')
         else:
             for key, spec in SND.items():
-                if spec[4] == 'stub': uc.mem_write(spec[0], b'\xc2\x08\x00' if key == 'DispatchWait' else b'\xc2\x04\x00' if key == 'DispatchRelease' else b'\xc3')
+                if spec[4] == 'stub': uc.mem_write(spec[0], b'\xc2\x08\x00' if key == 'DispatchWait' else b'\xc2\x04\x00' if key in ('DispatchRelease', 'ParameterBind') else b'\xc3')
 
         # Original WaitForSingleObject/ReleaseMutex IAT entries; both sides use
         # the same stdcall stand-ins and record the exact arguments.
@@ -444,10 +487,10 @@ def main():
             uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], name, spec[4], spec[5], labels[rebuilt]), begin=address, end=address)
         for key, spec in SND.items():
             address = rebuilt_entry[key] if rebuilt else spec[0]
-            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], spec[3], None, spec[2], labels[rebuilt], returns, key, callback_writes),
+            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], spec[3], 'arena' if key == 'ParameterBind' else None, spec[2], labels[rebuilt], returns, key, callback_writes),
                         begin=address, end=address)
         for key, address in VIRTUAL.items():
-            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], key, None if key == 'ParameterCallback' else 'arena', [('c', 0x68), 'w'] if key == 'ParameterCallback' else [] if key in ('SoundContext', 'AuxValue38') else ['p'] if key.startswith('Manager') or key == 'SoundBind' else ['w'], labels[rebuilt], returns, key, callback_writes),
+            uc.hook_add(UC_HOOK_CODE, entry_hook(events[rebuilt], 'AllocatorFree' if key == 'ParameterFree' else key, None if key == 'ParameterCallback' else 'arena', [('c', 0x68), 'w'] if key == 'ParameterCallback' else ['w', ('c', 12)] if key == 'ParameterAllocate' else ['p', 'w'] if key == 'ParameterFree' else [] if key in ('SoundContext', 'AuxValue38') else ['p'] if key.startswith('Manager') or key == 'SoundBind' else ['w'], labels[rebuilt], returns, key, callback_writes),
                         begin=address, end=address)
         if not rebuilt:
             def count(name, rebuilt=rebuilt):
@@ -469,6 +512,7 @@ def main():
             code_memory = bytearray(memory)
             for address, target in fixture_code_fields.items():
                 pk(code_memory, address, '<I', rebuilt_entry[target] if rebuilt else retail_entry[target])
+            uc.mem_write(STUBS + 0x1000, struct.pack('<I', 0xfedcba98))
             uc.mem_write(ARENA, bytes(code_memory))
             for address, body in fixture_globals.items(): uc.mem_write(address, body)
             uc.mem_write(STACK_ZERO, bytes(STACK + 0x100 - STACK_ZERO))
@@ -483,6 +527,7 @@ def main():
             except UcError as error:
                 raise AssertionError(('state or call order mismatch' if rebuilt else 'original fixture fault', name, str(error), hex(uc.reg_read(xc.UC_X86_REG_EIP)), list(events[rebuilt]))) from error
             assert uc.reg_read(xc.UC_X86_REG_EIP) == STOP + 7, ('state or call order mismatch' if rebuilt else 'original fixture fault', name, 'did not return')
+            assert bytes(uc.mem_read(STUBS + 0x1000, 4)) == struct.pack('<I', 0xfedcba98), ('state or call order mismatch', 'SEH chain not restored', name, rebuilt)
             arena = bytearray(uc.mem_read(ARENA, ARENA_SIZE))
             for address, target in fixture_code_fields.items():
                 actual = struct.unpack_from('<I', arena, address - ARENA)[0]
@@ -595,6 +640,22 @@ def main():
         returns['SoundBind'] = 0
         return ARENA + 0x3a000 if count else 0
 
+    def make_allocator(memory):
+        allocator, table = ARENA + 0x3b900, ARENA + 0x3ba00
+        pk(memory, allocator, '<I', table)
+        pk(memory, table, '<II', VIRTUAL['ParameterAllocate'], VIRTUAL['ParameterFree'])
+        fixture_globals[0x8b4f3c] = struct.pack('<I', allocator)
+        fixture_globals[0x8b4f38] = struct.pack('<I', rng.getrandbits(32))
+        returns['ParameterAllocate'] = PARAMETERS
+        return allocator
+
+    def make_values(memory, index=0):
+        record = ARENA + 0x3b800
+        pointer = rng.choice((0, record, record))
+        pk(memory, SETUP + 0x58 + 4*index, '<I', pointer)
+        pk(memory, record, '<I', rng.getrandbits(32))
+        return pointer
+
     def make_dispatcher(memory):
         dispatcher = ARENA + 0x38ff0
         nodes = [ARENA + 0x3b200 + 0x20*i for i in range(4)]
@@ -627,7 +688,24 @@ def main():
             callback_writes.clear()
             fixture_globals.clear()
             fixture_code_fields.clear()
-            if name == 'ParameterDispatch':
+            if name in ('EngineGain', 'EngineValue'):
+                index = rng.randrange(17)
+                make_values(memory, index)
+                words, this = [index], SETUP
+            elif name == 'ParameterGetAllocator':
+                make_allocator(memory)
+                if rng.random() < 0.5: fixture_globals[0x8b4f3c] = bytes(4)
+                words, this = [ARENA + 0x3bb00], 0
+            elif name in ('ParameterLock', 'ParameterUnlock'):
+                make_allocator(memory)
+                returns.update(DispatchWait=rng.getrandbits(32), DispatchRelease=rng.getrandbits(32))
+                words, this = [], 0
+            elif name == 'ParameterFree':
+                make_allocator(memory)
+                words, this = [rng.choice((0, PARAMETERS))], 0
+            elif name == 'ParameterValue':
+                words, this = [ARENA + 0x3bb00], ARENA + 0x38ff0
+            elif name == 'ParameterDispatch':
                 words, this = [PARAMETERS + 4], make_dispatcher(memory)
             elif name == 'ManagerFind':
                 head = make_sound_pool(memory)
@@ -740,11 +818,16 @@ def main():
                         AUXILIARY + 0x134: struct.pack('<i', rng.randrange(-2000, 3000)),
                         CONTROL + 0xc0: bytes([rng.choice((0, 1, 255))]),
                     }
+                composed_values = trial % 2 == 1
+                if composed_values:
+                    make_values(memory)
+                    fixture_code_fields[CONTROL_VTABLE + 0x38] = 'EngineGain'
+                    fixture_code_fields[CONTROL_VTABLE + 0x3c] = 'EngineValue'
                 words, this = [], SETUP
             elif name == 'EngineAllocate':
                 returns['Malloc'] = rng.choice((0, ALLOC, ALLOC + 0x1000))
                 words, this = [rng.getrandbits(32), rng.getrandbits(32)], 0
-            elif name == 'EngineSetup':
+            elif name in ('EngineSetup', 'EngineInitialize'):
                 # Both slots run through real Ginsu bodies, not scripted callees.
                 write_gin(memory, gin['raw'])
                 write_object(memory, gin, rng)
@@ -803,6 +886,24 @@ def main():
                 words, this = [], SETUP
                 note('setup-mode-%d' % mode)
                 note('setup-bad-magic' if bad_magic else 'setup-valid-magic')
+                if name == 'EngineInitialize':
+                    pk(memory, SETUP + 0xc8, '<B', rng.choice((0, 0, 0, 1, 255)))
+                    make_allocator(memory)
+                    dispatcher = make_dispatcher(memory)
+                    car_value = ARENA + 0x3b700
+                    pk(memory, CAR + 0x80, '<I', car_value)
+                    pk(memory, car_value + 8, '<i', rng.choice((-2**31, -1, 0, 59, 60, 61, 2**31-1)))
+                    pk(memory, PARAMETERS, '<I', rng.choice((0, dispatcher)))
+                    fixture_globals[0x850078] = struct.pack('<i', rng.choice((-1, 0, 1, 4, 5)))
+                    first_result = rng.choice((-6, -1, 0, 1, 2**31-1))
+                    returns['ParameterRegister'] = [first_result, rng.randrange(-2**31, 2**31)]
+                    returns['ParameterBind'] = rng.getrandbits(32)
+                    # Capture +0x850078 before allocator callbacks; read car data afterwards.
+                    callback_writes['DispatchWait'][0x850078] = struct.pack('<i', rng.choice((0, 4)))
+                    callback_writes['ParameterAllocate'] = {car_value + 8: struct.pack('<i', rng.choice((-1, 0, 60, 61)))}
+                    callback_writes['ParameterRegister'] = [{PARAMETERS: struct.pack('<I', rng.choice((0, dispatcher))),
+                                                            PARAMETERS + 8: struct.pack('<I', rng.getrandbits(32))}, {}]
+
             elif name == 'Construct':
                 words, this = [], OBJ
                 note('construct')
@@ -972,6 +1073,12 @@ def main():
                 else:
                     chosen = [key for key in ('ManagerAC', 'ManagerB0', 'ManagerB4') if key in names]
                     note('create-called-' + (chosen[0] if chosen else 'none'))
+            if name == 'EngineInitialize':
+                note('initialize-retry' if 'ParameterBind' in names else 'initialize-no-retry')
+                note('initialize-dispatcher' if 'ParameterValue' in names else 'initialize-no-dispatcher')
+                note('initialize-active' if a['arena'][SETUP + 0xc8 - ARENA] else 'initialize-inactive')
+            if name in ('EngineUpdate', 'EngineUpdateOne', 'EngineUpdateTwo'):
+                note('values-composed' if composed_values else 'values-scripted')
             if name == 'ParameterDispatch':
                 note('dispatch-callbacks-%d' % names.count('ParameterCallback'))
             if name == 'EngineUpdate':
@@ -986,7 +1093,7 @@ def main():
                 if 'Gain38' in names:
                     note(name + '-feedback-rate-zero' if 'CyclePeriod' not in names else name + '-feedback-rate-nonzero')
                     note(name + '-below-min' if frequency < gin['minf'] else name + '-at-or-above-min')
-            if name == 'EngineSetup':
+            if name in ('EngineSetup', 'EngineInitialize'):
                 note('setup-slots-%d' % names.count('BindToData'))
                 note('setup-allocations-%d' % names.count('bMalloc'))
                 note('setup-starts-%d' % names.count('StartSynthesis'))
@@ -1018,7 +1125,7 @@ def main():
     report_counts = dict(counts)
     total = sum(counts.values())
     failed_counts = {name: sum(1 for f in failures if f[0] == name) for name in selected}
-    report = dict(compiler=args.compiler, attempts=attempts, comparisons=report_counts, total=total, paths=dict(sorted(paths.items())),
+    report = dict(compiler=args.compiler, query_byte_matching=query_byte_matching, attempts=attempts, comparisons=report_counts, total=total, paths=dict(sorted(paths.items())),
                   failures=failed_counts, failure_total=len(failures),
                   first_failures={name: 'trial %d precision %#x: %s' % next((f[1], f[2], f[3][:4000]) for f in failures if f[0] == name)
                                   for name in selected if failed_counts[name]},
@@ -1028,6 +1135,27 @@ def main():
         if failures:
             raise SystemExit('mutation checks need a passing baseline: %d failures in the unmutated run' % len(failures))
         mutations = {
+            'value-gain-mask': ('values', '*value & 0x7fffu', '*value & 0xffffu'),
+            'value-gain-index': ('values', 'static_cast<const unsigned int *>(table[index])', 'static_cast<const unsigned int *>(table[0])'),
+            'value-gain-null': ('values', '(int)(*value & 0x7fffu) : 0', '(int)(*value & 0x7fffu) : 1'),
+            'value-high-word': ('values', 'value + 2', 'value + 0'),
+            'value-zero-extend': ('values', 'reinterpret_cast<const unsigned short *>(value + 2)', 'reinterpret_cast<const short *>(value + 2)'),
+            'initialize-setup': ('initialize', '    Setup47D740();', ''),
+            'initialize-slot1': ('initialize', ' && slotsCC[1].startResult14 >= 0', ''),
+            'initialize-start-zero': ('initialize', 'mode == 0 && slotsCC[0].startResult14 >= 0', 'mode == 0 && slotsCC[0].startResult14 > 0'),
+            'initialize-active-clear': ('initialize', '    const int mode = car9C->mode78;', '    activeC8 = 0;\n    const int mode = car9C->mode78;'),
+            'initialize-mode-capture': ('initialize', 'const int initial34 = engineParameterMode850078 != 4;', 'int initial34 = 0;'),
+            'initialize-car-clamp': ('initialize', 'car9C->value80->value8, 60', 'car9C->value80->value8, 59'),
+            'initialize-zero-range': ('initialize', 'i <= 12', 'i <= 11'),
+            'initialize-retry': ('initialize', 'parameters) < 0)', 'parameters) >= 0)'),
+            'initialize-payload': ('initialize', '&parameters->value4, parameters) < 0', '&parameters->value8, parameters) < 0'),
+            'initialize-store': ('initialize', '    parametersB0 = parameters;', ''),
+            'initialize-query': ('initialize', 'value48 = (unsigned short)value;', 'value48 = 0;'),
+            'lifecycle-allocator-result': ('lifecycle', ' ? 0 : -6;', ' ? 0 : -1;'),
+            'lifecycle-lock': ('lifecycle', '    EngineDispatchWait(engineSoundMutex8B4F38, 0xffffffffu);', ''),
+            'lifecycle-unlock': ('lifecycle', '    EngineDispatchRelease(engineSoundMutex8B4F38);', ''),
+            'lifecycle-query': ('lifecycle', '*value = value4;', '*value = (unsigned short)value4;'),
+            'lifecycle-free-argument': ('lifecycle', 'free4(allocator, 0, memory, 0)', 'free4(allocator, 0, memory, 1)'),
             'caller-mode': ('caller', 'car9C->mode78 == 0', 'car9C->mode78 != 0'),
             'caller-factor-reset': ('caller', 'valueBC = 1.0f;', ''),
             'caller-clamp-low': ('caller', 'if (value < minimum) return minimum;', 'if (value < minimum) return minimum + 1;'),

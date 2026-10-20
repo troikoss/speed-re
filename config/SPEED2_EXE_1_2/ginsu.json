@@ -135,6 +135,46 @@
       "address": "0x735580",
       "size": 69,
       "sha256": "5e3f7e8da82ff13ab9811bcb3bf95a9f234e69d2cf4ed62feb0780b0ceadd4b0"
+    },
+    "EngineGain": {
+      "address": "0x45e390",
+      "size": 27,
+      "sha256": "b9857de7742570f3d6d8601d0fd91f8a11b689738c71b45d018f749bbe17d5f1"
+    },
+    "EngineValue": {
+      "address": "0x45e3b0",
+      "size": 24,
+      "sha256": "ca240a88c1a335f50595264ade905921b5d86568f72dc1207f25f339469d7535"
+    },
+    "EngineInitialize": {
+      "address": "0x47d920",
+      "size": 447,
+      "sha256": "b3a1a071da8a56c236f77a1c4da59aed9ba6ef418a3447931cde8329d9257f89"
+    },
+    "ParameterGetAllocator": {
+      "address": "0x734df0",
+      "size": 29,
+      "sha256": "666fb2c708ca6302a07012ead1d6331f50d6255af2ae61f97f8fe5ce1ce64aaa"
+    },
+    "ParameterLock": {
+      "address": "0x734e40",
+      "size": 17,
+      "sha256": "5d05df74c2dbc2f6f48ce7a0be9c0decefdd0932fa75629aeaba49564172c281"
+    },
+    "ParameterUnlock": {
+      "address": "0x734e60",
+      "size": 15,
+      "sha256": "8bed75a40281b0754bdd4e6212a815883bdc69a866f5164403c78fc6f8e920a9"
+    },
+    "ParameterFree": {
+      "address": "0x458160",
+      "size": 43,
+      "sha256": "e4dda52e25cc44435a6c0a8fa39c232b586b7e831a0826b731597b8a9c42497e"
+    },
+    "ParameterValue": {
+      "address": "0x735070",
+      "size": 14,
+      "sha256": "9e43b90cefe68881ab74182eb0f29aba43287ad0856260ce970242d769673a29"
     }
   }
 }

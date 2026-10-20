@@ -634,3 +634,108 @@ The final full suite passed 27,648 original/rebuilt comparisons (27 targets,
 one, two, three and four callbacks in 495/383/100/23/23 cases; the engine caller
 reached actual dispatch in 385 cases. Both 53-bit and 64-bit x87 precisions
 were exercised.
+
+
+## Engine value queries and initialization (2026-10-20)
+
+`EngineSoundValues.cpp` recovers `0x45e390` (27 bytes) and `0x45e3b0`
+(24 bytes). Both fetch the pointer at `this + 0x58 + 4*index` and return zero
+when it is null. The former reads a 32-bit word and masks it with `0x7fff`;
+the latter uses `MOVZX` on the word at record `+2`, returning the full unsigned
+16-bit value in EAX. The latter is deliberately not assigned Ghidra's
+inferred narrow return type: the instructions establish zero extension.
+The engine vtable words at `0x78af68`/`0x78af6c` point to these bodies, matching
+the controller's `+0x38`/`+0x3c` calls; constructor `0x473d30` installs
+vtable `0x78af30`. The table's record producer and bounds remain
+unknown. Standalone fixture indices 0..16 establish no allocation bound.
+
+`EngineSoundInitialize.cpp` recovers the normal path of setup caller
+`0x47d920..0x47dade` (447 bytes):
+
+- Call the recovered `0x47d740` slot setup. Set active byte `+0xc8` to one
+  for mode 0 with slot 0 started, or mode 1 with both slots started. Other
+  cases retain the previous active byte; there is no clearing store.
+- Capture `global[0x850078] != 4`, obtain the parameter allocator through
+  `0x734df0`, enter its mutex through `0x734e40`, and call allocator virtual
+  `+0` for `0x6c` bytes with a zeroed 12-byte context. Leave through `0x734e60`.
+- Write parameter `+4` from car `+0x80` object's `+8`, clamped to 0..60;
+  zero `+8..+0x30`; write the captured boolean to `+0x34` (original clamp
+  0..2 retained); zero `+0x38..+0x68`. Allocation does not initialize `+0`.
+- Call `0x7358c0(global 0x82c538, parameters+4, parameters)`. On a signed
+  negative result, invoke registry method `0x735840` with descriptor
+  `0x7ede18` and retry once, ignoring the retry result.
+- Store the parameter pointer at sound `+0xb0`. If parameter `+0` names a
+  dispatcher, query its word `+4` through `0x735070` and store the low 16 bits
+  at sound `+0x48`; otherwise store zero.
+
+Ghidra rendered the captured boolean as an uninitialized stack variable in
+one use. Original stack-address tracking connects its store at `0x47d98c`
+to the reload at `0x47d9f6`; this is not an invented fallback value. The
+original dereferences the allocation even after a null result; no new
+failure return is introduced. Allocation failure is excluded from execution
+fixtures because it faults in the original.
+
+`ParameterLifecycle.cpp` also recovers allocator getter `0x734df0`, mutex
+wrappers `0x734e40`/`0x734e60`, allocator free wrapper `0x458160`, and dispatcher
+value query `0x735070`. The two mutex wrappers discard OS status and return
+zero. The allocator getter returns zero or -6 according to its global pointer;
+the value query writes all 32 bits before returning zero. Allocator virtual
+methods and registry methods `0x7358c0`/`0x735840` remain scripted boundaries.
+
+The original caller installs a compiler SEH frame and arms cleanup of its
+allocation until ownership transfer. Its unwind entry `0x772610` calls
+`0x458160`; recovered source expresses that lifetime with a scoped owner,
+including an armed null pointer. The verifier checks normal-return FS chain
+restoration for original and rebuilt execution; it does not compare the
+compiler-generated frame layout. Exception dispatch/unwinding is **not
+verified**, and no byte identity is claimed.
+
+The extended verifier executes actual setup/Ginsu bodies inside initialization,
+including partial two-slot starts, and actual `0x735070` after registration.
+Allocator callbacks change car data before its later read; a wait callback
+changes the mode global after capture. Registration can change the result
+pointer and payload before retry or the final query. Every other controller
+fixture installs the actual two value-query bodies in the synthetic vtable;
+the other half retains scripted callbacks to exercise wider integer inputs
+and reentrant state changes. Both modes compare ordered calls, payload bytes,
+complete arena/globals, stack cleanup, preserved registers and x87 state.
+The existing masks for unwritten packet/attribute bytes also apply when setup
+is nested under initialization; no initialized payload fields are omitted.
+
+These routines are built into the recovery library. Native playback still
+uses direct RPM updates. Native parameter allocation/registry behavior,
+record production for table `+0x58`, control-frequency production, the auxiliary
+float query, bank loading, sound-object construction, setter backends and
+enabled audio/frontend/HUD integration remain open.
+
+```sh
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --cases 1024
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/verify_pc_ginsu.py --targets EngineGain,EngineValue,EngineInitialize,ParameterGetAllocator,ParameterLock,ParameterUnlock,ParameterFree,ParameterValue,EngineUpdate,EngineUpdateOne,EngineUpdateTwo --cases 64 --mutation-checks --mutation-source values --mutation-source initialize --mutation-source lifecycle
+cmake --build build/native
+UG2_DIR=/path/to/UG2 build/venv/bin/python tools/smoke_native_engine_audio.py --frames 600
+```
+
+All 21 new mutants were rejected with state or call-order mismatches at 64
+cases per target; none survived or failed merely to compile. They exercise
+query masks/indexing/null handling/zero extension, setup call and activation
+gates, preserved active state, mode capture, clamp/zero ranges, registration
+retry/payload, parameter ownership store, final query, allocator status,
+mutex calls, full-word output and allocator-free arguments. MSVC/wibo jobs
+ran sequentially.
+
+The native build passed. The 600-frame smoke check released 687 packets with
+zero underruns and pitch/RPM rank correlation 0.851. That smoke still exercises
+the direct-RPM scaffold; it does not execute the new engine initialization.
+
+Final full-suite result: 35 targets, 35,840 original/rebuilt comparisons
+(1,024 per target), zero failures. Initialization exercised 408 registration
+retries, 520 final dispatcher queries and 605 active/419 inactive final states.
+Across the three controller/caller targets, 1,536 fixtures used the recovered
+queries and 1,536 used scripted queries. Both x87 precisions were exercised.
+
+Separate byte evidence: the MSVC 7.1 `/O2 /Ob0` builds of `0x45e390` and
+`0x45e3b0` are identical to all 27 and 24 original bytes, respectively. The
+verifier reports this in `query_byte_matching`, requiring a single function
+in its COFF section, no relocations, equal size and equal bytes. This claim
+is limited to those two leaves; initialization, allocator/mutex wrappers,
+caller composition and exception behavior are not claimed byte-matched.

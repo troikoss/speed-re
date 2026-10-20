@@ -5,11 +5,18 @@
 #include "../../Physics/Ug2Layout.h"
 
 // UG2-only views of the fields read by engine setup and controllers.
+struct EngineSoundCarValue {
+    char unidentified0[8];
+    int value8;
+};
+
 struct EngineSoundCar {
     char unidentified0[0x10];
     int bankIndex10;
     char unidentified14[0x64];
     int mode78;
+    char unidentified7C[4];
+    EngineSoundCarValue *value80;
 };
 
 struct EngineSoundSlot {
@@ -54,7 +61,9 @@ struct EngineParameterCallback {
 
 struct EngineParameterDispatcher {
     int Dispatch735580(void *values);
-    char unidentified0[8];
+    int Value735070(int *value);
+    char unidentified0[4];
+    int value4;
     EngineParameterCallback *first8;
 };
 
@@ -72,7 +81,8 @@ struct EngineSoundParameters {
     int value10;
     int value14;
     int value18;
-    char unidentified1C[0x1c];
+    char unidentified1C[0x18];
+    int value34;
     int value38;
     int value3C;
     int value40;
@@ -101,12 +111,17 @@ struct EngineSoundAuxiliary {
 
 struct EngineSound {
     void Setup47D740();
+    void Initialize47D920();
+    int Value45E390(int index);
+    int Value45E3B0(int index);
     void Update473E60();
     void Update474030();
     void Update474310();
 
     EngineSoundVtable *vtable0;
-    char unidentified4[0x98];
+    char unidentified4[0x44];
+    unsigned short value48;
+    char unidentified4A[0x52];
     EngineSoundCar *car9C;
     char unidentifiedA0[0x10];
     EngineSoundParameters *parametersB0;
@@ -127,6 +142,10 @@ typedef char EngineSoundSlotSizeCheck[sizeof(EngineSoundSlot) == 0x1c ? 1 : -1];
 typedef char EngineSoundViewSizeCheck[sizeof(EngineSound) == 0x110 ? 1 : -1];
 
 UG2_CHECK_OFFSET(EngineSound, car9C, 0x9c);
+UG2_CHECK_OFFSET(EngineSound, value48, 0x48);
+UG2_CHECK_OFFSET(EngineSoundCar, value80, 0x80);
+UG2_CHECK_OFFSET(EngineSoundCarValue, value8, 8);
+UG2_CHECK_OFFSET(EngineSoundParameters, value34, 0x34);
 UG2_CHECK_OFFSET(EngineSound, valueBC, 0xbc);
 UG2_CHECK_OFFSET(EngineSound, parametersB0, 0xb0);
 UG2_CHECK_OFFSET(EngineSound, auxiliaryB8, 0xb8);

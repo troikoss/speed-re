@@ -1,6 +1,6 @@
 // Platform scaffolding: the snd library that the recovered Ginsu synthesizer calls (SNDSYS_*, SNDPKTPLAY_*,
-// SND_attrsetdef, SNDplaysetdef; retail 0x721f99..0x72423e). The snd library itself is not recovered. This is a
-// small packet player over SDL2 audio with the semantics the recovered Ginsu code depends on:
+// SND_attrsetdef, SNDplaysetdef; retail 0x721f99..0x72423e). Its packet player remains native; parameter
+// dispatch and small allocator/mutex wrappers are recovered separately. This SDL2 backend models:
 //   - create() returns a player handle (a free slot) and keeps the release callback and its client data. It returns
 //     -9 when every slot is taken, -6 when the memory is too small for two packets, and -10 without an audio device
 //     (the retail library reports -10 when it is not initialised).
