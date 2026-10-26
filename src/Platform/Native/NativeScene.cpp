@@ -3,7 +3,7 @@
 
 #include "../../Speed/Indep/Src/World/CarRenderWheels.h"
 
-UG2_CHECK_OFFSET(NativeDrawSolid, table0C, 0x0c);
+UG2_CHECK_OFFSET(NativeDrawSolid, solid, sizeof(CarRenderSolid));
 
 #include <math.h>
 #include <stdio.h>
@@ -168,7 +168,11 @@ bool NativeCarModel::Load(const char *gameDirectory, const char *carName, Native
     for (size_t w = 0; w < wanted.size(); ++w) {
         const NativeSolid *solid = FindSolid(solids_, wanted[w]);
         if (!solid) continue;
-        NativeDrawSolid draw = {solid, Build(*solid, false), Build(*solid, true), 0};
+        NativeDrawSolid draw = {};
+        draw.record.hash08 = solid->hash;
+        draw.solid = solid;
+        draw.opaqueList = Build(*solid, false);
+        draw.translucentList = Build(*solid, true);
         body_.push_back(draw);
         if (getenv("UG2_DEBUG_PARTS")) {
             for (size_t p = 0; p < solid->parts.size(); ++p) {
@@ -188,9 +192,12 @@ bool NativeCarModel::Load(const char *gameDirectory, const char *carName, Native
         return false;
     }
     wheel_.solid = wheel;
-    wheel_.table0C = 0;
-    frontBrake_.table0C = 0;
-    rearBrake_.table0C = 0;
+    wheel_.record = CarRenderSolid();
+    frontBrake_.record = CarRenderSolid();
+    rearBrake_.record = CarRenderSolid();
+    wheel_.record.hash08 = wheel->hash;
+    frontBrake_.record.hash08 = front ? front->hash : 0;
+    rearBrake_.record.hash08 = rear ? rear->hash : 0;
     wheel_.opaqueList = Build(*wheel, false);
     wheel_.translucentList = Build(*wheel, true);
     frontBrake_.solid = front;
@@ -211,10 +218,10 @@ bool NativeCarModel::Load(const char *gameDirectory, const char *carName, Native
     carObject_[0x855] = 1;
     wheelInfo_->carObject = carObject_;
     for (int slot = 0; slot < 4; ++slot) {
-        wheelInfo_->solid1B48[0][slot] = reinterpret_cast<CarRenderSolid *>(&wheel_);
-        wheelInfo_->solid1B48[1][slot] = reinterpret_cast<CarRenderSolid *>(&frontBrake_);
-        wheelInfo_->solid1B68[0][slot] = reinterpret_cast<CarRenderSolid *>(&wheel_);
-        wheelInfo_->solid1B68[1][slot] = reinterpret_cast<CarRenderSolid *>(&rearBrake_);
+        wheelInfo_->solid1B48[0][slot] = &wheel_.record;
+        wheelInfo_->solid1B48[1][slot] = &frontBrake_.record;
+        wheelInfo_->solid1B68[0][slot] = &wheel_.record;
+        wheelInfo_->solid1B68[1][slot] = &rearBrake_.record;
     }
     wheelInfo_->wheelPresent2D78 = 1;
     wheelInfo_->wheelPresent2D98 = 1;

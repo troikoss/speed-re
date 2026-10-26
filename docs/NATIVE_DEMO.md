@@ -1060,6 +1060,81 @@ records; it is not a visual-lighting equivalence claim. **GL still ignores the
 record.** Draw-state/consumption, additional-light producers and the separate legacy
 `0x489ba0` precision gap remain open, along with the other inventory wheel seams.
 
+### Solid dispatch, texture swaps and primitive queue (2026-10-26)
+
+`CarRenderSolid.cpp` recovers six PC v1.2 routines: the view's solid dispatcher
+`0x5c5930`, texture override application/restoration `0x4905a0`/`0x488e40`, primitive
+queue `0x5ceb30`, default-light-pack getter `0x48ac50` and mode check `0x60fdf0`.
+The function and jump-table fingerprints are in
+`config/SPEED2_EXE_1_2/car-render-solid.json`. These routines were read through
+the live Ghidra project and confirmed against the original instructions and image.
+Names and decompiler types alone are not evidence.
+
+The dispatcher does not draw immediately. It reads platform mesh metadata from
+`solid+0xc -> table+0`, snapshots the original technique type, selects one of the
+three nine-element maps at `0x7ff090`/`0x7ff0b4`/`0x7ff0d8`, and consumes the
+one-shot map at platform `+0x38`. Flags, view mode, material byte `texture+0x56`,
+debug state and the two special texture hashes select a technique for each
+primitive. The pre-remap type still controls the debug branch. Bounds classification
+is bypassed by draw flag 4 or primitive flag 1. Texture and light-pack indices are
+individual unsigned bytes at primitive `+0x1c`/`+0x20`, with `0xff` selecting the
+default light pack. The primitive stride is `0x3c`.
+
+Texture application resolves sentinel `-1` values first, then swaps each matching
+slot with the first eligible override. Texture count `table+0x19` is signed.
+Restoration swaps the saved values back and clears their saved locations; duplicate
+keys and repeated slot matches retain the original order, including its unusual
+reuse behavior. Restoration still runs when a technique is disabled. For technique
+5, a null extra record is replaced by `view+0x54` before the special-texture remap;
+that record persists across subsequent primitives in the same dispatch.
+
+`0x5ceb30` allocates `0x20`-byte texture groups and `0x2c`-byte commands through
+the two pool globals `0x870918`/`0x87091c`. The texture state's cached group is
+reused only while its technique matches. New groups append to one of the list
+banks at `0x870d30`/`0x8712f0`, indexed by signed texture priority times 23 plus
+technique type. Commands append at group `+0x18`; counts and index totals update
+after insertion. The command retains the world, extra record, lighting pack,
+primitive flags and final argument. No invented allocation-failure recovery is
+added; verification covers successful pool allocation.
+
+With `UG2_EXE` set, run the compiler jobs sequentially:
+
+```
+build/venv/bin/python tools/verify_pc_car_render_solid.py --gcc --cases 2048 --mutation-checks
+build/venv/bin/python tools/verify_pc_car_render_solid.py --cases 2048 --mutation-checks
+```
+
+Both native i386 GCC C++11 `-O1` and MSVC 7.1 `/Ox /Ob0` pass **12,288 comparisons
+each**, with all **15 mutations rejected**. Per compiler, the dispatcher submits
+**9,666 primitives**, and standalone queue sequences submit **24,576**. Fixtures
+include all signed texture counts, unsigned index extremes, duplicate overrides,
+initial/selected technique and material combinations, signed queue priorities,
+shared texture-state caches, repeated appends and counter wrap. Whole fixture
+bytes, touched global/list bytes, return values, calling conventions, preserved
+registers and ordered boundary calls are checked. Bounds `0x5bc300`, texture lookup
+`0x4901d0` and successful pool allocation `0x440e50` remain explicit boundaries.
+This is finite behavioral evidence; byte matching and retail frame capture are
+not established. Reports are under `build/analysis/car-render-solid/`.
+
+The native `NativeDrawSolid` now contains a complete checked `CarRenderSolid`
+prefix, with host solid pointers and GL handles stored after it. Its hash is
+populated, and original table/override fields remain zero. Wheel slots point to
+this actual record. Previously GL handles occupied the original hash and other
+prefix fields. The native boundary still draws the same display lists.
+`CarRenderSolid.cpp` is excluded from the native library until the original table,
+texture and technique setup can supply its inputs and the GPU consumer can drain
+its queues. Native activation and visual lighting parity are not claimed.
+
+The consumer is `0x5cf420`: its calls to `0x5bdde0` upload world/view transforms,
+`0x5bd140` consumes the prepared extra record, and `0x5bd4a0` consumes the lighting
+pack. Those bodies, effect/technique setup and retail solid fixups remain open.
+They are the next evidence path for the GL seam; prepared records alone cannot
+close it. Native build, wheel-block/preparation regressions and SKYLINE smoke
+checks pass separately from dispatcher equivalence: 2,048 native blocks/6,739
+prepared records; 512 legacy layout/2,048 block cases with 14 rejected mutations;
+record-lookup regressions with 10 rejected mutations; `ug2demo`/`ug2sim` build;
+60-frame SKYLINE orbit and 120-frame scripted drive, no audio.
+
 ### Verification (pixel size and LOD)
 
 - `build/venv/bin/python tools/verify_pc_car_draw_lod.py --mutation-checks`, with `UG2_DIR` set. The executable's SHA-256
@@ -1109,8 +1184,9 @@ record.** Draw-state/consumption, additional-light producers and the separate le
 
 ### Remaining seams and limitations
 
-- `DrawSolid` (`0x5c5930`): the native seam draws the solid's GL list with the world matrix. It ignores the flags, the
-  extra record and the zero argument, and does not set `glFrontFace` for the R180 wheels (GL backend seam).
+- `DrawSolid` (`0x5c5930`) and queue `0x5ceb30` are recovered and verified, with texture swaps. Native activation
+  needs retail tables, technique setup and GPU consumer `0x5cf420`. The current native seam draws GL lists,
+  ignores flags/extra/zero and does not set `glFrontFace` for R180 wheels; see the dispatcher evidence above.
 - Preparation `0x48f660` (recovered and active; GL record consumption remains open), facing helper
   `0x60d700` (recovered) and secondary draw `0x620600` (open; the demo
   gate is 0, so neither is called), solid slots `0x48d860` (setter now recovered; no slot tables; the link values `ri+0x390`/`0x3ac` are zero

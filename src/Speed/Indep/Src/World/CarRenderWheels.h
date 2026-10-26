@@ -6,40 +6,65 @@
 
 // Car wheel placement for the render info (CarRenderInfo, ri) and the wheel block of the car draw
 // 0x620ae0 (PC v1.2, speed2.exe). Addresses in comments are original. Unrecovered callees are
-// platform seams; SetSlot and FindRecord are recovered in CarRenderRecords.cpp. Thiscall callees
+// platform seams; SetSlot/FindRecord are in CarRenderRecords.cpp, and solid dispatch
+// is in CarRenderSolid.cpp (native activation remains open). Thiscall callees
 // are members so their calling convention matches the original,
 // cdecl callees are extern "C". The verifier (tools/verify_pc_wheel_draw.py) links these names to
 // the original addresses and compares their argument sequences.
 
-struct CarRenderSolid;     // drawable solid object (a platform type; receiver of SetSlot)
+struct CarRenderSolid;     // original drawable solid record; receiver of SetSlot
 struct CarRenderView;      // view object (arg1 of the car draw; receiver of DrawSolid)
 struct CarRenderPart;      // rim part object (ri+4 +0x604/+0x608; receiver of FindRecord)
 struct CarRenderFrame;     // view frame (view+0x40): origin and depth axis of the projection (CarRenderLod.h)
 struct CarRenderWheelInfo;
 struct CarRenderRecord;
+struct CarRenderPrimitive;
+struct CarRenderPlatformSolid;
+struct CarRenderTextureSlot;
+struct CarRenderTextureOverride;
+struct CarRenderLightPack;
 
 struct CarRenderSlot {
     unsigned int key;
-    unsigned int value;
+    union {
+        unsigned int value;
+        CarRenderLightPack *lightPack;
+    };
 };
 UG2_CHECK_SIZE(CarRenderSlot, 8);
 
 struct CarRenderSlotTable {
-    unsigned char pad00[0x1a];
+    CarRenderPlatformSolid *platform00;
+    unsigned char pad04[0x19 - 4];
+    signed char textureCount19;
     signed char count1A;
-    unsigned char pad1B[0x3c - 0x1b];
+    unsigned char pad1B[0x2c - 0x1b];
+    CarRenderTextureSlot *textures2C;
+    unsigned char pad30[0x3c - 0x30];
     CarRenderSlot *slots3C;
 };
 UG2_CHECK_OFFSET(CarRenderSlotTable, count1A, 0x1a);
+UG2_CHECK_OFFSET(CarRenderSlotTable, textureCount19, 0x19);
 UG2_CHECK_OFFSET(CarRenderSlotTable, slots3C, 0x3c);
+UG2_CHECK_OFFSET(CarRenderSlotTable, textures2C, 0x2c);
+UG2_CHECK_SIZE(CarRenderSlotTable, 0x40);
 
 // 0x48d860 (__thiscall, RET 8): updates every matching slot if value is nonzero.
 struct CarRenderSolid {
-    unsigned char pad00[0x0c];
+    unsigned int value00[2];
+    unsigned int hash08;
     CarRenderSlotTable *table0C;
+    CarRenderTextureOverride *overrides10;
+    int overrideCount14;
     void SetSlot(unsigned int key, unsigned int value);
+    void ApplyTextures();             // 0x4905a0
+    void RestoreTextures();           // 0x488e40
 };
 UG2_CHECK_OFFSET(CarRenderSolid, table0C, 0x0c);
+UG2_CHECK_OFFSET(CarRenderSolid, hash08, 8);
+UG2_CHECK_OFFSET(CarRenderSolid, overrides10, 0x10);
+UG2_CHECK_OFFSET(CarRenderSolid, overrideCount14, 0x14);
+UG2_CHECK_SIZE(CarRenderSolid, 0x18);
 
 // 0x5c5930 (__thiscall on the view, RET 0x14): solid draw. Arguments: solid, world matrix, extra
 // record, flags, zero.
@@ -48,10 +73,14 @@ struct CarRenderView {
     float focal0C;                  // +0x0c: focal length in pixels (0x48acb0 divides by it)
     unsigned char pad10[0x40 - 0x10];
     const CarRenderFrame *frame40;  // +0x40: view frame (origin +0x40 and depth axis +0x50)
+    unsigned char pad44[0x54 - 0x44];
+    CarRenderRecord *record54;
+    int TestBounds(const float *minimum, const float *maximum, WheelMatrix *world); // 0x5bc300, open
     void DrawSolid(CarRenderSolid *solid, WheelMatrix *world, void *extra, unsigned int flags, unsigned int zero);
 };
 UG2_CHECK_OFFSET(CarRenderView, focal0C, 0x0c);
 UG2_CHECK_OFFSET(CarRenderView, frame40, 0x40);
+UG2_CHECK_OFFSET(CarRenderView, record54, 0x54);
 
 // 0x60fef0 (__thiscall on the part, RET 8): record with the given hash after `previous` (0 = first).
 // A record is 8 bytes: u32 hash at +0, float value at +4.

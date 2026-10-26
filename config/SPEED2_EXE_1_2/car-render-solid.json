@@ -1,0 +1,40 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "ApplyTextures": {
+      "address": "0x4905a0",
+      "size": 174,
+      "sha256": "59d5e3b7d3038e6aaae5a4a9498984f2f8be274ecd0fc35977d3ea57dab9d1b7"
+    },
+    "RestoreTextures": {
+      "address": "0x488e40",
+      "size": 63,
+      "sha256": "8eb4c88dbfeaa2f4bff123dc9e5caaa699c0b2e0a42aa318d77f39e1da4224fc"
+    },
+    "DefaultLightPack": {
+      "address": "0x48ac50",
+      "size": 6,
+      "sha256": "8fbc91916bb342edf763e4982264d8d531f6521095cca48c1c6f76895dfa83d5"
+    },
+    "SpecialMode": {
+      "address": "0x60fdf0",
+      "size": 15,
+      "sha256": "441a463aa89242ce662c68ed7ef3b5cab08bc887b00a575718836e60613b3443"
+    },
+    "DrawSolid": {
+      "address": "0x5c5930",
+      "size": 695,
+      "sha256": "971230da25eff836cd2aa1c6547e6c9c66ad78522b9611a8bc3b7a4d69386292"
+    },
+    "QueuePrimitive": {
+      "address": "0x5ceb30",
+      "size": 260,
+      "sha256": "dcd57dd0d50a8ed3d7e167e918d92bc597041aef03cbd1b71688b01555703fa8"
+    },
+    "dispatch_jump_table": {
+      "address": "0x5c5be8",
+      "size": 16,
+      "sha256": "60560c6397dba297780b030b7203605f5729490b40b8b3d50567655dbd716ec5"
+    }
+  }
+}

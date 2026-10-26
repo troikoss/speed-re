@@ -4,6 +4,7 @@
 // Platform scaffolding: OpenGL drawing of UG2's own car and track assets. The original
 // render path (CarRenderInfo 0x638190, eSolid rendering 0x5cf420) is not recovered.
 #include "NativeAssets.h"
+#include "../../Speed/Indep/Src/World/CarRenderWheels.h"
 
 #include <GL/gl.h>
 #include <map>
@@ -33,11 +34,14 @@ struct CarRenderSlotTable;
 struct CameraState;
 
 struct NativeDrawSolid {
+    // Keep the checked original prefix distinct from host GL handles. The
+    // recovered dispatcher needs retail tables before it can replace the seam.
+    CarRenderSolid record;
     const NativeSolid *solid;
     GLuint opaqueList;
     GLuint translucentList;
-    CarRenderSlotTable *table0C; // original setter prefix; native slot population remains absent
 };
+UG2_CHECK_OFFSET(NativeDrawSolid, record, 0);
 
 // Runs the recovered wheel layout 0x61fe10 and the wheel block 0x62700e..0x62df66 on the render info `ri`.
 // Solids are drawn through the platform seams in NativeCarWheels.cpp (with the GL list of each solid).
