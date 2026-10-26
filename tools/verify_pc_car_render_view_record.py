@@ -176,8 +176,8 @@ def main():
         source = SOURCE.read_text()
         mutations = {
             'wrong-clamp-gate': ('ug2WheelLodGate == 3', 'ug2WheelLodGate == 6'),
-            'wrong-upper-bound': ('? 8.0f : 2.78f', '? 7.0f : 2.78f'),
-            'wrong-lower-bound': ('minimum = 2.78f', 'minimum = 2.0f'),
+            'wrong-upper-bound': ('maximum78D794 = 8.0f;', 'maximum78D794 = 7.0f;'),
+            'wrong-lower-bound': ('minimum78D788 = 2.78f;', 'minimum78D788 = 2.0f;'),
             'omit-normalize': ('CarRenderNormalize4(point, point);', ''),
             'wrong-position-w': ('output->valueC0[3] = 1.0f;', 'output->valueC0[3] = 0.0f;'),
             'matrix-without-position': ('if (matrixArg3 && position)', 'if (matrixArg3)'),

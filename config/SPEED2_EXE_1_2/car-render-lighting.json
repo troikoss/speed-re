@@ -1,0 +1,38 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "ClearRecord": {
+      "address": "0x48ab10",
+      "size": 16,
+      "sha256": "67707828e82b2cff8f1532510b25c36922d1e68d330b65b1b9b03f52b3dd4686"
+    },
+    "LightVector": {
+      "address": "0x48a310",
+      "size": 155,
+      "sha256": "a50d14430796844b496d35dac10d8cd34bb868ed8c9cf787aecbc4f6029266ed"
+    },
+    "AccumulateLight": {
+      "address": "0x4895e0",
+      "size": 1294,
+      "sha256": "74f92951760f156223f64c7eb3cdb6fe8e96bf325582a9da68952b1dc206a845"
+    },
+    "AddLightPair": {
+      "address": "0x489af0",
+      "size": 165,
+      "sha256": "d874bdfc2f192ac8c57cf046ab9b3bd9eecfda2e25ca1d5e1a2c29a17b8be54d"
+    },
+    "NormalizeLightCoefficients": {
+      "address": "0x489ed0",
+      "size": 929,
+      "sha256": "bdc2b5e9b5640b4a3fa2583356dbc90c83d2e4c6b55c05fbe2230005e1ded298"
+    }
+  },
+  "constants": {
+    "0x78d91c": "69fc823f86ab5b3f713d3e3f86abdb3e2aa77d3ec6df623f9dd80b3f0f7ba13e9dd88b3f2c2afa3ec16e903ecdcc4cbd",
+    "0x78d784": "0000803f",
+    "0x787adc": "00004040",
+    "0x784250": "0000803f",
+    "0x784238": "00008047",
+    "0x7d7d3c": "00000000"
+  }
+}

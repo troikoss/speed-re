@@ -18,6 +18,12 @@ struct CarRenderRecord {
     CarRenderRecord *CopyFrom(CarRenderRecord *source);
     // Original 0x489ba0 (__thiscall, RET 4): transforms the first ten four-lane groups.
     void TransformCoefficients(WheelMatrix *matrix);
+    // Original 0x4895e0 (__thiscall, RET 0x14): update ten groups in all four lanes.
+    void AccumulateLight(const float *color, float weight, float x, float y, float z);
+    // Original 0x489af0 (__thiscall, RET 8): positive and negative-direction contributions.
+    void AddLightPair(const float *direction, const float *color);
+    // Original 0x489ed0 (__thiscall, RET 0x10): independent first-three/fourth lane normalization.
+    void NormalizeLightCoefficients(int firstThree, float firstThreeTarget, int fourth, float fourthTarget);
 };
 UG2_CHECK_OFFSET(CarRenderRecord, matrix40, 0x40);
 UG2_CHECK_OFFSET(CarRenderRecord, matrix80, 0x80);
@@ -41,5 +47,9 @@ unsigned int CarRenderPrepareViewRecord(CarRenderRecord *output, WheelMatrix *wo
 unsigned int CarRenderPrepareRecord(CarRenderRecord *output, WheelMatrix *world,
                                   const WheelMatrix *matrixArg3, const float *position,
                                   void *view, CarRenderRecord *source);
+// Original 0x48ab10 (cdecl): zero all 0x1c0 record bytes.
+void CarRenderClearRecord(CarRenderRecord *record);
+// Original 0x48a310 (cdecl): quantized azimuth/polar degrees to XYZ; no fourth store.
+void CarRenderLightVector(float *output, float azimuthDegrees, float polarDegrees, float radius);
 
 #endif

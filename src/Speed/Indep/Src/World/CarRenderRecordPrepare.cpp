@@ -4,6 +4,13 @@ extern "C" int ug2WheelLodGate; // 0x8654a4
 extern "C" double __cdecl sqrt(double);
 #pragma intrinsic(sqrt)
 
+namespace {
+// Preserve the original binary32 .rdata values in C++11 x87 expressions.
+const volatile float minimum78D788 = 2.78f;
+const volatile float maximum78D78C = 2.78f;
+const volatile float maximum78D794 = 8.0f;
+}
+
 // Original 0x48e6c0. The source may alias the destination: copy first, transpose
 // the world frame second, then snapshot the source basis before writing it.
 void CarRenderPrepareWorldRecord(CarRenderRecord *output, CarRenderRecord *source, WheelMatrix *world) {
@@ -66,8 +73,8 @@ unsigned int CarRenderPrepareViewRecord(CarRenderRecord *output, WheelMatrix *wo
         point[2] = ((static_cast<long double>(m[10]) * dz + static_cast<long double>(m[6]) * dy) + m[2] * dx) + m[14];
         // 0x48a775: the Z cell is overwritten before it is read for the W component.
         point[3] = ((static_cast<long double>(m[11]) * point[2] + static_cast<long double>(m[7]) * dy) + m[3] * dx) + m[15];
-        const float minimum = 2.78f; // 0x78d788 / 0x78d790
-        const float maximum = ug2WheelLodGate == 3 ? 8.0f : 2.78f; // 0x78d794 / 0x78d78c
+        const float minimum = minimum78D788; // 0x78d788 / 0x78d790
+        const float maximum = ug2WheelLodGate == 3 ? maximum78D794 : maximum78D78C; // 0x78d794 / 0x78d78c
         const long double sum = ((static_cast<long double>(point[3]) * point[3] +
                                   static_cast<long double>(point[2]) * point[2]) +
                                  static_cast<long double>(point[1]) * point[1]) +

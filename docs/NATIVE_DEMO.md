@@ -613,12 +613,16 @@ cancellation fixture distinguishes `huge + 2 - huge + 1` from a reordered produc
 sum at 53-bit precision. Each view/wrapper run includes 24,612 position paths,
 19,786 matrix paths and 13,128 gate-3 paths. Coverage is bounded and finite;
 byte identity, NaN/infinity behavior and exhaustive inputs are not established.
-The i386 demo target builds successfully.
+The i386 demo target builds successfully. The native harness explicitly selects
+C++11 to match CMake. Clamp constants now reside in binary32 objects so x87
+excess-precision rules cannot promote their decimal literals early. The 32,768-run
+native wrapper check and all 11 mutations pass with these settings.
 
 Activation remains open. The original car draw initializes the frame +0xb20
 record with `0x48ab10` at `0x620fd3`, then fills it through lighting/source-record
-producer `0x48ed60` at `0x620ff3`. These upstream routines and the actual car-draw
-source context must be recovered before replacing the native placeholder. The
+producer `0x48ed60` at `0x620ff3`. The clear routine and lighting foundations are
+now recovered (see below); the builder, light selection and actual caller context
+remain open before replacing the native placeholder. The
 initial position at frame +0x790 comes from view frame +0x40..+0x48 at
 `0x620f04`..`0x620f2c`, but subsequent body-draw writes/stack reuse must still be
 traced before claiming that is the final wheel input. The full 66,053-byte car
@@ -628,6 +632,90 @@ GL draw ignores extra records. The third matrix input is global `0x871b50`; its
 producer and runtime meaning also remain unverified. Parameter names therefore
 use `matrixArg3` rather than asserting a camera-projection identity. This checkpoint recovers and verifies the
 preparation chain; it does not complete the caller input or draw-consumption seams.
+
+### Lighting-record foundations (2026-10-26)
+
+`CarRenderLighting.cpp` recovers five dependencies of the source-record builder:
+
+- `0x48ab10`, `CarRenderClearRecord`: zero all 112 words / 0x1c0 bytes. Bytes
+  outside the record remain untouched.
+- `0x48a310`, `CarRenderLightVector`: multiply azimuth and polar degrees by the
+  binary32 value 65536, truncate each to a signed integer, divide by 360 with
+  signed truncation, then pass the low 16 bits to `WheelSineCosine` (`0x43c390`).
+  The ordered calls produce X = sin(polar) × cos(azimuth) × radius,
+  Y = sin(polar) × sin(azimuth) × radius, Z = cos(polar) × radius. Only XYZ is
+  written. The second angle is polar, rather than latitude.
+- `0x4895e0`, `CarRenderRecord::AccumulateLight`: snapshot all four color lanes,
+  store the common Z²×3−1 and X²−Y² terms as floats, then update ten coefficient
+  groups per lane. Eight intermediate products per lane have explicit float
+  spills; the remaining intermediates retain x87 precision. The original
+  constants and product/addition order are preserved, including the shared
+  signed contribution added to group 1 and subtracted from group 2.
+- `0x489af0`, `CarRenderRecord::AddLightPair`: snapshot direction, accumulate a
+  positive contribution at weight 1, **read color again after that call**, store
+  color×−0.05 as floats, and accumulate at the negated direction. Reading color
+  after the first call matters when color aliases the coefficient record.
+- `0x489ed0`, `CarRenderRecord::NormalizeLightCoefficients`: independently gate
+  normalization of lanes 0..2 and lane 3. The first lane's squared-sum group order
+  is 2,3,4,5,6,7,8,0,9,1; the other sums use 0..9. First-three squared sums are
+  stored as floats before selecting the maximum. Their square root and scale
+  stay extended; the fourth lane instead stores its square root as a float
+  before division. Zero norms skip writes. Flags and targets are not clamped.
+
+Evidence comes from live Ghidra decompilation and original instructions.
+`car-render-lighting.json` pins the executable, all five spans and the read-only
+constants. Constants used in extended expressions are explicit binary32 objects:
+GCC C++11 x87 excess-precision evaluation otherwise retains extra decimal-literal
+precision, unlike the original memory loads. This also fixed the preparation
+clamp constants. No floating-point tolerance, assembly insertion or register
+forcing is used. CMake now explicitly disables fast math and contraction for
+recovered code; the native verifier uses C++11 and those same settings.
+
+With `UG2_EXE` set, verification commands are:
+
+```
+cmake --build build/native --target ug2demo -j 6
+build/venv/bin/python tools/verify_pc_car_render_lighting.py --gcc --native-trig --cases 8192 --exhaustive-angles --mutation-checks
+build/venv/bin/python tools/verify_pc_car_render_lighting.py --cases 8192 --mutation-checks
+```
+
+Native results: 16,384 comparisons for each of clear, accumulate, pair and
+normalize; 147,456 vector comparisons; **212,992 total, zero failures**. All ten
+mutations are rejected. The 65,536 extra angle contexts visit every quantized
+azimuth and polar angle once (polar uses a fixed offset), at both x87 precision
+settings, with signed unit radius. They are not exhaustive combinations of
+angles/radius or arbitrary float inputs. The native run links the actual
+CMake-built `WheelSineCosine` object from `PhysicsMoverController.cpp`, with only
+its reachable sections retained. Its code bytes were unchanged by the explicit
+no-fast-math/no-contraction build flags; the report records the actual object
+fingerprint used.
+
+Legacy MSVC 7.1 `/Ox /Ob0 /EHsc`: 16,384 comparisons per helper, **81,920 total,
+zero failures**, ten of ten mutations rejected. Original trig and conversion
+bodies execute for this run. Both sides run the pair and accumulator bodies,
+rather than stubbing their arithmetic. Both x87 precision settings are covered.
+Compared: every fixture byte, ordered trig/accumulation inputs, stack cleanup,
+callee-saved registers, control word and empty x87 stack. Fixtures include zero,
+signed zero, mixed magnitudes, signed targets/flags and color/direction/record
+aliases. Vector inputs stay within the original signed conversion range; NaN,
+infinity, out-of-range conversions and exhaustive float inputs are not covered.
+Byte identity is not claimed. The separate legacy precision gap in `0x489ba0`
+remains open; these helper results do not change its acceptance status.
+
+Platform check: the i386 demo target builds and the SKYLINE demo completes
+60 frames with `--no-audio --orbit 90`. This is a baseline smoke, not activation
+of the new lighting builder; the source-record and preparation seams remain
+unwired until their actual caller inputs are recovered.
+
+Further original-binary leads: callers `0x631250` and `0x6316d0` push the default
+context `0x7f3f00` into `0x620ae0` at `0x631696`/`0x631879`; the image holds three
+populated source entries there. Source-record builder `0x48ed60` and light
+selection `0x48e3d0` remain unrecovered. The third matrix at `0x871b50` is produced
+in `0x5c3450`: the `0x5c3524` call uses recovered `CameraLookAt` (`0x5ba9a0`),
+then indices 3/7/11/12/13/14 are zeroed and index 15 is set to 1 before the copy at
+`0x5c356b`. Its up input is the image vector 0/0/1 at `0x800b70`. This is a lead
+for recovering the caller fragment, not evidence that the native view-frame
+producer or final position buffer has been integrated.
 
 ### Verification (pixel size and LOD)
 
