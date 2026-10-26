@@ -16,6 +16,8 @@ struct CarRenderRecord {
 
     // Original 0x48a3b0 (__thiscall, RET 4), returns this.
     CarRenderRecord *CopyFrom(CarRenderRecord *source);
+    // Original 0x489ba0 (__thiscall, RET 4): transforms the first ten four-lane groups.
+    void TransformCoefficients(WheelMatrix *matrix);
 };
 UG2_CHECK_OFFSET(CarRenderRecord, matrix40, 0x40);
 UG2_CHECK_OFFSET(CarRenderRecord, matrix80, 0x80);

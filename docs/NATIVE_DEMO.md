@@ -501,6 +501,58 @@ and pass explicit, correctly sized inputs first. The existing wheel-block verifi
 hooks `0x48f660` and compares argument identities, so it does not prove this data
 content or size. This remains a required part of the wheel-seam goal.
 
+### Render-record coefficient transform (2026-10-26)
+
+`CarRenderRecordTransform.cpp` recovers the operation sequence of `0x489ba0`,
+called by `0x48e6c0`. It snapshots the matrix's nine basis components, then processes
+four independent lanes of ten groups at record offsets 0..0x9c. Constant lanes
+are unchanged; the other nine groups are evaluated in the original order. The
+six Y-product float spills, three Z-product spills and the additional stored
+E×W1 value at `0x489db3` are explicit. The latter is retained unrounded for the
+XZ output and reloaded as binary32 for YZ. Addition order and doubled cross terms
+follow disassembly, rather than an algebraically simplified polynomial.
+
+Evidence: live Ghidra decompilation plus original instructions `0x489ba0`..`0x489ec5`;
+`car-render-coefficients.json` pins that 806-byte span and the executable. The
+recovered method is compiled into the native library; the two producer callers
+and their native activation remain open. No claim of byte identity is made.
+
+Native numeric verification (with `UG2_EXE` pointing at PC v1.2):
+
+```
+build/venv/bin/python tools/verify_pc_car_render_coefficients.py --gcc --cases 32768 --mutation-checks
+```
+
+Native i386 GCC `-O1 -mfpmath=387 -fno-fast-math -ffp-contract=off` passes 65,536
+comparisons, zero failures, seven of seven mutations rejected. Both x87 precision
+settings are tested; **all fixture bytes must match exactly**. Inputs include
+finite coefficients with mixed magnitudes, identity/zero/signed-unit/general
+matrices and matrix pointers overlapping different parts of the record. The
+verifier also checks the ABI, preserved registers, control word and x87 stack
+balance. It does not cover NaN/infinity inputs, exhaustive floats or the producer
+caller. The i386 demo target builds successfully.
+
+Legacy precision remains an explicit gap. The default MSVC 7.1 `/Ox /Ob0 /EHsc`
+strict run fails; measurement is available without turning those failures into
+acceptance:
+
+```
+build/venv/bin/python tools/verify_pc_car_render_coefficients.py --measure --cases 32768
+```
+
+This measurement **exits 1** and records all differences. Over 65,536 runs, the
+53-bit x87 setting `0x027f` has zero mismatched cases; the 64-bit setting `0x037f`
+has 71 mismatched cases / 78 words. The first is case 693, matrix alias +0x40,
+record +0x54 (original 1.9028870146264865e-10, rebuilt 1.9028867370707303e-10).
+The maximum absolute error is 0.03125 in the mixed-scale fixture. ULP counts can
+be large near zero: the worst is original 0 versus rebuilt 9.020562075079397e-17
+at record +0x60. Generated-code inspection identifies binary64 accumulator spills
+in the legacy rebuild where the original keeps extended values in registers;
+`/Op` did not remove the first difference. Native GCC's `long double` retains
+extended spill precision and passes the same inputs exactly. These findings do
+not establish a legacy acceptance limit or complete the producer seam. Further
+legacy precision work remains; no registers were forced or assembly inserted.
+
 ### Verification (pixel size and LOD)
 
 - `build/venv/bin/python tools/verify_pc_car_draw_lod.py --mutation-checks`, with `UG2_DIR` set. The executable's SHA-256
