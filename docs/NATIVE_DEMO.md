@@ -1755,8 +1755,8 @@ kept outside the native link until effect API adapters and resource ownership
 exist; successful shader objects are not fabricated. Native CPU texture staging
 also requires a real API treatment of the ramp's zero mip-level request before
 activation. Technique Begin/End methods, destruction, the library container,
-shader resources/backend, bounds classification and consumer `0x5cf420` remain
-open. The native build/orbit and existing solid-dispatch checks are regressions
+shader resources/backend and bounds classification remain open. Consumer
+`0x5cf420` is recovered below; its helper bodies and native activation remain open. The native build/orbit and existing solid-dispatch checks are regressions
 for the expanded record layout, not execution of native effects. The demo,
 simulator and display-free solid probe build successfully. The existing solid
 dispatch verifier passes 12,288 comparisons on each compiler. Native SKYLINE
@@ -1764,6 +1764,92 @@ passes a 60-frame orbit and 120-frame scripted drive with unchanged source/recor
 checksums (`ca993eba`/`7141bcda` orbit, `eb0428b7`/`69927c13` drive). The three-pass
 late-texture probe retains 612 solids and 829 textures per load, follows
 500 → 534 → 500 matching slots, and unloads with clean buffers and pools.
+
+### Queued solid consumption and draw dispatch (2026-10-26)
+
+`CarRenderConsume.cpp` recovers the complete `0x5cf420` queue consumer, command-list
+clear `0x5cdf10`, group clear `0x5cea20`, view lookup `0x48b1e0`, sky index `0x60fe00`
+and sky fraction `0x60fde0`. `bSlotPool::Free` recovers the member-call slot return
+at `0x43cdf0`. Existing recovered `bFree`, pool allocation and primitive queueing
+also execute in the verifier's end-to-end queue/consume cases.
+
+The consumer visits the original 16 rows of 23 technique heads in address order.
+The two eight-row native arrays are addressed separately so host storage does not
+need to be adjacent. Each nonempty head selects the table technique, runs its
+Begin method, binds the vertex declaration and begins the effect. Groups and
+commands are unlinked before their callbacks. World, headlights, extra-record,
+light-pack and bone upload calls retain their original arguments, gates and order.
+Every returned command/group updates the actual pool free list and used count;
+the texture state's cached group is cleared before the group is returned.
+
+Indexed commands lazily create a missing vertex buffer, lock it, copy whole words
+then tail bytes, and unlock it. Stream and index bindings use the original caches.
+The draw gate requires a nonzero primitive index count and vertex count below
+`0xffff`. The start index preserves wrapped subtraction followed by arithmetic
+right shift, and triangle counts use unsigned division. The shader/debug/type
+checks can force one pass for types 0, 1, 4 and 5. Type 20 selects a preceding sky
+texture with the original hash-dependent wrap, writes the float fraction, then
+truncates the float-times-255 result into the high alpha byte.
+
+Immediate commands disable state 14, invalidate only the stream cache, draw the
+original 24-byte vertices once per configured pass, restore state 14 and return
+the vertex record through the member pool operation. Both paths commit even
+when the configured pass count is zero or negative. The effect Begin output does
+not replace that pass count. Counters preserve the original behavior, including
+the indexed statistic that adds **vertex count / 3**, rather than the primitive's
+index count / 3. Technique End precedes effect End; the current-technique pointer
+is then cleared, and the total queued-group count is zeroed after the full walk.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_consume.py --gcc --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_consume.py --mutation-checks
+```
+
+Both compilers pass **14,336 comparisons** (2,048 per routine) and reject
+**23 mutations**. Per compiler, the consumer observes 8,189 groups, 7,935 indexed
+draw calls, 3,945 immediate draw calls, 1,024 lazy uploads and 249 sky-morph updates.
+The 1,024 queue/consume cases use the real recovered queue and pool allocation
+bodies, including group reuse/replacement; the remaining consumer cases start
+from independently constructed queue graphs.
+
+The effect table at `0x7b6fe0`, installed by constructor `0x66509e`, confirms the
+original slot identities: Begin `+0x104` → `0x664782`, BeginPass `+0x108` →
+`0x66acd2`, CommitChanges `+0x10c` → `0x66ac17`, EndPass `+0x110` → `0x65adcb`,
+and End `+0x114` → `0x65ace5`. The consumer's commit-before-pass order is retained;
+no ordering is inferred from a modern effect header. These library bodies are
+read as boundary evidence, not recovered or executed by the consumer verifier.
+
+The fixtures compare complete arena/global/pool bytes, queued state before the
+consumer, ordered call arguments, upload bytes, preserved registers, stack
+cleanup and x87 control words. They cover all queue rows/types, empty and repeated
+heads/groups, cached group reuse and replacement, ordinary and immediate draws,
+negative/zero/multiple pass counts, vertex/index bind reuse, lazy uploads with
+word/tail lengths and overlapping buffers, headlight/record/light/bone gates,
+sky selection, wrapped counters and signed start offsets. The sky fraction also
+has standalone **raw 80-bit x87 return** checks at both precision settings with
+signed zero, subnormal, finite, infinity and NaN inputs. Complete original address
+spans are pinned by `car-render-consume.json`, including consumer alignment gaps.
+Reports are under `build/analysis/car-render-consume/`.
+
+D3D/D3DX methods, texture lookup and the technique virtual Begin/End calls remain
+controlled boundaries. Six engine helpers (`0x5bcc30`, `0x5bdde0`, `0x5bdaa0`,
+`0x5bd140`, `0x5bd4a0`, `0x5bdcd0`) are observed call boundaries; their bodies
+remain pending. Tests use writable bounded records and controlled API results,
+including invalid count/limit values; they do not establish arbitrary malformed,
+OOM, API failure, shader or rendering equivalence. This is behavioral and upload/
+x87-byte evidence, not instruction-byte identity.
+
+The consumer is compiled into the recovered archive but is not called by the
+native demo. The current GL display-list seam still ignores the original flags,
+lighting records and shader effects. Bind/upload bodies, technique virtual
+methods/destruction, effect resources/backend, bounds classification and native
+queue/consumer activation remain necessary to close that seam. The existing
+bWare pool verifier and native demo/probe build are regressions for the added
+pool method; they do not establish native consumer execution. The pool verifier
+passes its 300 trials of 60 operations. Native SKYLINE's 60-frame orbit keeps
+source/record checksums `ca993eba`/`7141bcda`; the three-load late-texture probe
+retains 612 solids and 829 textures per load, follows 500 → 534 → 500 matching
+slots and finishes with clean handles, buffers and node pools.
 
 ### Verification (pixel size and LOD)
 

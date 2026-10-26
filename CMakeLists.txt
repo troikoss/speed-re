@@ -28,7 +28,7 @@ file(GLOB UG2_RECOVERED_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/bSlotPool.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Compression.cpp)
 # Verified separately by verify_pc_car_render_solid.py. NativeCarWheels still
-# supplies DrawSolid until GPU texture/effect setup and the GPU consumer exist.
+# supplies DrawSolid until native effect support and recovered GPU consumption are wired.
 list(REMOVE_ITEM UG2_RECOVERED_SOURCES ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Src/World/CarRenderSolid.cpp)
 include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/src/Platform/Native/include)
 add_library(ug2recovered STATIC ${UG2_RECOVERED_SOURCES})

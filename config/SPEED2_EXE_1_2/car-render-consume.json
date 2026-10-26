@@ -1,0 +1,40 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "consume": {
+      "address": "0x5cf420",
+      "size": 1340,
+      "sha256": "c7412a930f70a568654c1c61bcd8a99415d16425541fbd5e61131b89e78452e5"
+    },
+    "clear": {
+      "address": "0x5cdf10",
+      "size": 49,
+      "sha256": "5f6b62bb7ad866913bc5a80b52591442bb48e0d1e00d18c9e8c5a51748e38d25"
+    },
+    "group_clear": {
+      "address": "0x5cea20",
+      "size": 8,
+      "sha256": "5cc5670d90f7d375904ba17fdf3ec4d1cc283e42ba94e06926c5c70608e43f3c"
+    },
+    "view": {
+      "address": "0x48b1e0",
+      "size": 16,
+      "sha256": "2b793e61b9eb4d8086108a579593644c7dac8c6a2428854c208d06fc855abe22"
+    },
+    "sky": {
+      "address": "0x60fe00",
+      "size": 6,
+      "sha256": "cca12a1f54787b7527ced062f6907fa7e9d2f228274905f07f803d1feab6a20c"
+    },
+    "fraction": {
+      "address": "0x60fde0",
+      "size": 13,
+      "sha256": "f6e88f94367565fc786ea8fbe31e3d43ccf97132a577a1146abfc3b29c1bbf42"
+    },
+    "free": {
+      "address": "0x43cdf0",
+      "size": 24,
+      "sha256": "8445a223ec54cbaff7655144cccf846d1b7345033cc6d4cbffea04a6c21029e4"
+    }
+  }
+}

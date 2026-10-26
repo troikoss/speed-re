@@ -22,6 +22,7 @@ struct bSlotPool {
     void InitialiseFreeList();       // 0x43cd40
     void Expand(int count);          // 0x440bb0
     void *FindUsedSlot(int skip);    // 0x440c30
+    void Free(void *memory);         // 0x43cdf0, RET 4
     void *Allocate();                // 0x440d40
 };
 

@@ -221,3 +221,10 @@ void bDeleteListNode(WCollisionLink *node) {
         }
     }
 }
+
+// 0x43cdf0: member-call spelling of the original slot return operation.
+void bSlotPool::Free(void *memory) {
+    *static_cast<void **>(memory) = free10;
+    --used18;
+    free10 = memory;
+}

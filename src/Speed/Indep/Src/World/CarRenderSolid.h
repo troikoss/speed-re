@@ -151,6 +151,7 @@ struct CarRenderTextureGroup {
     CarRenderTexture *texture10;
     CarRenderTechnique *technique14;
     CarRenderQueueLink commands18;
+    void ClearCommands(); // 0x5cea20
 };
 UG2_CHECK_OFFSET(CarRenderTextureGroup, commands18, 0x18);
 UG2_CHECK_SIZE(CarRenderTextureGroup, 0x20);
