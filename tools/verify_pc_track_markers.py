@@ -64,7 +64,11 @@ def main():
                     "src/Speed/Indep/Src/World/WCollision.cpp"], cwd=ROOT, check=True)
     ld = {n: int(a, 16) for n, a in re.findall(r"^(\w+) = (0x[0-9a-f]+);",
           (ROOT / "src/Platform/Native/OriginalSymbols.ld").read_text(), re.M)}
-    symbols = list(read_object(obj)["symbols"].values()) + list(read_object(collision)["symbols"].values())
+    registry = BUILD / "TrackSectionResources.obj"
+    subprocess.run([str(ROOT / "build/tools/wibo"), "build/compilers/Win32/7.1/cl.exe", "/nologo", "/c", "/Ox",
+                    "/Ob0", "/Z7", "/EHsc", "/Fo" + str(registry.relative_to(ROOT)),
+                    "src/Speed/Indep/Src/World/TrackSectionResources.cpp"], cwd=ROOT, check=True)
+    symbols = [s for path in (obj, collision, registry) for s in read_object(path)["symbols"].values()]
     defined = {s["name"] for s in symbols if s["section"] > 0}
     externals = {}
     stubs = {}
@@ -90,7 +94,7 @@ def main():
             raise AssertionError(name)
     for name in ("__ftol2", "__fltused"):
         externals[name] = 0x75bed4 if name == "__ftol2" else STOP + 0xf00
-    linked = link_objects([obj, collision], externals)
+    linked = link_objects([obj, collision, registry], externals)
     entries = {p: next(a for n, a in linked["exports"].items() if n.startswith(p)) for p in FUNCTIONS}
     state = {}
     machines = []

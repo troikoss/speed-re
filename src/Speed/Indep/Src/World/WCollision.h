@@ -125,7 +125,23 @@ struct TrackSection {
     float DistanceTo(float *point, float limit);
 };
 
-// Track section topology at 0x883e70 (constructor 0x5e6360).
+// Shared 0x1c-byte streaming record: free-list links alias the reference count.
+struct TrackSectionResource {
+    union {
+        WCollisionLink free0;
+        struct { unsigned int references0; unsigned int value4; } used;
+    };
+    void *value8;
+    void *valueC;
+    unsigned int value10;
+    unsigned int value14;
+    unsigned int value18;
+};
+UG2_CHECK_OFFSET(TrackSectionResource, value8, 8);
+UG2_CHECK_OFFSET(TrackSectionResource, valueC, 0xc);
+UG2_CHECK_SIZE(TrackSectionResource, 0x1c);
+
+// Track section topology and streaming registry at 0x883e70.
 struct TrackTopology {
     WCollisionLink sections0;
     WCollisionLink otherSections8;
@@ -135,10 +151,24 @@ struct TrackTopology {
     WCollisionLink records28;
     char unidentified30[0x1c];
     int *header4C;
+    TrackSectionResource *resources50[2800];
+    int resourceCount2C10;
+    TrackSectionResource storage2C14[512];
+    WCollisionLink free6414;
+    unsigned int value641C[8];
+    TrackTopology *Construct();  // 0x5e6360, complete constructor
+    TrackSectionResource *AcquireResource(int section); // 0x5db680, RET 4
+    void ReleaseResource(int section);                 // 0x5db6e0, RET 4
     int LoadChunk(int *chunk);
     TrackSection *FindSection(float *point);
     TrackSection *FindNearest(float *point, float *distance);
 };
+UG2_CHECK_OFFSET(TrackTopology, resources50, 0x50);
+UG2_CHECK_OFFSET(TrackTopology, resourceCount2C10, 0x2c10);
+UG2_CHECK_OFFSET(TrackTopology, storage2C14, 0x2c14);
+UG2_CHECK_OFFSET(TrackTopology, free6414, 0x6414);
+UG2_CHECK_OFFSET(TrackTopology, value641C, 0x641c);
+UG2_CHECK_SIZE(TrackTopology, 0x643c);
 
 struct WSectionTracker {
     float x0;

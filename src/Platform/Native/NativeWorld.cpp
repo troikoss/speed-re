@@ -5,6 +5,7 @@
 #include "NativeVehicle.h"
 #include "../../Speed/Indep/Src/World/TrackPositionMarkers.h"
 #include "../../Speed/Indep/Src/Hud/HudMinimap.h"
+#include "../../Speed/Indep/Src/World/CarRenderLightLoad.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -12,6 +13,13 @@
 #include <string.h>
 #include <string>
 #include <vector>
+
+extern "C" {
+CarRenderLightList ug2LightSectors830D14;
+CarRenderLightList ug2AdditionalLights835850;
+CarRenderLightList ug2LightAnimations830AE8;
+CarRenderLightList ug2LightProfiles8358C0;
+}
 
 namespace {
 
@@ -79,6 +87,11 @@ bool LoadNativeTrack(const char *gameDirectory, const char *region, NativeTrack 
                      int errorSize) {
     memset(track, 0, sizeof(*track));
     RunWorldStaticInitializers();
+    // Original static initializer order: 0x77cbb0/0x77cbd0/0x77cbf0/0x77cc80.
+    ug2LightAnimations830AE8.Construct();
+    ug2LightSectors830D14.Construct();
+    ug2LightProfiles8358C0.Construct();
+    ug2AdditionalLights835850.Construct();
     std::vector<unsigned char> regionData;
     std::string path = std::string(gameDirectory) + "/TRACKS/" + region + ".BUN";
     if (!ReadWholeFile(path, &regionData)) {
@@ -108,6 +121,8 @@ bool LoadNativeTrack(const char *gameDirectory, const char *region, NativeTrack 
         if (id == 0x80034130) {
             collisionManager.LoadChunk(CopyChunk(streamData.data(), offset, size));
             ++track->packCount;
+        } else if (id == 0x80135000 || id == 0x80135100) {
+            CarRenderLoadLightChunk(reinterpret_cast<unsigned int *>(CopyChunk(streamData.data(), offset, size)));
         }
         offset += 8 + size;
     }
@@ -136,5 +151,17 @@ bool LoadNativeTrack(const char *gameDirectory, const char *region, NativeTrack 
     track->spawn[2] = positions[0].position0[2];
     track->heading = positions[0].angle10 * (6.28318530718f / 65536.0f);
     track->spawnFound = true;
+    if (getenv("UG2_DEBUG_LIGHTS")) {
+        int sectors = 0, animations = 0;
+        for (CarRenderLightSector *s = ug2LightSectors830D14.next00;
+             s != reinterpret_cast<CarRenderLightSector *>(&ug2LightSectors830D14); s = s->next00) ++sectors;
+        for (CarRenderLightSector *s = ug2LightAnimations830AE8.next00;
+             s != reinterpret_cast<CarRenderLightSector *>(&ug2LightAnimations830AE8); s = s->next00) ++animations;
+        CarRenderLightSelection selected;
+        const int count = CarRenderSelectLights(&selected, track->spawn);
+        fprintf(stderr, "native lighting: %d sectors, %d animations, %d registry entries, spawn selection %d, ambient %.9g %.9g %.9g %.9g\n",
+                sectors, animations, trackTopology.resourceCount2C10, count,
+                selected.valueC0[0], selected.valueC0[1], selected.valueC0[2], selected.valueC0[3]);
+    }
     return true;
 }

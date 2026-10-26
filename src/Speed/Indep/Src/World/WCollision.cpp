@@ -576,9 +576,8 @@ void RegisterCollisionPack(WCollisionPack *pack) {
     }
 }
 
-// Static constructors 0x5e81d0 (collision manager) and the list part of 0x5e6360
+// Static constructors 0x5e81d0 (collision manager) and complete 0x5e6360
 // (topology), plus list heads 0x88f748/0x88ea8c built by 0x57bcd0/0x598750.
-// The remainder of 0x5e6360 (section streaming state from +0x50) is not yet recovered.
 void RunWorldStaticInitializers() {
     unpackedColliders.next = &unpackedColliders;
     unpackedColliders.previous = &unpackedColliders;
@@ -591,12 +590,7 @@ void RunWorldStaticInitializers() {
     }
     collisionManager.barrierCount828 = 0;
     collisionManager.barriers82C = 0;
-    WCollisionLink *lists = &trackTopology.sections0;
-    for (int i = 0; i < 9; ++i) {
-        lists[i].next = &lists[i];
-        lists[i].previous = &lists[i];
-    }
-    trackTopology.header4C = 0;
+    trackTopology.Construct();
 }
 
 // Original 0x5e0b40: collider constructor body.

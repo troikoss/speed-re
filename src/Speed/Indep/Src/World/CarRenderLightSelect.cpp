@@ -13,6 +13,12 @@ const volatile float light784250 = 1.0f;
 const volatile float light7D7D3C = 0.0f;
 }
 
+// Original 0x57bcd0: both links point to this sentinel.
+void CarRenderLightList::Initialise() {
+    next00 = reinterpret_cast<CarRenderLightSector *>(this);
+    previous04 = reinterpret_cast<CarRenderLightSector *>(this);
+}
+
 // Original 0x4893a0. Distance and outer squared radius spill to float, while
 // the inner squared radius stays extended across both attenuation divisions.
 void CarRenderAdmitLight(CarRenderLightSelection *output, CarRenderLightSelectState *state,

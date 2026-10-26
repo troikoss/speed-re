@@ -23,6 +23,7 @@ struct CarRenderLightTree {
     CarRenderLightTreeNode *Descend(CarRenderLightTreeNode *node, float x, float y, float z);
     // Original 0x5747e0 (__thiscall, RET 0xc): root check and descent.
     CarRenderLightTreeNode *Find(float x, float y, float z);
+    void LoadNoop(); // 0x4022c0, shared empty routine used on initial chunk fixup
 };
 
 struct CarRenderLightLink {
@@ -32,7 +33,10 @@ struct CarRenderLightLink {
 struct CarRenderLightSector {
     CarRenderLightSector *next00;
     CarRenderLightSector *previous04;
-    unsigned char pad08[8];
+    unsigned short version08;
+    unsigned char initialized0A;
+    unsigned char value0B;
+    unsigned int section0C;
     CarRenderLightTree *tree10;
     unsigned int value14;
     CarRenderLight *lights18;
@@ -49,11 +53,15 @@ struct CarRenderLightList {
     CarRenderLightSector *previous04;
     // Original 0x502fd0 (__thiscall, RET 0): returns the receiver unchanged.
     CarRenderLightSector *End();
+    void Initialise();                     // 0x57bcd0, RET 0
+    CarRenderLightList *Construct();        // 0x598750, RET 0
 };
 UG2_CHECK_SIZE(CarRenderLightList, 8);
 extern "C" {
 extern CarRenderLightList ug2LightSectors830D14;
 extern CarRenderLightList ug2AdditionalLights835850;
+extern CarRenderLightList ug2LightAnimations830AE8;
+extern CarRenderLightList ug2LightProfiles8358C0;
 }
 
 // Internal stack layout shared by 0x48e3d0 and 0x4893a0. Unknown cell +0xc4

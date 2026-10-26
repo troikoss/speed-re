@@ -1,0 +1,65 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "RegistryConstruct": {
+      "address": "0x5e6360",
+      "size": 300,
+      "sha256": "7822e9511e74e70aae864f4591bbe75cf065d33e48717d4f23d1265d8d02c92b"
+    },
+    "Acquire": {
+      "address": "0x5db680",
+      "size": 84,
+      "sha256": "36e3db05c985c6fd741d392c2678f4956ece5e02d39b8c3c6110658d06c9658b"
+    },
+    "Release": {
+      "address": "0x5db6e0",
+      "size": 56,
+      "sha256": "acb569d6febe8ea65dc53a28665aeab74a4a2f2cb985d4ce60a98ea83fa2a53d"
+    },
+    "ListConstruct": {
+      "address": "0x598750",
+      "size": 12,
+      "sha256": "9b7a0afd6b5920e5e8427b8e5349413f88b9d30f83dc2b4ec78c58194991c39c"
+    },
+    "ListInitialize": {
+      "address": "0x57bcd0",
+      "size": 8,
+      "sha256": "a30b2c5bcb5357e7ed7689a86b3f002a94f29b33abda118f627af60d0a022e1a"
+    },
+    "Load": {
+      "address": "0x48e070",
+      "size": 503,
+      "sha256": "ca14253d3c48a89cf7bc67a15a14d27b005121f55d4e9faf0fd86352a26021ba"
+    },
+    "Unload": {
+      "address": "0x48e270",
+      "size": 262,
+      "sha256": "3a2c4a3fc2511298074c8a5410d5674ccf2d2a4d8b762d8a7f974f5b95d05a9b"
+    },
+    "Append": {
+      "address": "0x48e380",
+      "size": 37,
+      "sha256": "9a65b211ac790131748f9c402fad3c56db4fd55feea33a929189aa1d3ef219d6"
+    },
+    "Remove": {
+      "address": "0x48e3b0",
+      "size": 27,
+      "sha256": "f7f5dd5308cfbf195a75e537f6a11066e80b7a727e5962f8f0a50206b4760ff2"
+    },
+    "AllocateState": {
+      "address": "0x5bb590",
+      "size": 21,
+      "sha256": "d4bacbbc7609c19136b6f5051f6ce563253cf88f61b9a5fabf3819cc524a0120"
+    },
+    "ApplyDefaults": {
+      "address": "0x5bb5b0",
+      "size": 328,
+      "sha256": "8d79e8bada56c918a3513ea8bcf4f9e91ca041b20ea15d758b1abaeddb5d3713"
+    },
+    "Empty": {
+      "address": "0x4022c0",
+      "size": 1,
+      "sha256": "ae3f4619b0413d70d3004b9131c3752153074e45725be13b9a148978895e359e"
+    }
+  }
+}

@@ -59,6 +59,9 @@ The demo now drives on UG2's L4RA streets using recovered world-collision code i
 - Section topology `0x883e70` (chunk `0x80034150`, loader `0x5e9c10`), tracker
   `0x5dfeb0`, section search `0x5db850`/`0x5db770`, polygon tests `0x5d6dd0`,
   `0x5d7090`, `0x5d7270`, `0x5d70d0`.
+- Its complete constructor `0x5e6360` and shared section-resource registry
+  `0x5db680`/`0x5db6e0` are recovered in `TrackSectionResources.cpp`; native world
+  initialization now calls the complete constructor. See lighting loading below.
 - Skid-mark emitter `0x59dbb0` with rotation helper `0x59db50`.
 
 The skid-mark trail methods (`0x5e6e70`, `0x5d3230`) are a renderer seam: the demo
@@ -621,8 +624,9 @@ native wrapper check and all 11 mutations pass with these settings.
 Activation remains open. The original car draw initializes the frame +0xb20
 record with `0x48ab10` at `0x620fd3`, then fills it through lighting/source-record
 producer `0x48ed60` at `0x620ff3`. The clear routine, lighting foundations and
-builder and light selection are now recovered (see below); list population and actual caller context
-remain open before replacing the native placeholder. The
+builder and light selection are now recovered (see below); primary list population
+is wired through recovered loaders. Additional-light producers and actual caller
+context remain open before replacing the native placeholder. The
 initial position at frame +0x790 comes from view frame +0x40..+0x48 at
 `0x620f04`..`0x620f2c`, but subsequent body-draw writes/stack reuse must still be
 traced before claiming that is the final wheel input. The full 66,053-byte car
@@ -711,7 +715,8 @@ Further original-binary leads: callers `0x631250` and `0x6316d0` push the defaul
 context `0x7f3f00` into `0x620ae0` at `0x631696`/`0x631879`; the image holds three
 populated source entries there. Source-record builder `0x48ed60` is recovered
 below; light selection `0x48e3d0` is recovered in the following selector section.
-Its native list population remains open. The third matrix at `0x871b50` is produced
+Its primary native list population is recovered below; additional-light producers
+remain open. The third matrix at `0x871b50` is produced
 in `0x5c3450`: the `0x5c3524` call uses recovered `CameraLookAt` (`0x5ba9a0`),
 then indices 3/7/11/12/13/14 are zeroed and index 15 is set to 1 before the copy at
 `0x5c356b`. Its up input is the image vector 0/0/1 at `0x800b70`. This is a lead
@@ -778,8 +783,9 @@ trig dependencies execute original machine code in this verifier. Native i386
 and legacy MSVC caller results are therefore distinct from complete native
 integration. The builder is compiled into the recovered library but is not
 activated by the demo. Selection `0x48e3d0` and its tree dependencies are now
-recovered and checked without that fixture substitution below. Native list/tree
-population, actual view-frame/position inputs and extra-record draw consumption remain open.
+recovered and checked without that fixture substitution below. Native primary
+list/tree population is now wired through the recovered loader. Additional-light
+producers, actual view-frame/position inputs and extra-record draw consumption remain open.
 The i386 demo builds and completes the 60-frame SKYLINE no-audio orbit smoke;
 that is a baseline platform check, not a lighting-activation claim.
 
@@ -853,12 +859,110 @@ three-component normalization and trig still execute original machine code in
 this harness. The separate legacy `0x489ba0` precision gap is unchanged.
 
 The i386 demo builds and completes the 60-frame SKYLINE no-audio orbit smoke.
-This remains a baseline integration check: native light-list/tree population,
-source-record/caller activation, correct view-frame and final position inputs,
-and extra-record rendering remain open. Original xrefs identify append routine
+The next section covers native primary light-list/tree population. Source-record/
+caller activation, additional-light producers, correct view-frame and final
+position inputs, and extra-record rendering remain open. Original xrefs identify append routine
 `0x48e380` for the additional list and primary-list data use at `0x48e248`;
 startup references `0x77cbd0`/`0x77cc80` are initialization leads. Those producers
-have not been recovered or wired by this checkpoint.
+are recovered in the loading checkpoint below.
+
+### Retail lighting chunks and shared registry (2026-10-26)
+
+`CarRenderLightLoad.cpp` recovers complete chunk callbacks `0x48e070` and
+`0x48e270`, plus additional-sector append/remove `0x48e380`/`0x48e3b0`.
+The original registration at `0x77cc20`/`0x77cc40`/`0x77cc60` names three kinds:
+
+- `0x135200`: multiply the two observed float fields by image value 1, even for
+  an unsupported pack kind; kind 3 allocates its state through `bOMalloc`, applies
+  the observed hash-based defaults, appends link +4 to list `0x8358c0`, and may
+  update the default-pack pointer. Unload removes the link and restores the
+  original fallback pointer for hash `0x2c420d64`.
+- `0x80135100`: fix aligned header `0x135101`, preserve/set its initialized byte,
+  require kind 3, initialize its nested sentinel and append `count50` records from
+  `0x135102` at stride 0x30. Append the header to list `0x830ae8` and register it in
+  the shared section record's +8 cell. Unload clears that cell and releases a
+  registry reference.
+- `0x80135000`: require header `0x135001` version 4, fix tree `0x135002` to nodes
+  at tree+0x10, and point to the 0x60-byte lights in `0x135003`. The first fixup
+  retains the shared empty call `0x4022c0`. Append to sector list `0x830d14` and
+  store the header in registry record +0xc. Unload removes it, clears +0xc and
+  releases its reference. Unknown child kinds are skipped as in the original.
+
+Child payload alignment is `(child+0x17)&~15`, including the chunk header's
+eight bytes. The implementation uses a pointer-width address type. No original
+pointer is encoded by truncating a host pointer. The additional append/remove
+routines preserve null returns and link-store order; the dynamic producer that
+would call append in the native car session remains open.
+
+`CarRenderLightLoadHelpers.cpp` recovers list constructor `0x598750`, pooled-state
+setup `0x5bb590`, all 23 recognized hash paths in `0x5bb5b0`, and the shared empty
+body. List initialization `0x57bcd0` sets both links to the receiver. Unknown hashes
+retain both fields. The pool body is the already recovered bWare implementation;
+the verifier executes its original bytes. Native track loading does not load
+`0x135200` packs or initialize their separate pool/ownership lifecycle.
+
+The registry is **the existing track topology at `0x883e70`**, not a separate
+lighting registry. `TrackSectionResources.cpp` recovers complete constructor
+`0x5e6360`, acquire `0x5db680` and release `0x5db6e0`. The checked object is 0x643c
+bytes: nine initial sentinels; 2,800 entry pointers at +0x50; count at +0x2c10;
+512 records of 0x1c bytes at +0x2c14; free-list head +0x6414; eight final words.
+Construction leaves record payloads untouched. First acquire unlinks a free
+record, clears exactly seven words and increments its reference count; subsequent
+acquires share it. Final release appends it without clearing payloads. The original
+assumes a valid index and available free record; no replacement allocator or
+extra capacity behavior was added. `RunWorldStaticInitializers` now calls this
+constructor rather than initializing only the topology prefix.
+
+Evidence combines live Ghidra decompilation of the dependencies, callback/global
+xrefs and manual decompilation of the original callback instructions (Ghidra had
+no function objects at the two callback addresses). The executable and 12 spans
+are pinned in `car-render-light-load.json`; the project was not modified.
+With `UG2_EXE` set, run the MSVC jobs sequentially:
+
+```
+build/venv/bin/python tools/verify_pc_car_render_light_load.py --gcc --cases 2048 --mutation-checks
+build/venv/bin/python tools/verify_pc_car_render_light_load.py --cases 2048 --mutation-checks
+build/venv/bin/python tools/verify_pc_car_render_light_load.py --gcc --cases 1 --retail-track "$UG2_GAME/TRACKS/STREAML4RA.BUN"
+build/venv/bin/python tools/verify_pc_car_render_light_load.py --cases 1 --retail-track "$UG2_GAME/TRACKS/STREAML4RA.BUN"
+```
+
+Each compiler passes **112,640 exact synthetic lifecycle comparisons**, with
+all 11 mutations rejected. Both x87 precision settings run. Coverage includes
+all 512 free records, zero/last valid IDs, repeated/final releases, untouched
+constructor payloads, shared references, all default hashes, child alignment
+phases, initialized flags, valid/unsupported kinds, unknown children, empty
+records, null append/remove, and ordered helper calls. Every fixture/registry
+byte, list head, default pointer, return, cleanup, preserved register, control
+word and empty x87 stack must match. These are finite valid fixtures; byte
+identity, arbitrary malformed lengths and exhausted-pool behavior are not
+claimed. The primary unloader's non-advancing loop on a mismatched first child
+is preserved, with no general invalid-input safety claim.
+
+Retail verification loads all **249 sector-light and 250 animation chunks** from
+`STREAML4RA.BUN`, builds **250 shared registry entries**, compares **520 selection
+queries**, and unloads every chunk in reverse order, returning the registry count
+to zero. Per compiler: 998 load comparisons, 998 unload comparisons and 520
+selection comparisons at both precision settings, plus constructor/list checks;
+zero failures. The report records the input SHA-256. Queries use actual light
+positions and deterministic sampled coordinates; this is not a captured original
+streaming schedule.
+
+Native `LoadNativeTrack` now sends those same chunk kinds to the recovered handler
+using the existing aligned copies retained for the session. It calls the original
+list constructors in the observed initializer order. Native all-section loading
+still replaces original asynchronous visibility/streaming and does not unload
+chunks during this session. The `ug2demo` and `ug2sim` targets build. The 60-frame
+SKYLINE no-audio orbit smoke passes; `UG2_DEBUG_LIGHTS=1` reports 249 sectors,
+250 animations, 250 registry entries, two selected lights at spawn and ambient
+0/0/0/1. Track-marker regression verification also passes with the complete
+registry object linked.
+
+This activates retail light data and selection. Wheel record production and GL
+consumption remain unwired: `UG2WheelVisible` still uses its activation seam,
+the wheel caller still needs the correct source/frame/position buffers, and
+`DrawSolid` ignores the extra record. Additional car-light production, the
+separate pack lifecycle and the legacy coefficient-transform precision gap
+remain open.
 
 ### Verification (pixel size and LOD)
 
