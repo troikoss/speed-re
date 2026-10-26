@@ -1128,9 +1128,10 @@ its queues. Native activation and visual lighting parity are not claimed.
 
 The consumer is `0x5cf420`: its calls to `0x5bdde0` upload world/view transforms,
 `0x5bd140` consumes the prepared extra record, and `0x5bd4a0` consumes the lighting
-pack. Those bodies, effect/technique setup and retail solid fixups remain open.
-They are the next evidence path for the GL seam; prepared records alone cannot
-close it. Native build, wheel-block/preparation regressions and SKYLINE smoke
+pack. Those bodies, effect/technique setup and retail solid fixups were open at
+this checkpoint; the following sections recover them. Native effect support and
+activation still separate the prepared records from GL consumption.
+Native build, wheel-block/preparation regressions and SKYLINE smoke
 checks pass separately from dispatcher equivalence: 2,048 native blocks/6,739
 prepared records; 512 legacy layout/2,048 block cases with 14 rejected mutations;
 record-lookup regressions with 10 rejected mutations; `ug2demo`/`ug2sim` build;
@@ -1837,7 +1838,8 @@ D3D/D3DX methods, texture lookup and the technique virtual Begin/End calls remai
 controlled boundaries. Six engine helpers (`0x5bcc30`, `0x5bdde0`, `0x5bdaa0`,
 `0x5bd140`, `0x5bd4a0`, `0x5bdcd0`) are observed call boundaries in this
 standalone verifier. The uploads section below supersedes the body gaps for
-world/headlight/bone uploads and exercises them in the consumer chain. Tests
+world/headlight/bone uploads and exercises them in the consumer chain. The
+material section below closes the other three engine-helper body gaps. Tests
 use writable bounded records and controlled API results,
 including invalid count/limit values; they do not establish arbitrary malformed,
 OOM, API failure, shader or rendering equivalence. This is behavioral and upload/
@@ -1846,7 +1848,8 @@ x87-byte evidence, not instruction-byte identity.
 The consumer is compiled into the recovered archive but is not called by the
 native demo. The current GL display-list seam still ignores the original flags,
 lighting records and shader effects. The uploads section below recovers the
-technique methods/destruction and three upload helpers. Texture binding, extra-record/light-pack uploads, effect
+technique methods/destruction and three upload helpers; the material section
+below recovers texture binding and extra-record/light-pack uploads. Effect
 resources/backend, bounds classification and native queue/consumer activation
 remain necessary to close that seam. The existing
 bWare pool verifier and native demo/probe build are regressions for the added
@@ -1942,15 +1945,16 @@ Consumer-chain cases link the real recovered queues, pools, world/headlight/bone
 uploads and technique methods through the native token bridge. Recovered identity,
 rigid inverse, string hash and view/sky helpers execute. The original scalar D3DX
 multiply body executes on both sides; these results do not establish equivalence
-of every native or optimized D3DX implementation. Only three engine consumer
-bodies remain controlled there: texture binding `0x5bcc30`, record upload
+of every native or optimized D3DX implementation. Three engine consumer
+bodies remain controlled in this standalone verifier: texture binding `0x5bcc30`, record upload
 `0x5bd140`, and light-pack upload `0x5bd4a0`. GPU/effect methods, texture lookup and
 library map destruction remain controlled runtime boundaries. Finite bounded record
 and matrix fixtures do not establish malformed/OOM/exception behavior, native
 shader execution or rendering equivalence. Byte identity is not claimed.
 
-Native effect/API ownership and resource loading, those three helper bodies,
-the library map, bounds classification, original scheduling and native consumer
+The next section recovers those three bodies and links them into the consumer
+chain. Native effect/API ownership and resource loading, the library map,
+bounds classification, original scheduling and native consumer
 activation remain open. Existing GL drawing still ignores the original lighting
 records and flags. The demo, simulator and solid-record probe build successfully;
 the existing consumer verifier also passes 14,336 comparisons per compiler after
@@ -1961,6 +1965,118 @@ late-texture probe retains 612 solids and 829 textures per load, follows
 These are archive/layout/lifecycle regressions, not native GPU execution of these
 new helpers. The other wheel inventory rows and legacy coefficient transform
 precision gap remain separate work.
+
+### Texture binding and record/material uploads (2026-10-27)
+
+`CarRenderMaterial.cpp` recovers the last three engine-helper bodies controlled
+by the preceding consumer-chain verifier, together with seven dependencies:
+
+| Address | Recovered body |
+| --- | --- |
+| `0x5bcc30` | Texture/technique cache, blend/alpha/depth/cull state and UV uploads |
+| `0x5bd140` | Extra-record upload: directional lights or harmonic/eye vectors |
+| `0x5bd4a0` | Light-pack upload: fixed-function material or effect vectors |
+| `0x5bcb70` / `0x5bcbc0` | Alpha-test and blend state setters |
+| `0x48b450` | Truncating texture phase/quantization helper, `RET 0x10` |
+| `0x5b7d40` / `0x5b7d80` | Signed texture-coefficient U/V scroll methods |
+| `0x5bd060` | Four-channel clamp with the original unordered/zero behavior |
+| `0x486f50` | Four-component transform, reached through thunk `0x43c9b0` |
+
+`car-render-material.json` pins the complete original body spans and reference
+executable SHA-256. The executable fingerprint also covers the texture binder's
+external switch table. Unknown record fields retain offset names. The texture
+record remains `0x7c` bytes, with signed coefficients at `+0x58..+0x60`.
+The material consumer reads through light-pack `+0x9c`; its separate `0xa0` read
+view does not redefine the shorter chunk-loader prefix or establish allocation
+ownership. API record layouts follow the original calls and Microsoft's
+[D3DMATERIAL9](https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dmaterial9)
+and [D3DLIGHT9](https://learn.microsoft.com/en-us/windows/win32/direct3d9/d3dlight9)
+definitions.
+
+Texture binding preserves the pair cache `(texture, current technique)`, including
+updating it and incrementing the counter **before** returning for a zero GPU
+token. Alpha testing requires byte `+0x55 == 1`; other nonzero values do not enable
+it. Opaque/transparent paths retain their original cull/depth writes and blend
+factors, and the effect receives the five-word blend array even with a zero
+parameter handle. The UV handle gates the computation and dirty flag. Mode 3
+uses the negated signed static offsets; other modes choose texture coefficients
+or width/height-scaled overrides. The UV matrix uses elements **8 and 9**.
+Mode 0 clears the dirty flag only at the end. The nonzero-token path ultimately
+requires a current technique; no speculative null guard is added.
+
+The wave helper truncates toward zero, preserving negative remainders. Mode 2
+first truncates time/period. Both conversions use the signed low 32 bits of the
+original `_ftol2` 64-bit result; large values can consequently return outside a
+conventional fractional range. Tests include this low-word wrap and zero-period
+i386 behavior, and capture the actual 80-bit x87 returns. They do not establish
+portable out-of-range float-to-integer semantics on another architecture.
+
+Record upload distinguishes technique types 4 and 5 and the shader byte. The
+fixed-function type-5 path clamps the scaled ambient coefficient, packs ABGR,
+transposes the three input directions, transforms them with `w=0`, and sends
+three directional lights. It enables a light when any absolute direction
+component fails the strict threshold test; small/zero directions produce **no
+disable call**. The color clamp maps NaN to one and negative zero to positive
+zero. The transform consumes every input before its first output store and
+preserves the component-specific sum order, including overlapping output/input
+and output/matrix cases. Shader uploads retain ten harmonic vectors and the
+local-eye vector.
+
+The device-light payload is partially initialized by the original routine.
+Verification compares all fourteen written words: type; diffuse/specular RGB;
+ambient RGBA; and direction XYZ. Diffuse/specular alpha, position and the other
+fields are indeterminate and excluded. The recovery leaves them unwritten;
+no claim is made about their bytes or general API treatment of them.
+
+Light-pack upload retains the base/range float spills, environment flag `0x100`,
+global enable and signed-low-byte gate. Fixed-function type 5 uploads the
+original material, clamps power to the binary32 `0.1` minimum, and packs the
+texture factor. Its alpha is `rangeAlpha * 128 + baseAlpha * 255`, with truncation;
+substituting a conventional 127.5 average changes results. Shader type 4/5 uploads
+the two base vectors, then **re-reads** the current type before the type-5-only
+vectors and scalar parameters. Fixtures mutate that type and a late-read pack
+field from controlled effect callbacks.
+
+The clock scale, direction threshold and minimum power are loaded from rounded
+binary32 constants, matching the binary's pooled constants. Using bare decimal
+literals under GCC's x87 excess precision changed the light-enable decision at
+the exact threshold. Explicit float memory loads resolve that difference without
+changing the threshold or widening acceptance limits.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_material.py --gcc --cases 2048 --chain-cases 512 --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_material.py --cases 2048 --chain-cases 512 --mutation-checks
+```
+
+Both i386 GCC and MSVC 7.1 pass **20,992 comparisons** each: 2,048 cases for each
+of ten routines and 512 complete consumer chains. Each rejects **39 mutations**.
+The fixtures vary cache pairs, texture modes/coefficient signs, alpha/material
+bytes, zero/live parameter handles, immediate/effect state paths, signed flags,
+threshold directions, NaN/infinity clamp inputs, matrix aliases, callbacks and
+x87 control words `0x027f`/`0x037f`. Reports are generated under
+`build/analysis/car-render-material/`. Comparisons include fixture/global bytes,
+ordered API arguments and written upload bytes, cache state at API boundaries,
+stack cleanup, preserved registers and raw x87 returns. Instruction-byte identity
+is not established.
+
+The consumer chain now executes every direct engine bind/upload helper, the
+recovered concrete technique methods, queues and pool return chain. GPU/effect
+APIs, texture lookup and library map destruction remain controlled boundaries.
+The original scalar D3DX library runs on both sides where used by the preceding
+uploads. Finite fixtures do not establish arbitrary malformed/OOM/exception
+behavior or native rendering equivalence.
+
+The new source builds into the recovered native archive; the demo still uses
+its GL display lists. `ug2demo`, `ug2sim` and `ug2solidrecords_probe` build, the
+60-frame SKYLINE orbit retains source/record checksums `ca993eba`/`7141bcda`, and
+the three-load late-texture probe retains 612 solids/829 textures per load with
+500 → 534 → 500 matching slots and clean staging handles, buffers and pools.
+These are layout/lifecycle regressions. Native effect/API resources, the library
+map, bounds classification, frame/cache scheduling and dispatch/consumer
+activation remain open, along with the other wheel inventory rows and the
+separate legacy coefficient-transform precision gap.
+The standalone GCC consumer and upload verifiers also retain their 14,336 and
+29,184 passing comparisons after the shared harness extensions.
 
 ### Verification (pixel size and LOD)
 

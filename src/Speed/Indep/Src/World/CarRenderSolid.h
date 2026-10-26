@@ -127,14 +127,20 @@ struct CarRenderTexture {
     unsigned char value54;
     unsigned char value55;
     unsigned char material56;
-    unsigned char pad57[0x68-0x57];
+    unsigned char value57;
+    short value58,value5A,value5C,value5E,value60;
+    unsigned char pad62[6];
     CarRenderTexturePack *pack68;
     CarRenderTexture *parent6C;
     unsigned char *pixels70;
     unsigned char *palette74;
     unsigned int value78;
     void SetState(CarRenderTextureState *state); // 0x5b9690, RET 4
+    long double ScrollU(float time); // 0x5b7d40, RET 4
+    long double ScrollV(float time); // 0x5b7d80, RET 4
 };
+UG2_CHECK_OFFSET(CarRenderTexture, value58, 0x58);
+UG2_CHECK_OFFSET(CarRenderTexture, value60, 0x60);
 UG2_CHECK_OFFSET(CarRenderTexture, priority51, 0x51);
 UG2_CHECK_OFFSET(CarRenderTexture, material56, 0x56);
 UG2_CHECK_OFFSET(CarRenderTexture, parentHash2C, 0x2c);

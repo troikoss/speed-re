@@ -56,6 +56,8 @@ HELPERS=dict(bind=('CarRenderBindTexture',0x5bcc30,1),world=('CarRenderUploadWor
 VIRTUAL=dict(begin=STOP+0x2000,end=STOP+0x2010)
 MEMBERS={'clear','group_clear','free'}
 RETURNS={'view','sky'}
+FP_RETURNS={'fraction'}
+STDCALL=set()
 REGIONS=[(0x870d30,0xb80),(0x86eb28,92),(0x870910,4),(0x870918,8),(0x87092c,8),(0x87094c,12),(0x872ed8,0x30)]
 
 
@@ -167,10 +169,10 @@ class Machine(technique.Machine):
         try:u.emu_start(self.entries[kind],STOP,count=3000000)
         except UcError as e:raise AssertionError((str(e),hex(u.reg_read(xc.UC_X86_REG_EIP)),self.events[-3:]))from e
         assert u.reg_read(xc.UC_X86_REG_EIP)==STOP
-        assert u.reg_read(xc.UC_X86_REG_ESP)==sp+4+(len(args)*4 if member and not self.gcc else 0)
+        assert u.reg_read(xc.UC_X86_REG_ESP)==sp+4+(len(args)*4 if kind in STDCALL or (member and not self.gcc) else 0)
         for r,v in saved:assert u.reg_read(r)==v,(kind,r)
         assert u.reg_read(xc.UC_X86_REG_FPCW)==self.case['cw']
-        if kind=='fraction':
+        if kind in FP_RETURNS:
             # Capture the actual x87 return, before any host/float conversion.
             u.mem_write(STOP,b'\xdb\x3d'+struct.pack('<I',ARENA+0x3e000))
             u.emu_start(STOP,STOP+6)

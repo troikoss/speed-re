@@ -57,18 +57,19 @@ TOKENS=[0x7a4578,0x7a453c,0x7a4548,0x7a4554,0x7a4578,0x7a4560,0x7a4578,0x7a4578,
     0x7a453c,0x7a4548,0x7a4554,0x7a4578,0x7a453c,0x7a456c,0x7a456c,0x7a4578,0x7a456c,0x7a4578,0x7a4578,0x7a4578,0x7a4578]
 
 
-def build(uploads,runtime,bridge,gcc):
+def build(uploads,runtime,bridge,gcc,more_sources=(),more_globals=None,more_supplied=()):
     core.BUILD=BUILD
     extra=[uploads,runtime,bridge,ROOT/'src/Speed/Indep/Libs/bWare/Strings.cpp',
-        WORLD/'../Physics/WheelMath.cpp',WORLD/'../Camera/CameraMatrix.cpp']
+        WORLD/'../Physics/WheelMath.cpp',WORLD/'../Camera/CameraMatrix.cpp']+list(more_sources)
     native=dict(D3DXMatrixMultiply=0x63cedb,D3DXMatrixTranspose=0x63d12c,fengZero7D7D3C=0x7d7d3c,fengOne784250=0x784250,
         sqrtl=STOP+0x900,sqrt=STOP+0x900,abort=STOP+0x900,UG2TextureFree=0x575630)
+    native.update(more_globals or {})
     gcc_extra={'_ZN21CarRenderTechniqueMap7DestroyEv':0x5d0660}
     msvc_extra={'?Destroy@CarRenderTechniqueMap@@QAEXXZ':0x5d0660,'_D3DXMatrixMultiply@12':0x63cedb,'_D3DXMatrixTranspose@8':0x63d12c,
         '?fengZero7D7D3C@@3MA':0x7d7d3c,'?fengOne784250@@3MA':0x784250}
     cpp=dict(BodyMatrixCopy=0x4012b0,WheelSineCosine=0x43c390,EngineSine=0x43c350)
     linked=core.build(core.SOURCE,gcc,extra_sources=extra,extra_globals=dict(GLOBALS,**native),
-        supplied=[FUNCTIONS[k]for k in COVERED]+['UG2RenderTechniqueBegin','UG2RenderTechniqueEnd'],
+        supplied=[FUNCTIONS[k]for k in COVERED]+['UG2RenderTechniqueBegin','UG2RenderTechniqueEnd']+list(more_supplied),
         gcc_bindings=gcc_extra,msvc_bindings=msvc_extra,extra_cpp=cpp)
     for k,p in (GCC if gcc else PREFIX).items():
         hits=[a for s,a in linked['exports'].items()if s.startswith(p)];assert len(hits)==1,(k,p,hits)
