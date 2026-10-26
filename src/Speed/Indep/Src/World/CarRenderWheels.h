@@ -23,6 +23,7 @@ struct CarRenderPlatformSolid;
 struct CarRenderTextureSlot;
 struct CarRenderTextureOverride;
 struct CarRenderLightPack;
+struct CarRenderTexturePack;
 
 struct CarRenderSlot {
     unsigned int key;
@@ -63,6 +64,8 @@ struct CarRenderSlotTable {
     void *value90;
     unsigned int LoadPlatformChunk(unsigned int *chunk); // 0x5cc280
     void ResolveTextures();                             // 0x4907a0
+    unsigned char RefreshLoadedTextures(CarRenderTexturePack *pack); // 0x4907e0, RET 4
+    unsigned char RefreshUnloadedTextures(CarRenderTexturePack *pack); // 0x490850, RET 4
     unsigned int UnloadPlatformChunk(unsigned int *chunk); // 0x5ce7d0, argument unused
 };
 UG2_CHECK_OFFSET(CarRenderSlotTable, count1A, 0x1a);

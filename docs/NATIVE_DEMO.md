@@ -1500,8 +1500,9 @@ The native build, 60-frame orbit and 120-frame scripted drive pass; source/prepa
 wheel checksums and C0 results remain unchanged.
 
 At this pack checkpoint GPU texture tokens remained zero. The upload recovery
-below supersedes that limitation. Game reference consumers and shader/effect
-setup remain explicit seams, and animations are not
+below supersedes that limitation. The reference recovery later in this section
+also supersedes the no-op notification boundary. Shader/effect setup remains
+open, and animations are not
 scheduled by the native preload adapter. Existing GL lists still consume decoded
 RGBA images rather than recovered draw queues or wheel lighting records. Bounds
 classification, dispatch activation, `0x5cf420` and the other wheel inventory
@@ -1588,8 +1589,96 @@ live/deferred lists after three reloads. SKYLINE has **829 staged texture handle
 per load and COROLLA has 813; both release all handles and node-pool slots. Native
 60-frame orbit and 120-frame scripted drive pass with unchanged wheel-record
 checksums, C0 results and image-cache counts. The no-op upload/release stubs are
-removed. Shader/effect setup, game reference consumers, draw dispatch activation,
+removed. Game reference consumers are recovered in the following checkpoint.
+Shader/effect setup, draw dispatch activation,
 `0x5cf420`, and GL consumption of uploaded textures/lighting records remain open.
+
+### Texture reference consumers and live rebinding (2026-10-26)
+
+`CarRenderTextureReferences.cpp` recovers ten original routines:
+
+| Addresses | Behavior |
+| --- | --- |
+| `0x4cbab0` | Prepend a pointer-bearing bWare node to an intrusive list |
+| `0x4907e0` / `0x490850` | Refresh a solid's default or unloading-pack texture slots |
+| `0x493800` | Rebuild a solid pack's texture dependencies and unresolved-slot list |
+| `0x4938e0` | Encode offline texture references with the original byte displacement |
+| `0x4939b0` | Notify loaded solids when a texture pack attaches or detaches data |
+| `0x5c0dc0` / `0x51bf70` | Refresh standalone and font texture-reference prefixes |
+| `0x611910` / `0x611a10` | Locate and clear one of six special texture cache records |
+
+Instructions establish the member-call arguments and `RET 4` for both slot
+refreshers, despite the decompiler's incomplete load-helper prototype. The
+return contract is the low byte. Pack `+0x80` holds dependency nodes, `+0x88`
+holds pending-slot pointers, and words `+0x7c`/`+0x7e` hold their counts, with
+`0xffff` at `+0x7c` requesting a rebuild. Rebuilding first runs the already
+recovered list cleanup `0x493790`. The helpers reuse the real texture lookup,
+readiness checks and unsigned-key duplicate search.
+
+Preserved details include checking only the low byte of notify mode, snapshotting
+the next pending node before freeing it, updating dependencies before refreshing
+all loaded solids, and rebuilding dependencies after unload changes. A successful
+local unload lookup keeps the current slot; a failed lookup searches other packs
+and then uses the real default. Offline mode retains the original encoded byte
+offset rather than treating it as a host object. The pending-node duplicate check
+compares against the default texture's hash, not the current requested key; that
+observed behavior is preserved and mutation-checked.
+
+The standalone prefix has hash/pointer at `+0x0c`/`+0x14`. The font-list prefix
+has pointer/hash at `+8`/`+0x18`; its list at `0x863768` is also used by the
+original font lookup/loader `0x51bd70`/`0x52cd00`. These are checked prefixes,
+not recovered class constructors. The six cache records start at `0x89f050`,
+have stride `0x1c8`, and are selected only by hashes `0x530b82b0` through
+`0x530b82b5`. Invalidation clears exactly `0x72` words. Their unidentified
+contents retain offset names.
+
+With `UG2_EXE` set, run the compiler jobs sequentially:
+
+```sh
+build/venv/bin/python tools/verify_pc_car_render_texture_references.py --gcc --mutation-checks
+build/venv/bin/python tools/verify_pc_car_render_texture_references.py --mutation-checks
+```
+
+Both compilers pass **20,480 comparisons** (2,048 for each routine) and reject
+**18 mutations**. Fixtures cover multiple packs, ready/missing data, duplicate
+keys, signed slot counts, default restoration, dirty dependency lists, low-byte
+modes, offline displacements, list deletion during iteration, both standalone
+prefix layouts and all six cache records plus unknown hash boundaries. Complete
+fixture/global/node bytes, ordered allocations/frees, typed return values and
+caller ABIs are compared. The manifest
+`config/SPEED2_EXE_1_2/car-render-texture-references.json` fingerprints complete
+address spans, including alignment gaps in the notify routine. Reports are under
+`build/analysis/car-render-texture-references/`.
+
+Node allocation/free and the verified return-this leaf are controlled boundaries;
+real pack cleanup, texture lookup and binary search execute in the same chain.
+Finite valid record/list tests do not establish byte identity, malformed/OOM
+behavior, rendering equivalence or full standalone/font class construction.
+
+The native no-op notifications are removed. Shared solid-pack state is initialized
+before texture loading, and native reference/font lists start with valid sentinel
+heads. The existing display-free probe now supports loading car textures after
+the solids and unloading those textures while the solids remain alive:
+
+```sh
+cmake --build build/native --target ug2demo ug2sim ug2solidrecords_probe -j 6
+UG2_DEBUG_TEXTURES=1 build/native/ug2solidrecords_probe "$UG2_EXE" "$UG2_DIR/CARS/SKYLINE/GEOMETRY.BIN" --late-textures
+```
+
+Across three native passes, SKYLINE matching slots change **500 → 534 → 500**
+(base `GLOBALB.BUN`, late car/shared packs, then their unload). COROLLA changes
+**592 → 707 → 592**. Every slot is checked against the live texture registry
+before it is dereferenced, then checked for readiness and a live staging handle.
+The probe's standalone/font prefix fixtures become null on unload, and all six
+cache records clear from nonzero test values. The full stages retain 829/813
+textures, and final teardown leaves zero used node-pool slots, handles, buckets
+and pack/reference lists. The ordinary texture-first SKYLINE probe also passes.
+
+The native build and 60-frame orbit pass with unchanged wheel-record checksums
+and C0 values. Normal native font construction, texture animation scheduling,
+shader/effect setup, recovered draw activation and GL consumption remain separate
+work. The technique table producer has been located at `0x5d21f0`; its setup and
+the original `0x5cf420` consumer are still unrecovered seams.
 
 ### Verification (pixel size and LOD)
 

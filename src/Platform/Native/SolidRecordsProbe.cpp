@@ -7,9 +7,11 @@
 #include "../../Speed/Indep/Src/World/CarRenderSolidManager.h"
 #include "../../Speed/Indep/Src/World/CarRenderTexturePack.h"
 #include "../../Speed/Indep/Src/World/CarRenderTextureUpload.h"
+#include "../../Speed/Indep/Src/World/CarRenderTextureReferences.h"
 #include "../../Speed/Indep/Libs/bWare/bSlotPool.h"
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 #include <string>
 #include <vector>
 
@@ -22,8 +24,53 @@ static bool Read(const std::string &path,std::vector<unsigned char> &data) {
     bool ok=data.empty() || fread(&data[0],1,data.size(),file)==data.size();
     fclose(file); return ok;
 }
+static void LoadPack(NativeTextureRecords &textures,const std::string &path) {
+    std::vector<unsigned char> bytes;
+    assert(Read(path,bytes));
+    assert(textures.Add(bytes.empty()?0:&bytes[0],bytes.size(),path));
+    const size_t count=textures.TextureCount();
+    assert(textures.Add(bytes.empty()?0:&bytes[0],bytes.size(),path));
+    assert(textures.TextureCount()==count);
+}
+static std::vector<CarRenderTexture *> ActiveTextures() {
+    std::vector<CarRenderTexture *> active;
+    for (CarRenderQueueLink *node=ug2TexturePacks830AF0.next00;node!=&ug2TexturePacks830AF0;node=node->next00) {
+        CarRenderTexturePack *pack=reinterpret_cast<CarRenderTexturePack *>(node);
+        for (int i=0;i<pack->count74;++i) if (pack->header70->indices74[i].texture04)
+            active.push_back(pack->header70->indices74[i].texture04);
+    }
+    return active;
+}
+static unsigned int CheckBindings(unsigned int *matched,unsigned int *defaults) {
+    const std::vector<CarRenderTexture *> active=ActiveTextures();
+    unsigned int slots=0;*matched=*defaults=0;
+    for (CarRenderQueueLink *node=ug2SolidPacks830D1C.next00;node!=&ug2SolidPacks830D1C;node=node->next00) {
+        CarRenderSolidPack *pack=reinterpret_cast<CarRenderSolidPack *>(node);
+        for (int i=0;i<pack->count0C;++i) if (pack->resources74[i].solid04) {
+            CarRenderSlotTable *solid=pack->resources74[i].solid04;
+            for (int j=0;j<solid->textureCount19;++j) {
+                CarRenderTexture *texture=solid->textures2C[j].texture04;
+                bool registered=false;
+                for (size_t k=0;k<active.size();++k) if (active[k]==texture) registered=true;
+                assert(registered); // Check ownership before dereferencing a potentially stale slot.
+                assert(texture->state00 && texture->pixels70 && (!texture->paletteBytes3C || texture->palette74));
+                assert(texture->state00->texture18 && NativeTextureBufferExists(texture->state00->texture18));
+                if (texture==ug2TextureDefault82DB08) ++*defaults;
+                else { assert(texture->hash24==solid->textures2C[j].hash00); ++*matched; }
+                ++slots;
+            }
+        }
+    }
+    return slots;
+}
+static void LinkFixture(CarRenderQueueLink *head,CarRenderQueueLink *node) {
+    assert(head->next00==head);
+    head->next00=head->previous04=node;
+    node->next00=node->previous04=head;
+}
 int main(int argc,char **argv) {
-    if (argc!=3) { fprintf(stderr,"usage: %s speed2.exe GEOMETRY.BIN\n",argv[0]); return 2; }
+    bool late=argc==4 && strcmp(argv[3],"--late-textures")==0;
+    if (argc!=3 && !late) { fprintf(stderr,"usage: %s speed2.exe GEOMETRY.BIN [--late-textures]\n",argv[0]); return 2; }
     char error[256];
     if (!MapOriginalImage(argv[1],error,sizeof(error))) { fprintf(stderr,"%s\n",error); return 1; }
     ug2LightProfiles8358C0.Construct();
@@ -37,17 +84,10 @@ int main(int argc,char **argv) {
     unsigned int expected=0,expectedTextures=0,textureSlots=0;
     for (int pass=0;pass<3;++pass) {
         NativeTextureRecords textures;
-        for (int i=0;i<4;++i) {
-            std::vector<unsigned char> bytes;
-            assert(Read(paths[i],bytes));
-            assert(textures.Add(bytes.empty()?0:&bytes[0],bytes.size(),paths[i]));
-            const size_t count=textures.TextureCount();
-            assert(textures.Add(bytes.empty()?0:&bytes[0],bytes.size(),paths[i]));
-            assert(textures.TextureCount()==count); // Same file must not register twice.
-        }
+        if (late) LoadPack(textures,paths[3]);
+        else for (int i=0;i<4;++i) LoadPack(textures,paths[i]);
         assert(textures.PackCount()>0 && textures.TextureCount()==ug2TextureCount833780);
         assert(ug2TextureDefault82DB08 && ug2TextureDefault82DB08->pixels70);
-        if (!pass) expectedTextures=textures.TextureCount(); else assert(textures.TextureCount()==expectedTextures);
         NativeSolidRecords records;
         assert(records.Load(&data[0],data.size()));
         assert(ug2SolidPackCount82D380>0);
@@ -59,18 +99,47 @@ int main(int argc,char **argv) {
                 CarRenderSlotTable *solid=records.Find(entry.hash00);
                 assert(solid && solid==entry.solid04 && solid->hash10==entry.hash00);
                 assert(solid->loaded0D==1 && solid->platform00);
-                for (int j=0;j<solid->textureCount19;++j) {
-                    CarRenderTexture *texture=solid->textures2C[j].texture04;
-                    assert(texture && texture->state00 && texture->pixels70);
-                    assert(!texture->paletteBytes3C || texture->palette74);
-                    assert(texture->state00->texture18 && NativeTextureBufferExists(texture->state00->texture18));
-                    ++textureSlots;
-                }
                 ++count;
             }
         }
         assert(count==ug2SolidLoadedCount830DA0);
         if (!pass) expected=count;else assert(count==expected);
+        unsigned int matched=0,defaults=0;
+        if (late) {
+            CheckBindings(&matched,&defaults);
+            unsigned int before=matched,beforeDefaults=defaults;
+            const std::vector<CarRenderTexture *> base=ActiveTextures();
+            NativeTextureRecords additions;
+            for (int i=0;i<3;++i) LoadPack(additions,paths[i]);
+            textureSlots+=CheckBindings(&matched,&defaults);
+            assert(matched>before && defaults<beforeDefaults);
+            if (!pass) expectedTextures=ug2TextureCount833780;else assert(ug2TextureCount833780==expectedTextures);
+            // Native fixture prefixes exercise both standalone notification lists.
+            CarRenderTexture *selected=0;
+            const std::vector<CarRenderTexture *> loaded=ActiveTextures();
+            for (size_t i=0;i<loaded.size() && !selected;++i) {
+                bool inBase=false;
+                for (size_t j=0;j<base.size();++j) if (base[j]->hash24==loaded[i]->hash24) inBase=true;
+                if (!inBase) selected=loaded[i];
+            }
+            assert(selected);
+            CarRenderTextureReference5C reference={};reference.hash0C=selected->hash24;reference.texture14=selected;
+            CarRenderFontTextureReference font={};font.hash18=selected->hash24;font.texture08=selected;
+            LinkFixture(&ug2TextureReferences830D08,&reference.link00);LinkFixture(&ug2FontTextures863768,&font.link00);
+            for (int i=0;i<6;++i) for (int j=0;j<0x72;++j) ug2TextureCache89F050[i].value00[j]=0xc0ffee00+i+j;
+            additions.Clear(); // Real detach notifications while solids/reference prefixes remain alive.
+            assert(!reference.texture14 && !font.texture08);
+            ug2TextureReferences830D08.next00=ug2TextureReferences830D08.previous04=&ug2TextureReferences830D08;
+            ug2FontTextures863768.next00=ug2FontTextures863768.previous04=&ug2FontTextures863768;
+            for (int i=0;i<6;++i) for (int j=0;j<0x72;++j) assert(!ug2TextureCache89F050[i].value00[j]);
+            unsigned int after=0,afterDefaults=0;CheckBindings(&after,&afterDefaults);
+            assert(after==before && afterDefaults==beforeDefaults);
+            printf("late texture pass %d: %u -> %u -> %u matching slots, standalone/font refs cleared, six caches invalidated\n",
+                pass+1,before,matched,after);
+        } else {
+            textureSlots+=CheckBindings(&matched,&defaults);
+            if (!pass) expectedTextures=textures.TextureCount();else assert(textures.TextureCount()==expectedTextures);
+        }
     }
     assert(ug2TextureCount833780==0 && !ug2TextureDefault82DB08 && !ug2TexturePackPool82DB0C);
     assert(NativeTextureBufferCount()==0);

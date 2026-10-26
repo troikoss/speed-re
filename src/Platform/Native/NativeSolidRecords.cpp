@@ -72,6 +72,8 @@ void FlushRetiredVertices() {
 }
 }
 
+void NativeInitialiseSolidRecords() { Initialise(); }
+
 extern "C" unsigned int UG2SolidReadTicker() {
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC,&now);

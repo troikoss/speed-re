@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <vector>
 struct CarRenderSlotTable;
+void NativeInitialiseSolidRecords(); // Shared pack-list state for texture notifications.
 
 // Platform ownership for original, mutable pack records. GPU tokens currently
 // own CPU upload storage; GPU texture/effect setup and draw consumption remain seams.

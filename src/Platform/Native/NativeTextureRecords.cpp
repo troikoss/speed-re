@@ -1,6 +1,8 @@
 // Native ownership and explicit backend boundaries; algorithms live in World/.
 #include "NativeTextureRecords.h"
+#include "NativeSolidRecords.h"
 #include "NativeTextureUpload.h"
+#include "../../Speed/Indep/Src/World/CarRenderTextureReferences.h"
 #include "../../Speed/Indep/Src/World/CarRenderTextureUpload.h"
 #include "../../Speed/Indep/Src/World/CarRenderTexturePack.h"
 #include "../../Speed/Indep/Libs/bWare/Compression.h"
@@ -20,6 +22,8 @@ unsigned int ug2TextureOverrideCount82DA80, ug2TextureOverrideKeys82D530[36];
 CarRenderTexture *ug2TextureOverrideValues82D5C0[36], *ug2TextureDefault82DB08;
 void *ug2TexturePackPool82DB0C, *ug2TextureSnapshotPool870790;
 CarRenderTexturePack *ug2TextureCurrentPack82DB10;
+CarRenderQueueLink ug2TextureReferences830D08, ug2FontTextures863768;
+CarRenderTextureCacheRecord ug2TextureCache89F050[6];
 const char ug2TextureNull78DA04[] = "<null>";
 const char ug2TextureLabel78D9F4[] = "TexturePack,%s";
 const char ug2TextureInventory78D9C0[] = "[Enable 'CodeineInventoryTextures' for this to work";
@@ -27,10 +31,12 @@ const char ug2TexturePoolName78D950[] = "TexturePackSlotPool";
 }
 namespace {
 void Initialise() {
+    NativeInitialiseSolidRecords();
     static bool ready = false;
     if (!ready) {
-        CarRenderQueueLink *heads[] = {&ug2TexturePacks830AF0,&ug2TexturePixelQueue8358C8,&ug2TextureAnimations82DC00};
-        for (size_t i=0;i<3;++i) heads[i]->next00=heads[i]->previous04=heads[i];
+        CarRenderQueueLink *heads[] = {&ug2TexturePacks830AF0,&ug2TexturePixelQueue8358C8,&ug2TextureAnimations82DC00,
+            &ug2TextureReferences830D08,&ug2FontTextures863768};
+        for (size_t i=0;i<sizeof(heads)/sizeof(heads[0]);++i) heads[i]->next00=heads[i]->previous04=heads[i];
         ready = true;
     }
     NativeInitialiseTextureUploads();
@@ -45,13 +51,6 @@ extern "C" void UG2TextureMissingDefault() {
     fprintf(stderr,"native texture records: requested DEFAULTALPHA is absent\n");
     raise(SIGTRAP);
 }
-// Original reference consumers are not activated in the native image/font path.
-// The adapter loads packs before car solid records and destroys them afterward.
-extern "C" void UG2TextureNotifySolids(CarRenderTexturePack *,int) {}
-extern "C" void UG2TextureNotify5C0DC0(CarRenderTexturePack *,int) {}
-extern "C" void UG2TextureNotify51BF70(CarRenderTexturePack *,int) {}
-extern "C" void UG2TextureNotify611A10(unsigned int) {}
-
 struct NativeTextureRecords::File {
     struct Slot {
         std::vector<unsigned char> storage;

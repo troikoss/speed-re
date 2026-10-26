@@ -64,7 +64,7 @@ void UG2TextureMissingDefault(); // 0x43bd50, INT 3
 // Recovered in CarRenderTextureUpload.cpp; GPU methods have typed adapters.
 void __fastcall UG2TextureUpload(CarRenderTexture *texture); // 0x5ce170
 void __fastcall UG2TextureRelease(CarRenderTexture *texture); // 0x5caaa0
-// Unrecovered reference consumers, retaining original call order.
+// Recovered in CarRenderTextureReferences.cpp, retaining original call order.
 void UG2TextureNotifySolids(CarRenderTexturePack *pack, int mode); // 0x4939b0
 void UG2TextureNotify5C0DC0(CarRenderTexturePack *pack, int mode);
 void UG2TextureNotify51BF70(CarRenderTexturePack *pack, int mode);
