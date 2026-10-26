@@ -3,7 +3,7 @@ import struct
 import subprocess
 
 
-def link_native(source, build, root, bindings, entry, extra_objects=(), gc_sections=False):
+def link_native(source, build, root, bindings, entry, extra_objects=(), gc_sections=False, text_address=0x2400000):
     build.mkdir(parents=True, exist_ok=True)
     sources = source if isinstance(source, (list, tuple)) else [source]
     objects = []
@@ -16,7 +16,7 @@ def link_native(source, build, root, bindings, entry, extra_objects=(), gc_secti
                         '-Isrc/Speed/Indep/Src/World', '-c', str(item), '-o', str(obj)],
                        cwd=root, check=True)
         objects.append(str(obj))
-    subprocess.run(['ld', '-m', 'elf_i386', '-Ttext=0x2400000', '--entry=' + entry] +
+    subprocess.run(['ld', '-m', 'elf_i386', '-Ttext='+hex(text_address), '--entry=' + entry] +
                    (['--gc-sections'] if gc_sections else []) +
                    ['--defsym=' + k + '=' + hex(v) for k, v in bindings.items()] +
                    objects + [str(obj) for obj in extra_objects] + ['-o', str(exe)], check=True)

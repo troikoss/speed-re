@@ -57,6 +57,7 @@ target_link_libraries(ug2sim -Wl,--start-group ug2native ug2recovered -Wl,--end-
 target_link_options(ug2sim PRIVATE ${UG2_LINK_FLAGS})
 
 add_executable(ug2demo src/Platform/Native/DemoMain.cpp src/Platform/Native/NativeAssets.cpp
+    src/Platform/Native/NativeSolidRecords.cpp
     src/Platform/Native/NativeScene.cpp src/Platform/Native/NativeCarWheels.cpp src/Platform/Native/NativeFng.cpp src/Platform/Native/NativeHud.cpp
     src/Platform/Native/NativeFormatting.cpp
     src/Platform/Native/NativePause.cpp src/Platform/Native/NativePauseOptions.cpp src/Platform/Native/NativeControls.cpp)
@@ -72,6 +73,13 @@ target_compile_options(ug2probe PRIVATE ${UG2_ARCH_FLAGS} -O1 -g -w
     -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
 target_link_libraries(ug2probe -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
 target_link_options(ug2probe PRIVATE ${UG2_LINK_FLAGS})
+
+# Player assets are explicit arguments; no display or retail files in the repo.
+add_executable(ug2solidrecords_probe src/Platform/Native/SolidRecordsProbe.cpp src/Platform/Native/NativeSolidRecords.cpp)
+target_compile_options(ug2solidrecords_probe PRIVATE ${UG2_ARCH_FLAGS} -O2 -Wall -UNDEBUG
+    -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+target_link_libraries(ug2solidrecords_probe -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
+target_link_options(ug2solidrecords_probe PRIVATE ${UG2_LINK_FLAGS})
 
 include(CTest)
 option(UG2_ENABLE_MODDING "Build the native mod loader and SDK examples" OFF)

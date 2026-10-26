@@ -1,0 +1,75 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "load_root": {
+      "address": "0x494060",
+      "size": 119,
+      "sha256": "5aec0a35ee0d0956a5531b90d49f70d0ced2bd2226be053169c982348d25c942"
+    },
+    "unload_root": {
+      "address": "0x4940e0",
+      "size": 93,
+      "sha256": "1f61b1140ffcb8ef2de9f9aa9e6c66a0a87fda778adb62980d3a44e1b7ee7413"
+    },
+    "load_header": {
+      "address": "0x48d910",
+      "size": 160,
+      "sha256": "20eeab7c4a1e3ee09f3b07888f2bd9ba5b24c2a24c694d7204071cdb94905a5b"
+    },
+    "unload_header": {
+      "address": "0x493ea0",
+      "size": 126,
+      "sha256": "1d4394241f556fc59625cb85c92ddd6615c0ced5458e940f217b188228fa0410"
+    },
+    "clear_header": {
+      "address": "0x493790",
+      "size": 105,
+      "sha256": "0e6aff4be1f21d466faaa09be86c620bd56b92992b6bf4eef316a3bcf05e48aa"
+    },
+    "find_loaded": {
+      "address": "0x48df90",
+      "size": 217,
+      "sha256": "bc6e61096c3e787e684c323048f8d2e079953b8c4ce17ce8d4d490703581de70"
+    },
+    "find_owner": {
+      "address": "0x48df40",
+      "size": 79,
+      "sha256": "4cf0dad174f319af9fba2b79c8682c743821c3c423a577af0fc0b9aeac5ae75e"
+    },
+    "resolve": {
+      "address": "0x490650",
+      "size": 327,
+      "sha256": "87da2a311564972e3acd3d95867b01f0f4a193e6366c6e786186a76fba82924a"
+    },
+    "detach": {
+      "address": "0x493650",
+      "size": 311,
+      "sha256": "dc2a2e2c3f91d9fdacc6244e3571f76158d6c649aa6336474b51935bf15ff41d"
+    },
+    "unload_solid": {
+      "address": "0x493f20",
+      "size": 316,
+      "sha256": "1f34bb96e735a9b22d80b597f82c086903f10709d85b93d94a2d33009f95fc5d"
+    },
+    "unload_platform": {
+      "address": "0x5ce7d0",
+      "size": 123,
+      "sha256": "ab1cc5dc13646b1bee614287e09baf9dcc09143976744eb016c79cca0276b391"
+    },
+    "defer": {
+      "address": "0x479130",
+      "size": 55,
+      "sha256": "183d556dfdac16bb05a0855814d516218585f4e73c8826736aba6049a33cfac5"
+    },
+    "walk_platform": {
+      "address": "0x5bb720",
+      "size": 35,
+      "sha256": "16db29a8a0ca18e8bb9f5fd79ec68b1d65b7815979f530f38235b8a1766a23b6"
+    },
+    "elapsed": {
+      "address": "0x43be20",
+      "size": 54,
+      "sha256": "8fae1508da85327357cdb21b80ec568a4a217d54af96893af977b4ff234f6e49"
+    }
+  }
+}

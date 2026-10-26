@@ -80,7 +80,7 @@ class Machine:
             assert device == DEVICE and pool == 1 and shared == 0
             assert (usage, fmt) == ((8, 0) if kind == 'vertex' else (0, 0x65))
             assert length <= 0x60000
-            token = OBJECTS + len(self.buffers)*4
+            token = self.case.get('objects_base', OBJECTS) + len(self.buffers)*4
             u.mem_write(token, struct.pack('<I', BUFFER_TABLE))
             target = self.next_buffer
             self.next_buffer = (target+length+0x11f)&~255
@@ -113,7 +113,7 @@ class Machine:
     def run(self, kind, case):
         u = self.u
         self.case, self.events, self.buffers = case, [], {}
-        self.next_buffer = ARENA + 0x40000
+        self.next_buffer = case.get('buffer_base', ARENA + 0x40000)
         u.mem_write(ARENA, case['data'])
         for address, body in case['globals'].items(): u.mem_write(address, body)
         u.mem_write(VTABLE+0x68, struct.pack('<2I', CALLS['vertex'], CALLS['index']))
@@ -128,14 +128,15 @@ class Machine:
         u.reg_write(xc.UC_X86_REG_EFLAGS, 2)  # Original REP copy requires DF clear.
         saved = (xc.UC_X86_REG_EBX, xc.UC_X86_REG_ESI, xc.UC_X86_REG_EDI, xc.UC_X86_REG_EBP)
         for i, reg in enumerate(saved): u.reg_write(reg, 0xabcdef00+i)
-        u.reg_write(xc.UC_X86_REG_FPCW, 0x037f)
+        cw = case.get('cw', 0x037f)
+        u.reg_write(xc.UC_X86_REG_FPCW, cw)
         u.reg_write(xc.UC_X86_REG_FPSW, 0)
         u.reg_write(xc.UC_X86_REG_FPTAG, 0xffff)
-        u.emu_start(self.entries[kind], STOP, count=2000000)
+        u.emu_start(self.entries[kind], STOP, count=case.get('instruction_budget', 2000000))
         assert u.reg_read(xc.UC_X86_REG_EIP) == STOP
         assert u.reg_read(xc.UC_X86_REG_ESP) == sp+4+(len(args)*4 if receiver and not self.gcc else 0)
         assert [u.reg_read(reg) for reg in saved] == [0xabcdef00+i for i in range(4)]
-        assert u.reg_read(xc.UC_X86_REG_FPCW) == 0x037f and u.reg_read(xc.UC_X86_REG_FPTAG) == 0xffff
+        assert u.reg_read(xc.UC_X86_REG_FPCW) == cw and u.reg_read(xc.UC_X86_REG_FPTAG) == 0xffff
         buffers = [bytes(u.mem_read(b['target']-16, b['length']+32)) for b in self.buffers.values()]
         globals_ = [bytes(u.mem_read(a, len(body))) for a, body in sorted(case['globals'].items())]
         return bytes(u.mem_read(ARENA, len(case['data']))), globals_, buffers, u.reg_read(xc.UC_X86_REG_EAX), self.events

@@ -16,15 +16,27 @@ struct CarRenderSolidResource {
 };
 UG2_CHECK_SIZE(CarRenderSolidResource, 8);
 struct CarRenderSolidPack {
-    unsigned char pad00[0xc];
+    CarRenderQueueLink link00;
+    unsigned int value08;
     int count0C;
-    unsigned char pad10[0x74-0x10];
+    unsigned char pad10[0x70-0x10];
+    unsigned short value70;
+    unsigned short value72;
     CarRenderSolidResource *resources74;
-    unsigned int value78;
+    void *stream78;
     unsigned short value7C;
+    unsigned short value7E;
+    CarRenderQueueLink list80;
+    CarRenderQueueLink list88;
 };
 UG2_CHECK_OFFSET(CarRenderSolidPack, resources74, 0x74);
+UG2_CHECK_OFFSET(CarRenderSolidPack, value70, 0x70);
+UG2_CHECK_OFFSET(CarRenderSolidPack, value72, 0x72);
+UG2_CHECK_OFFSET(CarRenderSolidPack, stream78, 0x78);
 UG2_CHECK_OFFSET(CarRenderSolidPack, value7C, 0x7c);
+UG2_CHECK_OFFSET(CarRenderSolidPack, list80, 0x80);
+UG2_CHECK_OFFSET(CarRenderSolidPack, list88, 0x88);
+UG2_CHECK_SIZE(CarRenderSolidPack, 0x90);
 
 extern "C" {
 extern int ug2SolidOffline864F60, ug2SolidFlag82DAA8;

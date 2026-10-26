@@ -3,8 +3,8 @@
 
 // Platform scaffolding: reads UG2's own solid packs (GEOMETRY.BIN, track bundles) and
 // texture packs from the player's installation into plain arrays for the demo renderer.
-// The original eSolid/TextureInfo loaders (0x493bb0, 0x494ea0) and the D3D renderer are
-// not recovered; only the decompressors in bWare/Compression.cpp are original code.
+// Array decoding remains native. NativeSolidRecords additionally runs recovered
+// solid loading for car records; TextureInfo loading and GPU consumption remain seams.
 #include <map>
 #include <string>
 #include <vector>

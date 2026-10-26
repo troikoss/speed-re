@@ -113,6 +113,9 @@ GLuint NativeCarModel::Build(const NativeSolid &solid, bool translucent) {
 
 bool NativeCarModel::Load(const char *gameDirectory, const char *carName, NativeTextureCache *textures,
                           char *error, int errorSize) {
+    // Drop borrowed solid/table references before a record-owner reload.
+    body_.clear();
+    solids_.clear();
     textures_ = textures;
     texturedParts_ = parts_ = 0;
     // Scaffold paint: the stock skin layer (%s_SKIN1, built at run time from the car
@@ -139,6 +142,7 @@ bool NativeCarModel::Load(const char *gameDirectory, const char *carName, Native
         LoadNativeTextures(&data[0], data.size(), &images);
         textures->Add(images);
     }
+    const bool haveRecords = records_.Load(&geometry[0], geometry.size());
     // Replacement keys from the CarRenderInfo constructor 0x638190 and the used-texture
     // setup 0x631e20, with lights off and no damage. Which damage/variant texture the
     // game finally binds to the window keys is not recovered; WINDOW is used.
@@ -170,6 +174,7 @@ bool NativeCarModel::Load(const char *gameDirectory, const char *carName, Native
         if (!solid) continue;
         NativeDrawSolid draw = {};
         draw.record.hash08 = solid->hash;
+        draw.record.table0C = haveRecords ? records_.Find(solid->hash) : 0;
         draw.solid = solid;
         draw.opaqueList = Build(*solid, false);
         draw.translucentList = Build(*solid, true);
@@ -198,6 +203,14 @@ bool NativeCarModel::Load(const char *gameDirectory, const char *carName, Native
     wheel_.record.hash08 = wheel->hash;
     frontBrake_.record.hash08 = front ? front->hash : 0;
     rearBrake_.record.hash08 = rear ? rear->hash : 0;
+    wheel_.record.table0C = haveRecords ? records_.Find(wheel->hash) : 0;
+    frontBrake_.record.table0C = haveRecords && front ? records_.Find(front->hash) : 0;
+    rearBrake_.record.table0C = haveRecords && rear ? records_.Find(rear->hash) : 0;
+    if (getenv("UG2_DEBUG_SOLIDS")) {
+        const int expected=1+(front!=0)+(rear!=0);
+        const int bound=(wheel_.record.table0C!=0)+(frontBrake_.record.table0C!=0)+(rearBrake_.record.table0C!=0);
+        fprintf(stderr,"native wheel tables: %d of %d bound through the retail resource index\n",bound,expected);
+    }
     wheel_.opaqueList = Build(*wheel, false);
     wheel_.translucentList = Build(*wheel, true);
     frontBrake_.solid = front;

@@ -1117,8 +1117,9 @@ This is finite behavioral evidence; byte matching and retail frame capture are
 not established. Reports are under `build/analysis/car-render-solid/`.
 
 The native `NativeDrawSolid` now contains a complete checked `CarRenderSolid`
-prefix, with host solid pointers and GL handles stored after it. Its hash is
-populated, and original table/override fields remain zero. Wheel slots point to
+prefix, with host solid pointers and GL handles stored after it. At this checkpoint
+its hash was populated and table/override fields remained zero; the manager
+activation below now supplies the table pointer. Wheel slots point to
 this actual record. Previously GL handles occupied the original hash and other
 prefix fields. The native boundary still draws the same display lists.
 `CarRenderSolid.cpp` is excluded from the native library until the original table,
@@ -1217,14 +1218,112 @@ following bytes, so its current texture selection stays the same. Native
 with audio disabled; the existing source/prepared-record checksums stay the same.
 The dispatcher regression still passes both compilers and its 15 mutations.
 
-Native loader activation remains open. `NativeAssets.cpp` still decodes arrays
-for GL display lists; the real pack-manager context, texture/technique objects,
-bounds classifier and GPU consumer must be connected before recovered dispatch
-can replace that path. The confirmed outer-loader callers include `0x4940ae`
-(no containing Ghidra function) and `0x494140`; the latter reads its context from
+At this loader-recovery checkpoint, native activation remained open; the manager
+and native car activation below now supply the real pack context and lifetimes.
+`NativeAssets.cpp` still decodes arrays
+for GL display lists. The manager section below connects real car pack contexts;
+texture/technique objects, bounds classification and GPU consumption still gate
+recovered dispatch. The confirmed outer-loader callers include `0x4940ae`
+(inside `0x494060`) and `0x494140`; the latter reads its context from
 caller argument 3 `+0xb8`. Texture callback `0x494ea0` handles a different set of
 chunk IDs and remains open. Additional-light producers, secondary drawing and
 the other inventory seams also remain open.
+
+### Solid pack manager and native car records (2026-10-26)
+
+`CarRenderSolidManager.cpp` recovers the remaining pack context and its lifecycle:
+
+| Addresses | Behavior |
+| --- | --- |
+| `0x494060` / `0x4940e0` | Whole `0x80134000` pack load/unload callbacks |
+| `0x48d910` / `0x493ea0` / `0x493790` | Header registration, index/stream pointers, header unlink and node cleanup |
+| `0x48df90` / `0x48df40` | Loaded-solid and owning-pack lookup, including first resource duplicates and pack promotion |
+| `0x490650` / `0x493650` | Resolve and detach solid references, including offline lists |
+| `0x493f20` / `0x5ce7d0` | Solid/platform unload, bucket updates, queued-node removal and buffer retirement |
+| `0x479130` | Append a deferred vertex-buffer token using the original bWare node pool |
+| `0x5bb720` | Walk platform child headers without changing them |
+| `0x43be20` | Profiling tick difference with wrapped subtraction, sign clamp and x87 arithmetic |
+
+`0x494060` has no Ghidra function definition in the current project. Its original
+instructions identify the callback bounds and calls: header `0x80134001` loads a
+real context, each `0x80134010` solid uses it, and references finalize before a new
+header and after the last solid. Unloading removes the header from the pack list
+before unloading its solids. The callbacks and all dependencies are fingerprinted
+in `config/SPEED2_EXE_1_2/car-render-solid-manager.json`; project mutation was not
+needed. The real `0x134002` header is `0x90` bytes, with index `+0x74`, stream
+`+0x78`, state words `+0x7c`/`+0x7e` and owned lists `+0x80`/`+0x88`.
+
+Loaded lookup checks the byte hash bucket first. A bucket miss neither samples
+the clock nor walks packs. Global lookup promotes the successful pack to the
+front; a supplied context searches only that pack. Reference resolution snapshots
+the next link before lookup and relinking. Detachment repeatedly removes the
+first attached reference; offline detachment retains the original encoded byte
+offset added to its solid pointer. Unloading removes only the first matching
+queued platform node, queues the vertex buffer, releases the index buffer, and
+clears the original fields. Profiling preserves original float stores and raw
+x87 return precision; no numeric acceptance limit is relaxed.
+
+With `UG2_EXE` set, run compiler jobs sequentially:
+
+```
+build/venv/bin/python tools/verify_pc_car_render_solid_manager.py --gcc --cases 2048 --retail "$UG2_DIR/CARS/SKYLINE/GEOMETRY.BIN" --mutation-checks
+build/venv/bin/python tools/verify_pc_car_render_solid_manager.py --cases 2048 --retail "$UG2_DIR/CARS/SKYLINE/GEOMETRY.BIN" --mutation-checks
+```
+
+MSVC 7.1 `/Ox /Ob0` and native i386 GCC C++11 `-O1` each pass **26,624 comparisons**
+across 13 entry/lifecycle checks, with **17 mutations rejected**. Every entry has
+1,024 cases at each x87 precision setting. Fixtures include real searches over
+multiple packs, duplicate hashes across contexts, move-to-front behavior, online
+and offline reference movement, nonempty cleanup lists, queued-node matches,
+counter wrap and raw 80-bit elapsed-time results. Full fixture/global bytes,
+ordered boundary calls, upload bytes, node contents and caller ABIs are checked.
+
+The retail check executes both a complete SKYLINE root load and a load/unload
+cycle, using the actual 612-entry resource index from `GEOMETRY.BIN` (SHA-256
+`93cc878329d5783e61abb40cce41da6313c010105fb3c3643963df7e06904037`). Both compilers
+match all record mutations and staged buffer bytes. Across those two runs there
+are 1,224 vertex and 1,224 index creates; the unload queues 612 vertex tokens and
+releases 612 index tokens. GPU APIs, texture lookup, node-pool allocation/free,
+clock acquisition and the verified return-this leaf remain explicit boundaries.
+Deferred vertex nodes are compared in their queued state. This finite evidence
+does not establish code-byte identity, malformed-data coverage or D3D equivalence.
+Reports are under `build/analysis/car-render-solid-manager/`.
+
+`NativeSolidRecords` now retains an aligned, mutable copy of the car's retail
+file and runs these callbacks. `NativeCarModel` binds its solid prefixes to the
+actual resource-index entries, including the tyre/front-brake/rear-brake tables.
+The platform adapter keeps CPU upload storage behind four-byte tokens, supplies
+a monotonic profiling clock, and flushes retired vertex tokens at the record
+owner's lifetime boundary. Reload/destruction run recovered unload before freeing
+the file. Shared bWare pool allocation and release are used natively; host
+containers/callbacks remain separate from original records. Car records are
+active; track array decoding remains the existing native path.
+
+The display-free integration probe uses the actual native adapter and recovered
+code with player-owned assets:
+
+```
+cmake --build build/native --target ug2demo ug2sim ug2solidrecords_probe -j 6
+UG2_DEBUG_SOLIDS=1 build/native/ug2solidrecords_probe "$UG2_EXE" "$UG2_DIR/CARS/SKYLINE/GEOMETRY.BIN"
+```
+
+It passes three loads/reloads, **612 actual resource bindings per load**, and
+checks empty pack/platform/solid/deferred lists, zero buckets/counts and zero used
+node-pool slots after final unload. Assertions remain enabled for this probe in
+release builds. COROLLA also passes three reloads with 571 bindings each and clean
+release. Native SKYLINE orbit (60 frames) and scripted drive (120 frames),
+with audio disabled, pass. Debug output confirms **3 of 3 wheel/brake tables**,
+1,224 live upload buffers, then zero packs/solids/buffers after destruction.
+Source/prepared wheel-record checksums and C0 values remain unchanged.
+
+Texture runtime records are still an explicit missing-record boundary: 1,781
+texture lookups per SKYLINE load return null. Technique/effect objects remain
+uninitialized. These records are therefore not submitted through recovered
+dispatch yet; native drawing still uses its GL lists and decoded image cache.
+No shader, material or lighting behavior is invented to fill that gap. Texture
+loading, technique setup, bounds classification and GPU consumption remain open,
+along with the other wheel inventory seams and the prior legacy coefficient
+precision gap.
 
 ### Verification (pixel size and LOD)
 
@@ -1276,11 +1375,11 @@ the other inventory seams also remain open.
 ### Remaining seams and limitations
 
 - `DrawSolid` (`0x5c5930`) and queue `0x5ceb30` are recovered and verified, with texture swaps. Native activation
-  needs retail tables, technique setup and GPU consumer `0x5cf420`. The current native seam draws GL lists,
+  needs texture/technique setup and GPU consumer `0x5cf420`; native car tables now load through recovered pack callbacks. The current native seam draws GL lists,
   ignores flags/extra/zero and does not set `glFrontFace` for R180 wheels; see the dispatcher evidence above.
 - Preparation `0x48f660` (recovered and active; GL record consumption remains open), facing helper
   `0x60d700` (recovered) and secondary draw `0x620600` (open; the demo
-  gate is 0, so neither is called), solid slots `0x48d860` (setter now recovered; no slot tables; the link values `ri+0x390`/`0x3ac` are zero
+  gate is 0, so neither is called), solid slots `0x48d860` (setter and native retail table binding recovered; link values `ri+0x390`/`0x3ac` are zero
   in the demo), rim-part records `0x60fef0` (none in the demo; the `SPINNEROFFSET` offsets stay zero).
 - The spin term reads the car's sub-object bytes `+0x353`/`+0x354` (`0x59a420`). The block applies it only to wheels 0
   and 1 (tyre and brake frames, as a rotation about x; the table above). The demo has no such state, so the spin is zero

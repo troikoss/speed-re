@@ -4,6 +4,7 @@
 // Platform scaffolding: OpenGL drawing of UG2's own car and track assets. The original
 // render path (CarRenderInfo 0x638190, eSolid rendering 0x5cf420) is not recovered.
 #include "NativeAssets.h"
+#include "NativeSolidRecords.h"
 #include "../../Speed/Indep/Src/World/CarRenderWheels.h"
 
 #include <GL/gl.h>
@@ -35,7 +36,7 @@ struct CameraState;
 
 struct NativeDrawSolid {
     // Keep the checked original prefix distinct from host GL handles. The
-    // recovered dispatcher needs retail tables before it can replace the seam.
+    // recovered dispatcher still needs texture/effect objects and GPU consumption.
     CarRenderSolid record;
     const NativeSolid *solid;
     GLuint opaqueList;
@@ -73,6 +74,7 @@ private:
     GLuint Build(const NativeSolid &solid, bool translucent);
     unsigned int Resolve(unsigned int hash) const;
     std::vector<NativeSolid> solids_;
+    NativeSolidRecords records_;
     std::vector<NativeDrawSolid> body_;
     NativeDrawSolid wheel_;
     CarRenderWheelInfo *wheelInfo_ = 0;   // recovered CarRenderInfo of the wheel block (ri)

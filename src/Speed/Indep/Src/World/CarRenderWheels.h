@@ -63,6 +63,7 @@ struct CarRenderSlotTable {
     void *value90;
     unsigned int LoadPlatformChunk(unsigned int *chunk); // 0x5cc280
     void ResolveTextures();                             // 0x4907a0
+    unsigned int UnloadPlatformChunk(unsigned int *chunk); // 0x5ce7d0, argument unused
 };
 UG2_CHECK_OFFSET(CarRenderSlotTable, count1A, 0x1a);
 UG2_CHECK_OFFSET(CarRenderSlotTable, textureCount19, 0x19);

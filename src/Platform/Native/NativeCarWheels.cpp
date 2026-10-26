@@ -96,7 +96,7 @@ static bool gWheelPassTranslucent = false;
 // matrix of the block already includes the body frame, so it replaces the modelview matrix of the wheel.
 // The original's flags (0x401 and the tyre/brake bits), the extra record and the zero argument have no
 // native equivalent here. CarRenderSolid.cpp recovers the dispatcher/queue, but
-// original table population and the GPU consumer are still needed to activate it.
+// texture/effect population and the GPU consumer are still needed to activate it.
 // Front face and mirroring are not changed (the GL backend seam; see the docs).
 void CarRenderView::DrawSolid(CarRenderSolid *solid, WheelMatrix *world, void *extra, unsigned int flags,
                               unsigned int zero) {
