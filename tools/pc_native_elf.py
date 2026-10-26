@@ -1,0 +1,32 @@
+"""Analysis-only loader for fixed-address i386 GCC objects in Unicorn."""
+import struct
+import subprocess
+
+
+def link_native(source, build, root, bindings, entry):
+    build.mkdir(parents=True, exist_ok=True)
+    obj, exe = build / 'native.o', build / 'native.elf'
+    subprocess.run(['g++', '-m32', '-O1', '-fno-pie', '-mfpmath=387', '-fno-stack-protector',
+                    '-fno-strict-aliasing', '-fno-fast-math', '-ffp-contract=off',
+                    '-include', str(root / 'src/Platform/Native/NativeCompat.h'),
+                    '-Isrc/Speed/Indep/Src/World', '-c', str(source), '-o', str(obj)],
+                   cwd=root, check=True)
+    subprocess.run(['ld', '-m', 'elf_i386', '-Ttext=0x2400000', '--entry=' + entry] +
+                   ['--defsym=' + k + '=' + hex(v) for k, v in bindings.items()] +
+                   [str(obj), '-o', str(exe)], check=True)
+    raw = exe.read_bytes()
+    phoff = struct.unpack_from('<I', raw, 28)[0]
+    phsize, phcount = struct.unpack_from('<HH', raw, 42)
+    blocks = []
+    for i in range(phcount):
+        kind, off, addr, _, filesz, memsz, _, _ = struct.unpack_from('<8I', raw, phoff + i * phsize)
+        if kind == 1 and memsz:
+            blocks.append((addr, raw[off:off + filesz] + bytes(memsz - filesz)))
+    low = min(a for a, _ in blocks) & ~4095
+    high = (max(a + len(b) for a, b in blocks) + 4095) & ~4095
+    exports = {}
+    for line in subprocess.check_output(['nm', '-g', str(exe)], text=True).splitlines():
+        parts = line.split()
+        if len(parts) == 3:
+            exports[parts[2]] = int(parts[0], 16)
+    return dict(address=low, allocation=high - low, blocks=blocks, exports=exports)

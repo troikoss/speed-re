@@ -1,0 +1,30 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "RenderRecordCopy": {
+      "address": "0x48a3b0",
+      "size": 740,
+      "sha256": "daea4a12702dbd711b95e4651675a4cd239e8a21f8ddefef39d015c97b0c7ac1"
+    },
+    "Normalize4": {
+      "address": "0x43d010",
+      "size": 124,
+      "sha256": "7c824ed2c264edb3c613f770380e4b72797b5a7207e661545f172a9ab52ecdc5"
+    },
+    "DirectionMatrix": {
+      "address": "0x5bb190",
+      "size": 43,
+      "sha256": "9a75d8617f6d370b958f1b6a07a1d849278638d02c310ae4cfd0b42f9b879844"
+    },
+    "D3DXTransposeScalar": {
+      "address": "0x63d132",
+      "size": 113,
+      "sha256": "34a1bd8bc09c848544bb47491f2f72808b828ad634d911aed0a904ba6b6a0059"
+    },
+    "BodyMatrixCopy": {
+      "address": "0x4012b0",
+      "size": 138,
+      "sha256": "788d7c12fd4ca91a8187e390be060b48e9160de82d666ed1c0edfa11dbe5ec76"
+    }
+  }
+}

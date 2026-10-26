@@ -450,6 +450,57 @@ then `0x48a6a0(record, world, arg3, arg4)` and returns 1. Both callees write the
 record passed to DrawSolid. Their recovery and consumption remain open; ignoring
 the return value does not eliminate their side effects.
 
+### Render-record foundations (2026-10-26)
+
+`CarRenderRecord.h` describes the observed 0x1c0-byte record consumed and produced
+by the `0x48f660` chain. `CarRenderRecord.cpp` recovers three dependencies:
+
+- `0x48a3b0`, `CarRenderRecord::CopyFrom`: four ordered matrix-copy calls at
+  offsets 0, 0x40, 0x80 and 0xe0, with the intervening vector/words and final ten
+  16-byte groups copied in the observed order. Lanes 1/2 in those groups pass
+  through x87 loads/stores; other lanes retain their bit patterns. Overlapping
+  records retain sequential group-copy behavior, rather than a whole-record
+  snapshot. The return is the destination record.
+- `0x43d010`, `CarRenderNormalize4`: the length is sqrt(((X² + Y²) + Z²) + W²),
+  retained in x87 precision. Only output XYZ is written; output W is untouched.
+  A zero length produces 1/0/0. Original source Y/Z are captured before storing X.
+  This is distinct from the existing three-component normalizer `0x43cf10`.
+- `0x5bb190`, `CarRenderDirectionMatrix`: call the D3DX transpose seam at
+  `0x63d12c`, then write zero to float indices 3, 7, 11, 15, 12, 13 and 14 in that
+  order and return the output. The existing native D3DX backend is reused.
+
+Evidence comes from live Ghidra decompilation and original disassembly; the D3DX
+operation was confirmed against its default scalar body `0x63d132` (dispatch table
+entry at `0x804028`). No Ghidra project mutation was made. The new
+`car-render-record-math.json` pins all three routines, matrix copy, scalar transpose
+and the complete executable.
+
+With `UG2_EXE` set, run `tools/verify_pc_car_render_record_math.py --mutation-checks`
+using `build/venv/bin/python`, then repeat with `--gcc` (MSVC/wibo jobs sequential).
+Each compiler passes 504 copy, 3,144 normalization and 512 direction-matrix runs,
+zero failures; eight of eight mutations are rejected. Both x87 precision settings
+are used. Compared state includes all fixture bytes, specified returns,
+callee-saved registers, stack cleanup, x87 stack balance/control word and ordered
+matrix-copy/transpose calls. Copy fixtures contain arbitrary binary32 payloads,
+including NaNs, with bounded forward/backward aliases; normalization inputs are
+finite, including zero, signed zero, very small/large magnitudes and overlapping
+XYZ output. Direction matrices use finite inputs with separate or identical
+operands. Byte identity and exhaustive coverage are not claimed. The verifier
+selects actual scalar D3DX code on both sides; CPU dispatch is outside coverage.
+The i386 demo target also builds successfully.
+
+These helpers are compiled into the recovered library, but the producer routines
+`0x48e6c0` and `0x48a6a0` are still unrecovered and the native preparation seam
+still ignores the record. Activation also needs the caller's actual inputs:
+original wheel calls pass a source record at car-draw frame `+0xb20` and a position
+at frame `+0x790`. The current recovered block passes unused local `WheelMatrix`
+placeholders `scratchB`/`scratchA`; `scratchB` is only 64 bytes, while the source
+record reader needs 0x1c0 bytes. The existing stub does not read it. Do not activate
+the record producer against those placeholders: recover the upstream producers
+and pass explicit, correctly sized inputs first. The existing wheel-block verifier
+hooks `0x48f660` and compares argument identities, so it does not prove this data
+content or size. This remains a required part of the wheel-seam goal.
+
 ### Verification (pixel size and LOD)
 
 - `build/venv/bin/python tools/verify_pc_car_draw_lod.py --mutation-checks`, with `UG2_DIR` set. The executable's SHA-256
