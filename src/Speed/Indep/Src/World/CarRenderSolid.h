@@ -5,13 +5,32 @@
 
 // PC v1.2 record prefixes used by 0x5c5930/0x5ceb30. Four-byte layout is checked;
 // these are original records, separate from native GL objects and callbacks.
+struct CarRenderTechniqueParameters;
 struct CarRenderTechnique {
     unsigned int value00;
     int type04;
-    unsigned int value08[2];
+    unsigned int stride08;
+    int index0C;
     unsigned int value10;
+    int passCount14;
+    unsigned char value18;
+    unsigned char pad19[3];
+    CarRenderTechniqueParameters *parameters1C;
+    unsigned int effect20;
+    unsigned int declaration24;
+    CarRenderTechnique *Construct(); // 0x5d0f80
+    void CacheParameters();          // 0x5d1bd0
+    void Setup(int index);           // 0x5d1e20, RET 4
 };
-UG2_CHECK_SIZE(CarRenderTechnique, 0x14);
+UG2_CHECK_OFFSET(CarRenderTechnique, stride08, 8);
+UG2_CHECK_OFFSET(CarRenderTechnique, index0C, 0xc);
+UG2_CHECK_OFFSET(CarRenderTechnique, value10, 0x10);
+UG2_CHECK_OFFSET(CarRenderTechnique, passCount14, 0x14);
+UG2_CHECK_OFFSET(CarRenderTechnique, value18, 0x18);
+UG2_CHECK_OFFSET(CarRenderTechnique, parameters1C, 0x1c);
+UG2_CHECK_OFFSET(CarRenderTechnique, effect20, 0x20);
+UG2_CHECK_OFFSET(CarRenderTechnique, declaration24, 0x24);
+UG2_CHECK_SIZE(CarRenderTechnique, 0x28);
 
 struct CarRenderPrimitive {
     float minimum00[3];

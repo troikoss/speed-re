@@ -1677,8 +1677,93 @@ and pack/reference lists. The ordinary texture-first SKYLINE probe also passes.
 The native build and 60-frame orbit pass with unchanged wheel-record checksums
 and C0 values. Normal native font construction, texture animation scheduling,
 shader/effect setup, recovered draw activation and GL consumption remain separate
-work. The technique table producer has been located at `0x5d21f0`; its setup and
-the original `0x5cf420` consumer are still unrecovered seams.
+work. The technique producer/setup recovery below supersedes the earlier
+producer gap; native effect support and the original `0x5cf420` consumer remain open.
+
+### Technique construction, parameter semantics and setup (2026-10-26)
+
+`CarRenderTechnique.cpp` recovers seven complete PC v1.2 routines:
+
+| Address | Recovered behavior |
+| --- | --- |
+| `0x5d0f80` | Construct the `0x28` technique and allocate its `0x988` parameter block |
+| `0x5d1b70` | Bind the first matching parameter hash in the static slots and library map |
+| `0x5d1bd0` | Discover effect parameters using their **semantic**, rather than display name |
+| `0x5d1e20` | Build a vertex declaration, create an effect, select a valid technique and count passes |
+| `0x5d21f0` | Query capabilities, clamp filtering, create/reuse all 23 technique objects and set them up |
+| `0x5be560` | Select magnification filtering from the selector, adapter vendor and capability bits |
+| `0x5bc5d0` | Create, lock and populate the original 64-pixel ramp texture |
+
+The full technique layout retains four-byte code/COM tokens and parameter pointers.
+Its original class tokens are stored as data, separate from host C++ vtables.
+The parameter block has 60 `0x28` slots followed by a `0x28` library map. Construction
+preserves the exact names (including `ENVMAPANGE`), copy/hash/store order, zeroed
+handles and untouched name tails. `RAMPMAP` is initialized before the two raindrop
+slots. Binding writes the static handle before inserting/updating the map and
+stops at the first duplicate hash. Library reset leaves the static handles intact.
+
+Setup preserves the 23 original recipes, eight-byte declaration elements, the
+end sentinel, 32-bit stride accumulation and 16-bit offsets. It releases an old
+effect once, snapshots adapter IDs before resetting the parameter map, creates
+an effect from the recipe resource and caches its parameter semantics. Candidate
+selection retains the original shader annotation gate and SiS/Intel/Matrox
+fallbacks. It applies the blend/filter/fog/color-write parameters before validation,
+accepts only a zero validation result, and queries at most 16 passes even when
+no technique was accepted. A failed selection leaves the old selected-index and
+shader byte intact. The depth-world focal-range write checks the final type field.
+
+The root queries capabilities twice, creates a pool without pre-clearing the old
+pool value, constructs the 23 class identities only when the ready byte is zero,
+then runs each setup before setting ready and creating the ramp. The ramp uses
+all four identical channel bytes, the original float constants and x87 operation
+order with truncating conversion; its complete output bytes must match at both
+`0x027f` and `0x037f` precision settings. Pitch is ignored as in the original.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_technique.py --gcc --cases 2048 --root-cases 128 --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_technique.py --cases 2048 --root-cases 128 --mutation-checks
+```
+
+Both compilers pass **12,416 comparisons** (2,048 per leaf/setup routine and
+128 complete producer runs) and reject **17 mutations**. The producer runs call
+all 23 setups, covering 4,992 setup calls in total per compiler when combined
+with the standalone cases.
+
+Verification compares all fixture/global/allocation bytes, ordered boundary
+arguments and writes, return values, preserved registers, stack cleanup, x87
+control word and normal-return exception-list state. Fixtures include different
+parameter names/semantics, null/unknown/duplicate semantics, stale handles, all
+23 recipes/class identities, bounded declaration permutations (including stride
+wrap), both construction/reuse branches, vendor fallbacks, signed attempt limits,
+annotation values, pass counts through and above 16, and API error results with
+valid output records. The manifest `car-render-technique.json` fingerprints the
+complete original address spans, including alignment gaps in the producer.
+Reports are under `build/analysis/car-render-technique/`.
+
+D3D/D3DX methods, allocation, and the library container's construct/insert/reset
+remain controlled analysis boundaries. Opaque empty allocator/comparator tag
+padding is not interpreted. String copy/hash and all seven recovered engine
+routines execute in the comparison chain. This establishes bounded behavioral
+and raw ramp-byte evidence; it does not establish byte identity, exception/OOM
+behavior, arbitrary library container behavior or shader/rendering equivalence.
+The original minification local is undefined for selectors outside 0..2 with a
+live parameter; those inputs are excluded from setup fixtures. The standalone
+magnification leaf also checks negative and out-of-range selectors.
+
+The native build still supplies an inactive technique table. This source is
+kept outside the native link until effect API adapters and resource ownership
+exist; successful shader objects are not fabricated. Native CPU texture staging
+also requires a real API treatment of the ramp's zero mip-level request before
+activation. Technique Begin/End methods, destruction, the library container,
+shader resources/backend, bounds classification and consumer `0x5cf420` remain
+open. The native build/orbit and existing solid-dispatch checks are regressions
+for the expanded record layout, not execution of native effects. The demo,
+simulator and display-free solid probe build successfully. The existing solid
+dispatch verifier passes 12,288 comparisons on each compiler. Native SKYLINE
+passes a 60-frame orbit and 120-frame scripted drive with unchanged source/record
+checksums (`ca993eba`/`7141bcda` orbit, `eb0428b7`/`69927c13` drive). The three-pass
+late-texture probe retains 612 solids and 829 textures per load, follows
+500 → 534 → 500 matching slots, and unloads with clean buffers and pools.
 
 ### Verification (pixel size and LOD)
 
