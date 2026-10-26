@@ -1,0 +1,30 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "LoadSolidChunk": {
+      "address": "0x493bb0",
+      "size": 748,
+      "sha256": "f4382990eec21fc0b51735d5b5609676a15183f3d48d230ad8db54330c968d9c"
+    },
+    "ResolveTextures": {
+      "address": "0x4907a0",
+      "size": 61,
+      "sha256": "9b2d935daa9b4bbb2c3dc7e6a1421d01ef86a66dd38d3389870b7779b7249298"
+    },
+    "FindResource": {
+      "address": "0x488bc0",
+      "size": 133,
+      "sha256": "543e7fd61fe044b1f6575342b7ff84b89981c8cdf52bfe55504bf2d954f6ec49"
+    },
+    "ProfileFromLink": {
+      "address": "0x431780",
+      "size": 11,
+      "sha256": "6cc5bb1778a178ccf8146181dcbba6c370287d0d5e4f47e317c04a529f74f050"
+    },
+    "SolidLoadAllowed": {
+      "address": "0x40cb20",
+      "size": 6,
+      "sha256": "2db31f4e09597946e56e859813bfdad7046d457c32332c3a882654d1e3ffdf67"
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "TechniqueIndex": {
+      "address": "0x5bc6b0",
+      "size": 54,
+      "sha256": "276b7f01f9d65d51fc5ee1ab5d5331d09f856bceee012692def68e61368eb3cb"
+    },
+    "FixupPrimitives": {
+      "address": "0x5c58a0",
+      "size": 132,
+      "sha256": "5579362e29b04b98847498caff1ebb3d9c015241807bb95832f05d364d5dddfa"
+    },
+    "LoadPlatformChunk": {
+      "address": "0x5cc280",
+      "size": 466,
+      "sha256": "ddef8d05922c36034ad3404e8f22636a317f0d57368c06600173853e36fc595c"
+    },
+    "technique_rules": {
+      "address": "0x800464",
+      "size": 48,
+      "sha256": "9562735617c54897a7ebaea333aa5f8e20c51b353f13e99d9dedf539c0559f7a"
+    }
+  }
+}

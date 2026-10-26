@@ -30,22 +30,36 @@ UG2_CHECK_OFFSET(CarRenderPrimitive, flags38, 0x38);
 UG2_CHECK_SIZE(CarRenderPrimitive, 0x3c);
 
 struct CarRenderPlatformSolid {
-    unsigned char pad00[0x10];
+    CarRenderQueueLink link00;
+    unsigned int value08;
+    unsigned int flags0C;
     int primitiveCount10;
     CarRenderPrimitive *primitives14;
-    unsigned char pad18[0x38 - 0x18];
+    union {
+        unsigned char *indices18;
+        unsigned int indexAddress18; // original four-byte address word, used by relocation
+    };
+    unsigned int indexBytes1C;
+    unsigned int indexBuffer20; // original GPU object token, not a host pointer
+    unsigned int value24;
+    unsigned char *vertices28;
+    unsigned int vertexBuffer2C;
+    unsigned int vertexBytes30;
+    unsigned int vertexCount34;
     const int *remap38;
     CarRenderTechnique *technique3C;
+    unsigned int value40;
+    unsigned int FixupPrimitives(unsigned int offset); // 0x5c58a0, RET 4
 };
 UG2_CHECK_OFFSET(CarRenderPlatformSolid, primitives14, 0x14);
 UG2_CHECK_OFFSET(CarRenderPlatformSolid, remap38, 0x38);
-UG2_CHECK_SIZE(CarRenderPlatformSolid, 0x40);
-
-struct CarRenderQueueLink {
-    CarRenderQueueLink *next00;
-    CarRenderQueueLink *previous04;
-};
-UG2_CHECK_SIZE(CarRenderQueueLink, 8);
+UG2_CHECK_OFFSET(CarRenderPlatformSolid, technique3C, 0x3c);
+UG2_CHECK_OFFSET(CarRenderPlatformSolid, indices18, 0x18);
+UG2_CHECK_OFFSET(CarRenderPlatformSolid, indexBuffer20, 0x20);
+UG2_CHECK_OFFSET(CarRenderPlatformSolid, vertices28, 0x28);
+UG2_CHECK_OFFSET(CarRenderPlatformSolid, vertexCount34, 0x34);
+UG2_CHECK_OFFSET(CarRenderPlatformSolid, value40, 0x40);
+UG2_CHECK_SIZE(CarRenderPlatformSolid, 0x44);
 struct CarRenderTextureGroup;
 struct CarRenderTextureState {
     unsigned char pad00[0x1c];

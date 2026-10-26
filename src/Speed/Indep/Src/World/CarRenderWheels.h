@@ -33,21 +33,48 @@ struct CarRenderSlot {
 };
 UG2_CHECK_SIZE(CarRenderSlot, 8);
 
+struct CarRenderQueueLink {
+    CarRenderQueueLink *next00;
+    CarRenderQueueLink *previous04;
+};
+UG2_CHECK_SIZE(CarRenderQueueLink, 8);
+struct CarRenderSolidAux;
+
+// Observed prefix of the 0x134011 header; later bytes remain unmodeled.
 struct CarRenderSlotTable {
     CarRenderPlatformSolid *platform00;
-    unsigned char pad04[0x19 - 4];
+    CarRenderQueueLink link04;
+    unsigned char value0C;
+    unsigned char loaded0D;
+    unsigned short flags0E;
+    unsigned int hash10;
+    unsigned char pad14[0x19 - 0x14];
     signed char textureCount19;
     signed char count1A;
-    unsigned char pad1B[0x2c - 0x1b];
+    unsigned char markerCount1B;
+    unsigned char pad1C[0x2c - 0x1c];
     CarRenderTextureSlot *textures2C;
     unsigned char pad30[0x3c - 0x30];
     CarRenderSlot *slots3C;
+    unsigned char pad40[0x80 - 0x40];
+    void *markers80;
+    CarRenderSolidAux *aux84;
+    CarRenderQueueLink list88;
+    void *value90;
+    unsigned int LoadPlatformChunk(unsigned int *chunk); // 0x5cc280
+    void ResolveTextures();                             // 0x4907a0
 };
 UG2_CHECK_OFFSET(CarRenderSlotTable, count1A, 0x1a);
 UG2_CHECK_OFFSET(CarRenderSlotTable, textureCount19, 0x19);
 UG2_CHECK_OFFSET(CarRenderSlotTable, slots3C, 0x3c);
 UG2_CHECK_OFFSET(CarRenderSlotTable, textures2C, 0x2c);
-UG2_CHECK_SIZE(CarRenderSlotTable, 0x40);
+UG2_CHECK_OFFSET(CarRenderSlotTable, pad40, 0x40); // end of the previously modeled prefix
+UG2_CHECK_OFFSET(CarRenderSlotTable, link04, 4);
+UG2_CHECK_OFFSET(CarRenderSlotTable, flags0E, 0xe);
+UG2_CHECK_OFFSET(CarRenderSlotTable, markers80, 0x80);
+UG2_CHECK_OFFSET(CarRenderSlotTable, aux84, 0x84);
+UG2_CHECK_OFFSET(CarRenderSlotTable, list88, 0x88);
+UG2_CHECK_SIZE(CarRenderSlotTable, 0x94);
 
 // 0x48d860 (__thiscall, RET 8): updates every matching slot if value is nonzero.
 struct CarRenderSolid {

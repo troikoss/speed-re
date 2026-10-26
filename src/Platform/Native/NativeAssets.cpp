@@ -297,7 +297,8 @@ void LoadSolid(const unsigned char *data, size_t begin, size_t end, std::vector<
     for (size_t r = 0; r < recordCount; ++r) {
         const unsigned char *record = records + r * 60;
         NativeMeshPart part;
-        unsigned int slot = Get32(record + 0x1c);
+        // 0x5c5a8c reads one unsigned byte, not the following three bytes.
+        unsigned int slot = record[0x1c];
         part.textureHash = slot < slots.size() ? slots[slot] : 0;
         part.count = (int)Get32(record + 0xc);
         part.start = (int)Get32(record + 0x34);

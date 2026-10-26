@@ -1135,6 +1135,97 @@ prepared records; 512 legacy layout/2,048 block cases with 14 rejected mutations
 record-lookup regressions with 10 rejected mutations; `ug2demo`/`ug2sim` build;
 60-frame SKYLINE orbit and 120-frame scripted drive, no audio.
 
+### Retail solid chunks and platform fixups (2026-10-26)
+
+`CarRenderSolidLoad.cpp` and `CarRenderSolidPack.cpp` recover these PC v1.2 routines:
+
+| Address | Recovered behavior |
+| --- | --- |
+| `0x493bb0` | Load an `0x80134010` solid chunk, resolve its slots, register it and update counters |
+| `0x5cc280` | Load platform children, register the platform record and create/fill GPU buffers |
+| `0x5c58a0` | Relocate primitive index offsets and select the platform technique |
+| `0x5bc6b0` | Select the first matching technique rule |
+| `0x4907a0` | Resolve texture hashes using the signed texture count |
+| `0x488bc0` | Search sorted unsigned keys and return the first duplicate |
+| `0x431780` | Convert a profile-list link to its enclosing record, including null |
+| `0x40cb20` | Return the reference build's unconditional load permission |
+
+The original addresses, function sizes and hashes are recorded in
+`car-render-solid-load.json` and `car-render-solid-pack.json` under
+`config/SPEED2_EXE_1_2/`. Ghidra decompilation was checked against the instructions,
+including actual D3D arguments, the profile converter's fastcall ABI and the
+primitive fixup's return word. No Ghidra project mutation was needed.
+
+Platform headers and primitives align to 16 bytes; vertex payloads align to 128.
+Primitive `+0x34` becomes `indexOffset*2 - offsetArgument + indexBase`, with original
+32-bit wrap. The rule table at `0x800464` prioritizes mask 1/type 4, mask `0x40`/type
+2, mask `0x80`/type 5, then zero-mask/type 0. Index upload uses usage 0, format
+`0x65`, pool 1; vertex upload uses usage 8, format 0, pool 1. In load mode 4, only
+type 5 gets a vertex upload. Zero vertex count bypasses it, while zero index bytes
+still run primitive fixup. Uploads preserve the original forward word copies and
+remaining byte copies. HRESULTs remain unchecked, as in the binary.
+
+GPU object fields stay four-byte tokens. Typed create/lock/unlock adapters carry
+all original arguments and keep host objects and callbacks outside original
+records. The verification adapters supply CPU storage; they do not implement D3D
+or a replacement game renderer. The original platform record prefix is checked
+through `+0x40`, and the solid record prefix through `+0x90`. Existing observed
+offsets remain asserted.
+
+The outer loader fixes texture/profile arrays, auxiliary pointers and counts,
+marker data, registration links and counters. Texture and lighting counts are
+signed bytes; profile matches use the intrusive list at `0x8358c0`, with default
+pack `0x7f399c` on a miss. Cross-pack matches propagate flags `0x100`/`0x200` in
+the original order. Successful loads bind the first resource-index duplicate,
+append to `0x835794` and increment the hash bucket; failed platform loads append
+to `0x835858` and clear the matching resource entry. Synthetic failure fixtures
+override the platform return explicitly: valid PC platform loading normally
+returns 1. Total count, payload bytes and change flag update on either path.
+
+With `UG2_EXE` set, run compiler jobs sequentially:
+
+```
+build/venv/bin/python tools/verify_pc_car_render_solid_load.py --gcc --cases 2048 --retail "$UG2_DIR/CARS/SKYLINE/GEOMETRY.BIN" --mutation-checks
+build/venv/bin/python tools/verify_pc_car_render_solid_load.py --cases 2048 --retail "$UG2_DIR/CARS/SKYLINE/GEOMETRY.BIN" --mutation-checks
+build/venv/bin/python tools/verify_pc_car_render_solid_pack.py --gcc --cases 2048 --retail "$UG2_DIR/CARS/SKYLINE/GEOMETRY.BIN" --mutation-checks
+build/venv/bin/python tools/verify_pc_car_render_solid_pack.py --cases 2048 --retail "$UG2_DIR/CARS/SKYLINE/GEOMETRY.BIN" --mutation-checks
+```
+
+Both MSVC 7.1 `/Ox /Ob0` and native i386 GCC C++11 `-O1` pass **6,144 platform
+comparisons** and **10,240 outer-loader/helper comparisons** each. Each verifier
+rejects **14 mutations** per compiler. Synthetic coverage includes signed count
+extremes, unsigned keys/duplicates, rule priority/default/fallthrough, null profile
+conversion, index wrap, copy overlaps/remainders, mode gates, marker count
+truncation, prior list entries, counter/bucket wrap and failed registration.
+Complete fixture bytes, touched globals and list links, buffer bytes, return
+values, stack cleanup, saved registers and ordered boundary calls are compared.
+
+Each verifier also passes all **612 SKYLINE retail solids/platform chunks** per
+compiler. `GEOMETRY.BIN` SHA-256:
+`93cc878329d5783e61abb40cce41da6313c010105fb3c3643963df7e06904037`.
+The complete outer chain performs 612 index and 612 vertex creates, with 1,224
+lock/unlock pairs. File alignment residues and retail child bytes are retained.
+Resource-index contexts and texture/cross-pack lookup returns are fixtures;
+this is not a captured retail manager session or a visual parity claim. These
+finite checks do not establish byte identity or malformed-data coverage. Reports
+are in `build/analysis/car-render-solid-load/` and `car-render-solid-pack/`.
+
+Native `LoadSolid` now reads primitive texture index `+0x1c` as a byte, matching
+`MOVZX` at `0x5c5a8c`. All 2,061 SKYLINE primitive records have zero in the three
+following bytes, so its current texture selection stays the same. Native
+`ug2demo`/`ug2sim` build and SKYLINE's 60-frame orbit/120-frame scripted drive pass
+with audio disabled; the existing source/prepared-record checksums stay the same.
+The dispatcher regression still passes both compilers and its 15 mutations.
+
+Native loader activation remains open. `NativeAssets.cpp` still decodes arrays
+for GL display lists; the real pack-manager context, texture/technique objects,
+bounds classifier and GPU consumer must be connected before recovered dispatch
+can replace that path. The confirmed outer-loader callers include `0x4940ae`
+(no containing Ghidra function) and `0x494140`; the latter reads its context from
+caller argument 3 `+0xb8`. Texture callback `0x494ea0` handles a different set of
+chunk IDs and remains open. Additional-light producers, secondary drawing and
+the other inventory seams also remain open.
+
 ### Verification (pixel size and LOD)
 
 - `build/venv/bin/python tools/verify_pc_car_draw_lod.py --mutation-checks`, with `UG2_DIR` set. The executable's SHA-256
