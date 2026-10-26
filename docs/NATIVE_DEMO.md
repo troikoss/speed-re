@@ -1316,8 +1316,9 @@ with audio disabled, pass. Debug output confirms **3 of 3 wheel/brake tables**,
 1,224 live upload buffers, then zero packs/solids/buffers after destruction.
 Source/prepared wheel-record checksums and C0 values remain unchanged.
 
-Texture runtime records are still an explicit missing-record boundary: 1,781
-texture lookups per SKYLINE load return null. Technique/effect objects remain
+At this manager checkpoint, texture runtime records were an explicit missing-record
+boundary: 1,781 lookups per SKYLINE load returned null. This is superseded by the
+texture-pack activation below. Technique/effect objects remain
 uninitialized. These records are therefore not submitted through recovered
 dispatch yet; native drawing still uses its GL lists and decoded image cache.
 No shader, material or lighting behavior is invented to fill that gap. Texture
@@ -1396,7 +1397,8 @@ detach, unregister and destroy **829 textures**: 211 from two uncompressed
 `GLOBALB.BUN` packs, 72 compressed SKYLINE slots and 546 compressed shared-car
 slots. Compressed inputs are decoded by the **original** JDLZ/HUFF/RAWW routines
 to produce the fixture bytes. The fixture supplies header/index pointers normally
-written by the still-open header loader. Each compiler matches 829 upload and
+written by the header loader (the subsequent pack recovery below removes that
+fixture boundary). Each compiler matches 829 upload and
 829 release boundary calls, and all pack lists, counts, buckets and default
 pointers are empty afterward. Input SHA-256 fingerprints and generated reports
 are recorded under `build/analysis/car-render-texture/`; assets stay local.
@@ -1404,14 +1406,105 @@ are recorded under `build/analysis/car-render-texture/`; assets stay local.
 This is finite behavioral evidence, not code-byte identity or GPU equivalence.
 Formatting and the verified return-this leaf are controlled library boundaries;
 GPU upload/release and game reference notifications remain external boundaries.
-The trap fixture records a debugger-resumed return. Header/root callbacks,
-stream scheduling, animation records and native retained texture ownership are
-not activated by this change. Native solids still report 1,781 unresolved texture
-lookups for SKYLINE; technique setup and the recovered draw consumer remain open.
+The trap fixture records a debugger-resumed return. At this checkpoint header/root
+callbacks and native retained ownership were not activated; the following section
+supersedes that limitation. Stream scheduling, technique setup and the recovered
+draw consumer remain open.
 The native demo/simulator build, 60-frame SKYLINE orbit, three-load 612-solid
 lifecycle probe and both compiler solid-dispatch regressions pass. Wheel record checksums
 and prepared C0 remain unchanged. The image decoder's misleading padding comment
 is corrected; its GL presentation is unchanged.
+
+### Texture pack callbacks and native ownership (2026-10-26)
+
+`CarRenderTexturePack.cpp` adds twelve original routines to the record recovery:
+
+| Addresses | Behavior |
+| --- | --- |
+| `0x48b1f0` | Create `TexturePackSlotPool` with `0x7c`-byte slots, 128 slots and heap flags zero |
+| `0x494380` / `0x494dd0` | Parse/register and detach/unregister/free the `0xb3310000` header |
+| `0x48fc00` / `0x48fbc0` | Queue an embedded `0xb3320000` pixel link and find its key |
+| `0x494ea0` / `0x495040` | Root load/unload dispatch for `0xb3300000`, `0xb3320000` and `0xb0300100` |
+| `0x48fe60` / `0x48ff40` / `0x48fed0` | Construct, resolve and destroy texture animation records |
+| `0x5b96f0` / `0x5b9710` | Allocate a GPU-token snapshot and release it through its original pool |
+
+The undefined Ghidra unload callback `0x495040` is recovered from its original
+instructions; no project mutation is needed. Address spans are fingerprinted in
+`config/SPEED2_EXE_1_2/car-render-texture-pack.json`. Header loading preserves
+the original child order, count divisions and count-mismatch return after setting
+`loaded6C`. Root loading queues pixel chunks, looks up the final header's key,
+aligns its data pointer to 128 bytes, attaches the range, saves its byte count and
+unlinks the pixel node. Root unloading detaches before unregistering/freeing the
+descriptor. A direct pixel unload returns success without unlinking its node.
+
+Animation records use `0x34`-byte entries and `0x10`-byte frames. Construction
+assigns frame subarrays in order. Resolution checks the real pack index and CPU
+readiness, allocates handle snapshots for ready frames, and sets each entry's
+all-ready flag, including the one-valued empty-frame case. Destruction releases
+snapshots only for nonnull texture pointers before unlinking the animation.
+Snapshot creation captures the state pointer before allocation and reads its
+GPU token afterward. Its receiver is fastcall; snapshot release uses `RET 4`.
+Root loading also preserves the disabled-animation branch and the original null
+receiver call on allocation failure; it introduces no new recovery policy.
+
+With `UG2_EXE` and `UG2_DIR` set, run the compiler jobs sequentially:
+
+```sh
+build/venv/bin/python tools/verify_pc_car_render_texture_pack.py --gcc --mutation-checks --retail "$UG2_DIR/GLOBAL/GLOBALB.BUN" --retail "$UG2_DIR/CARS/SKYLINE/TEXTURES.BIN" --retail "$UG2_DIR/CARS/TEXTURES.BIN"
+build/venv/bin/python tools/verify_pc_car_render_texture_pack.py --mutation-checks --retail "$UG2_DIR/GLOBAL/GLOBALB.BUN" --retail "$UG2_DIR/CARS/SKYLINE/TEXTURES.BIN" --retail "$UG2_DIR/CARS/TEXTURES.BIN"
+```
+
+Each compiler passes **28,672 comparisons**, covering twelve routines through
+fourteen entry/lifecycle checks, and rejects **16 mutations**. Fixtures include
+count mismatches, array count rounding, pixel alignment at 32 offsets, queue hits
+and misses, ready/missing animation frames, empty entries, disabled animation
+loads and root/header/animation unload cycles. The original and rebuilt routines
+run with the recovered texture registration/lookup code in the same chain.
+Complete fixture/global bytes, allocated descriptor/snapshot bytes, call order,
+arguments, return values, caller registers and stack balance are compared. The
+normal-return FS exception-list slot is checked; exception unwinding and invalid
+allocation/data paths are not established by these finite fixtures.
+
+The retail tests execute the actual root/header callbacks for the **829 textures**
+in the same three files used above, including original decompression and every
+index lookup. Both compilers match 829 upload/release boundary calls and free all
+four descriptors, leaving empty pack/pixel queues, counts, buckets and defaults.
+Pool allocation, formatting, the return-this leaf, GPU APIs and game reference
+notifications remain controlled boundaries. This does not establish byte identity
+or complete streaming, animation scheduling or rendering behavior. Reports stay
+under `build/analysis/car-render-texture-pack/`.
+
+`NativeTextureRecords` now retains aligned mutable file copies and decompressed
+slots. The adapter invokes recovered root callbacks, uses the original bWare pool
+and decompressor, preloads compressed car slots synchronously, and unloads slots
+before roots and backing storage. It deduplicates files by cache key, accepts the
+empty brake pack and frees the descriptor pool after its last owner. The texture
+cache owns these records for the car packs and `GLOBALB.BUN`; track/HUD image
+decoding stays native. Car solids are cleared before a reload and destroyed before
+their texture owner. The missing-record lookup stub is removed.
+
+The display-free probe now validates both lifetimes:
+
+```sh
+cmake --build build/native --target ug2demo ug2sim ug2solidrecords_probe -j 6
+UG2_DEBUG_TEXTURES=1 UG2_DEBUG_SOLIDS=1 build/native/ug2solidrecords_probe "$UG2_EXE" "$UG2_DIR/CARS/SKYLINE/GEOMETRY.BIN"
+```
+
+SKYLINE passes three complete reloads with **612 solids and 829 texture records**
+per load, **5,343 bound texture slots** in total, clean lists/counts/buckets and
+no used descriptor/node-pool slots after release. Its 1,781 slots per load resolve
+to **534 matching hashes and 1,247 real `DEFAULTALPHA` fallbacks**, with zero null
+records. The default fallbacks do not recover runtime skin/replacement producers.
+COROLLA passes three reloads with 571 solids, 813 textures and 5,838 bound slots.
+The native build, 60-frame orbit and 120-frame scripted drive pass; source/prepared
+wheel checksums and C0 results remain unchanged.
+
+Native GPU texture tokens remain zero: upload/retirement, game reference consumers
+and shader/effect setup are explicit platform seams, and animations are not
+scheduled by the native preload adapter. Existing GL lists still consume decoded
+RGBA images rather than recovered draw queues or wheel lighting records. Bounds
+classification, dispatch activation, `0x5cf420` and the other wheel inventory
+items remain open.
 
 ### Verification (pixel size and LOD)
 

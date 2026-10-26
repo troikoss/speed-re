@@ -19,6 +19,13 @@ void NativeTextureCache::Add(const NativeImageMap &images) {
         if (!images_.count(it->first)) images_[it->first] = it->second;
     }
 }
+bool NativeTextureCache::AddPack(const unsigned char *data,size_t bytes,const std::string &key) {
+    if (!records_.Add(data,bytes,key)) return false;
+    NativeImageMap images;
+    if (bytes) LoadNativeTextures(data,bytes,&images);
+    Add(images);
+    return true;
+}
 
 const NativeImage *NativeTextureCache::Find(unsigned int hash) const {
     NativeImageMap::const_iterator it = images_.find(hash);
@@ -116,6 +123,7 @@ bool NativeCarModel::Load(const char *gameDirectory, const char *carName, Native
     // Drop borrowed solid/table references before a record-owner reload.
     body_.clear();
     solids_.clear();
+    records_.Clear();
     textures_ = textures;
     texturedParts_ = parts_ = 0;
     // Scaffold paint: the stock skin layer (%s_SKIN1, built at run time from the car
@@ -138,9 +146,10 @@ bool NativeCarModel::Load(const char *gameDirectory, const char *carName, Native
         snprintf(path, sizeof(path), packs[i], carName);
         std::vector<unsigned char> data;
         if (!ReadNativeFile(game + path, &data)) continue;
-        NativeImageMap images;
-        LoadNativeTextures(&data[0], data.size(), &images);
-        textures->Add(images);
+        if (!textures->AddPack(data.empty()?0:&data[0],data.size(),game+path)) {
+            snprintf(error,errorSize,"cannot load texture records from %s",path);
+            return false;
+        }
     }
     const bool haveRecords = records_.Load(&geometry[0], geometry.size());
     // Replacement keys from the CarRenderInfo constructor 0x638190 and the used-texture

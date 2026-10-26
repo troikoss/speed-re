@@ -1,6 +1,7 @@
 // Platform scaffolding for the recovered solid manager; no draw/lighting algorithm.
 #include "NativeSolidRecords.h"
 #include "../../Speed/Indep/Src/World/CarRenderSolidManager.h"
+#include "../../Speed/Indep/Src/World/CarRenderTexture.h"
 #include <time.h>
 #include <map>
 #include <stdint.h>
@@ -36,7 +37,6 @@ struct Upload {
 };
 std::map<unsigned int, Upload> uploads;
 unsigned int nextToken = 1;
-unsigned int textureMisses;
 
 void Initialise() {
     static bool ready = false;
@@ -102,14 +102,6 @@ extern "C" unsigned int UG2SolidReleaseIndexBuffer(unsigned int token) {
     if (found==uploads.end() || found->second.vertex) abort();
     uploads.erase(found);return 0;
 }
-extern "C" CarRenderTexture *UG2SolidFindTexture(unsigned int,int one,int zero) {
-    if (one!=1 || zero!=0) abort();
-    // CarRenderTexture.cpp recovers lookup/registration, but native pack record
-    // ownership is not connected yet. Keep this explicit missing-record boundary.
-    ++textureMisses;
-    return 0;
-}
-
 bool NativeSolidRecords::Load(const unsigned char *data,size_t bytes) {
     Initialise();
     Clear();
@@ -129,8 +121,21 @@ bool NativeSolidRecords::Load(const unsigned char *data,size_t bytes) {
         offset+=length;
     }
     if (roots_.empty()) return false;
-    if (getenv("UG2_DEBUG_SOLIDS")) fprintf(stderr,"native solid records: %u packs, %u solids, %zu upload buffers, %u texture lookups unresolved\n",
-        ug2SolidPackCount82D380,ug2SolidLoadedCount830DA0,uploads.size(),textureMisses);
+    if (getenv("UG2_DEBUG_SOLIDS")) {
+        unsigned int bound=0,defaults=0,missing=0;
+        for (CarRenderQueueLink *link=ug2SolidPacks830D1C.next00;link!=&ug2SolidPacks830D1C;link=link->next00) {
+            CarRenderSolidPack *pack=reinterpret_cast<CarRenderSolidPack *>(link);
+            for (int i=0;i<pack->count0C;++i) if (pack->resources74[i].solid04) {
+                CarRenderSlotTable *solid=pack->resources74[i].solid04;
+                for (int j=0;j<solid->textureCount19;++j) {
+                    CarRenderTexture *texture=solid->textures2C[j].texture04;
+                    if (!texture) ++missing; else if (texture==ug2TextureDefault82DB08) ++defaults; else ++bound;
+                }
+            }
+        }
+        fprintf(stderr,"native solid records: %u packs, %u solids, %zu upload buffers; textures %u matched, %u default, %u missing\n",
+            ug2SolidPackCount82D380,ug2SolidLoadedCount830DA0,uploads.size(),bound,defaults,missing);
+    }
     return true;
 }
 void NativeSolidRecords::Clear() {

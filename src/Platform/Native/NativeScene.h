@@ -5,6 +5,7 @@
 // render path (CarRenderInfo 0x638190, eSolid rendering 0x5cf420) is not recovered.
 #include "NativeAssets.h"
 #include "NativeSolidRecords.h"
+#include "NativeTextureRecords.h"
 #include "../../Speed/Indep/Src/World/CarRenderWheels.h"
 
 #include <GL/gl.h>
@@ -15,6 +16,7 @@
 class NativeTextureCache {
 public:
     void Add(const NativeImageMap &images);
+    bool AddPack(const unsigned char *data, size_t bytes, const std::string &key);
     // Returns 0 when the hash is not loaded.
     GLuint Get(unsigned int hash, bool *alpha);
     const NativeImage *Find(unsigned int hash) const;
@@ -27,6 +29,7 @@ private:
     };
     NativeImageMap images_;
     std::map<unsigned int, Entry> uploaded_;
+    NativeTextureRecords records_;
 };
 
 struct WheelMatrix;
@@ -36,7 +39,7 @@ struct CameraState;
 
 struct NativeDrawSolid {
     // Keep the checked original prefix distinct from host GL handles. The
-    // recovered dispatcher still needs texture/effect objects and GPU consumption.
+    // recovered dispatcher still needs GPU texture/effect setup and consumption.
     CarRenderSolid record;
     const NativeSolid *solid;
     GLuint opaqueList;

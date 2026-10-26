@@ -28,7 +28,7 @@ file(GLOB UG2_RECOVERED_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/bSlotPool.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Compression.cpp)
 # Verified separately by verify_pc_car_render_solid.py. NativeCarWheels still
-# supplies DrawSolid until retail table population and the GPU consumer exist.
+# supplies DrawSolid until GPU texture/effect setup and the GPU consumer exist.
 list(REMOVE_ITEM UG2_RECOVERED_SOURCES ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Src/World/CarRenderSolid.cpp)
 include_directories(SYSTEM ${CMAKE_SOURCE_DIR}/src/Platform/Native/include)
 add_library(ug2recovered STATIC ${UG2_RECOVERED_SOURCES})
@@ -58,6 +58,7 @@ target_link_options(ug2sim PRIVATE ${UG2_LINK_FLAGS})
 
 add_executable(ug2demo src/Platform/Native/DemoMain.cpp src/Platform/Native/NativeAssets.cpp
     src/Platform/Native/NativeSolidRecords.cpp
+    src/Platform/Native/NativeTextureRecords.cpp
     src/Platform/Native/NativeScene.cpp src/Platform/Native/NativeCarWheels.cpp src/Platform/Native/NativeFng.cpp src/Platform/Native/NativeHud.cpp
     src/Platform/Native/NativeFormatting.cpp
     src/Platform/Native/NativePause.cpp src/Platform/Native/NativePauseOptions.cpp src/Platform/Native/NativeControls.cpp)
@@ -75,10 +76,14 @@ target_link_libraries(ug2probe -Wl,--start-group ug2native ug2recovered -Wl,--en
 target_link_options(ug2probe PRIVATE ${UG2_LINK_FLAGS})
 
 # Player assets are explicit arguments; no display or retail files in the repo.
-add_executable(ug2solidrecords_probe src/Platform/Native/SolidRecordsProbe.cpp src/Platform/Native/NativeSolidRecords.cpp)
+add_executable(ug2solidrecords_probe src/Platform/Native/SolidRecordsProbe.cpp src/Platform/Native/NativeSolidRecords.cpp
+    src/Platform/Native/NativeTextureRecords.cpp src/Platform/Native/NativeFormatting.cpp)
 target_compile_options(ug2solidrecords_probe PRIVATE ${UG2_ARCH_FLAGS} -O2 -Wall -UNDEBUG
     -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
 target_link_libraries(ug2solidrecords_probe -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
+target_include_directories(ug2solidrecords_probe BEFORE PRIVATE /usr/include/SDL2)
+target_link_directories(ug2solidrecords_probe PRIVATE /usr/lib/i386-linux-gnu)
+target_link_libraries(ug2solidrecords_probe -l:libSDL2-2.0.so.0)
 target_link_options(ug2solidrecords_probe PRIVATE ${UG2_LINK_FLAGS})
 
 include(CTest)

@@ -1,0 +1,65 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "init": {
+      "address": "0x48b1f0",
+      "size": 28,
+      "sha256": "52db11bd905e6ecbf11c601cc92ad3aadc1e04cdd5060ebabf5eebd1e50b55d9"
+    },
+    "snapshot": {
+      "address": "0x5b96f0",
+      "size": 24,
+      "sha256": "b052b7b043c01ab1a19e1b3f43f0de8f40fe7c629d38739c4bc6d3446e152502"
+    },
+    "free_snapshot": {
+      "address": "0x5b9710",
+      "size": 23,
+      "sha256": "dc26c381c32d30ca3bdaee08faa1edb54cee512255d1f32bc95411544e0a105a"
+    },
+    "load_header": {
+      "address": "0x494380",
+      "size": 330,
+      "sha256": "be737306279b0cb6d7650cc46f182a348f65a79c062e3689ff0e81c77ce71a30"
+    },
+    "unload_header": {
+      "address": "0x494dd0",
+      "size": 201,
+      "sha256": "3d8373ddb7cc8aade1caba9c1d779061d3ee018016434cd02f652707ea5d843e"
+    },
+    "queue": {
+      "address": "0x48fc00",
+      "size": 62,
+      "sha256": "bfc59ab34cc598335258ea7e18a20d76e97997331663e10c570e6fa8fd8df534"
+    },
+    "find_pixels": {
+      "address": "0x48fbc0",
+      "size": 51,
+      "sha256": "21dc8f8c44358f7246cba2736a4ff4ec36c89591b1f3f29fea54f7963abbc7c4"
+    },
+    "anim_construct": {
+      "address": "0x48fe60",
+      "size": 97,
+      "sha256": "7a2fd9a4d46e61734172e03ab560f01dd9a8a15e7f8864a7efc097ea9847e15c"
+    },
+    "anim_update": {
+      "address": "0x48ff40",
+      "size": 212,
+      "sha256": "7145382652bc05664ed869b171a083197bf3f7c70e1dcd3ddf91b7adc79798d9"
+    },
+    "anim_destroy": {
+      "address": "0x48fed0",
+      "size": 104,
+      "sha256": "70fdc2d6b9d395911a5158aa64dc5677eafdf8405e212fc25c24c52086d76d8a"
+    },
+    "load_root": {
+      "address": "0x494ea0",
+      "size": 414,
+      "sha256": "bde9c34c4d4b8fdeee77400217bced240953aeda2936cfd1e9d9e68ef52c0a0a"
+    },
+    "unload_root": {
+      "address": "0x495040",
+      "size": 140,
+      "sha256": "ff68977155868fe42b963d1223f662ddc5aa90aab8a3298c3785dfec0f502750"
+    }
+  }
+}

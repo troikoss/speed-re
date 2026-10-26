@@ -163,7 +163,7 @@ extern int ug2SolidMode8A1C8C;
 extern void *ug2SolidGroupPool870918, *ug2SolidCommandPool87091C;
 extern CarRenderQueueLink ug2SolidGroups870D30[], ug2SolidGroups8712F0[];
 extern unsigned int ug2SolidGroupCount87094C;
-// Original 0x4901d0, recovered in CarRenderTexture.cpp. Native pack activation
+// Original 0x4901d0, recovered in CarRenderTexture.cpp. Native file ownership
 // is separate; individual solid verifiers can bind this lookup as a boundary.
 CarRenderTexture *UG2SolidFindTexture(unsigned int hash, int fallback, int rawMode);
 }

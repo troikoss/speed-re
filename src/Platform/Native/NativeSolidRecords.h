@@ -5,17 +5,17 @@
 struct CarRenderSlotTable;
 
 // Platform ownership for original, mutable pack records. GPU tokens currently
-// own CPU upload storage; texture/effect objects and draw consumption remain seams.
+// own CPU upload storage; GPU texture/effect setup and draw consumption remain seams.
 class NativeSolidRecords {
 public:
     NativeSolidRecords() {}
     bool Load(const unsigned char *data, size_t bytes);
     ~NativeSolidRecords();
     CarRenderSlotTable *Find(unsigned int hash);
+    void Clear(); // Drop borrowed records before changing their texture owner.
 private:
     NativeSolidRecords(const NativeSolidRecords &) = delete;
     NativeSolidRecords &operator=(const NativeSolidRecords &) = delete;
-    void Clear();
     std::vector<unsigned char> storage_;
     std::vector<unsigned int *> roots_;
 };
