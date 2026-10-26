@@ -621,7 +621,7 @@ native wrapper check and all 11 mutations pass with these settings.
 Activation remains open. The original car draw initializes the frame +0xb20
 record with `0x48ab10` at `0x620fd3`, then fills it through lighting/source-record
 producer `0x48ed60` at `0x620ff3`. The clear routine, lighting foundations and
-builder are now recovered (see below); light selection and actual caller context
+builder and light selection are now recovered (see below); list population and actual caller context
 remain open before replacing the native placeholder. The
 initial position at frame +0x790 comes from view frame +0x40..+0x48 at
 `0x620f04`..`0x620f2c`, but subsequent body-draw writes/stack reuse must still be
@@ -710,7 +710,8 @@ unwired until their actual caller inputs are recovered.
 Further original-binary leads: callers `0x631250` and `0x6316d0` push the default
 context `0x7f3f00` into `0x620ae0` at `0x631696`/`0x631879`; the image holds three
 populated source entries there. Source-record builder `0x48ed60` is recovered
-below; light selection `0x48e3d0` remains unrecovered. The third matrix at `0x871b50` is produced
+below; light selection `0x48e3d0` is recovered in the following selector section.
+Its native list population remains open. The third matrix at `0x871b50` is produced
 in `0x5c3450`: the `0x5c3524` call uses recovered `CameraLookAt` (`0x5ba9a0`),
 then indices 3/7/11/12/13/14 are zeroed and index 15 is set to 1 before the copy at
 `0x5c356b`. Its up input is the image vector 0/0/1 at `0x800b70`. This is a lead
@@ -732,8 +733,9 @@ any other argument. Otherwise the builder:
   Colors use intensity × channel × 255 in that order.
 - Calls sector-light selector `0x48e3d0`. If its signed count plus three exceeds
   19, the count becomes **15**, preserving the original discontinuity rather
-  than filling all 19 entries. The usual selector limit is ten; larger and
-  negative counts in the verifier probe the builder's own control flow.
+  than filling all 19 entries. The selector's sector pass limits dynamic lights
+  to ten, but its additional-list pass can reach 24; negative fixture counts
+  separately probe the builder's own control flow.
 - Produces relative directions and low-byte-first RGB colors for selected lights.
   Kind 3 follows the original sine threshold, in-place offset normalization and
   cone-weight calculation. Its Z+Y+X dot product and cone scale remain extended;
@@ -769,16 +771,94 @@ null output with invalid remaining pointers, and output aliases with inputs.
 Byte identity and exhaustive/nonfinite inputs are not established. The separate
 legacy coefficient-transform precision gap at `0x489ba0` remains open.
 
-**Boundary:** the sector-light selector uses a controlled fixture on both sides;
+**Boundary of the commands above:** the sector-light selector uses a controlled fixture on both sides;
 this verifies the builder's use of its results, not sector/tree traversal or
 selection. Direction transpose, sine, three-component normalization and their
 trig dependencies execute original machine code in this verifier. Native i386
 and legacy MSVC caller results are therefore distinct from complete native
 integration. The builder is compiled into the recovered library but is not
-activated by the demo. Selection `0x48e3d0`, its original list/tree dependencies,
-actual view-frame/position inputs and extra-record draw consumption remain open.
+activated by the demo. Selection `0x48e3d0` and its tree dependencies are now
+recovered and checked without that fixture substitution below. Native list/tree
+population, actual view-frame/position inputs and extra-record draw consumption remain open.
 The i386 demo builds and completes the 60-frame SKYLINE no-audio orbit smoke;
 that is a baseline platform check, not a lighting-activation claim.
+
+### Sector-light selection and trees (2026-10-26)
+
+`CarRenderLightSelect.cpp` and `CarRenderLightTree.cpp` recover all six routines
+behind the builder's selection call:
+
+- `0x502fd0`, list end: return the receiver unchanged. The selector calls it for
+  both intrusive-list heads; it is kept across a translation-unit boundary.
+- `0x5746e0`, node bounds: strict X/Y/Z extent checks. A coordinate exactly on a
+  face is rejected; differences stay extended through absolute value/comparison.
+- `0x574730`, tree descent: ordered recursive search through signed 16-bit child
+  indices at stride 0x30. A nonpositive child count identifies a leaf; the first
+  containing leaf wins, with backtracking when a containing branch has no result.
+- `0x5747e0`, tree query: reject a null root or failed root bounds, return a root
+  leaf directly, otherwise descend.
+- `0x4893a0`, light admission: require byte +7 equal to 1; compare float-spilled
+  (Z²+Y²)+X² against float-spilled outer-radius² using strict `<`. Inner-radius²
+  stays extended; attenuation is stored as a float. Kind 0 / mode 2 accumulates
+  up to ten weighted ambient vectors, advancing only for positive weight. Other
+  kind-0 modes retain the strictly nearest ambient value. Kinds 2/3 append light
+  pointers and weights while the count is below 24. Remaining kinds are ignored.
+- `0x48e3d0`, selection: initialize only the first selected pointer/weight and four
+  ambient cells; snapshot position after those stores; walk sector list head
+  `0x830d14` and query each tree. Leaf indices select 0x60-byte light records.
+  The sector pass stops at ten dynamic lights or a full ambient array. The
+  additional list at `0x835850` still visits all enabled nested lists, ending on
+  null or their own sentinel. Admission's 24-light limit still applies there.
+
+The final ambient blend preserves the original unusual scale: remaining weight
+is float(1−sum), and the contribution scale is **sum** when sum ≤ 1. Above 1,
+remaining becomes zero and the scale is float(1/sum). Each stored ambient vector
+already contains its individual attenuation. Four ordered sums stay extended;
+the original B/fourth spill points are explicit. The fallback starts at 0/0/0/1.
+No replacement normalization or extra clamp is introduced. Original instructions
+also show **no write to the additional-list global**; a decompiler-rendered
+assignment there was an analysis artifact.
+
+`CarRenderLightSelect.h` checks the tree-node stride, sector prefixes, 0x60-byte
+light records and shared 0xcc-byte stack-state offsets. Unknown cells retain
+offset-based names. `car-render-light-select.json` pins the executable and all
+six contiguous code spans. With `UG2_EXE` set:
+
+```
+build/venv/bin/python tools/verify_pc_car_render_light_select.py --gcc --cases 4096 --mutation-checks
+build/venv/bin/python tools/verify_pc_car_render_light_select.py --cases 4096 --mutation-checks
+build/venv/bin/python tools/verify_pc_car_render_light_build.py --gcc --chain --selector-chain --cases 4096
+build/venv/bin/python tools/verify_pc_car_render_light_build.py --chain --selector-chain --cases 4096
+```
+
+Native GCC C++11 and legacy MSVC each pass **8,192 comparisons per routine,
+49,152 total**, with all 12 mutations rejected. Both x87 precision settings run.
+The selector checks include 219,904 ordered admission calls, 16,360 tree queries
+and 21,050 recursive descent calls per compiler. Full fixture bytes, unchanged
+list heads, return values, ordered helper inputs, initialized stack-state fields,
+callee-saved registers, cleanup, control word and empty x87 stack match. Fixtures
+include empty/multiple sectors, null roots, nested/overlapping branches, signed
+indices, exact/adjacent bounds and radius probes, inactive/unsupported lights,
+fractional inner radii, nearest/blended ambient paths, full arrays, both dynamic
+limits, and null/sentinel list ends. These are finite constructed valid records,
+not exhaustive trees or a captured retail traversal; nonfinite inputs are not
+claimed covered. Byte identity is not established.
+
+The builder's new `--selector-chain` mode executes the complete recovered
+selector/tree/admission bodies and lighting foundations, with **8,192 exact
+builder comparisons per compiler**, without replacing selection results. Per
+precision setting its 3,963 non-null cases cover 31,823 vector normalizations,
+25,186 pair additions and 6,637 sine calls. Direction transpose, sine,
+three-component normalization and trig still execute original machine code in
+this harness. The separate legacy `0x489ba0` precision gap is unchanged.
+
+The i386 demo builds and completes the 60-frame SKYLINE no-audio orbit smoke.
+This remains a baseline integration check: native light-list/tree population,
+source-record/caller activation, correct view-frame and final position inputs,
+and extra-record rendering remain open. Original xrefs identify append routine
+`0x48e380` for the additional list and primary-list data use at `0x48e248`;
+startup references `0x77cbd0`/`0x77cc80` are initialization leads. Those producers
+have not been recovered or wired by this checkpoint.
 
 ### Verification (pixel size and LOD)
 

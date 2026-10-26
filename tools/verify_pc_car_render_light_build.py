@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Compare source-record builder 0x48ed60 with original PC v1.2 machine code.
 
-The sector-light selector is a controlled boundary on both sides, including
-caller count-clamp probes beyond its usual ten-light limit. Other callees execute
-original code unless --chain links the recovered lighting foundations. All fixture
-bytes, ordered helper inputs, return values and preserved ABI state must match.
+By default the sector-light selector is a controlled boundary, including caller
+count-clamp probes. --selector-chain instead runs the recovered selector and tree
+bodies on real list fixtures. --chain links the recovered lighting foundations.
+Other callees execute original code. All fixture bytes, ordered helper inputs,
+return values and preserved ABI state must match.
 """
 import argparse
 from collections import Counter
@@ -46,12 +47,18 @@ GLOBALS = {'ug2LightNormalize82DAE4': 0x82dae4, 'ug2LightTarget7F39B8': 0x7f39b8
 ENTRY = '_Z25CarRenderBuildLightRecordP15CarRenderRecordPK21CarRenderLightProfilePKfP11WheelMatrixS7_PK13CarRenderView'
 
 
-def build(source, gcc, chain):
+def build(source, gcc, chain, selector_chain=False):
     sources = [source] + ([LIGHTING] if chain else [])
+    globals_ = dict(GLOBALS)
+    if selector_chain:
+        sources += [SOURCE.with_name('CarRenderLightSelect.cpp'), SOURCE.with_name('CarRenderLightTree.cpp')]
+        globals_.update(ug2LightSectors830D14=0x830d14, ug2AdditionalLights835850=0x835850)
     if gcc:
-        bindings = dict(GLOBALS, sqrtl=STOP + 0x100)
+        bindings = dict(globals_, sqrtl=STOP + 0x100)
         bindings['_Z15WheelSineCosinePfS_t'] = 0x43c390
         for kind, name in GCC.items():
+            if kind == 'select' and selector_chain:
+                continue
             if not chain or kind not in ('pair', 'coefficients', 'vector'):
                 bindings[name] = BRIDGE + (0 if kind == 'pair' else 0x40) if kind in ('pair', 'coefficients') else ORIGINAL[kind]
         linked = link_native(sources, BUILD, ROOT, bindings, ENTRY)
@@ -67,7 +74,7 @@ def build(source, gcc, chain):
             objects.append(obj)
         parsed = [read_object(p) for p in objects]
         defined = {s['name'] for o in parsed for s in o['symbols'].values() if s['section'] > 0}
-        external = {'_' + k: v for k, v in GLOBALS.items()}
+        external = {'_' + k: v for k, v in globals_.items()}
         external.update({'__fltused': 0, '__ftol2': 0x75bed4})
         for o in parsed:
             for s in o['symbols'].values():
@@ -82,20 +89,26 @@ def build(source, gcc, chain):
         linked['entry'] = next(v for k, v in linked['exports'].items() if k.startswith('?CarRenderBuildLightRecord@@'))
     linked['hooks'] = dict(ORIGINAL)
     if chain:
-        for kind in ('pair', 'coefficients', 'vector'):
+        for kind in ('pair', 'coefficients', 'vector') + (('select',) if selector_chain else ()):
             linked['hooks'][kind] = next(v for k, v in linked['exports'].items()
                                          if k.startswith((GCC if gcc else PREFIX)[kind]))
     return linked
 
 
 class Machine:
-    def __init__(self, image, linked=None, gcc=False, chain=False):
+    def __init__(self, image, linked=None, gcc=False, chain=False, selector_chain=False):
+        self.selector_chain = selector_chain
+        if selector_chain:
+            from verify_pc_car_render_light_select import SIZE as selector_size
+            self.size = selector_size
+        else:
+            self.size = SIZE
         u = self.u = Uc(UC_ARCH_X86, UC_MODE_32)
         u.mem_map(0x400000, (len(image) + 4095) & ~4095)
         u.mem_write(0x400000, image)
         # Original default scalar D3DX transpose implementation.
         u.mem_write(0x803f00, struct.pack('<I', 0x63d132))
-        u.mem_map(ARENA, SIZE)
+        u.mem_map(ARENA, self.size)
         u.mem_map(STACK, 0x20000)
         u.mem_map(BRIDGE, 0x1000)
         for offset, target, nargs in ((0, ORIGINAL['pair'], 2), (0x40, ORIGINAL['coefficients'], 4)):
@@ -125,6 +138,8 @@ class Machine:
         if kind == 'select':
             output, position = self.args(2)
             self.events.append((kind, position, bytes(u.mem_read(position, 12))))
+            if self.selector_chain:
+                return  # Run the original/recovered selector body; no fixture substitution.
             u.mem_write(output, self.selection)
             sp = u.reg_read(xc.UC_X86_REG_ESP)
             ret = struct.unpack('<I', bytes(u.mem_read(sp, 4)))[0]
@@ -153,12 +168,15 @@ class Machine:
             self.events.append((kind, prefix, values))
 
     def run(self, case, cw):
-        data, args, self.selection, self.count, globals_ = case
+        data, args, self.selection, self.count, globals_ = case[:5]
         u = self.u
         self.events = []
         u.mem_write(ARENA, data)
         for address, value in globals_.items():
             u.mem_write(address, struct.pack('<I', value))
+        if self.selector_chain:
+            for address, body in case[5].items():
+                u.mem_write(address, body)
         sp = STACK + 0x8000
         u.mem_write(sp, struct.pack('<7I', STOP, *args))
         u.reg_write(xc.UC_X86_REG_ESP, sp)
@@ -176,7 +194,8 @@ class Machine:
         assert ((u.reg_read(xc.UC_X86_REG_FPSW) >> 11) & 7) == 0
         assert u.reg_read(xc.UC_X86_REG_FPTAG) == 0xffff
         assert u.reg_read(xc.UC_X86_REG_EAX) == (1 if args[0] else 0xffffffff)
-        return bytes(u.mem_read(ARENA, SIZE)), self.events
+        heads = tuple(bytes(u.mem_read(h, 8)) for h in (0x830d14, 0x835850)) if self.selector_chain else ()
+        return bytes(u.mem_read(ARENA, self.size)), self.events, heads
 
 
 def fbits(value):
@@ -225,10 +244,41 @@ def cases(n):
         yield bytes(data), args, bytes(selection), count, globals_
 
 
-def verify(image, linked, gcc, chain, n):
-    a, b = Machine(image), Machine(image, linked, gcc, chain)
+def selector_cases(n):
+    from verify_pc_car_render_light_select import cases as light_cases, POSITION as light_position
+    rng = random.Random(0x48ed6048e3d0)
+    profile, matrix4, matrix5, view, frame = [ARENA + i for i in (0x500, 0x800, 0x840, 0x900, 0xa00)]
+    for index, (fixture, heads, _) in enumerate(light_cases(n)):
+        data = bytearray(fixture)
+        def put(address, fmt, *values):
+            struct.pack_into('<' + fmt, data, address - ARENA, *values)
+        for matrix in (matrix4, matrix5, frame):
+            put(matrix, '16f', *[rng.uniform(-2, 2) for _ in range(16)])
+        for i in range(3):
+            put(profile + 0x20 + i * 0x1c, 'I6f', rng.choice((0, 1, 0x80000000)),
+                rng.uniform(-720, 720), rng.uniform(-360, 360),
+                rng.uniform(-2, 2), rng.uniform(-2, 2), rng.uniform(-2, 2), rng.uniform(-2, 2))
+        put(view + 0x40, 'I', frame if index % 3 else 0)
+        # Direction and cone fields were not read by selection; populate them
+        # for every primary/additional record consumed by the builder.
+        from verify_pc_car_render_light_select import LIGHTS as selected_lights, LINKS
+        for light in [selected_lights + s * 0x600 + j * 0x60 for s in range(4) for j in range(1, 11)] + \
+                     [LINKS + s * 0x2000 + j * 0x68 + 8 for s in range(2) for j in range(30)]:
+            put(light + 0x20, '3f', *[rng.uniform(-2, 2) for _ in range(3)])
+            put(light + 0x34, 'f', rng.uniform(-6, 6))
+        output = rng.choice((ARENA + 0x100, profile, matrix4, frame, view))
+        args = [output, profile, light_position, matrix4 if index & 1 else 0, matrix5, view if index & 2 else 0]
+        if index % 31 == 0:
+            args = [0] * 6
+        globals_ = {0x82dae4: rng.choice((0, 1)), 0x7f39b8: fbits(rng.choice((0.0, 1.0, -1.0))),
+                    0x7f39bc: rng.choice((0, 1)), 0x7f39c0: fbits(rng.choice((0.0, 0.8, -0.5)))}
+        yield bytes(data), args, None, None, globals_, heads
+
+
+def verify(image, linked, gcc, chain, n, selector_chain=False):
+    a, b = Machine(image, selector_chain=selector_chain), Machine(image, linked, gcc, chain, selector_chain)
     totals = Counter()
-    for index, case in enumerate(cases(n)):
+    for index, case in enumerate((selector_cases if selector_chain else cases)(n)):
         for cw in (0x027f, 0x037f):
             x, y = a.run(case, cw), b.run(case, cw)
             if x != y:
@@ -246,11 +296,13 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--gcc', action='store_true')
     p.add_argument('--chain', action='store_true')
+    p.add_argument('--selector-chain', action='store_true', help='run recovered sector/tree selection, not a controlled selector fixture')
     p.add_argument('--cases', type=int, default=2048)
     p.add_argument('--replace', type=Path)
     p.add_argument('--mutation-checks', action='store_true')
     args = p.parse_args()
     assert args.cases > 0
+    assert not args.selector_chain or args.chain
     raw = EXE.read_bytes()
     image = pefile.PE(data=raw).get_memory_mapped_image()
     manifest = json.loads(MANIFEST.read_text())
@@ -261,13 +313,15 @@ def main():
     for address, value in manifest['constants'].items():
         off = int(address, 16) - 0x400000
         assert image[off:off + len(value) // 2].hex() == value
-    linked = build(args.replace or SOURCE, args.gcc, args.chain)
-    report = dict(results=verify(image, linked, args.gcc, args.chain, args.cases), failures=0,
+    linked = build(args.replace or SOURCE, args.gcc, args.chain, args.selector_chain)
+    limitations = ['direction transpose, sine, three-component normalization and trig execute original code',
+                   'finite bounded inputs; native source-record activation remains open']
+    if not args.selector_chain:
+        limitations.insert(0, 'sector-light selector supplied by a controlled fixture; not recovered here')
+    report = dict(results=verify(image, linked, args.gcc, args.chain, args.cases, args.selector_chain), failures=0,
                   compiler='GCC i386 C++11 -O1' if args.gcc else 'MSVC 7.1 /Ox /Ob0',
-                  recovered_lighting_chain=args.chain, byte_identity='not established',
-                  limitations=['sector-light selector supplied by a controlled fixture; not recovered here',
-                               'direction transpose, sine, three-component normalization and trig execute original code',
-                               'finite bounded inputs; native source-record activation remains open'])
+                  recovered_lighting_chain=args.chain, recovered_selector_chain=args.selector_chain,
+                  byte_identity='not established', limitations=limitations)
     if args.mutation_checks:
         mutations = {
             'omit-view-override': ('if (view && view->frame40)', 'if (false && view && view->frame40)'),
@@ -291,12 +345,15 @@ def main():
             command = [sys.executable, __file__, '--replace', str(path), '--cases', '256']
             command += ['--gcc'] if args.gcc else []
             command += ['--chain'] if args.chain else []
+            command += ['--selector-chain'] if args.selector_chain else []
             result = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
             (BUILD / ('mutation-' + name + '.log')).write_text(result.stdout)
             assert result.returncode and 'builder mismatch' in result.stdout, (name, result.stdout)
             rejected.append(name)
         report['rejected_mutations'] = rejected
     label = ('gcc' if args.gcc else 'msvc') + ('-chain' if args.chain else '-isolated')
+    if args.selector_chain:
+        label += '-selector'
     (BUILD / ('verification-' + label + '.json')).write_text(json.dumps(report, indent=2) + '\n')
     print(json.dumps(report, indent=2))
 

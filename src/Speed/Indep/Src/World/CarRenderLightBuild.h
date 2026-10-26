@@ -19,21 +19,28 @@ struct CarRenderLightProfile {
 };
 UG2_CHECK_OFFSET(CarRenderLightProfile, lights20, 0x20);
 
+// The selector 0x48e3d0 confirms the 0x60-byte stride; untouched fields stay unknown.
 struct CarRenderLight {
     unsigned int value00;
     unsigned char kind04;
-    unsigned char pad05[7];
+    unsigned char mode05;
+    unsigned char value06;
+    unsigned char active07;
+    unsigned char pad08[4];
     unsigned int color0C;
     float position10[3];
-    unsigned int value1C;
+    float radius1C;
     float direction20[3];
-    unsigned char pad2C[8];
+    float value2C;
+    float radius30;
     float angle34;
+    unsigned char pad38[0x60 - 0x38];
 };
 UG2_CHECK_OFFSET(CarRenderLight, color0C, 0xc);
 UG2_CHECK_OFFSET(CarRenderLight, position10, 0x10);
 UG2_CHECK_OFFSET(CarRenderLight, direction20, 0x20);
 UG2_CHECK_OFFSET(CarRenderLight, angle34, 0x34);
+UG2_CHECK_SIZE(CarRenderLight, 0x60);
 
 struct CarRenderLightSelection {
     CarRenderLight *lights00[24];
@@ -44,8 +51,8 @@ UG2_CHECK_OFFSET(CarRenderLightSelection, weights60, 0x60);
 UG2_CHECK_OFFSET(CarRenderLightSelection, valueC0, 0xc0);
 UG2_CHECK_SIZE(CarRenderLightSelection, 0xd0);
 
-// Original 0x48e3d0, still unrecovered. Verification executes a controlled callee
-// fixture at this boundary; no native implementation or activation is supplied.
+// Original 0x48e3d0, recovered in CarRenderLightSelect.cpp. Native list/tree
+// population and source-record activation remain separate integration work.
 int CarRenderSelectLights(CarRenderLightSelection *output, const float *position);
 extern "C" {
 extern int ug2LightNormalize82DAE4;
