@@ -766,7 +766,7 @@ int main(int argc, char **argv) {
             // Use the finalized Camera prefix for lighting and LOD; the separate
             // reflection basis targets this player's origin plus the original offset.
             NativeSetCarView(orbit >= 0.0f ? 0 : &nativeCamera.current0, camera.position, camera.target,
-                              &vehicle.owner->State()->origin10.x, 0.5f * float(height) / projection.tangentY);
+                              &vehicle.owner->State()->origin10.x, cameraView.fov,cameraView.nearPlane,width,height);
             DrawCarModel(&carModel, &vehicle);
         } else {
             DrawBody(&vehicle);

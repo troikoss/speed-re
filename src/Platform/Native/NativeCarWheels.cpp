@@ -13,6 +13,8 @@
 
 #include "../../Speed/Indep/Src/World/CarRenderLod.h"
 #include "../../Speed/Indep/Src/World/CarRenderInputs.h"
+#include "../../Speed/Indep/Src/World/CarRenderView.h"
+#include "../../Speed/Indep/Src/World/CarRenderConsume.h"
 #include "../../Speed/Indep/Src/Camera/Camera.h"
 #include "../../Speed/Indep/Src/Camera/CameraMatrix.h"
 
@@ -53,20 +55,30 @@ extern "C" unsigned char UG2CarLodZeroFlag(void) {
     return 0;
 }
 
-// The car draw's view (arg1 of 0x620ae0) for the pixel size and the DrawSolid receiver. The frame holds the camera origin
-// (+0x40) and the depth axis (+0x50) that 0x48acb0 reads; the focal length (+0xc) is set by NativeSetCarView.
-static CarRenderFrame gCarViewFrame;
-static CarRenderView gCarView;
+// Use original view-table entry 1 and its recovered matrix/plane storage. The
+// native session supplies its one finalized camera and viewport; 0x5c7ec0 now
+// produces the focal input consumed by the original pixel-size/LOD routines.
+static CameraState gCarViewCamera;
+static CarRenderFrame &gCarViewFrame=*reinterpret_cast<CarRenderFrame *>(&gCarViewCamera);
+static CarRenderView &gCarView=*reinterpret_cast<CarRenderView *>(ug2RenderViews832DE0+1);
+static CarRenderViewport gCarViewport;
 static bool gCarViewSet = false;
 
 // Original view+0x40 is the Camera (0x5c26e0/0x44ab90). Use the complete finalized
 // prefix, rather than rebuilding a direction from target-eye. A null finalState
 // is the native orbit-inspection camera and builds its frame with recovered LookAt.
 void NativeSetCarView(const CameraState *finalState, const float eye[3], const float target[3],
-                      const float carPosition[3], float focalPixels) {
+                      const float carPosition[3], unsigned short fov,float nearPlane,int width,int height) {
+    static bool constructed=false;
+    if (!constructed) {
+        // The original CRT initializer 0x77ccd0 constructs exactly 22 views.
+        for (int i=0;i<22;++i) reinterpret_cast<CarRenderView *>(ug2RenderViews832DE0+i)->Construct();
+        constructed=true;
+    }
     if (finalState) {
-        memcpy(&gCarViewFrame, finalState, sizeof(gCarViewFrame));
+        memcpy(&gCarViewCamera, finalState, sizeof(gCarViewCamera));
     } else {
+        memset(&gCarViewCamera,0,sizeof(gCarViewCamera));
         WheelVector cameraEye = {eye[0], eye[1], eye[2]};
         WheelVector cameraTarget = {target[0], target[1], target[2]};
         CameraLookAt(&gCarViewFrame.matrix00, &cameraEye, &cameraTarget, &ug2ReflectionUp800B70);
@@ -74,10 +86,30 @@ void NativeSetCarView(const CameraState *finalState, const float eye[3], const f
             gCarViewFrame.position40[i] = eye[i];
             gCarViewFrame.axis50[i] = gCarViewFrame.matrix00.elements[2 + i * 4];
         }
+        gCarViewCamera.fovC4=fov;
+        gCarViewCamera.nearBC=nearPlane;
+        gCarViewCamera.farC0=15000.0f;
     }
     gCarView.frame40 = &gCarViewFrame;
-    gCarView.focal0C = focalPixels;
+    gCarViewport.width14=width;
+    gCarViewport.height18=height;
+    gCarView.viewport58=&gCarViewport;
+    gCarView.active08=1;
+    gCarView.clip00->Update(&gCarView,0,0,0);
     gCarViewSet = true;
+    static bool dumped=false;
+    const char *dump=getenv("UG2_CAR_VIEW_DUMP");
+    if (!dumped && dump) {
+        FILE *output=fopen(dump,"wb");
+        if (!output) { perror("UG2_CAR_VIEW_DUMP"); abort(); }
+        bool ok=fwrite("UG2VIEW1",1,8,output)==8 &&
+            fwrite(&gCarViewCamera,1,sizeof(gCarViewCamera),output)==sizeof(gCarViewCamera) &&
+            fwrite(&gCarViewport,1,sizeof(gCarViewport),output)==sizeof(gCarViewport) &&
+            fwrite(&gCarView,1,sizeof(gCarView),output)==sizeof(gCarView) &&
+            fwrite(gCarView.clip00,1,sizeof(*gCarView.clip00),output)==sizeof(*gCarView.clip00);
+        if (fclose(output)!=0 || !ok) { fprintf(stderr,"incomplete native car-view dump\n"); abort(); }
+        dumped=true;
+    }
     // 0x61ac46 and 0x5c3524: a separate basis aimed at the selected car + offset.
     // The single native player supplies the original caller's selected-car origin.
     WheelVector reflectionTarget;
@@ -96,7 +128,7 @@ static bool gWheelPassTranslucent = false;
 // matrix of the block already includes the body frame, so it replaces the modelview matrix of the wheel.
 // The original's flags (0x401 and the tyre/brake bits), the extra record and the zero argument have no
 // native equivalent here. CarRenderSolid.cpp recovers the dispatcher/queue, but
-// native effect support, bind/upload helpers and consumer API adapters are still
+// native effect support, frame/cache scheduling and consumer API adapters are still
 // needed to activate the recovered CarRenderConsume.cpp path.
 // Front face and mirroring are not changed (the GL backend seam; see the docs).
 void CarRenderView::DrawSolid(CarRenderSolid *solid, WheelMatrix *world, void *extra, unsigned int flags,

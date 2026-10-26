@@ -433,7 +433,10 @@ stubs in both runs: D3DX multiply `0x63cedb` and transpose `0x63d12c`.
 Limits and seams:
 
 - The Camera object is a native zeroed object (`DemoMain.cpp`, `reset270` set); its constructor and
-  the view object are not recovered. `Construct` stores `+0xc0 = 10000.0` as `0x44ab90` does; the
+  the view object were not recovered at this checkpoint. The view constructor,
+  complete plane/projection/focal producer and native focal integration are now
+  recovered separately; see [view activation evidence](NATIVE_DEMO.md#view-construction-clip-planes-and-native-focal-activation-2026-10-27).
+  The Camera constructor itself remains open. `Construct` stores `+0xc0 = 10000.0` as `0x44ab90` does; the
   rest of that constructor (copying `+0x280/+0x284`, `0x444040`) is not.
 - `0x447280` copies `+0..+0xd0` to `+0xd0` before it rewrites the matrix, so every difference except position, direction and target (the focal, near, far, noise and field-of-view velocities, written after Update/Shake already changed those fields) is zero in the original; the verifier cannot observe a mutation of those lines (mutations of them were dropped as equivalent).
 - The noise fields `+0x70..+0xac` are written only by the drive camera shake; other writers are

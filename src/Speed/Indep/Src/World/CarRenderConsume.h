@@ -41,7 +41,8 @@ int UG2EffectEnd(unsigned int effect);
 int UG2EffectSetTexture(unsigned int effect,unsigned int parameter,unsigned int texture);
 }
 // Engine bind/upload calls. World, headlights and bones are recovered in
-// CarRenderUploads.cpp; texture binding and record/light uploads remain pending.
+// CarRenderUploads.cpp; texture binding and record/light uploads are recovered
+// in CarRenderMaterial.cpp. Native effect/API integration remains separate.
 void CarRenderBindTexture(CarRenderTexture *texture); // 0x5bcc30
 void CarRenderUploadWorld(WheelMatrix *world,int view); // 0x5bdde0
 void CarRenderUploadHeadlights(WheelMatrix *world,CarRenderViewRecord *view); // 0x5bdaa0

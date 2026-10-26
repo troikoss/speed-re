@@ -97,24 +97,42 @@ UG2_CHECK_OFFSET(CarRenderSolid, overrides10, 0x10);
 UG2_CHECK_OFFSET(CarRenderSolid, overrideCount14, 0x14);
 UG2_CHECK_SIZE(CarRenderSolid, 0x18);
 
-// Observed prefix reached through view+0 by 0x5bc300; surrounding allocation and
-// plane production remain separate from this six-plane consumer.
+// Original view storage: three matrices followed by six clip planes. Getter
+// 0x5bc5b0 uses stride 0x120; 0x5c7ec0 produces the matrices, planes and focal.
 struct CarRenderClipData {
-    unsigned char value00[0xc0];
+    WheelMatrix matrices00[3];
     float planesC0[6][4];
+    void Update(CarRenderView *view,float firstOverride,float secondOverride,unsigned int unused); // 0x5c7ec0, RET 0x10
 };
 UG2_CHECK_OFFSET(CarRenderClipData, planesC0, 0xc0);
 UG2_CHECK_SIZE(CarRenderClipData, 0x120);
+// Producer read prefix; surrounding render-target ownership remains unrecovered.
+// 0x5c21e0 writes resolution globals and 320/240 to these dimension offsets.
+struct CarRenderViewport {
+    unsigned char value00[0x14];
+    int width14,height18;
+};
+UG2_CHECK_OFFSET(CarRenderViewport, width14, 0x14);
+UG2_CHECK_OFFSET(CarRenderViewport, height18, 0x18);
+UG2_CHECK_SIZE(CarRenderViewport, 0x1c);
 // 0x5c5930 (__thiscall on the view, RET 0x14): solid draw. Arguments: solid, world matrix, extra
 // record, flags, zero.
 struct CarRenderView {
-    const CarRenderClipData *clip00;
-    unsigned char pad04[8];
+    CarRenderClipData *clip00;
+    int type04;
+    unsigned char active08;
+    unsigned char pad09[3];
     float focal0C;                  // +0x0c: focal length in pixels (0x48acb0 divides by it)
-    unsigned char pad10[0x40 - 0x10];
+    unsigned char pad10[8];
+    float value18;
+    unsigned char pad1C[0x40 - 0x1c];
     const CarRenderFrame *frame40;  // +0x40: view frame (origin +0x40 and depth axis +0x50)
-    unsigned char pad44[0x54 - 0x44];
+    CarRenderQueueLink link44;
+    unsigned int value4C,value50;
     CarRenderRecord *record54;
+    CarRenderViewport *viewport58;
+    unsigned int value5C,value60,value64,value68,value6C;
+    CarRenderView *Construct(); // 0x491940
     int TestBounds(const float *minimum, const float *maximum, WheelMatrix *world); // 0x5bc300
     void DrawSolid(CarRenderSolid *solid, WheelMatrix *world, void *extra, unsigned int flags, unsigned int zero);
 };
@@ -122,6 +140,9 @@ UG2_CHECK_OFFSET(CarRenderView, clip00, 0);
 UG2_CHECK_OFFSET(CarRenderView, focal0C, 0x0c);
 UG2_CHECK_OFFSET(CarRenderView, frame40, 0x40);
 UG2_CHECK_OFFSET(CarRenderView, record54, 0x54);
+UG2_CHECK_OFFSET(CarRenderView, link44, 0x44);
+UG2_CHECK_OFFSET(CarRenderView, viewport58, 0x58);
+UG2_CHECK_SIZE(CarRenderView, 0x70);
 
 // 0x60fef0 (__thiscall on the part, RET 8): record with the given hash after `previous` (0 = first).
 // A record is 8 bytes: u32 hash at +0, float value at +4.

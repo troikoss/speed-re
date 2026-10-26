@@ -1851,7 +1851,7 @@ native demo. The current GL display-list seam still ignores the original flags,
 lighting records and shader effects. The uploads section below recovers the
 technique methods/destruction and three upload helpers; the material section
 below recovers texture binding and extra-record/light-pack uploads. Effect
-resources/backend, clip-plane production and native queue/consumer activation
+resources/backend, full view/frame scheduling and native queue/consumer activation
 remain necessary to close that seam. The existing
 bWare pool verifier and native demo/probe build are regressions for the added
 pool method; they do not establish native consumer execution. The pool verifier
@@ -1955,7 +1955,7 @@ shader execution or rendering equivalence. Byte identity is not claimed.
 
 The next section recovers those three bodies and links them into the consumer
 chain. Native effect/API ownership and resource loading, the library map,
-clip-plane production, original scheduling and native consumer
+full view/frame scheduling and native consumer
 activation remain open. Existing GL drawing still ignores the original lighting
 records and flags. The demo, simulator and solid-record probe build successfully;
 the existing consumer verifier also passes 14,336 comparisons per compiler after
@@ -2073,7 +2073,7 @@ its GL display lists. `ug2demo`, `ug2sim` and `ug2solidrecords_probe` build, the
 the three-load late-texture probe retains 612 solids/829 textures per load with
 500 → 534 → 500 matching slots and clean staging handles, buffers and pools.
 These are layout/lifecycle regressions. Native effect/API resources, the library
-map, clip-plane production, frame/cache scheduling and dispatch/consumer
+map, full view/frame/cache scheduling and dispatch/consumer
 activation remain open, along with the other wheel inventory rows and the
 separate legacy coefficient-transform precision gap.
 The standalone GCC consumer and upload verifiers also retain their 14,336 and
@@ -2132,7 +2132,7 @@ and empty x87 stack state are compared.
 Reports are under `build/analysis/car-render-bounds/`.
 
 The dispatcher chain retains controlled texture lookup and successful queue
-allocation boundaries. The original clip-plane producer, full view ownership,
+allocation boundaries. At this checkpoint the original clip-plane producer, full view ownership,
 malformed/nonfinite matrix behavior, OOM and rendering equivalence are not proved
 by these finite fixtures. Instruction-byte identity is not established.
 
@@ -2141,8 +2141,111 @@ and solid-record probe build; native SKYLINE's 60-frame orbit retains source/
 record checksums `ca993eba`/`7141bcda`, and the late-texture probe retains 612 solids
 and 829 textures per load across three loads, 500 → 534 → 500 matching slots and
 clean buffers/handles/pools. These are layout/lifecycle regressions. The native
-view has no recovered clip-plane producer and GL still draws its display lists;
-native dispatch/consumer activation and the other wheel seams remain open.
+view had no recovered clip-plane producer at this checkpoint. The next section
+recovers and activates that producer. GL still draws its display lists; native
+dispatch/consumer activation and the other wheel seams remain open.
+
+### View construction, clip planes and native focal activation (2026-10-27)
+
+`CarRenderView.cpp` recovers the full view-matrix/plane producer `0x5c7ec0`, the
+view constructor `0x491940` and storage getter `0x5bc5b0`. The original CRT
+initializer at `0x77ccd0` constructs **22** view records at `0x832de0`, stride
+`0x70`. Each constructor clears its complete record, restores the self-linked
+head at `+0x44`, sets `+0x18 = 1`, derives the view index from the original array
+base and binds `0x873380 + index * 0x120`. That storage contains three matrices
+followed by six four-component planes. The complete view and storage layouts
+now have size/offset assertions; no host vtable is placed in either record.
+
+The producer's receiver is the storage, with four stack arguments: view, two
+float overrides and an unused word (`RET 0x10`). It copies the finalized camera
+matrix and builds the original projection, combined matrix and normalized
+planes. A null camera resets only the first two matrices; combined matrix,
+planes and focal remain unchanged. Main view index 1 uses far distance 15000;
+other views read camera `+0xc0`. Both nonzero override arguments replace the
+**near** value, with the second taking precedence. The original does not apply
+the second argument as a far-distance override.
+
+Viewport height/width is rounded to float, then types 1/2/4/5 apply the original
+pixel-aspect constants. Types 9/10 use binary32 `0x3f19a956`. Quantized half-angle
+conversion and the sine-result float spills precede division by the unspilled
+cosine returns. Projection Y is negated; depth scale has its own float spill.
+The copied camera's first three fourth-column entries are zeroed before the
+combined product. Plane order is column 3 ± column 0, column 3 ± column 1,
+column 2, then column 3 − column 2. Each plane is stored before normalization;
+its reciprocal normal length remains extended for all four component stores.
+
+The LOD focal value at view `+0xc` is **256 / tan(cameraFov / 2)** using the
+original quantized helpers, or 10 when that tangent compares equal to zero.
+It does not use the native window height or the pixel-aspect-adjusted angle.
+The previous native `0.5 * height / tangentY` input has been removed.
+
+Two scalar dependencies are recovered separately from native adapters:
+
+| Address | Source and scope |
+| --- | --- |
+| `0x43c2b0` / `0x43c370` | `EngineAngleMath.cpp`: sine polynomial and quarter-turn cosine, returning the actual unspilled x87 value |
+| `0x63cee1..0x63d118` | `D3DXMatrixScalar.cpp`: original scalar matrix multiply, component-specific addition order and alias handling |
+
+The extended angle entry points are separate from the older float-returning
+engine adapters; this checkpoint does not change those adapters' other callers.
+The scalar library uses a temporary only for exact input/output aliases.
+Distinct partial overlaps preserve its sequential direct writes. It was recovered
+from the original instruction body; its entry is not defined as a function in
+the current Ghidra project. No analysis-project mutation was required. The
+original thunk's CPU dispatcher and optimized library variants remain separate;
+the recovered native view producer explicitly uses the verified scalar body.
+Existing native D3DX adapters used by other subsystems are unchanged.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_view.py --gcc --cases 2048 --angles 65536 --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_view.py --cases 2048 --angles 65536 --mutation-checks
+```
+
+Each compiler passes **272,384 comparisons** and rejects **34 mutations**:
+2,048 cases each for construction, storage lookup, update, scalar multiplication
+and producer-to-bounds chains, plus all 65,536 input angles for both sine and
+cosine under each of `0x027f`/`0x037f`. Angle returns are captured as ten raw x87
+bytes before any conversion. Fixtures cover all 22 constructed indices, sentinel
+record contents, view types/aspects/override precedence, odd and zero FOVs,
+null cameras, exact and partial matrix aliases, and all three resulting bounds
+classifications. Complete fixture/view/storage bytes, focal values, pointer
+returns, stack cleanup, preserved registers, control words and empty x87 stack
+are compared. The six recovered original spans and executable SHA-256 are pinned
+by `car-render-view.json`; generated reports are under
+`build/analysis/car-render-view/`. Instruction-byte identity is not established.
+
+`NativeSetCarView` now constructs the original 22-record table once and supplies
+entry 1 with the complete finalized Camera prefix and SDL viewport dimensions.
+The native orbit camera still supplies its scaffold pose through recovered
+LookAt. Every car-draw frame calls the recovered producer, so the original focal
+feeds `CarLodPixelSize`/`CarLodSelect` and the view table holds live matrices and
+planes. Full original camera binding/flags, multi-view ownership and frame/cache
+scheduling (`0x4888a0`, `0x5c26e0`, `0x5d2850`) remain open. GPU effects and
+dispatch/consumer activation remain separate work; GL still draws its lists.
+
+`UG2_CAR_VIEW_DUMP` optionally captures the first native car view for original
+binary replay. The versioned 644-byte fixture contains camera, viewport, view
+and produced storage; generated captures stay out of commits.
+
+```sh
+UG2_CAR_VIEW_DUMP=build/analysis/car-render-view/native.bin build/native/ug2demo --game "$UG2_DIR" --car SKYLINE --no-audio --frames 60 --orbit 90
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_view.py --gcc --cases 1 --angles 0 --kind update --native-dump build/analysis/car-render-view/native.bin
+```
+
+Both a 60-frame orbit and 120-frame scripted drive pass. Replaying their actual
+native inputs through the original producer matches **all 292 output bytes**
+(three matrices, six planes and focal) for each capture. Both use FOV 13018 and
+focal `355.54095458984375`; storage SHA-256 values are
+`b6743ed3afda3b974f95f4a5242287f79f0548b9b7f756a74cdd383aa9cc59a1` (orbit)
+and `f8ef152491230c3a79aa199984985de83d276fd59b8822a8cbd52b4ae8c11a9f` (drive).
+Source/record checksums remain `ca993eba`/`7141bcda` and `eb0428b7`/`69927c13`;
+the orbit PPM is byte-identical before and after activation. Demo/simulator/probe
+builds and the three-load late-texture probe pass with 612 solids/829 textures,
+500 → 534 → 500 matching slots and clean pools/handles. The GCC bounds regression
+retains 12,288 passing comparisons; the existing LOD verifier also passes its
+512 producer and 2,048 selection cases. These are bounded numeric and native input/
+producer checks, not complete rendering equivalence, optimized-library parity,
+malformed/OOM/exception coverage or proof for another architecture.
 
 ### Verification (pixel size and LOD)
 

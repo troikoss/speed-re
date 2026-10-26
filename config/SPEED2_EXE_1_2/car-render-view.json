@@ -1,0 +1,35 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "construct": {
+      "address": "0x491940",
+      "size": 143,
+      "sha256": "eb3f0719083d7992ff7dcc371e056f3746367b8dd61908a4905a9d7a3089c9e2"
+    },
+    "storage": {
+      "address": "0x5bc5b0",
+      "size": 19,
+      "sha256": "b6bb8dc131cc29c870c792bb37ea2da2cc97df7a76ee85531f78e8d884aeeff5"
+    },
+    "update": {
+      "address": "0x5c7ec0",
+      "size": 1081,
+      "sha256": "4b29c5b7f1847b4162064d01baf92c306871a0c49a155b400d615e13075124e4"
+    },
+    "sine": {
+      "address": "0x43c2b0",
+      "size": 150,
+      "sha256": "d030d6898336bb087f67dfe850c07f69dab4da2d322330227b386fbe3a729981"
+    },
+    "cosine": {
+      "address": "0x43c370",
+      "size": 18,
+      "sha256": "7faf9b15f7202ea75326264a5fc8bb2b64dab6323e5d8d6cd57318c7712a4126"
+    },
+    "multiply": {
+      "address": "0x63cee1",
+      "size": 568,
+      "sha256": "fb19febe5d426afc4014455c57be50d6e760f4f6c51d558d277ab4ff7fffd844"
+    }
+  }
+}

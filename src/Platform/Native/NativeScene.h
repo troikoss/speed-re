@@ -56,7 +56,7 @@ void NativeRunCarWheelBlock(CarRenderWheelInfo *ri, const unsigned char *carType
 // origin for the separate reflection basis. A null finalState selects the native
 // orbit inspection camera. Call before NativeCarModel::Draw each frame.
 void NativeSetCarView(const CameraState *finalState, const float eye[3], const float target[3],
-                      const float carPosition[3], float focalPixels);
+                      const float carPosition[3], unsigned short fov,float nearPlane,int width,int height);
 
 class NativeCarModel {
 public:
