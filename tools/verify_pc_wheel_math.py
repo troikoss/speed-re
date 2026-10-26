@@ -38,6 +38,12 @@ def main():
         symbols[name] = matches[0]
     linked = link_objects([obj], {})
     ADDRESSES.update({'__real@3f800000': 0x784250, '__real@00000000': 0x7d7d3c})
+    # Explicit extended expressions can load MSVC binary64 zero/one constants.
+    # Resolve to actual equal-width image constants; never reuse four-byte cells.
+    for symbol, address, value in (('__real@3ff0000000000000', 0x786e68, 1.0),
+                                   ('__real@0000000000000000', 0x7864dc, 0.0)):
+        assert image[address-base:address-base+8] == struct.pack('<d', value)
+        ADDRESSES[symbol] = address
     records = []
     for name, (address, size, digest) in ORIGINAL.items():
         original = image[address-base:address-base+size]

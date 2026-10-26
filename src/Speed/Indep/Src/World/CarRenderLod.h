@@ -9,13 +9,14 @@
 
 // Frame of the view (view+0x40 is a pointer to it): the position at +0x40 and the depth axis at +0x50.
 struct CarRenderFrame {
-    unsigned char pad00[0x40];
+    WheelMatrix matrix00;          // camera state +0: complete finalized view matrix
     float position40[3];     // +0x40..+0x48: origin subtracted from the point
     unsigned char pad4C[0x50 - 0x4C];
     float axis50[3];         // +0x50..+0x58: depth axis (dot product of the offset)
 };
 UG2_CHECK_OFFSET(CarRenderFrame, position40, 0x40);
 UG2_CHECK_OFFSET(CarRenderFrame, axis50, 0x50);
+UG2_CHECK_SIZE(CarRenderFrame, 0x5c);
 
 // Platform seams (cdecl getters of the original, linked to them by the verifier; the native demo defines them).
 extern "C" {

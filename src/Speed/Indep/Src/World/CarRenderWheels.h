@@ -16,6 +16,7 @@ struct CarRenderView;      // view object (arg1 of the car draw; receiver of Dra
 struct CarRenderPart;      // rim part object (ri+4 +0x604/+0x608; receiver of FindRecord)
 struct CarRenderFrame;     // view frame (view+0x40): origin and depth axis of the projection (CarRenderLod.h)
 struct CarRenderWheelInfo;
+struct CarRenderRecord;
 
 struct CarRenderSlot {
     unsigned int key;
@@ -143,6 +144,8 @@ struct CarWheelDrawInputs {
     unsigned int flagsCC;            // frame+0xcc: DrawSolid flags, first part (tyre blocks; producer 0x60d1b0 not recovered)
     unsigned int flags1AC;           // frame+0x1ac: DrawSolid flags, second part (all blocks; CarLodSelect)
     WheelMatrix *setDump;            // verification output: set0[0..3], set1[0..3], set2[0..3], set3[0..3] (0 in the game)
+    const float *renderPosition;     // frame+0x790: camera XYZ and W=1, captured before source setup
+    CarRenderRecord *sourceRecord;   // frame+0xb20: complete 0x1c0-byte source produced by 0x48ed60
 };
 
 // Wheel block 0x62700e..0x62df66 of 0x620ae0. Zeroes element 13 of tyre[w], brake[w] and third[w]
@@ -159,6 +162,7 @@ extern int ug2WheelFacingEnabled802914; // 0x802914
 extern float ug2WheelFacingX8A1C54;     // 0x8a1c54
 extern float ug2WheelFacingY802910;     // 0x802910
 extern float ug2WheelFacingZ8A1C58;     // 0x8a1c58
+extern WheelMatrix ug2WheelReflectionBasis871B50;
 // 0x401e80 (cdecl): allocation of four wheel matrices (the original passes 4).
 void *UG2WheelAllocMatrices(unsigned int count);
 // 0x401e30 (cdecl): allocation of 0x700 bytes (four per-wheel records of 0x1c0 bytes).

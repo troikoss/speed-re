@@ -59,6 +59,7 @@ BODY = ARENA + 0x6500                # EBX body matrix
 SOLIDS = ARENA + 0x7000              # dummy solid objects
 INPUT = ARENA + 0x7800               # CarWheelDrawInputs for the rebuilt routine
 SETDUMP = ARENA + 0xa000             # verification output of the rebuilt routine (16 matrices)
+RENDER_POSITION, SOURCE_RECORD = ARENA + 0xb000, ARENA + 0xb100
 PARTS = ARENA + 0x7900               # rim parts for the layout check
 GTAB = ARENA + 0x9000                # global lookup table for 0x60fef0 (layout check)
 POOL = ARENA + 0x10000
@@ -75,9 +76,9 @@ IMAGE_CONSTANTS = {0x7d7d3c: 0x00000000, 0x8026c4: 0x3e3c6a7f, 0x8026c0: 0x3f000
                    0x784250: 0x3f800000, 0x7a6750: 0x00000000, 0x7a6754: 0x40e00000, 0x7a6758: 0x3cf5c28f,
                    0x784238: 0x47800000}
 
-# Input struct layout (CarWheelDrawInputs, 32-bit): 13 dwords.
+# Input struct layout (CarWheelDrawInputs, 32-bit): 15 dwords.
 INPUT_FIELDS = ['ri', 'view', 'flagsArg8', 'body', 'tyre', 'brake', 'third', 'lod6C', 'slotD8',
-                'lodF4', 'flagsCC', 'flags1AC', 'setDump']
+                'lodF4', 'flagsCC', 'flags1AC', 'setDump', 'renderPosition', 'sourceRecord']
 # Frame cells the original reads before writing, filled from the inputs (S-relative offsets).
 FRAME_INPUTS = {0x58: 'ri', 0x6c: 'lod6C', 0xd8: 'slotD8', 0xf4: 'lodF4', 0xcc: 'flagsCC',
                 0x1ac: 'flags1AC'}
@@ -162,7 +163,9 @@ class Machine:
             uc.reg_write(xc.UC_X86_REG_EIP, self._ret(uc, 4 + 0x14))
         elif name == 'Visible':          # cdecl, six arguments; the result is not used by the block
             args = self._args(uc, 6)
-            self.events.append(('Visible', args))
+            assert args[3] in (S_FRAME + 0x790, RENDER_POSITION), ('state or call order mismatch', 'position pointer')
+            assert args[5] in (S_FRAME + 0xb20, SOURCE_RECORD), ('state or call order mismatch', 'source pointer')
+            self.events.append(('Visible', args, bytes(uc.mem_read(args[3], 16)), bytes(uc.mem_read(args[5], 0x1c0))))
             uc.reg_write(xc.UC_X86_REG_EAX, 1)
             uc.reg_write(xc.UC_X86_REG_EIP, self._ret(uc, 4))
         elif name == 'SetSlot':          # __thiscall, RET 8: ECX = solid, key and value
@@ -217,7 +220,8 @@ def normalize_events(events):
         if e[0] == 'D3DX':
             out.append(e)
         elif e[0] == 'Visible':
-            out.append(('Visible', tuple(norm(a) for a in e[1])))
+            args = tuple(('position',) if i == 3 else ('source',) if i == 5 else norm(a) for i, a in enumerate(e[1]))
+            out.append(('Visible', args, e[2], e[3]))
         elif e[0] == 'Fn60d700':
             out.append(('Fn60d700', norm(e[1]), norm(e[2])))
         elif e[0] in ('Alloc4', 'Alloc700'):
@@ -231,7 +235,7 @@ def normalize_events(events):
 
 def write_block_inputs(m, case):
     uc = m.uc
-    uc.mem_write(INPUT, struct.pack('<13I', *[case[f] & 0xffffffff for f in INPUT_FIELDS]))
+    uc.mem_write(INPUT, struct.pack('<15I', *[case[f] & 0xffffffff for f in INPUT_FIELDS]))
 
 
 def setup_original_block(m, case, body_ptr):
@@ -240,6 +244,9 @@ def setup_original_block(m, case, body_ptr):
     for off, field in FRAME_INPUTS.items():
         uc.mem_write(S + off, struct.pack('<I', case[field] & 0xffffffff))
         m.prepared.add(S + off)
+    for offset, source, size in ((0x790, RENDER_POSITION, 16), (0xb20, SOURCE_RECORD, 0x1c0)):
+        uc.mem_write(S + offset, bytes(uc.mem_read(source, size)))
+        m.prepared.update(range(S + offset, S + offset + size, 4))
     args = {0x08: case['view'], 0x0c: 0x7f3f00, 0x10: body_ptr, 0x14: 0, 0x18: case['tyre'],
             0x1c: case['brake'], 0x20: case['third'], 0x24: case['flagsArg8']}
     for off, v in args.items():
@@ -294,6 +301,8 @@ def build_fixture(case, rng):
     blobs[BODY] = struct.pack('<16f', *case['body_m'])
     blobs[VIEW] = bytes(rng.getrandbits(8) for _ in range(0x100))
     blobs[SOLIDS] = bytes(0x400)
+    blobs[RENDER_POSITION] = struct.pack('<4f', randf(rng, 30), randf(rng, 30), randf(rng, 30), 1.0)
+    blobs[SOURCE_RECORD] = struct.pack('<112f', *[randf(rng) for _ in range(112)])
     return blobs
 
 
@@ -344,6 +353,8 @@ def random_case(rng, layout=False):
     case['flags1AC'] = rng.choice((0, 0x2, 0x800, rng.getrandbits(16)))
     case['flagsArg8'] = rng.choice((0x401, 0, rng.getrandbits(16)))
     case['setDump'] = SETDUMP
+    case['renderPosition'] = RENDER_POSITION
+    case['sourceRecord'] = SOURCE_RECORD
     case['fpcw'] = rng.choice((0x027f, 0x037f))
     case['fn_values'] = [randf(rng, 1.5) for _ in range(12)]
     case['lod_gate'] = rng.choice((0, 3, 6, 6, 2))
@@ -362,6 +373,7 @@ def write_case_memory(m, blobs, case, body):
     uc.mem_write(G_LOD_THRESHOLD, struct.pack('<f', case['lod_threshold']))
     uc.mem_write(G_WIDTH_FRONT, struct.pack('<f', case['override_front']))
     uc.mem_write(G_WIDTH_REAR, struct.pack('<f', case['override_rear']))
+    uc.mem_write(ARG_VISIBLE_GLOBAL, struct.pack('<16f', *case['body_m']))
     m.fn_values = case['fn_values']
 
 
@@ -550,6 +562,7 @@ EXTERNALS = {
     'ug2WheelWidthOverrideFront': G_WIDTH_FRONT, 'ug2WheelWidthOverrideRear': G_WIDTH_REAR,
     'ug2WheelOneRuntime': 0x784250, 'ug2WheelBetaRuntime': 0x8026c4,
     'ug2WheelLodGate': G_LOD_GATE, 'ug2WheelLodThreshold': G_LOD_THRESHOLD,
+    'ug2WheelReflectionBasis871B50': ARG_VISIBLE_GLOBAL,
 }
 
 
@@ -624,7 +637,7 @@ def main():
         if case['lod_gate'] == 3 and case['lod6C'] <= 2:
             counts['case_lod3_tail'] = counts.get('case_lod3_tail', 0) + 1
     report = dict(comparisons=counts, cases=args.cases, layout_cases=args.layout_cases,
-                  compiler='MSVC 7.1 /Ox /Ob0 /EHsc', compared=['callee events (normalised)', 'whole arena bytes'],
+                  compiler='MSVC 7.1 /Ox /Ob0 /EHsc', compared=['callee events (normalised)', 'position/source buffer contents', 'whole arena bytes'],
                   seams=sorted(STUB_ADDRESSES.values()),
                   limitations=['random and special values; exhaustive float coverage not established',
                                'LOD/gate globals and width overrides are fixture values, not game runtime values',
@@ -635,6 +648,8 @@ def main():
         text0 = (ROOT / SOURCE).read_text()
         rejected = []
         mutations = {
+            'wrong-position-buffer': ('const_cast<float *>(in->renderPosition)', 'in->body'),
+            'wrong-source-buffer': ('in->view, in->sourceRecord', 'in->view, reinterpret_cast<CarRenderRecord *>(const_cast<float *>(in->renderPosition))'),
             'tyre-flag-cc-dropped': ('const unsigned int flagsTyre = in->flagsCC | in->flags1AC | in->flagsArg8;',
                                      'const unsigned int flagsTyre = in->flags1AC | in->flagsArg8;'),
             'spin-sign-wheel1': ('SpunFrame(&rot, &in->tyre[1], -spin, spin)', 'SpunFrame(&rot, &in->tyre[1], spin, spin)'),

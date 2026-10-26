@@ -46,9 +46,17 @@ void WheelScaleAdd(WheelVector *output, WheelVector *base, WheelVector *directio
 
 // Original 0x43cf10. A zero vector becomes (1, 0, 0).
 void WheelNormalize(WheelVector *output, WheelVector *input) {
-    float length = (float)sqrt(input->x * input->x + input->y * input->y + input->z * input->z);
+    // 0x43cf2c..0x43cf41 retains both square root and reciprocal in x87; no
+    // binary32 spill occurs. Explicit widths also avoid a native libm boundary.
+    const long double x = input->x, y = input->y, z = input->z;
+    const long double squared = (x * x + y * y) + z * z;
+#ifdef __GNUC__
+    const long double length = __builtin_sqrtl(squared);
+#else
+    const long double length = sqrt(squared);
+#endif
     if (length != 0.0f) {
-        float inverse = 1.0f / length;
+        const long double inverse = 1.0f / length;
         float z = input->z;
         float y = input->y;
         output->x = inverse * input->x;

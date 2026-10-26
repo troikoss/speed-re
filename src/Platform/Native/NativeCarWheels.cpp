@@ -1,6 +1,7 @@
 // Platform seams for the recovered car wheel block (src/Speed/Indep/Src/World/CarRenderWheels.cpp) and the recovered
 // pixel size and LOD selection (src/Speed/Indep/Src/World/CarRenderLod.cpp). The unrecovered callees that the original
-// draw 0x620ae0 calls are implemented for the native demo here. Each seam keeps the argument order of the original; the
+// draw 0x620ae0 calls are implemented for the native demo here; record preparation
+// now executes recovered bodies. Each seam keeps the argument order of the original; the
 // native behaviour is listed per seam. Globals of the block are fixed to the demo's values (see below).
 #include "NativeScene.h"
 
@@ -11,6 +12,9 @@
 #include <GL/gl.h>
 
 #include "../../Speed/Indep/Src/World/CarRenderLod.h"
+#include "../../Speed/Indep/Src/World/CarRenderInputs.h"
+#include "../../Speed/Indep/Src/Camera/Camera.h"
+#include "../../Speed/Indep/Src/Camera/CameraMatrix.h"
 
 // Globals of the block and of the LOD selection at their original addresses. The demo selects: no LOD gate (gate 0, so
 // no special path and no tail draw), no width override (the widths only feed set2, which no draw reads), the division
@@ -36,6 +40,7 @@ int ug2WheelFacingEnabled802914 = 1; // original image default; normal producer 
 float ug2WheelFacingX8A1C54 = 0.0f;
 float ug2WheelFacingY802910 = 1.0f;
 float ug2WheelFacingZ8A1C58 = 0.0f;
+WheelMatrix ug2WheelReflectionBasis871B50;
 }
 
 // 0x5b98a0 (RET 0): the view mode global. The demo's view is mode 0, so the pixel size is not scaled.
@@ -54,17 +59,31 @@ static CarRenderFrame gCarViewFrame;
 static CarRenderView gCarView;
 static bool gCarViewSet = false;
 
-// Sets the view of the car draw from the camera: `eye` is the camera position, `forward` the unit view direction, and
-// `focalPixels` the focal length in pixels. The original focal length is set by the camera code, which is not recovered:
-// the native value is half the viewport height over the vertical tangent of the projection (docs/NATIVE_DEMO.md).
-void NativeSetCarView(const float eye[3], const float forward[3], float focalPixels) {
-    for (int i = 0; i < 3; ++i) {
-        gCarViewFrame.position40[i] = eye[i];
-        gCarViewFrame.axis50[i] = forward[i];
+// Original view+0x40 is the Camera (0x5c26e0/0x44ab90). Use the complete finalized
+// prefix, rather than rebuilding a direction from target-eye. A null finalState
+// is the native orbit-inspection camera and builds its frame with recovered LookAt.
+void NativeSetCarView(const CameraState *finalState, const float eye[3], const float target[3],
+                      const float carPosition[3], float focalPixels) {
+    if (finalState) {
+        memcpy(&gCarViewFrame, finalState, sizeof(gCarViewFrame));
+    } else {
+        WheelVector cameraEye = {eye[0], eye[1], eye[2]};
+        WheelVector cameraTarget = {target[0], target[1], target[2]};
+        CameraLookAt(&gCarViewFrame.matrix00, &cameraEye, &cameraTarget, &ug2ReflectionUp800B70);
+        for (int i = 0; i < 3; ++i) {
+            gCarViewFrame.position40[i] = eye[i];
+            gCarViewFrame.axis50[i] = gCarViewFrame.matrix00.elements[2 + i * 4];
+        }
     }
     gCarView.frame40 = &gCarViewFrame;
     gCarView.focal0C = focalPixels;
     gCarViewSet = true;
+    // 0x61ac46 and 0x5c3524: a separate basis aimed at the selected car + offset.
+    // The single native player supplies the original caller's selected-car origin.
+    WheelVector reflectionTarget;
+    CarRenderReflectionTarget(&reflectionTarget.x, carPosition);
+    WheelVector reflectionEye = {gCarViewFrame.position40[0], gCarViewFrame.position40[1], gCarViewFrame.position40[2]};
+    CarRenderReflectionBasis(&ug2WheelReflectionBasis871B50, &reflectionEye, &reflectionTarget);
 }
 
 // Without a view (no NativeSetCarView call) the pixel size is taken as large: LOD 0, no skip of the car draw.
@@ -104,22 +123,18 @@ void CarRenderWheelInfo::Fn620600(CarRenderView *view, WheelMatrix *world) {
 }
 
 // 0x48f660 (cdecl): original render-record preparation calls 0x48e6c0 then 0x48a6a0.
-// Their side effects remain absent here; the GL DrawSolid seam ignores the extra record.
+// Execute the recovered preparation chain. GL consumption remains a separate seam.
 extern "C" unsigned int UG2WheelVisible(void *a1, void *a2, const void *a3, void *a4, void *a5, void *a6) {
-    (void)a1;
-    (void)a2;
-    (void)a3;
-    (void)a4;
-    (void)a5;
-    (void)a6;
-    return 1;
+    return CarRenderPrepareRecord(static_cast<CarRenderRecord *>(a1), static_cast<WheelMatrix *>(a2),
+                                   static_cast<const WheelMatrix *>(a3), static_cast<const float *>(a4),
+                                   a5, static_cast<CarRenderRecord *>(a6));
 }
 
 // 0x401e80 (cdecl) and 0x401e30 (cdecl): the block's two scratch allocations of each kind. The demo gives
 // the two matrix blocks (four world matrices each) and the two record blocks (four records of 0x1c0 bytes
 // each) fixed storage; the block calls each allocator once per kind and in this order.
 static WheelMatrix gScratchMatrices[2][4];
-static unsigned char gScratchRecords[2][0x700];
+static CarRenderRecord gScratchRecords[2][4];
 static unsigned int gScratchMatrixCount = 0;
 static unsigned int gScratchRecordCount = 0;
 
@@ -151,6 +166,13 @@ void NativeRunCarWheelBlock(CarRenderWheelInfo *ri, const unsigned char *carType
     if (pixel < 4) {
         return;                  // 0x620cba: the car draw leaves before the wheels
     }
+
+    // 0x620f04/0x620fcb: caller buffers remain live until the wheel block. The
+    // original position has four words; its source record is 0x1c0 bytes.
+    float renderPosition[4];
+    CarRenderRecord sourceRecord;
+    CarRenderCapturePosition(renderPosition, &gCarViewFrame);
+    CarRenderBuildSource(&sourceRecord, &ug2CarLightProfile7F3F00, body + 12, &gCarView);
 
     // LOD selection (0x62107e..0x621230). arg8 is 0x401 as in the original's captured calls; the selection ORs 0x800.
     CarLodInputs lod;
@@ -184,5 +206,22 @@ void NativeRunCarWheelBlock(CarRenderWheelInfo *ri, const unsigned char *carType
     in.flagsCC = 0;              // frame+0xcc: producer 0x60d1b0 not recovered, see docs/NATIVE_DEMO.md
     in.flags1AC = lod.flag1AC;   // frame+0x1ac: CarLodSelect
     in.setDump = 0;
+    in.renderPosition = renderPosition;
+    in.sourceRecord = &sourceRecord;
     CarWheelDraw(&in);           // 0x62700e..0x62df66 (recovered)
+    static bool reportedRecords = false;
+    if (!reportedRecords && getenv("UG2_DEBUG_CAR_RECORDS")) {
+        reportedRecords = true;
+        unsigned int sourceHash = 2166136261u, recordHash = 2166136261u;
+        const unsigned char *source = reinterpret_cast<const unsigned char *>(&sourceRecord);
+        const unsigned char *record = reinterpret_cast<const unsigned char *>(&gScratchRecords[0][0]);
+        for (unsigned int i = 0; i < sizeof(CarRenderRecord); ++i) {
+            sourceHash = (sourceHash ^ source[i]) * 16777619u;
+            recordHash = (recordHash ^ record[i]) * 16777619u;
+        }
+        fprintf(stderr, "native wheel records: source %08x record0 %08x camera %.9g %.9g %.9g outputC0 %.9g %.9g %.9g %.9g\n",
+                sourceHash, recordHash, renderPosition[0], renderPosition[1], renderPosition[2],
+                gScratchRecords[0][0].valueC0[0], gScratchRecords[0][0].valueC0[1],
+                gScratchRecords[0][0].valueC0[2], gScratchRecords[0][0].valueC0[3]);
+    }
 }

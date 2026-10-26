@@ -493,16 +493,12 @@ selects actual scalar D3DX code on both sides; CPU dispatch is outside coverage.
 The i386 demo target also builds successfully.
 
 These helpers and the producer routines `0x48e6c0`/`0x48a6a0` are compiled into
-the recovered library (see the producer-chain evidence below). The native
-preparation seam still ignores the record. Activation also needs the caller's actual inputs:
-original wheel calls pass a source record at car-draw frame `+0xb20` and a position
-at frame `+0x790`. The current recovered block passes unused local `WheelMatrix`
-placeholders `scratchB`/`scratchA`; `scratchB` is only 64 bytes, while the source
-record reader needs 0x1c0 bytes. The existing stub does not read it. Do not activate
-the record producer against those placeholders: recover the upstream producers
-and pass explicit, correctly sized inputs first. The existing wheel-block verifier
-hooks `0x48f660` and compares argument identities, so it does not prove this data
-content or size. This remains a required part of the wheel-seam goal.
+the recovered library. Native preparation is now active with the caller's actual
+buffer shapes: a complete 0x1c0-byte source record and four-word camera position.
+The former `scratchB`/`scratchA` matrix placeholders are removed. The wheel verifier
+now compares source/position contents; the native record verifier executes the
+actual preparation chain and compares every resulting record byte. See
+[caller inputs and native activation](#wheel-caller-inputs-and-native-record-activation-2026-10-26).
 
 ### Render-record coefficient transform (2026-10-26)
 
@@ -518,7 +514,7 @@ follow disassembly, rather than an algebraically simplified polynomial.
 Evidence: live Ghidra decompilation plus original instructions `0x489ba0`..`0x489ec5`;
 `car-render-coefficients.json` pins that 806-byte span and the executable. The
 recovered method and its producer callers are compiled into the native library;
-their native activation remains open. No claim of byte identity is made.
+their native activation is covered below. No claim of byte identity is made.
 
 Native numeric verification (with `UG2_EXE` pointing at PC v1.2):
 
@@ -621,21 +617,19 @@ C++11 to match CMake. Clamp constants now reside in binary32 objects so x87
 excess-precision rules cannot promote their decimal literals early. The 32,768-run
 native wrapper check and all 11 mutations pass with these settings.
 
-Activation remains open. The original car draw initializes the frame +0xb20
+The original car draw initializes the frame +0xb20
 record with `0x48ab10` at `0x620fd3`, then fills it through lighting/source-record
 producer `0x48ed60` at `0x620ff3`. The clear routine, lighting foundations and
 builder and light selection are now recovered (see below); primary list population
-is wired through recovered loaders. Additional-light producers and actual caller
-context remain open before replacing the native placeholder. The
+is wired through recovered loaders. The caller fragments and normal native gate-0
+activation are now recovered below. Additional-light producers remain open. The
 initial position at frame +0x790 comes from view frame +0x40..+0x48 at
-`0x620f04`..`0x620f2c`, but subsequent body-draw writes/stack reuse must still be
-traced before claiming that is the final wheel input. The full 66,053-byte car
-draw timed out in Ghidra decompilation; these caller leads come from original
-instructions. `NativeCarWheels.cpp` still uses its no-op activation seam, and the
-GL draw ignores extra records. The third matrix input is global `0x871b50`; its
-producer and runtime meaning also remain unverified. Parameter names therefore
-use `matrixArg3` rather than asserting a camera-projection identity. This checkpoint recovers and verifies the
-preparation chain; it does not complete the caller input or draw-consumption seams.
+`0x620f04`..`0x620f2c`; the stack-depth and neighboring-range audit below confirms
+its lifetime through the body draws. The full 66,053-byte car draw timed out in
+Ghidra decompilation; the caller evidence uses original instructions. The third
+matrix input `0x871b50` is the separate car-target reflection basis, recovered
+below. The API keeps the generic name `matrixArg3`; it is not a projection matrix.
+`NativeCarWheels.cpp` now executes preparation, while GL draw consumption remains open.
 
 ### Lighting-record foundations (2026-10-26)
 
@@ -708,8 +702,8 @@ remains open; these helper results do not change its acceptance status.
 
 Platform check: the i386 demo target builds and the SKYLINE demo completes
 60 frames with `--no-audio --orbit 90`. This is a baseline smoke, not activation
-of the new lighting builder; the source-record and preparation seams remain
-unwired until their actual caller inputs are recovered.
+of the new lighting builder. Caller recovery and native source/preparation
+activation are documented in the later activation section.
 
 Further original-binary leads: callers `0x631250` and `0x6316d0` push the default
 context `0x7f3f00` into `0x620ae0` at `0x631696`/`0x631879`; the image holds three
@@ -719,9 +713,9 @@ Its primary native list population is recovered below; additional-light producer
 remain open. The third matrix at `0x871b50` is produced
 in `0x5c3450`: the `0x5c3524` call uses recovered `CameraLookAt` (`0x5ba9a0`),
 then indices 3/7/11/12/13/14 are zeroed and index 15 is set to 1 before the copy at
-`0x5c356b`. Its up input is the image vector 0/0/1 at `0x800b70`. This is a lead
-for recovering the caller fragment, not evidence that the native view-frame
-producer or final position buffer has been integrated.
+`0x5c356b`. Its up input is the image vector 0/0/1 at `0x800b70`. The later
+activation section verifies that fragment, the Camera prefix and position-buffer
+lifetime, then wires them into the native path.
 
 ### Lighting source-record builder (2026-10-26)
 
@@ -781,11 +775,11 @@ this verifies the builder's use of its results, not sector/tree traversal or
 selection. Direction transpose, sine, three-component normalization and their
 trig dependencies execute original machine code in this verifier. Native i386
 and legacy MSVC caller results are therefore distinct from complete native
-integration. The builder is compiled into the recovered library but is not
-activated by the demo. Selection `0x48e3d0` and its tree dependencies are now
+integration. The builder is now active in the normal native wheel path as
+verified below. Selection `0x48e3d0` and its tree dependencies are now
 recovered and checked without that fixture substitution below. Native primary
 list/tree population is now wired through the recovered loader. Additional-light
-producers, actual view-frame/position inputs and extra-record draw consumption remain open.
+producers and extra-record draw consumption remain open; the view-frame/position path is active below.
 The i386 demo builds and completes the 60-frame SKYLINE no-audio orbit smoke;
 that is a baseline platform check, not a lighting-activation claim.
 
@@ -860,8 +854,7 @@ this harness. The separate legacy `0x489ba0` precision gap is unchanged.
 
 The i386 demo builds and completes the 60-frame SKYLINE no-audio orbit smoke.
 The next section covers native primary light-list/tree population. Source-record/
-caller activation, additional-light producers, correct view-frame and final
-position inputs, and extra-record rendering remain open. Original xrefs identify append routine
+additional-light producers and extra-record rendering remain open; the caller inputs and normal native activation are covered below. Original xrefs identify append routine
 `0x48e380` for the additional list and primary-list data use at `0x48e248`;
 startup references `0x77cbd0`/`0x77cc80` are initialization leads. Those producers
 are recovered in the loading checkpoint below.
@@ -957,12 +950,115 @@ SKYLINE no-audio orbit smoke passes; `UG2_DEBUG_LIGHTS=1` reports 249 sectors,
 0/0/0/1. Track-marker regression verification also passes with the complete
 registry object linked.
 
-This activates retail light data and selection. Wheel record production and GL
-consumption remain unwired: `UG2WheelVisible` still uses its activation seam,
-the wheel caller still needs the correct source/frame/position buffers, and
-`DrawSolid` ignores the extra record. Additional car-light production, the
+This activates retail light data and selection. Wheel record production is now
+active as described below; `DrawSolid` still ignores the extra record. Additional car-light production, the
 separate pack lifecycle and the legacy coefficient-transform precision gap
 remain open.
+
+### Wheel caller inputs and native record activation (2026-10-26)
+
+`CarRenderInputs.cpp` recovers four caller fragments, without claiming the full
+containing functions:
+
+- `0x61ac46`..`0x61ac6c`: build a reflection target from the selected car's position
+  plus the image vector at `0x803e50` (0/0/0.95). Original caller `0x61ab50` reads
+  the view Camera's position +0x40 and the selected car's position +0x50. This is
+  **not** the camera's target +0x60. The native single-player session supplies
+  its player's exported origin; full original car-selection/frame scheduling is
+  still a platform seam.
+- `0x5c3524`..`0x5c3570`: call recovered `CameraLookAt` with up 0/0/1 at `0x800b70`,
+  zero matrix indices 3/7/11/12/13/14, set 15 to one, then copy to `0x871b50`.
+  The extracted helper makes the destination explicit for verification.
+- `0x620f04`..`0x620f33` and the W store at `0x620f3a`: sequentially copy the view
+  Camera's position words to frame +0x790 and store W=1. Raw word copies preserve
+  bit patterns and the original bounded-overlap behavior.
+- `0x620fcb`..`0x620ff8`: clear the full source record at frame +0xb20, then call
+  `0x48ed60` with the caller's profile/car position/view, null fourth argument and
+  the reflection basis as fifth argument. Existing callers pass the stock profile
+  at `0x7f3f00`. The builder still applies its original view-frame override.
+
+The camera binding is supported by `0x5c26e0`, which stores the Camera pointer at
+view+0x40, and base-mover constructor `0x44ab90`, which retrieves that same object.
+`CameraState` already has the finalized matrix at +0, position at +0x40 and depth
+axis at +0x50. `CarRenderFrame` now exposes that matrix with all offsets retained.
+Native drive views copy the finalized prefix, including camera shake/debug state,
+instead of rebuilding an axis from target−eye. The native orbit inspection camera
+uses recovered LookAt to supply its own prefix. The focal-length formula remains
+the existing GL viewport/projection seam.
+
+`probe_pc_car_draw_inputs.py` checks **6,721 reachable instruction states**, with
+no conflicting ESP depths and depth zero on entering `0x62700e`. It pins the
+prefix, switch tables and 80 callee spans in `car-render-inputs.json`, validates
+return cleanup including tail jumps, and infers four-byte cleanup for the single
+virtual call from consistent CFG merges (zero/eight-byte alternatives conflict).
+The apparently overlapping stores at `0x6242c3`..`0x624332` occur with ESP−0x20:
+they write before +0x790. The `0x625140` store has ESP−8 and writes +0x78c.
+
+This is a stack-depth/direct-reference analysis, not a general alias proof.
+The adjacent ranges were audited separately: the +0x750 matrix ends at +0x790;
+the +0x7a0 matrix begins after the four-word position; getters at `0x48b7f0`,
+`0x6151d0`, `0x615200` write four words ending before or at +0xb20; `0x401220`
+writes three. The indexed +0xa40/+0xa80 arrays advance by 0x10 for four iterations
+(`0x62244d`..`0x622555`) and end before the source. Only the identified clear,
+builder and preparation calls receive the source address. Preparation's source
+is distinct from its pool output; its separately verified read/copy semantics
+retain that source. The full wheel checks also compare its contents at each call.
+
+Native `CarWheelDrawInputs` now receives `renderPosition` and `sourceRecord`
+explicitly. The two unused local matrix placeholders and integer-cast global
+address are gone. `NativeRunCarWheelBlock` captures position and builds the source
+between the pixel early-out and LOD selection, matching their original relative
+order. Record scratch storage is typed as four `CarRenderRecord`s per block.
+`UG2WheelVisible` executes recovered `CarRenderPrepareRecord`, so all per-wheel
+record side effects now occur. Native gate 0 remains the supported caller path;
+the gate-6 remove/reappend of the car's additional-light record, other views and
+the full containing draw/manager routines are not recovered here.
+
+The native camera path exposed an implicit precision dependency in the existing
+`WheelNormalize` recovery (`0x43cf10`). Its original FSQRT and reciprocal have no
+binary32 spills. The code now states that extended arithmetic explicitly and
+uses native `__builtin_sqrtl`, preserving the original snapshots and zero fallback.
+MSVC regression: 2,048 cases per six wheel helpers, **12,288 exact comparisons**,
+including partial aliases and both x87 settings. Byte status is reported separately;
+normalization is not byte-identical. The verifier resolves new binary64 zero/one
+loads to checked eight-byte image constants, rather than four-byte float cells.
+
+With `UG2_EXE` set, run MSVC jobs sequentially:
+
+```
+build/venv/bin/python tools/probe_pc_car_draw_inputs.py
+build/venv/bin/python tools/verify_pc_car_render_inputs.py --gcc --chain --cases 2048 --mutation-checks
+build/venv/bin/python tools/verify_pc_car_render_inputs.py --chain --cases 2048 --mutation-checks
+build/venv/bin/python tools/verify_pc_native_wheel_records.py --cases 2048
+build/venv/bin/python tools/verify_pc_wheel_draw.py --cases 2048 --layout-cases 512 --mutation-checks
+build/venv/bin/python tools/verify_pc_wheel_math.py
+```
+
+Each compiler passes **4,096 comparisons per caller fragment, 16,384 total**,
+with all seven mutations rejected. The linked chain includes recovered camera
+math/normalization, lighting/source builder, admission and tree traversal. Original
+matrix copy and D3DX transpose remain leaf/library boundaries. These are finite
+fixtures, including source/position overlaps and both x87 precision settings;
+byte identity and full containing-function coverage are not claimed.
+
+The native block verifier compiles the actual `UG2WheelVisible` definition and
+recovered preparation bodies. It executes the original preparation on the other
+side: **2,048 blocks, 6,739 prepared records, 29,030 ordered events**, zero failures
+(1,001 cases at 53-bit precision, 1,047 at 64-bit). Every result byte in the allocated
+record pools matches, along with matrices and ordered input snapshots. ABI-only
+adaptation handles GCC member callbacks in the analysis harness. Renderer, slots,
+facing, secondary draw, allocators and the prior D3DX-multiply fixture retain their
+existing boundaries. The legacy block check still passes 512 layout/2,048 block
+cases and now rejects **14** mutations, including wrong position/source buffers.
+Its visibility boundary remains a caller fixture; the native test executes preparation.
+
+`ug2demo`/`ug2sim` build. SKYLINE completes the 60-frame orbit and 120-frame scripted
+drive smokes with no audio. `UG2_DEBUG_CAR_RECORDS=1` reports source/first-output
+checksums and output C0: orbit 0.676807225/−2.48764729/1.04016507/1; drive
+2.69134164/0.338087112/0.608914614/1 in these runs. This witnesses populated runtime
+records; it is not a visual-lighting equivalence claim. **GL still ignores the
+record.** Draw-state/consumption, additional-light producers and the separate legacy
+`0x489ba0` precision gap remain open, along with the other inventory wheel seams.
 
 ### Verification (pixel size and LOD)
 
@@ -997,10 +1093,11 @@ remain open.
   Case coverage: 899 with non-zero spin bytes at body LOD 0 and 1 (spin pre-rotation), 324 with LOD gate 6 at view clamp 0
   (the rear LOD substitution is reachable; it applies when the `Fn60d700` result is below the threshold), and 352 with
   LOD gate 3 (the tail, body LOD 0 to 2).
-- Mutation checks: 12 of 12 wrong variants rejected. Each variant runs 128 block cases and 64 layout cases and must fail
+- Mutation checks: 14 of 14 wrong variants rejected. Each variant runs 128 block cases and 64 layout cases and must fail
   with the "state or call order mismatch" message: `tyre-flag-cc-dropped`, `spin-sign-wheel1`,
   `spin-translation-not-restored`, `stage-result-rounding`, `lod-threshold-direction`, `tail-gate-value`,
-  `rear-brake-solid`, `brake-zero-element`, `pivot-column`, `block1-copy-source`, `solid-link-key`, `layout-rear-flag`.
+  `rear-brake-solid`, `brake-zero-element`, `pivot-column`, `block1-copy-source`, `solid-link-key`, `layout-rear-flag`,
+  `wrong-position-buffer`, `wrong-source-buffer`.
 - Limitations reported by the verifier: random and special values only (exhaustive float coverage is not established);
   the LOD gate, threshold and width globals are fixture values, not game runtime values; the body matrix (`EBX`) is an
   explicit input; the spin values produced by the image constants are only 0, 637 and 1274; byte identity of the
@@ -1014,7 +1111,7 @@ remain open.
 
 - `DrawSolid` (`0x5c5930`): the native seam draws the solid's GL list with the world matrix. It ignores the flags, the
   extra record and the zero argument, and does not set `glFrontFace` for the R180 wheels (GL backend seam).
-- Preparation `0x48f660` (recovered; native activation still a stub with no record side effects), facing helper
+- Preparation `0x48f660` (recovered and active; GL record consumption remains open), facing helper
   `0x60d700` (recovered) and secondary draw `0x620600` (open; the demo
   gate is 0, so neither is called), solid slots `0x48d860` (setter now recovered; no slot tables; the link values `ri+0x390`/`0x3ac` are zero
   in the demo), rim-part records `0x60fef0` (none in the demo; the `SPINNEROFFSET` offsets stay zero).

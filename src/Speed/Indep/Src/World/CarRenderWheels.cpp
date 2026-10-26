@@ -813,26 +813,27 @@ void CarWheelDraw(CarWheelDrawInputs *in) {
         }
     }
 
-    // Visible seam arguments (frame scratch, the view and the extra record of each draw).
+    // Preparation inputs are produced before this block in 0x620ae0. Their
+    // buffers remain live across the intervening body draws; they are not scratch matrices.
     const unsigned int flagsTyre = in->flagsCC | in->flags1AC | in->flagsArg8;   // 0x6286ea..0x628706
     const unsigned int flagsBrake = in->flags1AC | in->flagsArg8;                // 0x629571..0x629584
     const float *body = in->body->elements;
     const float *rot180 = r180.elements;
-    WheelMatrix rot, scratchA, scratchB;
-    const void *visibleGlobal = reinterpret_cast<const void *>(0x871b50);
+    WheelMatrix rot;
+    const void *visibleGlobal = &ug2WheelReflectionBasis871B50;
 
     // Wheel 0 (0x6278aa..0x62959b): tyre (block 1) and brake (block 2), when present and the spinner exists.
     if (f68) {
         const float *e = SpunFrame(&rot, &in->tyre[0], spin, spin);
         WheelChainBlock1(a1, set0[0].elements, e, set1[0].elements, body, rot180);
-        UG2WheelVisible(a3, a1, visibleGlobal, &scratchA, in->view, &scratchB);
+        UG2WheelVisible(a3, a1, visibleGlobal, const_cast<float *>(in->renderPosition), in->view, in->sourceRecord);
         if (solid1[0]) {
             in->view->DrawSolid(solid1[0], a1, a3, flagsTyre, 0);
         }
         if (spinner) {
             e = SpunFrame(&rot, &in->third[0], spin, spin);
             WheelChainBlock2(a2, set0[0].elements, e, set3[0].elements, body, rot180);
-            UG2WheelVisible(a4, a2, visibleGlobal, &scratchA, in->view, &scratchB);
+            UG2WheelVisible(a4, a2, visibleGlobal, const_cast<float *>(in->renderPosition), in->view, in->sourceRecord);
             if (solid1[1]) {
                 in->view->DrawSolid(solid1[1], a2, a4, flagsBrake, 0);
             }
@@ -843,14 +844,14 @@ void CarWheelDraw(CarWheelDrawInputs *in) {
     if (f14c) {
         const float *e = SpunFrame(&rot, &in->tyre[1], -spin, spin);
         WheelChainBlock3(a1 + 1, set0[1].elements, e, set1[1].elements, body, rot180);
-        UG2WheelVisible(a3 + 0x1c0, a1 + 1, visibleGlobal, &scratchA, in->view, &scratchB);
+        UG2WheelVisible(a3 + 0x1c0, a1 + 1, visibleGlobal, const_cast<float *>(in->renderPosition), in->view, in->sourceRecord);
         if (solid1[0]) {
             in->view->DrawSolid(solid1[0], a1 + 1, a3 + 0x1c0, flagsTyre, 0);
         }
         if (spinner) {
             e = SpunFrame(&rot, &in->third[1], -spin, spin);
             WheelChainBlock4(a2 + 1, set0[1].elements, e, set3[1].elements, body, rot180);
-            UG2WheelVisible(a4 + 0x1c0, a2 + 1, visibleGlobal, &scratchA, in->view, &scratchB);
+            UG2WheelVisible(a4 + 0x1c0, a2 + 1, visibleGlobal, const_cast<float *>(in->renderPosition), in->view, in->sourceRecord);
             if (solid1[1]) {
                 in->view->DrawSolid(solid1[1], a2 + 1, a4 + 0x1c0, flagsBrake, 0);
             }
@@ -862,7 +863,7 @@ void CarWheelDraw(CarWheelDrawInputs *in) {
     if (f64) {
         const float *e = in->tyre[2].elements;
         WheelChainBlock5(a1 + 2, set0[2].elements, e, set1[2].elements, body, rot180);
-        UG2WheelVisible(a3 + 0x380, a1 + 2, visibleGlobal, &scratchA, in->view, &scratchB);
+        UG2WheelVisible(a3 + 0x380, a1 + 2, visibleGlobal, const_cast<float *>(in->renderPosition), in->view, in->sourceRecord);
         CarRenderSolid *solid5 = solid2[0];
         if (L == 0 && ug2WheelLodGate == 6 &&
             UG2WheelFn60d700(a1 + 2, in->view) < ug2WheelLodThreshold) {
@@ -874,7 +875,7 @@ void CarWheelDraw(CarWheelDrawInputs *in) {
         if (spinner) {
             e = in->third[2].elements;
             WheelChainBlock6(a2 + 2, set0[2].elements, e, set3[2].elements, body, rot180);
-            UG2WheelVisible(a4 + 0x380, a2 + 2, visibleGlobal, &scratchA, in->view, &scratchB);
+            UG2WheelVisible(a4 + 0x380, a2 + 2, visibleGlobal, const_cast<float *>(in->renderPosition), in->view, in->sourceRecord);
             if (solid2[1]) {
                 in->view->DrawSolid(solid2[1], a2 + 2, a4 + 0x380, flagsBrake, 0);
             }
@@ -886,7 +887,7 @@ void CarWheelDraw(CarWheelDrawInputs *in) {
     if (fAc) {
         const float *e = in->tyre[3].elements;
         WheelChainBlock7(a1 + 3, set0[3].elements, e, set1[3].elements, body, rot180);
-        UG2WheelVisible(a3 + 0x540, a1 + 3, visibleGlobal, &scratchA, in->view, &scratchB);
+        UG2WheelVisible(a3 + 0x540, a1 + 3, visibleGlobal, const_cast<float *>(in->renderPosition), in->view, in->sourceRecord);
         CarRenderSolid *solid7 = solid2[0];
         if (L == 0 && ug2WheelLodGate == 6 &&
             UG2WheelFn60d700(a1 + 3, in->view) < ug2WheelLodThreshold) {
@@ -898,7 +899,7 @@ void CarWheelDraw(CarWheelDrawInputs *in) {
         if (spinner) {
             e = in->third[3].elements;
             WheelChainBlock8(a2 + 3, set0[3].elements, e, set3[3].elements, body, rot180);
-            UG2WheelVisible(a4 + 0x540, a2 + 3, visibleGlobal, &scratchA, in->view, &scratchB);
+            UG2WheelVisible(a4 + 0x540, a2 + 3, visibleGlobal, const_cast<float *>(in->renderPosition), in->view, in->sourceRecord);
             if (solid2[1]) {
                 in->view->DrawSolid(solid2[1], a2 + 3, a4 + 0x540, flagsBrake, 0);
             }

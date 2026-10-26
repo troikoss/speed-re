@@ -30,6 +30,7 @@ private:
 struct WheelMatrix;
 struct CarRenderWheelInfo;
 struct CarRenderSlotTable;
+struct CameraState;
 
 struct NativeDrawSolid {
     const NativeSolid *solid;
@@ -43,9 +44,11 @@ struct NativeDrawSolid {
 void NativeRunCarWheelBlock(CarRenderWheelInfo *ri, const unsigned char *carTypeRow, const float *body,
                             WheelMatrix tires[4], WheelMatrix brakes[4], WheelMatrix third[4], bool translucent);
 
-// Sets the car draw's view for the pixel size (0x48acb0) and the wheel LOD: the camera origin, the unit view direction and
-// the focal length in pixels. Call it before NativeCarModel::Draw of each frame.
-void NativeSetCarView(const float eye[3], const float forward[3], float focalPixels);
+// Supplies the finalized camera prefix for the draw view and the selected car
+// origin for the separate reflection basis. A null finalState selects the native
+// orbit inspection camera. Call before NativeCarModel::Draw each frame.
+void NativeSetCarView(const CameraState *finalState, const float eye[3], const float target[3],
+                      const float carPosition[3], float focalPixels);
 
 class NativeCarModel {
 public:

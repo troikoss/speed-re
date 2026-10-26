@@ -763,14 +763,10 @@ int main(int argc, char **argv) {
         if (cameraView.attachedToCar && orbit < 0.0f) {
             // Camera +0x280 holds the car for the bumper and driver types: the car is not drawn.
         } else if (haveModel) {
-            // The car draw's view for the pixel size and the wheel LOD: this frame's camera origin, its unit view direction,
-            // and the focal length in pixels (half the viewport height over the vertical tangent of the projection).
-            float forwardView[3] = {camera.target[0] - camera.position[0], camera.target[1] - camera.position[1],
-                                    camera.target[2] - camera.position[2]};
-            const float forwardNorm = sqrtf(forwardView[0] * forwardView[0] + forwardView[1] * forwardView[1] +
-                                            forwardView[2] * forwardView[2]);
-            for (int i = 0; i < 3; ++i) forwardView[i] /= forwardNorm > 1e-6f ? forwardNorm : 1.0f;
-            NativeSetCarView(camera.position, forwardView, 0.5f * float(height) / projection.tangentY);
+            // Use the finalized Camera prefix for lighting and LOD; the separate
+            // reflection basis targets this player's origin plus the original offset.
+            NativeSetCarView(orbit >= 0.0f ? 0 : &nativeCamera.current0, camera.position, camera.target,
+                              &vehicle.owner->State()->origin10.x, 0.5f * float(height) / projection.tangentY);
             DrawCarModel(&carModel, &vehicle);
         } else {
             DrawBody(&vehicle);
