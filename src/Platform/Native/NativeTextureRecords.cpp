@@ -1,5 +1,7 @@
 // Native ownership and explicit backend boundaries; algorithms live in World/.
 #include "NativeTextureRecords.h"
+#include "NativeTextureUpload.h"
+#include "../../Speed/Indep/Src/World/CarRenderTextureUpload.h"
 #include "../../Speed/Indep/Src/World/CarRenderTexturePack.h"
 #include "../../Speed/Indep/Libs/bWare/Compression.h"
 #include "../../Speed/Indep/Libs/bWare/bSlotPool.h"
@@ -31,6 +33,7 @@ void Initialise() {
         for (size_t i=0;i<3;++i) heads[i]->next00=heads[i]->previous04=heads[i];
         ready = true;
     }
+    NativeInitialiseTextureUploads();
     if (!ug2TexturePackPool82DB0C) CarRenderInitTexturePackPool();
     if (!ug2TexturePackPool82DB0C) abort();
 }
@@ -41,14 +44,6 @@ unsigned char *Aligned(std::vector<unsigned char> &storage) {
 extern "C" void UG2TextureMissingDefault() {
     fprintf(stderr,"native texture records: requested DEFAULTALPHA is absent\n");
     raise(SIGTRAP);
-}
-// CPU records are active; the original D3D upload/retirement path is not.
-// Keep the zero GPU token rather than manufacture an effect/material object.
-extern "C" void __fastcall UG2TextureUpload(CarRenderTexture *texture) {
-    if (texture->state00->texture18) abort();
-}
-extern "C" void __fastcall UG2TextureRelease(CarRenderTexture *texture) {
-    if (texture->state00->texture18) abort();
 }
 // Original reference consumers are not activated in the native image/font path.
 // The adapter loads packs before car solid records and destroys them afterward.
@@ -138,18 +133,22 @@ bool NativeTextureRecords::Add(const unsigned char *data,size_t bytes,const std:
     }
     if (file->roots.empty()) { delete file; return true; }
     files_.push_back(file);
-    if (getenv("UG2_DEBUG_TEXTURES")) fprintf(stderr,"native texture records: %zu packs, %zu textures, GPU upload inactive\n",PackCount(),TextureCount());
+    if (getenv("UG2_DEBUG_TEXTURES")) fprintf(stderr,"native texture records: %zu packs, %zu textures, %zu staged upload handles\n",
+        PackCount(),TextureCount(),NativeTextureBufferCount());
     return true;
 }
 void NativeTextureRecords::Clear() {
     for (size_t i=files_.size();i>0;--i) delete files_[i-1];
     files_.clear();
+    if (ug2TexturePackPool82DB0C) NativeDrainTextureUploads();
     if (ug2TexturePackPool82DB0C && ug2TexturePacks830AF0.next00==&ug2TexturePacks830AF0) {
         bSlotPool *pool=static_cast<bSlotPool *>(ug2TexturePackPool82DB0C);
         if (pool->used18) abort();
+        if (NativeTextureBufferCount() || ug2TextureStates872B4C.next00!=&ug2TextureStates872B4C) abort();
         slotPoolRegistry828530.Delete(pool); ug2TexturePackPool82DB0C=0;
     }
-    if (getenv("UG2_DEBUG_TEXTURES")) fprintf(stderr,"native texture records released: %u textures\n",ug2TextureCount833780);
+    if (getenv("UG2_DEBUG_TEXTURES")) fprintf(stderr,"native texture records released: %u textures, %zu staged handles\n",
+        ug2TextureCount833780,NativeTextureBufferCount());
 }
 NativeTextureRecords::~NativeTextureRecords() { Clear(); }
 size_t NativeTextureRecords::PackCount() const {

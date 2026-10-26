@@ -60,10 +60,11 @@ extern CarRenderTexture *ug2TextureDefault82DB08;
 extern const char ug2TextureNull78DA04[], ug2TextureLabel78D9F4[], ug2TextureInventory78D9C0[];
 unsigned int UG2TextureInventory(...); // 0x50d510, always zero in PC v1.2
 void UG2TextureInventoryRelease(unsigned int token); // 0x4022c0, empty in PC v1.2
-// Unrecovered call boundaries, retaining the original calling convention/order.
 void UG2TextureMissingDefault(); // 0x43bd50, INT 3
+// Recovered in CarRenderTextureUpload.cpp; GPU methods have typed adapters.
 void __fastcall UG2TextureUpload(CarRenderTexture *texture); // 0x5ce170
 void __fastcall UG2TextureRelease(CarRenderTexture *texture); // 0x5caaa0
+// Unrecovered reference consumers, retaining original call order.
 void UG2TextureNotifySolids(CarRenderTexturePack *pack, int mode); // 0x4939b0
 void UG2TextureNotify5C0DC0(CarRenderTexturePack *pack, int mode);
 void UG2TextureNotify51BF70(CarRenderTexturePack *pack, int mode);

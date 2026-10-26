@@ -2,9 +2,11 @@
 // recovered pack manager, original record indices and recovered bWare node pool.
 #include "NativeSolidRecords.h"
 #include "NativeTextureRecords.h"
+#include "NativeTextureUpload.h"
 #include "OriginalImage.h"
 #include "../../Speed/Indep/Src/World/CarRenderSolidManager.h"
 #include "../../Speed/Indep/Src/World/CarRenderTexturePack.h"
+#include "../../Speed/Indep/Src/World/CarRenderTextureUpload.h"
 #include "../../Speed/Indep/Libs/bWare/bSlotPool.h"
 #include <assert.h>
 #include <stdio.h>
@@ -61,7 +63,7 @@ int main(int argc,char **argv) {
                     CarRenderTexture *texture=solid->textures2C[j].texture04;
                     assert(texture && texture->state00 && texture->pixels70);
                     assert(!texture->paletteBytes3C || texture->palette74);
-                    assert(texture->state00->texture18==0); // GPU upload remains an explicit boundary.
+                    assert(texture->state00->texture18 && NativeTextureBufferExists(texture->state00->texture18));
                     ++textureSlots;
                 }
                 ++count;
@@ -71,6 +73,10 @@ int main(int argc,char **argv) {
         if (!pass) expected=count;else assert(count==expected);
     }
     assert(ug2TextureCount833780==0 && !ug2TextureDefault82DB08 && !ug2TexturePackPool82DB0C);
+    assert(NativeTextureBufferCount()==0);
+    assert(ug2TextureStates872B4C.next00==&ug2TextureStates872B4C && ug2TextureStates872B4C.previous04==&ug2TextureStates872B4C);
+    assert(ug2TextureReleases8763B0.head00.next00==&ug2TextureReleases8763B0.head00 &&
+        ug2TextureReleases8763B0.head00.previous04==&ug2TextureReleases8763B0.head00);
     assert(ug2TexturePacks830AF0.next00==&ug2TexturePacks830AF0 && ug2TexturePixelQueue8358C8.next00==&ug2TexturePixelQueue8358C8);
     for (int i=0;i<8192;++i) assert(ug2TextureBuckets833784[i]==0);
     assert(ug2SolidPackCount82D380==0 && ug2SolidLoadedCount830DA0==0 && ug2SolidLoads82D384==0);

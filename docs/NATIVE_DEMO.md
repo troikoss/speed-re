@@ -1499,12 +1499,97 @@ COROLLA passes three reloads with 571 solids, 813 textures and 5,838 bound slots
 The native build, 60-frame orbit and 120-frame scripted drive pass; source/prepared
 wheel checksums and C0 results remain unchanged.
 
-Native GPU texture tokens remain zero: upload/retirement, game reference consumers
-and shader/effect setup are explicit platform seams, and animations are not
+At this pack checkpoint GPU texture tokens remained zero. The upload recovery
+below supersedes that limitation. Game reference consumers and shader/effect
+setup remain explicit seams, and animations are not
 scheduled by the native preload adapter. Existing GL lists still consume decoded
 RGBA images rather than recovered draw queues or wheel lighting records. Bounds
 classification, dispatch activation, `0x5cf420` and the other wheel inventory
 items remain open.
+
+### Texture upload and deferred retirement (2026-10-26)
+
+`CarRenderTextureUpload.cpp` recovers four original routines:
+
+| Address | Behavior |
+| --- | --- |
+| `0x5ce170` | Retire a previous handle, expand palettes, create/upload mip levels and register the state |
+| `0x5caaa0` | Enqueue a texture handle, clear it and unlink its state |
+| `0x5ce4c0` | Release at most three deferred nodes per enabled pass |
+| `0x5ce400` | Unlink live states, release live/deferred handles to refcount zero and free deferred nodes |
+
+The instructions establish a separate deferred texture queue at `0x8763b0`;
+vertex buffers use `0x870d28`. The live texture-state list is `0x872b4c`.
+Both texture paths call the already recovered enqueue `0x479130`. Upload retires
+the previous handle before examining pixel availability. Palette format `0x29`
+expands indexed pixels to four-byte palette entries across signed mip counts,
+changes the submitted format to `0x15`, multiplies the copy-size word by four
+and writes compression byte `0x20`. State/texture layouts remain unchanged.
+
+The original mip-reduction branch divides dimensions by **twice the skip count**,
+then advances over skipped source levels using signed division by four. Subsequent
+copy lengths use arithmetic shifts with the x86 shift-count mask. The uploader
+ignores the returned row pitch and copies flat words followed by trailing bytes,
+with forward overlap behavior. It re-reads the handle before unlock and ignores
+the GPU HRESULTs. Successful creation increments `0x864f50`, which is an upload
+counter rather than a live-handle count. The bounded retirer ignores Release's
+return count; the full flush repeats Release until zero. Live handles are re-read
+between calls, while a deferred handle is captured once.
+
+The allocation/free placement is preserved. Palette conversion occurs before
+the upload-disable check, and its allocation is freed only after successful
+texture creation. Disabled upload and failed creation can therefore retain that
+temporary allocation in the original code. The source does not silently repair
+those paths. Native captures use enabled uploads with successful creation.
+
+With `UG2_EXE` and `UG2_DIR` set, run compiler jobs sequentially:
+
+```sh
+build/venv/bin/python tools/verify_pc_car_render_texture_upload.py --gcc --mutation-checks --retail "$UG2_DIR/GLOBAL/GLOBALB.BUN" --retail "$UG2_DIR/CARS/SKYLINE/TEXTURES.BIN" --retail "$UG2_DIR/CARS/TEXTURES.BIN"
+build/venv/bin/python tools/verify_pc_car_render_texture_upload.py --mutation-checks --retail "$UG2_DIR/GLOBAL/GLOBALB.BUN" --retail "$UG2_DIR/CARS/SKYLINE/TEXTURES.BIN" --retail "$UG2_DIR/CARS/TEXTURES.BIN"
+```
+
+MSVC 7.1 `/Ox /Ob0` and GCC i386 C++11 `-O1` each pass **10,240 comparisons**
+(four entries plus their upload/release/flush cycle) and reject **14 mutations**.
+Fixtures cover palette values, signed dimensions/counts, zero and trailing-byte
+copies, forward aliases, mip skipping, shift wrap, replacement handles, counter
+wrap, disabled/failed creation, nonzero HRESULTs with valid outputs, multi-node
+queues and Release counts greater than one. Complete record/global/list bytes,
+allocation guards, staged mip bytes, argument order, frees and caller ABI are
+compared against the original executable. Fingerprints are in
+`config/SPEED2_EXE_1_2/car-render-texture-upload.json`.
+
+The retail check runs **829 upload/release/flush cycles** from the same three
+files used by the pack verifier. It matches **2,654 mip locks/unlocks**, 829
+create/defer/release/node-free calls and **14 palette allocations/frees** per
+compiler. The input formats are 149 DXT1, 635 DXT3, 31 ARGB8 and 14 indexed
+textures. Compressed fixture bytes come from the original decompressor. Raw
+upload bytes, rather than a decoded RGBA approximation, are compared. Reports
+remain under `build/analysis/car-render-texture-upload/`; retail data stays local.
+
+GPU methods and heap allocation remain typed boundaries, as do the independently
+verified deferred enqueue/node-pool operations. Finite tests do not establish
+byte identity, complete API failure behavior, or Direct3D equivalence. Failed
+locks that leave their outputs unwritten are outside the fixtures. The original
+disabled/failed-create palette allocations are explicitly compared as unfreed.
+
+`NativeTextureUpload` now provides guarded **CPU staging storage** behind
+four-byte tokens for these recovered calls. It accepts the observed ARGB8 and
+DXT formats, retains separate mip buffers, and bounds their storage by a
+four-byte-per-texel capacity with small-block padding. It does not implement
+Direct3D row layout, general format support, automatic mip generation or a GPU
+driver. Native mip guards are checked on unlock and release. File/cache teardown
+repeatedly invokes the recovered three-node retirer at its CPU lifetime boundary;
+staging storage has one owner and no driver work in flight.
+
+The demo/simulator/probe build passes. The strengthened native probe verifies
+nonzero staging tokens in every bound solid slot, intact upload guards and empty
+live/deferred lists after three reloads. SKYLINE has **829 staged texture handles**
+per load and COROLLA has 813; both release all handles and node-pool slots. Native
+60-frame orbit and 120-frame scripted drive pass with unchanged wheel-record
+checksums, C0 results and image-cache counts. The no-op upload/release stubs are
+removed. Shader/effect setup, game reference consumers, draw dispatch activation,
+`0x5cf420`, and GL consumption of uploaded textures/lighting records remain open.
 
 ### Verification (pixel size and LOD)
 

@@ -1,0 +1,25 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "upload": {
+      "address": "0x5ce170",
+      "size": 654,
+      "sha256": "395a29d67763d89c288db5b89c2efc9c266268274cbad168932feed037626891"
+    },
+    "release": {
+      "address": "0x5caaa0",
+      "size": 40,
+      "sha256": "0795a5c76bf41ba3821d3d096c67f4f5863bbda2ab6f8c8d9ca56e6902ef881c"
+    },
+    "flush": {
+      "address": "0x5ce400",
+      "size": 178,
+      "sha256": "1b40e84d766a5fc3fd3efeb1cd87614ad2c42d42c594df203d23e5ebfbedd9c4"
+    },
+    "retire": {
+      "address": "0x5ce4c0",
+      "size": 79,
+      "sha256": "d1b61dac23f1453e2006990edf08e0763d46af7c2cd710e6a3d4ecd23cb7646c"
+    }
+  }
+}
