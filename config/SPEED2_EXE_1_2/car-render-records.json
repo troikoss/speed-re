@@ -1,0 +1,15 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "SetSlot": {
+      "address": "0x48d860",
+      "size": 49,
+      "sha256": "bdd72409f11f962aaf99996fe83315347626b96b51087833bdd44823dd53169b"
+    },
+    "FindRecord": {
+      "address": "0x60fef0",
+      "size": 130,
+      "sha256": "e784302a6241833da6ba71d582905a5cb616875dd29affe5a460ca89f8cd8e2d"
+    }
+  }
+}

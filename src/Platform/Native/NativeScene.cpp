@@ -3,6 +3,8 @@
 
 #include "../../Speed/Indep/Src/World/CarRenderWheels.h"
 
+UG2_CHECK_OFFSET(NativeDrawSolid, table0C, 0x0c);
+
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -166,7 +168,7 @@ bool NativeCarModel::Load(const char *gameDirectory, const char *carName, Native
     for (size_t w = 0; w < wanted.size(); ++w) {
         const NativeSolid *solid = FindSolid(solids_, wanted[w]);
         if (!solid) continue;
-        NativeDrawSolid draw = {solid, Build(*solid, false), Build(*solid, true)};
+        NativeDrawSolid draw = {solid, Build(*solid, false), Build(*solid, true), 0};
         body_.push_back(draw);
         if (getenv("UG2_DEBUG_PARTS")) {
             for (size_t p = 0; p < solid->parts.size(); ++p) {
@@ -186,6 +188,9 @@ bool NativeCarModel::Load(const char *gameDirectory, const char *carName, Native
         return false;
     }
     wheel_.solid = wheel;
+    wheel_.table0C = 0;
+    frontBrake_.table0C = 0;
+    rearBrake_.table0C = 0;
     wheel_.opaqueList = Build(*wheel, false);
     wheel_.translucentList = Build(*wheel, true);
     frontBrake_.solid = front;

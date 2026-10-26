@@ -366,6 +366,51 @@ Evidence and limits:
   distance the body LOD is 3, and the block's own `lod6C > 2` rule draws no wheels.
 - Debug output: `UG2_DEBUG_CAR_LOD=1` prints the pixel, body LOD, clamp, `flags1AC` and `arg8` once per car draw.
 
+### Car render record lookups (2026-10-26)
+
+`CarRenderRecords.cpp` recovers two wheel-rendering callees from PC v1.2:
+
+- `0x48d860`, `CarRenderSolid::SetSlot`: read the table at solid `+0xc`, ignore a null
+  table or zero value, sign-extend the byte count at table `+0x1a`, and update **every**
+  matching key in the eight-byte entries at table `+0x3c`. Duplicate keys are not an
+  early exit. Zero cannot be used to clear a slot.
+- `0x60fef0`, `CarRenderPart::FindRecord`: the unsigned word at part `+0xa` is an offset
+  in words into the index table at global `[0x8a1cc8]+0x14`; `0xffff` returns null
+  before reading the global. The first word is a signed count; subsequent signed
+  words index eight-byte records relative to global `+0x1c`. A previous record is
+  located by pointer equality and skipped; an absent previous or a previous in the
+  final entry returns null. Hash zero returns the next record without a hash test.
+  Negative counts produce no result; negative record indices are sign-extended.
+
+Evidence: live Ghidra decompilation and disassembly, checked against the executable
+bytes. `config/SPEED2_EXE_1_2/car-render-records.json` pins the executable and the
+49-byte/130-byte routine spans. No Ghidra project mutation was needed.
+
+Verification: with `UG2_EXE` pointing to PC v1.2,
+`build/venv/bin/python tools/verify_pc_car_render_records.py --mutation-checks`
+compares MSVC 7.1 `/Ox /Ob0 /EHsc` objects with original machine code in Unicorn:
+1,536 setter and 1,114 lookup runs, zero failures, ten of ten mutations rejected.
+Compared: complete fixture memory, returned record pointers, thiscall stack cleanup,
+and callee-saved registers. Setter EAX is unspecified and is not compared. Cases
+include all signed byte counts, signed word count/index extremes, the unsigned
+part-offset boundary, duplicate keys/record indices, zero value, wildcard/missing
+hashes, and previous-record positions. This is bounded behavioral evidence;
+byte identity and exhaustive input coverage are not established.
+
+Native integration: both no-op method bodies were removed from `NativeCarWheels.cpp`.
+`NativeDrawSolid` has a checked original-compatible table pointer at `+0xc`, initialized
+null. The global part table is null and the native car still supplies no rim parts.
+Table construction, slot consumers and rim selection remain explicit seams; this
+recovery does not claim a visual change or enable spinner offsets in the demo.
+
+Platform validation: `cmake -S . -B build/native` and `cmake --build build/native -j 6`
+passed. `verify_pc_wheel_draw.py` passed its existing 512 layout and 2,048 block cases
+(28,869 compared events); its method calls still use original helpers/hooks, so this
+is regression evidence for the wheel block rather than a second helper verification.
+The SKYLINE demo completed 60 frames with `--no-audio --orbit 90`; the capture in
+`build/analysis/car-render-records/smoke.ppm` was inspected. The native build retains
+its existing non-standard-layout `offsetof` warnings.
+
 ### Verification (pixel size and LOD)
 
 - `build/venv/bin/python tools/verify_pc_car_draw_lod.py --mutation-checks`, with `UG2_DIR` set. The executable's SHA-256

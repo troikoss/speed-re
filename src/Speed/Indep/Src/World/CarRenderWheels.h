@@ -6,7 +6,8 @@
 
 // Car wheel placement for the render info (CarRenderInfo, ri) and the wheel block of the car draw
 // 0x620ae0 (PC v1.2, speed2.exe). Addresses in comments are original. Unrecovered callees are
-// platform seams: thiscall callees are members so their calling convention matches the original,
+// platform seams; SetSlot and FindRecord are recovered in CarRenderRecords.cpp. Thiscall callees
+// are members so their calling convention matches the original,
 // cdecl callees are extern "C". The verifier (tools/verify_pc_wheel_draw.py) links these names to
 // the original addresses and compares their argument sequences.
 
@@ -16,10 +17,28 @@ struct CarRenderPart;      // rim part object (ri+4 +0x604/+0x608; receiver of F
 struct CarRenderFrame;     // view frame (view+0x40): origin and depth axis of the projection (CarRenderLod.h)
 struct CarRenderWheelInfo;
 
-// 0x48d860 (__thiscall, RET 8): stores value under key in the solid's slot table.
+struct CarRenderSlot {
+    unsigned int key;
+    unsigned int value;
+};
+UG2_CHECK_SIZE(CarRenderSlot, 8);
+
+struct CarRenderSlotTable {
+    unsigned char pad00[0x1a];
+    signed char count1A;
+    unsigned char pad1B[0x3c - 0x1b];
+    CarRenderSlot *slots3C;
+};
+UG2_CHECK_OFFSET(CarRenderSlotTable, count1A, 0x1a);
+UG2_CHECK_OFFSET(CarRenderSlotTable, slots3C, 0x3c);
+
+// 0x48d860 (__thiscall, RET 8): updates every matching slot if value is nonzero.
 struct CarRenderSolid {
+    unsigned char pad00[0x0c];
+    CarRenderSlotTable *table0C;
     void SetSlot(unsigned int key, unsigned int value);
 };
+UG2_CHECK_OFFSET(CarRenderSolid, table0C, 0x0c);
 
 // 0x5c5930 (__thiscall on the view, RET 0x14): solid draw. Arguments: solid, world matrix, extra
 // record, flags, zero.
@@ -36,8 +55,21 @@ UG2_CHECK_OFFSET(CarRenderView, frame40, 0x40);
 // 0x60fef0 (__thiscall on the part, RET 8): record with the given hash after `previous` (0 = first).
 // A record is 8 bytes: u32 hash at +0, float value at +4.
 struct CarRenderPart {
+    unsigned char pad00[0x0a];
+    unsigned short index0A;
     void *FindRecord(unsigned int hash, void *previous);
 };
+UG2_CHECK_OFFSET(CarRenderPart, index0A, 0x0a);
+
+struct CarRenderPartTable {
+    unsigned char pad00[0x14];
+    const short *indices14;
+    unsigned char pad18[4];
+    unsigned char *records1C;
+};
+UG2_CHECK_OFFSET(CarRenderPartTable, indices14, 0x14);
+UG2_CHECK_OFFSET(CarRenderPartTable, records1C, 0x1c);
+extern "C" CarRenderPartTable *ug2CarPartTable8A1CC8;
 
 // ri: CarRenderInfo layout fields of the wheel code. Offsets are original (PC v1.2).
 // ri+4 is the car object: byte +0x855 gates the block; +0x604/+0x608 are the rim parts (CarRenderPart);

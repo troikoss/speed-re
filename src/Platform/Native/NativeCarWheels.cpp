@@ -31,6 +31,7 @@ float ug2CarLodPixelLimit7A66FC = 18.0f;
 float ug2CarLodScale7A6700 = 0.7f;
 void *ug2CarLodRecords8A1CD4 = 0;
 int ug2CarLodRecordCount8A1CD8 = 0;
+CarRenderPartTable *ug2CarPartTable8A1CC8 = 0; // part-table loader remains a native seam
 }
 
 // 0x5b98a0 (RET 0): the view mode global. The demo's view is mode 0, so the pixel size is not scaled.
@@ -89,21 +90,6 @@ void CarRenderView::DrawSolid(CarRenderSolid *solid, WheelMatrix *world, void *e
     glMultMatrixf(world->elements);
     glCallList(list);
     glPopMatrix();
-}
-
-// 0x48d860 (__thiscall on the owner, RET 8): the solid slot table is not part of the demo's solids. The
-// link values of the block (ri+0x390, ri+0x3ac) are zero in the demo, so the block does not call this.
-void CarRenderSolid::SetSlot(unsigned int key, unsigned int value) {
-    (void)key;
-    (void)value;
-}
-
-// 0x60fef0 (__thiscall on the rim part, RET 8): the SPINNEROFFSET records of the rim parts are not in
-// the demo's parts, so no record is found and the offsets of ri+0x438 stay zero.
-void *CarRenderPart::FindRecord(unsigned int hash, void *previous) {
-    (void)hash;
-    (void)previous;
-    return 0;
 }
 
 // 0x620600 (__thiscall on ri, RET 8): secondary draw of a tyre matrix. Reached only with the LOD gate 3,

@@ -29,11 +29,13 @@ private:
 
 struct WheelMatrix;
 struct CarRenderWheelInfo;
+struct CarRenderSlotTable;
 
 struct NativeDrawSolid {
     const NativeSolid *solid;
     GLuint opaqueList;
     GLuint translucentList;
+    CarRenderSlotTable *table0C; // original setter prefix; native slot population remains absent
 };
 
 // Runs the recovered wheel layout 0x61fe10 and the wheel block 0x62700e..0x62df66 on the render info `ri`.
