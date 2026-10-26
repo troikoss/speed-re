@@ -1112,7 +1112,8 @@ initial/selected technique and material combinations, signed queue priorities,
 shared texture-state caches, repeated appends and counter wrap. Whole fixture
 bytes, touched global/list bytes, return values, calling conventions, preserved
 registers and ordered boundary calls are checked. Bounds `0x5bc300`, texture lookup
-`0x4901d0` and successful pool allocation `0x440e50` remain explicit boundaries.
+`0x4901d0` and successful pool allocation `0x440e50` are explicit boundaries in
+this standalone verifier; the bounds section below closes the first body gap.
 This is finite behavioral evidence; byte matching and retail frame capture are
 not established. Reports are under `build/analysis/car-render-solid/`.
 
@@ -1850,7 +1851,7 @@ native demo. The current GL display-list seam still ignores the original flags,
 lighting records and shader effects. The uploads section below recovers the
 technique methods/destruction and three upload helpers; the material section
 below recovers texture binding and extra-record/light-pack uploads. Effect
-resources/backend, bounds classification and native queue/consumer activation
+resources/backend, clip-plane production and native queue/consumer activation
 remain necessary to close that seam. The existing
 bWare pool verifier and native demo/probe build are regressions for the added
 pool method; they do not establish native consumer execution. The pool verifier
@@ -1954,7 +1955,7 @@ shader execution or rendering equivalence. Byte identity is not claimed.
 
 The next section recovers those three bodies and links them into the consumer
 chain. Native effect/API ownership and resource loading, the library map,
-bounds classification, original scheduling and native consumer
+clip-plane production, original scheduling and native consumer
 activation remain open. Existing GL drawing still ignores the original lighting
 records and flags. The demo, simulator and solid-record probe build successfully;
 the existing consumer verifier also passes 14,336 comparisons per compiler after
@@ -2072,11 +2073,76 @@ its GL display lists. `ug2demo`, `ug2sim` and `ug2solidrecords_probe` build, the
 the three-load late-texture probe retains 612 solids/829 textures per load with
 500 → 534 → 500 matching slots and clean staging handles, buffers and pools.
 These are layout/lifecycle regressions. Native effect/API resources, the library
-map, bounds classification, frame/cache scheduling and dispatch/consumer
+map, clip-plane production, frame/cache scheduling and dispatch/consumer
 activation remain open, along with the other wheel inventory rows and the
 separate legacy coefficient-transform precision gap.
 The standalone GCC consumer and upload verifiers also retain their 14,336 and
 29,184 passing comparisons after the shared harness extensions.
+
+### Solid bounds classification and AABB transformation (2026-10-27)
+
+`CarRenderBounds.cpp` recovers `CarRenderTransformBounds` (`0x5bc210`, 237 bytes)
+and `CarRenderView::TestBounds` (`0x5bc300`, 325 bytes). Original spans and the
+reference executable SHA-256 are pinned by `car-render-bounds.json`. The view's
+previously opaque first word is the pointer used to reach six four-float planes
+at target `+0xc0..+0x11f`. A checked read prefix records these offsets without
+identifying the surrounding allocation or claiming its complete size. Existing
+view focal, frame and extra-record offsets remain unchanged.
+
+The transform starts six accumulators from matrix translation and processes
+three input axes. For each matrix coefficient, the minimum-input product remains
+extended, while the maximum-input product is **rounded to binary32 before the
+comparison**. The ordered comparison chooses the two contributions, preserving
+negative coefficients and reversed input bounds. All inputs are consumed before
+writing minimum XYZ followed by maximum XYZ, including overlapping bounds and
+matrix/output aliases. A volatile float temporary retains the observed spill:
+MSVC otherwise compared its unrounded x87 register value, changing output words
+even when both input bounds pointed at the same record.
+
+The classifier copies both XYZ bounds, conditionally transforms them for a
+nonnull world matrix, and rounds center and extent to binary32 before testing
+planes in order. Its radius sum is `(abs(nz)*ez + abs(nx)*ex) + abs(ny)*ey`;
+its center distance is `((cz*nz + cx*nx) + cy*ny) + d`. Both sums remain extended
+for the strict comparisons against original global `0x7d7d3c`. An outside plane
+returns **0** immediately; any crossing plane produces **1** after all planes;
+otherwise the result is **2**. Touching either support boundary retains the
+original strict comparison. Unordered plane comparisons do not invent a reject.
+No Boolean collapse, conventional center/extent replacement or acceptance epsilon
+is introduced.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_bounds.py --gcc --cases 4096 --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_bounds.py --cases 4096 --mutation-checks
+```
+
+Both compilers pass **12,288 comparisons** each: 4,096 standalone transforms,
+4,096 standalone classifications and 4,096 actual solid dispatcher cases linked
+to the recovered bounds bodies. Each rejects **20 mutations**, including removal
+of the maximum-product/center spills, strictness changes, lost plane/axis terms,
+Boolean result collapse and premature output stores. Fixtures cover finite
+bounded matrices/boxes, inverted boxes, a null world matrix, matrix and bounds
+aliases, non-unit/signed normals, NaN/infinite plane components, and precision
+settings `0x027f`/`0x037f`. Independent fixture blocks exercise all six plane
+indices at both support boundaries, their adjacent binary32 values and both
+precision settings. A separate halfway-center fixture detects the explicit
+center rounding. Original instruction hooks confirm tests and early-out paths
+at every plane index. Full fixture/global bytes, returns, ordered boundary calls,
+queue/allocation bytes, stack cleanup, preserved registers, x87 control words
+and empty x87 stack state are compared.
+Reports are under `build/analysis/car-render-bounds/`.
+
+The dispatcher chain retains controlled texture lookup and successful queue
+allocation boundaries. The original clip-plane producer, full view ownership,
+malformed/nonfinite matrix behavior, OOM and rendering equivalence are not proved
+by these finite fixtures. Instruction-byte identity is not established.
+
+Both new bodies compile into the recovered native archive. The demo, simulator
+and solid-record probe build; native SKYLINE's 60-frame orbit retains source/
+record checksums `ca993eba`/`7141bcda`, and the late-texture probe retains 612 solids
+and 829 textures per load across three loads, 500 → 534 → 500 matching slots and
+clean buffers/handles/pools. These are layout/lifecycle regressions. The native
+view has no recovered clip-plane producer and GL still draws its display lists;
+native dispatch/consumer activation and the other wheel seams remain open.
 
 ### Verification (pixel size and LOD)
 

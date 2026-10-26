@@ -97,18 +97,28 @@ UG2_CHECK_OFFSET(CarRenderSolid, overrides10, 0x10);
 UG2_CHECK_OFFSET(CarRenderSolid, overrideCount14, 0x14);
 UG2_CHECK_SIZE(CarRenderSolid, 0x18);
 
+// Observed prefix reached through view+0 by 0x5bc300; surrounding allocation and
+// plane production remain separate from this six-plane consumer.
+struct CarRenderClipData {
+    unsigned char value00[0xc0];
+    float planesC0[6][4];
+};
+UG2_CHECK_OFFSET(CarRenderClipData, planesC0, 0xc0);
+UG2_CHECK_SIZE(CarRenderClipData, 0x120);
 // 0x5c5930 (__thiscall on the view, RET 0x14): solid draw. Arguments: solid, world matrix, extra
 // record, flags, zero.
 struct CarRenderView {
-    unsigned char pad00[0x0C];
+    const CarRenderClipData *clip00;
+    unsigned char pad04[8];
     float focal0C;                  // +0x0c: focal length in pixels (0x48acb0 divides by it)
     unsigned char pad10[0x40 - 0x10];
     const CarRenderFrame *frame40;  // +0x40: view frame (origin +0x40 and depth axis +0x50)
     unsigned char pad44[0x54 - 0x44];
     CarRenderRecord *record54;
-    int TestBounds(const float *minimum, const float *maximum, WheelMatrix *world); // 0x5bc300, open
+    int TestBounds(const float *minimum, const float *maximum, WheelMatrix *world); // 0x5bc300
     void DrawSolid(CarRenderSolid *solid, WheelMatrix *world, void *extra, unsigned int flags, unsigned int zero);
 };
+UG2_CHECK_OFFSET(CarRenderView, clip00, 0);
 UG2_CHECK_OFFSET(CarRenderView, focal0C, 0x0c);
 UG2_CHECK_OFFSET(CarRenderView, frame40, 0x40);
 UG2_CHECK_OFFSET(CarRenderView, record54, 0x54);
