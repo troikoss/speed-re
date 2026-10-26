@@ -620,8 +620,8 @@ native wrapper check and all 11 mutations pass with these settings.
 
 Activation remains open. The original car draw initializes the frame +0xb20
 record with `0x48ab10` at `0x620fd3`, then fills it through lighting/source-record
-producer `0x48ed60` at `0x620ff3`. The clear routine and lighting foundations are
-now recovered (see below); the builder, light selection and actual caller context
+producer `0x48ed60` at `0x620ff3`. The clear routine, lighting foundations and
+builder are now recovered (see below); light selection and actual caller context
 remain open before replacing the native placeholder. The
 initial position at frame +0x790 comes from view frame +0x40..+0x48 at
 `0x620f04`..`0x620f2c`, but subsequent body-draw writes/stack reuse must still be
@@ -709,13 +709,76 @@ unwired until their actual caller inputs are recovered.
 
 Further original-binary leads: callers `0x631250` and `0x6316d0` push the default
 context `0x7f3f00` into `0x620ae0` at `0x631696`/`0x631879`; the image holds three
-populated source entries there. Source-record builder `0x48ed60` and light
-selection `0x48e3d0` remain unrecovered. The third matrix at `0x871b50` is produced
+populated source entries there. Source-record builder `0x48ed60` is recovered
+below; light selection `0x48e3d0` remains unrecovered. The third matrix at `0x871b50` is produced
 in `0x5c3450`: the `0x5c3524` call uses recovered `CameraLookAt` (`0x5ba9a0`),
 then indices 3/7/11/12/13/14 are zeroed and index 15 is set to 1 before the copy at
 `0x5c356b`. Its up input is the image vector 0/0/1 at `0x800b70`. This is a lead
 for recovering the caller fragment, not evidence that the native view-frame
 producer or final position buffer has been integrated.
+
+### Lighting source-record builder (2026-10-26)
+
+`CarRenderLightBuild.cpp` recovers original `0x48ed60`, with prefixes and observed
+offset checks in `CarRenderLightBuild.h`. A null output returns -1 before reading
+any other argument. Otherwise the builder:
+
+- Uses the supplied fifth matrix, overridden by `view+0x40` when both pointers
+  exist, and calls recovered direction-matrix helper `0x5bb190`.
+- Builds three profile directions with azimuth `angle04+180` and polar
+  `90-angle08`, explicitly stored as floats before calling `0x48a310`. The
+  profile flag is a raw dword test, including the `0x80000000` bit pattern.
+  Enabled entries rotate the reordered vector (-Y,-Z,X) through the basis.
+  Colors use intensity × channel × 255 in that order.
+- Calls sector-light selector `0x48e3d0`. If its signed count plus three exceeds
+  19, the count becomes **15**, preserving the original discontinuity rather
+  than filling all 19 entries. The usual selector limit is ten; larger and
+  negative counts in the verifier probe the builder's own control flow.
+- Produces relative directions and low-byte-first RGB colors for selected lights.
+  Kind 3 follows the original sine threshold, in-place offset normalization and
+  cone-weight calculation. Its Z+Y+X dot product and cone scale remain extended;
+  the threshold is stored as a float. Other kinds preserve the distinct
+  channel × 0.75 × weight order. There is no invented cone/weight clamp.
+- Optionally transforms directions through the fourth matrix, normalizes all
+  directions, scales colors by the image's binary32 1/255 value, and computes
+  the fourth lane as (R×0.29 + B×0.17) + G×0.54 with the original constant widths.
+- Writes only the observed nine cells each of matrix00/matrix40 and the 40
+  coefficient words at +0x120. The coefficient prefix starts at zero; ordered
+  recovered pair additions and independent lane normalization fill it. Other
+  output cells retain their prior contents.
+
+Live Ghidra disassembly confirms the arithmetic order and calling conventions;
+`car-render-light-build.json` pins the full executable, 2,207-byte builder span
+and constant bytes. With `UG2_EXE` set, run:
+
+```
+build/venv/bin/python tools/verify_pc_car_render_light_build.py --gcc --chain --cases 4096 --mutation-checks
+build/venv/bin/python tools/verify_pc_car_render_light_build.py --chain --cases 4096 --mutation-checks
+```
+
+Each compiler completes 8,192 exact comparisons at the two x87 precision
+settings; all 11 mutations are rejected. The linked chain includes recovered
+light-vector, pair, accumulator and coefficient-normalization bodies. Per
+precision setting, 3,963 non-null cases cover 5,945 direction-matrix calls,
+11,889 vector calls, 51,828 three-component normalization calls, 41,456 pair
+calls and 10,372 sine calls. Checks compare every fixture byte, ordered helper
+arguments, return value, stack cleanup, callee-saved registers, control word and
+empty x87 stack. Fixtures cover profile flags, both matrix paths, point/cone
+lights, zero vectors, signed weights/normalization targets, count boundaries,
+null output with invalid remaining pointers, and output aliases with inputs.
+Byte identity and exhaustive/nonfinite inputs are not established. The separate
+legacy coefficient-transform precision gap at `0x489ba0` remains open.
+
+**Boundary:** the sector-light selector uses a controlled fixture on both sides;
+this verifies the builder's use of its results, not sector/tree traversal or
+selection. Direction transpose, sine, three-component normalization and their
+trig dependencies execute original machine code in this verifier. Native i386
+and legacy MSVC caller results are therefore distinct from complete native
+integration. The builder is compiled into the recovered library but is not
+activated by the demo. Selection `0x48e3d0`, its original list/tree dependencies,
+actual view-frame/position inputs and extra-record draw consumption remain open.
+The i386 demo builds and completes the 60-frame SKYLINE no-audio orbit smoke;
+that is a baseline platform check, not a lighting-activation claim.
 
 ### Verification (pixel size and LOD)
 
