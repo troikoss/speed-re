@@ -489,9 +489,9 @@ operands. Byte identity and exhaustive coverage are not claimed. The verifier
 selects actual scalar D3DX code on both sides; CPU dispatch is outside coverage.
 The i386 demo target also builds successfully.
 
-These helpers are compiled into the recovered library, but the producer routines
-`0x48e6c0` and `0x48a6a0` are still unrecovered and the native preparation seam
-still ignores the record. Activation also needs the caller's actual inputs:
+These helpers and the producer routines `0x48e6c0`/`0x48a6a0` are compiled into
+the recovered library (see the producer-chain evidence below). The native
+preparation seam still ignores the record. Activation also needs the caller's actual inputs:
 original wheel calls pass a source record at car-draw frame `+0xb20` and a position
 at frame `+0x790`. The current recovered block passes unused local `WheelMatrix`
 placeholders `scratchB`/`scratchA`; `scratchB` is only 64 bytes, while the source
@@ -514,8 +514,8 @@ follow disassembly, rather than an algebraically simplified polynomial.
 
 Evidence: live Ghidra decompilation plus original instructions `0x489ba0`..`0x489ec5`;
 `car-render-coefficients.json` pins that 806-byte span and the executable. The
-recovered method is compiled into the native library; the two producer callers
-and their native activation remain open. No claim of byte identity is made.
+recovered method and its producer callers are compiled into the native library;
+their native activation remains open. No claim of byte identity is made.
 
 Native numeric verification (with `UG2_EXE` pointing at PC v1.2):
 
@@ -552,6 +552,82 @@ in the legacy rebuild where the original keeps extended values in registers;
 extended spill precision and passes the same inputs exactly. These findings do
 not establish a legacy acceptance limit or complete the producer seam. Further
 legacy precision work remains; no registers were forced or assembly inserted.
+
+### Render-record producer chain (2026-10-26)
+
+`CarRenderRecordPrepare.cpp` recovers the original PC v1.2 preparation chain:
+
+- `0x48e6c0`, `CarRenderPrepareWorldRecord`: zero the temporary coefficient cells,
+  copy the source record, construct the direction matrix from the world frame,
+  snapshot the source basis and write its transformed components into matrix40.
+  The component arrangement is preserved; it is not replaced by a conventional
+  point transform. Products accumulate Z, Y, X, then translation. Source
+  coefficients at +0x120 are read **after** the basis stores, transformed via
+  `0x489ba0`, and copied back. This order matters for overlapping records/world
+  matrices.
+- `0x48a6a0`, `CarRenderPrepareViewRecord`: always construct the direction matrix.
+  With a position, preserve extended relative X and the binary32 relative Y/Z
+  spills, project the position, and clamp its length. The lower bound compares
+  the unrounded length; the upper bound compares the stored float. Gate 3 uses
+  [2.78, 8]; other gates use [2.78, 2.78], with measured binary32 constants.
+  Set vector W to zero before normalization, then write the scaled XYZ and W=1
+  to valueC0. With both the third matrix input and position, compute the 16 matrixE0 cells in
+  their individual observed product orders, copy the matrix, zero indices
+  3/7/11, copy valueC0's XYZ bit patterns to indices 12..14 and zero index 15.
+  Return 1 even when both optional inputs are null.
+- `0x48f660`, `CarRenderPrepareRecord`: call world preparation, then view
+  preparation, unconditionally and in that order. Argument 5 is unused; return 1.
+
+Evidence: live Ghidra decompilation and original instruction listings. The
+`car-render-prepare.json` and `car-render-view-record.json` manifests pin the
+producer/wrapper spans, helper spans, executable and clamp constants. No project
+mutation or assembly replacement was used.
+
+With `UG2_EXE` set, native whole-chain checks are:
+
+```
+build/venv/bin/python tools/verify_pc_car_render_prepare.py --gcc --chain --cases 16384 --mutation-checks
+build/venv/bin/python tools/verify_pc_car_render_view_record.py --gcc --chain --cases 16384 --mutation-checks
+build/venv/bin/python tools/verify_pc_car_render_view_record.py --gcc --chain --kind wrapper --cases 16384 --mutation-checks
+```
+
+All three pass 32,768 comparisons each, zero failures. Mutation rejection is 6/6
+for world preparation, 8/8 for view preparation and 11/11 for the wrapper. Native
+chain mode links the recovered record copy, direction-matrix wrapper, normalizer,
+coefficient transform and producers as actual i386 GCC code; original matrix-copy
+and D3DX scalar transpose bodies execute as shared/library callees. ABI adapters
+are used only when an isolated GCC caller invokes an original thiscall method.
+
+MSVC isolated-caller checks also pass: world preparation 8,192 runs (6/6 mutants),
+view preparation 32,768 runs (8/8), and wrapper 32,768 runs (11/11). Run the same
+commands without `--gcc --chain` (world uses `--cases 4096`). These execute
+original helper callees, while wrapper mode uses both recovered producers; this
+separates caller verification from the documented legacy coefficient precision
+gap. It does **not** establish full-chain MSVC parity at 64-bit x87 precision.
+
+Both x87 precision settings are used. Every fixture byte, root return where
+specified, stack cleanup, preserved registers, control word, x87 stack balance
+and ordered callee inputs are checked. Cases exercise record/world/third-matrix/
+position aliases, optional nulls, clamp thresholds and neighboring floats. A
+cancellation fixture distinguishes `huge + 2 - huge + 1` from a reordered product
+sum at 53-bit precision. Each view/wrapper run includes 24,612 position paths,
+19,786 matrix paths and 13,128 gate-3 paths. Coverage is bounded and finite;
+byte identity, NaN/infinity behavior and exhaustive inputs are not established.
+The i386 demo target builds successfully.
+
+Activation remains open. The original car draw initializes the frame +0xb20
+record with `0x48ab10` at `0x620fd3`, then fills it through lighting/source-record
+producer `0x48ed60` at `0x620ff3`. These upstream routines and the actual car-draw
+source context must be recovered before replacing the native placeholder. The
+initial position at frame +0x790 comes from view frame +0x40..+0x48 at
+`0x620f04`..`0x620f2c`, but subsequent body-draw writes/stack reuse must still be
+traced before claiming that is the final wheel input. The full 66,053-byte car
+draw timed out in Ghidra decompilation; these caller leads come from original
+instructions. `NativeCarWheels.cpp` still uses its no-op activation seam, and the
+GL draw ignores extra records. The third matrix input is global `0x871b50`; its
+producer and runtime meaning also remain unverified. Parameter names therefore
+use `matrixArg3` rather than asserting a camera-projection identity. This checkpoint recovers and verifies the
+preparation chain; it does not complete the caller input or draw-consumption seams.
 
 ### Verification (pixel size and LOD)
 
@@ -603,7 +679,8 @@ legacy precision work remains; no registers were forced or assembly inserted.
 
 - `DrawSolid` (`0x5c5930`): the native seam draws the solid's GL list with the world matrix. It ignores the flags, the
   extra record and the zero argument, and does not set `glFrontFace` for the R180 wheels (GL backend seam).
-- Visibility `0x48f660` (native: visible; the block ignores its result), LOD helpers `0x60d700`/`0x620600` (the demo
+- Preparation `0x48f660` (recovered; native activation still a stub with no record side effects), facing helper
+  `0x60d700` (recovered) and secondary draw `0x620600` (open; the demo
   gate is 0, so neither is called), solid slots `0x48d860` (setter now recovered; no slot tables; the link values `ri+0x390`/`0x3ac` are zero
   in the demo), rim-part records `0x60fef0` (none in the demo; the `SPINNEROFFSET` offsets stay zero).
 - The spin term reads the car's sub-object bytes `+0x353`/`+0x354` (`0x59a420`). The block applies it only to wheels 0

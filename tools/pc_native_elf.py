@@ -5,15 +5,20 @@ import subprocess
 
 def link_native(source, build, root, bindings, entry):
     build.mkdir(parents=True, exist_ok=True)
-    obj, exe = build / 'native.o', build / 'native.elf'
-    subprocess.run(['g++', '-m32', '-O1', '-fno-pie', '-mfpmath=387', '-fno-stack-protector',
-                    '-fno-strict-aliasing', '-fno-fast-math', '-ffp-contract=off',
-                    '-include', str(root / 'src/Platform/Native/NativeCompat.h'),
-                    '-Isrc/Speed/Indep/Src/World', '-c', str(source), '-o', str(obj)],
-                   cwd=root, check=True)
+    sources = source if isinstance(source, (list, tuple)) else [source]
+    objects = []
+    exe = build / 'native.elf'
+    for i, item in enumerate(sources):
+        obj = build / ('native.o' if len(sources) == 1 else 'native-' + str(i) + '.o')
+        subprocess.run(['g++', '-m32', '-O1', '-fno-pie', '-mfpmath=387', '-fno-stack-protector',
+                        '-fno-strict-aliasing', '-fno-fast-math', '-ffp-contract=off',
+                        '-include', str(root / 'src/Platform/Native/NativeCompat.h'),
+                        '-Isrc/Speed/Indep/Src/World', '-c', str(item), '-o', str(obj)],
+                       cwd=root, check=True)
+        objects.append(str(obj))
     subprocess.run(['ld', '-m', 'elf_i386', '-Ttext=0x2400000', '--entry=' + entry] +
                    ['--defsym=' + k + '=' + hex(v) for k, v in bindings.items()] +
-                   [str(obj), '-o', str(exe)], check=True)
+                   objects + ['-o', str(exe)], check=True)
     raw = exe.read_bytes()
     phoff = struct.unpack_from('<I', raw, 28)[0]
     phsize, phcount = struct.unpack_from('<HH', raw, 42)

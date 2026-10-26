@@ -1,0 +1,57 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "RenderRecordCopy": {
+      "address": "0x48a3b0",
+      "size": 740,
+      "sha256": "daea4a12702dbd711b95e4651675a4cd239e8a21f8ddefef39d015c97b0c7ac1"
+    },
+    "Normalize4": {
+      "address": "0x43d010",
+      "size": 124,
+      "sha256": "7c824ed2c264edb3c613f770380e4b72797b5a7207e661545f172a9ab52ecdc5"
+    },
+    "DirectionMatrix": {
+      "address": "0x5bb190",
+      "size": 43,
+      "sha256": "9a75d8617f6d370b958f1b6a07a1d849278638d02c310ae4cfd0b42f9b879844"
+    },
+    "D3DXTransposeScalar": {
+      "address": "0x63d132",
+      "size": 113,
+      "sha256": "34a1bd8bc09c848544bb47491f2f72808b828ad634d911aed0a904ba6b6a0059"
+    },
+    "BodyMatrixCopy": {
+      "address": "0x4012b0",
+      "size": 138,
+      "sha256": "788d7c12fd4ca91a8187e390be060b48e9160de82d666ed1c0edfa11dbe5ec76"
+    },
+    "TransformCoefficients": {
+      "address": "0x489ba0",
+      "size": 806,
+      "sha256": "e35a511f93fa6d10bc01335860d1e39f58a5c0784077d278560cd9aa785c8158"
+    },
+    "PrepareWorld": {
+      "address": "0x48e6c0",
+      "size": 1682,
+      "sha256": "9d60e5ed81ea2876f305b847ab8bb1092e0b643e5f6819608c1cbeb3f1ef635a"
+    },
+    "PrepareView": {
+      "address": "0x48a6a0",
+      "size": 1128,
+      "sha256": "9ee41e5859d314c42955bd53f51288af5e6d87b0ce3e0846ed745347d220335a"
+    },
+    "PrepareRecord": {
+      "address": "0x48f660",
+      "size": 50,
+      "sha256": "f2c47dc091245eee60bc6ddd870e0a88b01ef0fba5282abd6399ee039c957ad5"
+    }
+  },
+  "constants": {
+    "0x7d7d3c": "00000000",
+    "0x78d788": "85eb3140",
+    "0x78d78c": "85eb3140",
+    "0x78d790": "85eb3140",
+    "0x78d794": "00000041"
+  }
+}

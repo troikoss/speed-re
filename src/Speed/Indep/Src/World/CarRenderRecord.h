@@ -32,4 +32,14 @@ WheelMatrix *CarRenderDirectionMatrix(WheelMatrix *output, WheelMatrix *input);
 // Original 0x43d010: length uses XYZW; only output XYZ is written.
 void CarRenderNormalize4(float *output, const float *input);
 
+// Original 0x48e6c0 (cdecl): copy, basis transform and coefficient transform.
+void CarRenderPrepareWorldRecord(CarRenderRecord *output, CarRenderRecord *source, WheelMatrix *world);
+// Original 0x48a6a0 (cdecl): optional position and matrixE0 production, returns 1.
+unsigned int CarRenderPrepareViewRecord(CarRenderRecord *output, WheelMatrix *world,
+                                      const WheelMatrix *matrixArg3, const float *position);
+// Original 0x48f660 (cdecl): world preparation followed by view preparation, returns 1.
+unsigned int CarRenderPrepareRecord(CarRenderRecord *output, WheelMatrix *world,
+                                  const WheelMatrix *matrixArg3, const float *position,
+                                  void *view, CarRenderRecord *source);
+
 #endif
