@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Verify the complete original queued solid consumer and recovered queue/pool chain.
 
-Rendering APIs, technique virtual calls and the six pending upload/bind bodies
+Rendering APIs, technique virtual calls and the six upload/bind bodies
 are controlled boundaries. Real queueing, view/sky getters and slot return run.
 """
 import argparse
@@ -54,18 +54,26 @@ HELPERS=dict(bind=('CarRenderBindTexture',0x5bcc30,1),world=('CarRenderUploadWor
     headlights=('CarRenderUploadHeadlights',0x5bdaa0,2),record=('CarRenderUploadRecord',0x5bd140,2),
     light=('CarRenderUploadLightPack',0x5bd4a0,2),bones=('CarRenderUploadBones',0x5bdcd0,2))
 VIRTUAL=dict(begin=STOP+0x2000,end=STOP+0x2010)
+MEMBERS={'clear','group_clear','free'}
+RETURNS={'view','sky'}
 REGIONS=[(0x870d30,0xb80),(0x86eb28,92),(0x870910,4),(0x870918,8),(0x87092c,8),(0x87094c,12),(0x872ed8,0x30)]
 
 
-def build(source,gcc,pool_source=None):
+def build(source,gcc,pool_source=None,extra_sources=(),extra_globals=None,supplied=(),gcc_bindings=None,msvc_bindings=None,extra_cpp=None):
     symbols={name:int(a,16)for name,a in re.findall(r'^(\w+) = (0x[0-9a-f]+);',(ROOT/'src/Platform/Native/OriginalSymbols.ld').read_text(),re.M)}
     bindings=dict(GLOBALS,**API,UG2RenderTechniqueBegin=VIRTUAL['begin'],UG2RenderTechniqueEnd=VIRTUAL['end'],
         UG2SolidFindTexture=0x4901d0)
     # These symbols are only used by other bWare pool operations or dispatcher paths.
     cpp=dict(bMalloc=0x440390,bFreeMemory=0x440540)
     cpp.update({name:address for name,address,n in HELPERS.values()})
-    sources=[source,solid.SOURCE,pool_source or ROOT/'src/Speed/Indep/Libs/bWare/bSlotPool.cpp']
+    cpp.update(extra_cpp or {})
+    bindings.update(extra_globals or {})
+    for name in supplied:
+        bindings.pop(name,None)
+        cpp.pop(name,None)
+    sources=[source,solid.SOURCE,pool_source or ROOT/'src/Speed/Indep/Libs/bWare/bSlotPool.cpp']+list(extra_sources)
     if gcc:
+        bindings.update(gcc_bindings or {})
         bindings.update({k:symbols[k]for k in ('slotPoolRegistry828530','nodeSlotPool8284F0','nodeSlotPoolPendingDelete8284F4','nodeSlotPoolName786F40')})
         bindings['_ZN13CarRenderView10TestBoundsEPKfS1_P11WheelMatrix']=0x5bc300
         for i,path in enumerate(sources):
@@ -79,6 +87,7 @@ def build(source,gcc,pool_source=None):
         linked=link_native(sources,BUILD,ROOT,bindings,GCC['consume'],text_address=0x5000000)
     else:
         objects=[];bindings={'_'+k:v for k,v in bindings.items()};bindings.update(__fltused=0,__ftol2=0x75bed4)
+        bindings.update(msvc_bindings or {})
         for i,path in enumerate(sources):
             obj=BUILD/('consume-'+str(i)+'.obj');objects.append(obj)
             subprocess.run([str(ROOT/'build/tools/wibo'),'build/compilers/Win32/7.1/cl.exe','/nologo','/c','/Ox','/Ob0','/EHsc',
@@ -149,7 +158,7 @@ class Machine(technique.Machine):
             assert a[1]==5 and a[4]==0x18;event=(name,*a,bytes(u.mem_read(a[3],max(0,min(4,a[2]+2))*24)))
         self.events.append(event);self.ret(c['hresult'],0 if self.rebuilt else n*4)
     def call(self,kind,args=(),receiver=0):
-        u=self.u;member=kind in ('clear','group_clear','free')
+        u=self.u;member=kind in MEMBERS
         values=[receiver]+list(args)if member and self.gcc else list(args)
         sp=STACK+0x10000-0x100;self.put(sp,STOP,*values)
         saved=[(xc.UC_X86_REG_EBX,0x1248),(xc.UC_X86_REG_ESI,0x1357),(xc.UC_X86_REG_EDI,0x2468),(xc.UC_X86_REG_EBP,0x3579)]
@@ -165,8 +174,8 @@ class Machine(technique.Machine):
             # Capture the actual x87 return, before any host/float conversion.
             u.mem_write(STOP,b'\xdb\x3d'+struct.pack('<I',ARENA+0x3e000))
             u.emu_start(STOP,STOP+6)
-        return u.reg_read(xc.UC_X86_REG_EAX)if kind in ('view','sky')else None
-    def run(self,kind,c):
+        return u.reg_read(xc.UC_X86_REG_EAX)if kind in RETURNS else None
+    def reset(self,kind,c):
         self.case=c;self.events=[];u=self.u;u.mem_write(ARENA,c['data'])
         for a,b in c['globals'].items():u.mem_write(a,b)
         if kind=='fraction':
@@ -178,6 +187,15 @@ class Machine(technique.Machine):
             for token in tokens:self.put(self.word(token)+offset,API[name])
         for i in range(23):
             token=TECH+i*0x28;self.put(token,ARENA+0x3f000);self.put(ARENA+0x3f004,VIRTUAL['begin'],VIRTUAL['end'])
+        self.prepare(kind,c)
+    def prepare(self,kind,c):
+        pass
+    def snapshot(self,result):
+        u=self.u
+        return(bytes(u.mem_read(ARENA,SIZE)),tuple(bytes(u.mem_read(a,n))for a,n in REGIONS),self.events,result)
+    def run(self,kind,c):
+        self.reset(kind,c)
+        u=self.u
         if kind=='consume':
             if c['queue']:
                 for a in c['queue']:self.call('queue',a)
@@ -187,7 +205,7 @@ class Machine(technique.Machine):
         elif kind=='free':result=self.call(kind,[c['free']],IPOOL)
         elif kind=='view':result=self.call(kind,[c['view']])
         else:result=self.call(kind)
-        return(bytes(u.mem_read(ARENA,SIZE)),tuple(bytes(u.mem_read(a,n))for a,n in REGIONS),self.events,result)
+        return self.snapshot(result)
 
 
 def cases(n,image):

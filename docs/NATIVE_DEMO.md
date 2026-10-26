@@ -1754,9 +1754,11 @@ The native build still supplies an inactive technique table. This source is
 kept outside the native link until effect API adapters and resource ownership
 exist; successful shader objects are not fabricated. Native CPU texture staging
 also requires a real API treatment of the ramp's zero mip-level request before
-activation. Technique Begin/End methods, destruction, the library container,
-shader resources/backend and bounds classification remain open. Consumer
-`0x5cf420` is recovered below; its helper bodies and native activation remain open. The native build/orbit and existing solid-dispatch checks are regressions
+activation. Technique methods and destruction are recovered in the uploads
+section below; the library container, shader resources/backend and bounds
+classification remain open. Consumer `0x5cf420` is recovered below; its helper
+bodies and native activation remain open. The native build/orbit and existing
+solid-dispatch checks are regressions
 for the expanded record layout, not execution of native effects. The demo,
 simulator and display-free solid probe build successfully. The existing solid
 dispatch verifier passes 12,288 comparisons on each compiler. Native SKYLINE
@@ -1833,23 +1835,132 @@ Reports are under `build/analysis/car-render-consume/`.
 
 D3D/D3DX methods, texture lookup and the technique virtual Begin/End calls remain
 controlled boundaries. Six engine helpers (`0x5bcc30`, `0x5bdde0`, `0x5bdaa0`,
-`0x5bd140`, `0x5bd4a0`, `0x5bdcd0`) are observed call boundaries; their bodies
-remain pending. Tests use writable bounded records and controlled API results,
+`0x5bd140`, `0x5bd4a0`, `0x5bdcd0`) are observed call boundaries in this
+standalone verifier. The uploads section below supersedes the body gaps for
+world/headlight/bone uploads and exercises them in the consumer chain. Tests
+use writable bounded records and controlled API results,
 including invalid count/limit values; they do not establish arbitrary malformed,
 OOM, API failure, shader or rendering equivalence. This is behavioral and upload/
 x87-byte evidence, not instruction-byte identity.
 
 The consumer is compiled into the recovered archive but is not called by the
 native demo. The current GL display-list seam still ignores the original flags,
-lighting records and shader effects. Bind/upload bodies, technique virtual
-methods/destruction, effect resources/backend, bounds classification and native
-queue/consumer activation remain necessary to close that seam. The existing
+lighting records and shader effects. The uploads section below recovers the
+technique methods/destruction and three upload helpers. Texture binding, extra-record/light-pack uploads, effect
+resources/backend, bounds classification and native queue/consumer activation
+remain necessary to close that seam. The existing
 bWare pool verifier and native demo/probe build are regressions for the added
 pool method; they do not establish native consumer execution. The pool verifier
 passes its 300 trials of 60 operations. Native SKYLINE's 60-frame orbit keeps
 source/record checksums `ca993eba`/`7141bcda`; the three-load late-texture probe
 retains 612 solids and 829 textures per load, follows 500 → 534 → 500 matching
 slots and finishes with clean handles, buffers and node pools.
+
+### World, headlight and bone uploads; technique runtime (2026-10-27)
+
+`CarRenderUploads.cpp` and `CarRenderTechniqueRuntime.cpp` recover fourteen
+complete PC v1.2 routines. The original addresses and complete spans are pinned
+by `car-render-uploads.json`.
+
+| Address | Recovered body |
+| --- | --- |
+| `0x5bdde0` | World/view/projection cache and fixed-function/effect matrix uploads |
+| `0x5bdcd0` | Sixteen selected bone matrices, uploaded as a matrix array |
+| `0x5bdaa0` | Headlight projection/clip matrices and packed-color vector |
+| `0x60f510` | Packed headlight color lookup through observed object prefixes |
+| `0x5bc6f0` | Headlight technique Begin |
+| `0x5bc7b0` | Reflection technique Begin |
+| `0x5bc890` | Combined headlight/reflection technique Begin |
+| `0x5bcad0` | Car technique Begin |
+| `0x5bcb10` | Filter technique Begin |
+| `0x4022c0` | Shared empty concrete End and generic Begin |
+| `0x5d1b30` | Technique destruction |
+| `0x5d1b10` | Deleting wrapper with low-byte flag bit 0 |
+| `0x5d0ca0` | Base deleting destructor using the parameter wrapper |
+| `0x5d0880` | Parameter wrapper forwarding destruction to map `+0x960` |
+
+World upload retains the three-part world/technique/view cache, identity-pointer
+counter, matrix-binding gates and cache update order. Fixed-function view and
+projection bindings precede cache updates; world-view is conditional on its
+parameter handle. The world transform call re-reads the shader byte before
+choosing whether to also upload world-view-projection. The latter upload is
+retained even for a zero parameter handle. Device callbacks that change that
+byte are included in the comparison fixtures.
+
+Primitive bytes `+0x21..+0x30` select sixteen entries from the supplied matrix
+array. Its allocation/count is not established by this routine; the fixtures
+provide 256 entries to cover the complete byte-index domain. Every matrix is
+copied as sixteen raw words, preserving all float bit patterns. Index 255 is
+read normally, and repeated indices are not removed.
+The effect receives all sixteen matrices even when its handle is zero. The
+primitive's observed size and offsets remain unchanged.
+
+Headlights preserve both the shader projection path and fixed-function camera
+inverse/projection/clip path, including the original in-place multiply aliases.
+Packed color comes through the observed pointers at object `+0x554` and value
+`+0x380`; the surrounding object types and ownership remain unidentified. Its
+three channel bytes are multiplied by **1/128**, with a zero fourth component.
+No conventional 1/255 normalization is substituted.
+
+Technique methods use the receiver's shader byte while parameter/effect lookups
+use the separately stored current technique. Reflection builds the original
+half-scale bias and copies the fourth column into the third before upload. The
+combined shader path deliberately repeats the headlight/ramp/environment
+bindings. Car Begin chooses the original texture token for mode 6; filter Begin
+clears stage state 24 on all four stages. Destruction preserves the base identity,
+parameter-map cleanup, allocation release and single effect Release order. The
+parameter pointer and declaration token remain unchanged, including the dangling
+parameter pointer after its allocation is released. The library map's own
+`0x5d0660` algorithm remains a controlled boundary.
+
+`NativeTechniqueDispatch.cpp` supplies the typed callback bridge for the six
+concrete class tokens recorded by construction. It calls recovered methods and
+never places a host C++ vtable in the original record. It is compiled into the
+native archive; the demo does not yet invoke the recovered GPU consumer. Unknown
+or pure class tokens cannot dispatch through this bridge.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_uploads.py --gcc --cases 2048 --chain-cases 512 --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_uploads.py --cases 2048 --chain-cases 512 --mutation-checks
+```
+
+Both compilers pass **29,184 comparisons** (2,048 per recovered routine plus
+512 complete consumer-chain cases) and reject **31 mutations**. The palette
+fixtures cover all 256 byte indices and include 788 cases with repeats. Nullable
+color prefixes, null texture tokens and deletion/resource flags vary independently.
+
+The comparison checks complete fixture/global/allocation bytes, ordered GPU
+arguments and matrix/palette/vector bytes, multiply inputs and alias flags,
+cache/counter state at API calls, release/free order, typed returns, stack cleanup,
+preserved registers and x87 control words. Fixtures cover both precision settings,
+cache reuse and changes, zero/live handles, all byte palette indices, alternate
+receiver/current records, tuning values, shader/fixed-function branches, null
+color prefixes, low-byte deletion flags and cleanup gates. The pure parameter
+forwarding wrapper is checked by its effects because GCC folds it into its caller.
+
+Consumer-chain cases link the real recovered queues, pools, world/headlight/bone
+uploads and technique methods through the native token bridge. Recovered identity,
+rigid inverse, string hash and view/sky helpers execute. The original scalar D3DX
+multiply body executes on both sides; these results do not establish equivalence
+of every native or optimized D3DX implementation. Only three engine consumer
+bodies remain controlled there: texture binding `0x5bcc30`, record upload
+`0x5bd140`, and light-pack upload `0x5bd4a0`. GPU/effect methods, texture lookup and
+library map destruction remain controlled runtime boundaries. Finite bounded record
+and matrix fixtures do not establish malformed/OOM/exception behavior, native
+shader execution or rendering equivalence. Byte identity is not claimed.
+
+Native effect/API ownership and resource loading, those three helper bodies,
+the library map, bounds classification, original scheduling and native consumer
+activation remain open. Existing GL drawing still ignores the original lighting
+records and flags. The demo, simulator and solid-record probe build successfully;
+the existing consumer verifier also passes 14,336 comparisons per compiler after
+its fixture/build utilities were extended for the linked chain. Native SKYLINE's
+60-frame orbit retains source/record checksums `ca993eba`/`7141bcda`. Its three-load
+late-texture probe retains 612 solids and 829 textures per load, follows
+500 → 534 → 500 matching slots, and leaves clean handles, buffers and node pools.
+These are archive/layout/lifecycle regressions, not native GPU execution of these
+new helpers. The other wheel inventory rows and legacy coefficient transform
+precision gap remain separate work.
 
 ### Verification (pixel size and LOD)
 

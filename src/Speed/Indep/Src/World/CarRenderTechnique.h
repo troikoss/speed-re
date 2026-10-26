@@ -37,6 +37,7 @@ struct CarRenderTechniqueMap {
     unsigned int value10;
     CarRenderTechniqueMapNode **begin14, **end18, **capacity1C;
     unsigned int mask20, buckets24;
+    void Destroy(); // 0x5d0660, library-container lifetime boundary
     CarRenderTechniqueMap *Construct(const unsigned char *tagA,const unsigned char *tagB); // 0x5d0bb0, RET 8
     CarRenderTechniqueMapResult *Insert(CarRenderTechniqueMapResult *result,const CarRenderTechniqueMapPair *pair); // 0x5d0cf0, RET 8
 };
@@ -45,6 +46,7 @@ struct CarRenderTechniqueParameters {
     CarRenderTechniqueParameter slots00[60];
     CarRenderTechniqueMap map960;
     void Reset(); // 0x5d0f20, library-container reset boundary
+    void Destroy(); // 0x5d0880, tail-call into map960.Destroy()
     void Bind(unsigned int hash,unsigned int handle); // 0x5d1b70, RET 8
 };
 UG2_CHECK_OFFSET(CarRenderTechniqueParameters, map960, 0x960);

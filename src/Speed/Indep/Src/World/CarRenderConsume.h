@@ -23,7 +23,8 @@ extern CarRenderViewRecord ug2RenderViews832DE0[];
 extern unsigned int ug2RenderSkyHashes8A07A8[8],ug2RenderSkyIndex8A1C94;
 extern float ug2RenderSkyTime8A1C9C,ug2RenderSkyPeriod802954;
 // Original virtual calls are typed host adapters, with original class/code tokens
-// kept in records. The native renderer does not yet provide these adapters.
+// kept in records. Begin/End use the native class-token bridge; device/effect
+// adapters still require backend integration.
 void UG2RenderTechniqueBegin(CarRenderTechnique *technique);
 void UG2RenderTechniqueEnd(CarRenderTechnique *technique);
 int UG2RenderSetDeclaration(unsigned int device,unsigned int declaration);
@@ -39,8 +40,8 @@ int UG2EffectEndPass(unsigned int effect);
 int UG2EffectEnd(unsigned int effect);
 int UG2EffectSetTexture(unsigned int effect,unsigned int parameter,unsigned int texture);
 }
-// Original engine calls whose bodies remain pending. These are controlled call
-// boundaries in the consumer verifier until complete implementations are linked.
+// Engine bind/upload calls. World, headlights and bones are recovered in
+// CarRenderUploads.cpp; texture binding and record/light uploads remain pending.
 void CarRenderBindTexture(CarRenderTexture *texture); // 0x5bcc30
 void CarRenderUploadWorld(WheelMatrix *world,int view); // 0x5bdde0
 void CarRenderUploadHeadlights(WheelMatrix *world,CarRenderViewRecord *view); // 0x5bdaa0

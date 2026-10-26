@@ -38,6 +38,7 @@ target_compile_options(ug2recovered PRIVATE ${UG2_ARCH_FLAGS} -O1 -g -w -ffuncti
 
 add_library(ug2native STATIC
     src/Platform/Native/OriginalImage.cpp
+    src/Platform/Native/NativeTechniqueDispatch.cpp
     src/Platform/Native/NativeVehicle.cpp
     src/Platform/Native/NativeWorld.cpp
     src/Platform/Native/NativeCollision.cpp

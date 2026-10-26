@@ -1,0 +1,75 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "world": {
+      "address": "0x5bdde0",
+      "size": 424,
+      "sha256": "2866bb4bff5b7be88f4dc96d1fa3b79ec6ea7a468b99b40ba4763267bcf3607a"
+    },
+    "bones": {
+      "address": "0x5bdcd0",
+      "size": 267,
+      "sha256": "cc11245a74cf0c3948a6b4d4886b0fed1d45ccdb1f1ed900ace3dade98343498"
+    },
+    "headlights": {
+      "address": "0x5bdaa0",
+      "size": 549,
+      "sha256": "361f4fe18f39321a9bd8b49c904c19c15a73b237de0453eeafa6204de36c43a5"
+    },
+    "colour": {
+      "address": "0x60f510",
+      "size": 28,
+      "sha256": "43b35012cae1078c8655d05e59284edce90fe9ba8ad92dbed2bd5859e569b9b9"
+    },
+    "begin_headlight": {
+      "address": "0x5bc6f0",
+      "size": 192,
+      "sha256": "4d398493d059b129081d6213f13a8c28673846594c1a7e25773a371ca6698ec2"
+    },
+    "begin_reflection": {
+      "address": "0x5bc7b0",
+      "size": 214,
+      "sha256": "4f7544a2dbe72e465fb2d70d859b2b472e8fa3fb2d1741052189a75c23f0057e"
+    },
+    "begin_combined": {
+      "address": "0x5bc890",
+      "size": 561,
+      "sha256": "2a7758bf80091bb324d1858566269faad2756d21eafa1b9f34ded79cb94f9f3a"
+    },
+    "begin_car": {
+      "address": "0x5bcad0",
+      "size": 54,
+      "sha256": "d187bced36df50de855d8fe2b803a267504b81b91e2e07a34c9dd276d44f0de8"
+    },
+    "begin_filter": {
+      "address": "0x5bcb10",
+      "size": 81,
+      "sha256": "7c890a663e809293ddb7830206fd036a347c8402f16292454d2126442930b435"
+    },
+    "empty": {
+      "address": "0x4022c0",
+      "size": 1,
+      "sha256": "ae3f4619b0413d70d3004b9131c3752153074e45725be13b9a148978895e359e"
+    },
+    "destroy": {
+      "address": "0x5d1b30",
+      "size": 60,
+      "sha256": "12fc1457abc6265c843f22bf852f2b3dedf24f5776392d1f0ec06dddd73c2711"
+    },
+    "delete": {
+      "address": "0x5d1b10",
+      "size": 30,
+      "sha256": "4f57058f8a15c5f20d69c340f8ff18a5e92247655000e86bb50eb36207a83b06"
+    },
+    "delete_base": {
+      "address": "0x5d0ca0",
+      "size": 76,
+      "sha256": "50bbad4d7ddc819e446c6c99ac8071e4ffa430f1efc7696902dacf42560ff232"
+    },
+    "parameters_destroy": {
+      "address": "0x5d0880",
+      "size": 11,
+      "sha256": "811b69aa5a71bbfdd3c419d61b3ef2c208efe124b7bbd22f971d19787d5927e8"
+    }
+  }
+}

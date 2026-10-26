@@ -21,6 +21,15 @@ struct CarRenderTechnique {
     CarRenderTechnique *Construct(); // 0x5d0f80
     void CacheParameters();          // 0x5d1bd0
     void Setup(int index);           // 0x5d1e20, RET 4
+    void BeginHeadlight();           // 0x5bc6f0
+    void BeginReflection();          // 0x5bc7b0
+    void BeginHeadlightReflection(); // 0x5bc890
+    void BeginCar();                 // 0x5bcad0
+    void BeginFilter();              // 0x5bcb10
+    void End();                     // 0x4022c0, shared empty begin/end
+    void Destroy();                 // 0x5d1b30
+    CarRenderTechnique *Delete(unsigned char flags);     // 0x5d1b10, RET 4
+    CarRenderTechnique *DeleteBase(unsigned char flags); // 0x5d0ca0, RET 4
 };
 UG2_CHECK_OFFSET(CarRenderTechnique, stride08, 8);
 UG2_CHECK_OFFSET(CarRenderTechnique, index0C, 0xc);
@@ -39,11 +48,13 @@ struct CarRenderPrimitive {
     unsigned char texture1C;
     unsigned char value1D[3];
     unsigned char lightPack20;
-    unsigned char value21[0x34 - 0x21];
+    unsigned char boneIndices21[16];
+    unsigned char value31[3];
     unsigned int value34;
     unsigned int flags38;
 };
 UG2_CHECK_OFFSET(CarRenderPrimitive, texture1C, 0x1c);
+UG2_CHECK_OFFSET(CarRenderPrimitive, boneIndices21, 0x21);
 UG2_CHECK_OFFSET(CarRenderPrimitive, lightPack20, 0x20);
 UG2_CHECK_OFFSET(CarRenderPrimitive, flags38, 0x38);
 UG2_CHECK_SIZE(CarRenderPrimitive, 0x3c);
