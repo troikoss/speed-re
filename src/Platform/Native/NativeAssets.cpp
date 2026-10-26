@@ -182,8 +182,8 @@ void LoadTexturePack(const unsigned char *data, size_t begin, size_t end, Native
         for (size_t j = 0; j < inner.size(); ++j) {
             const Chunk &c = inner[j];
             if (c.id == 0x33310004) {
-                // Records follow a fixed 12-byte pad; the chunk size counts whole records, so
-                // the last record's unused zero tail lies past the chunk.
+                // Each 0x7c serialized record starts with a 12-byte runtime prefix.
+                // DecodeImage reads from name0C; the final record stays inside the chunk.
                 infos = data + c.begin + 12;
                 infoCount = (c.end - c.begin) / 0x7c;
             } else if (c.id == 0x33310003) {

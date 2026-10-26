@@ -61,8 +61,12 @@ UG2_CHECK_OFFSET(CarRenderPlatformSolid, vertexCount34, 0x34);
 UG2_CHECK_OFFSET(CarRenderPlatformSolid, value40, 0x40);
 UG2_CHECK_SIZE(CarRenderPlatformSolid, 0x44);
 struct CarRenderTextureGroup;
+struct CarRenderTexturePack;
 struct CarRenderTextureState {
-    unsigned char pad00[0x1c];
+    CarRenderQueueLink link00;
+    unsigned int value08[3];
+    int format14;
+    unsigned int texture18;
     CarRenderTextureGroup *group1C;
 };
 UG2_CHECK_OFFSET(CarRenderTextureState, group1C, 0x1c);
@@ -70,17 +74,43 @@ UG2_CHECK_SIZE(CarRenderTextureState, 0x20);
 
 struct CarRenderTexture {
     CarRenderTextureState *state00;
-    unsigned char pad04[0x24 - 4];
+    unsigned int value04[2];
+    char name0C[24];
     unsigned int hash24;
-    unsigned char pad28[0x51 - 0x28];
+    unsigned int value28;
+    unsigned int parentHash2C;
+    int pixelOffset30;
+    int paletteOffset34;
+    unsigned int pixelBytes38;
+    unsigned int paletteBytes3C;
+    unsigned int value40;
+    short width44;
+    short height46;
+    unsigned char value48[2];
+    unsigned char compression4A;
+    unsigned char value4B[3];
+    signed char mipCount4E;
+    unsigned char value4F[2];
     signed char priority51;
-    unsigned char pad52[2];
+    unsigned char value52;
+    unsigned char used53;
     unsigned char value54;
     unsigned char value55;
     unsigned char material56;
+    unsigned char pad57[0x68-0x57];
+    CarRenderTexturePack *pack68;
+    CarRenderTexture *parent6C;
+    unsigned char *pixels70;
+    unsigned char *palette74;
+    unsigned int value78;
+    void SetState(CarRenderTextureState *state); // 0x5b9690, RET 4
 };
 UG2_CHECK_OFFSET(CarRenderTexture, priority51, 0x51);
 UG2_CHECK_OFFSET(CarRenderTexture, material56, 0x56);
+UG2_CHECK_OFFSET(CarRenderTexture, parentHash2C, 0x2c);
+UG2_CHECK_OFFSET(CarRenderTexture, pixels70, 0x70);
+UG2_CHECK_OFFSET(CarRenderTexture, pack68, 0x68);
+UG2_CHECK_SIZE(CarRenderTexture, 0x7c);
 
 struct CarRenderTextureSlot {
     unsigned int hash00;
@@ -133,8 +163,9 @@ extern int ug2SolidMode8A1C8C;
 extern void *ug2SolidGroupPool870918, *ug2SolidCommandPool87091C;
 extern CarRenderQueueLink ug2SolidGroups870D30[], ug2SolidGroups8712F0[];
 extern unsigned int ug2SolidGroupCount87094C;
-// Original 0x4901d0; texture lookup remains an external boundary.
-CarRenderTexture *UG2SolidFindTexture(unsigned int hash, int one, int zero);
+// Original 0x4901d0, recovered in CarRenderTexture.cpp. Native pack activation
+// is separate; individual solid verifiers can bind this lookup as a boundary.
+CarRenderTexture *UG2SolidFindTexture(unsigned int hash, int fallback, int rawMode);
 }
 CarRenderLightPack *CarRenderDefaultLightPack(); // 0x48ac50
 bool CarRenderSpecialMode();                   // 0x60fdf0

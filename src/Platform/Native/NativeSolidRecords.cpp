@@ -104,8 +104,8 @@ extern "C" unsigned int UG2SolidReleaseIndexBuffer(unsigned int token) {
 }
 extern "C" CarRenderTexture *UG2SolidFindTexture(unsigned int,int one,int zero) {
     if (one!=1 || zero!=0) abort();
-    // Runtime TextureInfo records have not been recovered/connected to the
-    // existing image decoder. Keep this explicit missing-record boundary.
+    // CarRenderTexture.cpp recovers lookup/registration, but native pack record
+    // ownership is not connected yet. Keep this explicit missing-record boundary.
     ++textureMisses;
     return 0;
 }

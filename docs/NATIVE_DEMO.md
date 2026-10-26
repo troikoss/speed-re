@@ -1325,6 +1325,94 @@ loading, technique setup, bounds classification and GPU consumption remain open,
 along with the other wheel inventory seams and the prior legacy coefficient
 precision gap.
 
+### Texture record lookup and slot lifetime (2026-10-26)
+
+`CarRenderTexture.cpp` recovers the CPU texture records needed by solid dispatch:
+
+| Addresses | Behavior |
+| --- | --- |
+| `0x48fc40` / `0x48fd10` | Construct/unlink a pack descriptor, copy its strings, hash its name and call inventory leaves |
+| `0x48fd30` / `0x4919e0` / `0x491a30` | Register one record, register/unregister arrays, maintain counters, parent links and the default texture |
+| `0x48fe00` / `0x4901d0` / `0x4902d0` | Loaded lookup, global lookup with pack promotion, and reference refresh |
+| `0x494a50` / `0x494b10` | Attach/detach pixel and palette ranges, preserving GPU and reference-notification order |
+| `0x494c10` / `0x494c80` | Register/attach and detach/unregister a decompressed streaming slot |
+| `0x5b9690` | Assign a texture's state pointer |
+| `0x50d510` / `0x4022c0` | The reference build's zero-return inventory lookup and empty release leaf |
+
+These names describe the observed PC behavior; original symbols are unavailable.
+The three callbacks at `0x494b10`, `0x494c10` and `0x494c80` have no function
+definition in the current Ghidra project. Their instruction streams establish
+their boundaries and the calls above without changing the project. The manifest
+`config/SPEED2_EXE_1_2/car-render-texture.json` fingerprints all fifteen complete
+address spans, including the array registration epilogue.
+
+The serialized texture record is **0x7c bytes**. Its first 12 bytes precede the
+name at `+0x0c`; they are part of every record, rather than padding before the
+array. Hash `+0x24`, parent hash `+0x2c`, signed pixel/palette offsets `+0x30`/`+0x34`,
+byte counts `+0x38`/`+0x3c`, dimensions `+0x44`/`+0x46`, material byte `+0x56`,
+pack/parent pointers `+0x68`/`+0x6c` and pixel/palette pointers `+0x70`/`+0x74`
+retain their original positions. The separate **0x20-byte** state has format
+`+0x14`, GPU token `+0x18` and group `+0x1c`. Descriptor and pack header are each
+`0x7c` bytes; sorted index entries are eight bytes and compressed stream slots
+are `0x18` bytes. Unknown fields retain offset names and all layouts are checked.
+
+Registration installs the index pointer before resolving a parent, so an array's
+order affects which parent pointer is available. Counters include a wrapping
+byte bucket indexed by `hash & 0x1fff`. The special hash `0x66994f4a`
+(`DEFAULTALPHA`) updates the real default pointer; no substitute record is
+created. Loaded lookup requires pixel data and, when palette bytes are nonzero,
+palette data. It does not require a GPU token. Global lookup's raw mode skips
+these readiness tests, successful pack hits move to the front and set `used53`,
+and override/default hits leave that byte unchanged. The first matching null
+override stops the override search. A missing requested default reaches the
+original debug trap.
+
+Range attachment tests starting offsets against a half-open interval using the
+original wrapped addition and signed comparisons. It does not test the payload's
+ending offset. Palette-only changes can upload retained pixels. Detachment only
+releases when pixels are absent after a matching change; the six hashes
+`0x530b82b0` through `0x530b82b5` then call the additional notification. Both
+paths notify `0x4939b0`, `0x5c0dc0` and `0x51bf70` in order and set the changed
+flag even for an empty pack. A decoded slot ends in its texture and state;
+the callbacks use `end-0x9c` and `end-0x20`, retain pack-relative offsets, and
+detach/notify before clearing the index and default pointers.
+
+With `UG2_EXE` and `UG2_DIR` set, run compiler jobs sequentially:
+
+```sh
+build/venv/bin/python tools/verify_pc_car_render_texture.py --gcc --mutation-checks --retail "$UG2_DIR/GLOBAL/GLOBALB.BUN" --retail "$UG2_DIR/CARS/SKYLINE/TEXTURES.BIN" --retail "$UG2_DIR/CARS/TEXTURES.BIN"
+build/venv/bin/python tools/verify_pc_car_render_texture.py --mutation-checks --retail "$UG2_DIR/GLOBAL/GLOBALB.BUN" --retail "$UG2_DIR/CARS/SKYLINE/TEXTURES.BIN" --retail "$UG2_DIR/CARS/TEXTURES.BIN"
+```
+
+Each compiler passes **30,720 comparisons** (2,048 per recovered routine) and
+rejects **21 mutations**. Fixtures cover multiple packs, duplicate keys,
+zero/one/255 bucket values, counter wrap, explicit and searched registration,
+parent availability, null overrides, low-byte refresh modes, signed range edges,
+and a controlled upload callback that shortens the pack's count. Full retained
+bytes, globals, boundary argument order, return values and caller ABIs are checked.
+
+The asset-backed cycles register, attach, look up every actual index entry,
+detach, unregister and destroy **829 textures**: 211 from two uncompressed
+`GLOBALB.BUN` packs, 72 compressed SKYLINE slots and 546 compressed shared-car
+slots. Compressed inputs are decoded by the **original** JDLZ/HUFF/RAWW routines
+to produce the fixture bytes. The fixture supplies header/index pointers normally
+written by the still-open header loader. Each compiler matches 829 upload and
+829 release boundary calls, and all pack lists, counts, buckets and default
+pointers are empty afterward. Input SHA-256 fingerprints and generated reports
+are recorded under `build/analysis/car-render-texture/`; assets stay local.
+
+This is finite behavioral evidence, not code-byte identity or GPU equivalence.
+Formatting and the verified return-this leaf are controlled library boundaries;
+GPU upload/release and game reference notifications remain external boundaries.
+The trap fixture records a debugger-resumed return. Header/root callbacks,
+stream scheduling, animation records and native retained texture ownership are
+not activated by this change. Native solids still report 1,781 unresolved texture
+lookups for SKYLINE; technique setup and the recovered draw consumer remain open.
+The native demo/simulator build, 60-frame SKYLINE orbit, three-load 612-solid
+lifecycle probe and both compiler solid-dispatch regressions pass. Wheel record checksums
+and prepared C0 remain unchanged. The image decoder's misleading padding comment
+is corrected; its GL presentation is unchanged.
+
 ### Verification (pixel size and LOD)
 
 - `build/venv/bin/python tools/verify_pc_car_draw_lod.py --mutation-checks`, with `UG2_DIR` set. The executable's SHA-256

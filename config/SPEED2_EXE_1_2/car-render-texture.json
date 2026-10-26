@@ -1,0 +1,80 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "construct": {
+      "address": "0x48fc40",
+      "size": 206,
+      "sha256": "327e9a17fe8c9ec7fea4cd3dd80e8746ca4022642171b902cd001d9903b596be"
+    },
+    "destroy": {
+      "address": "0x48fd10",
+      "size": 21,
+      "sha256": "3066e1524d74ca0cd3b964b1608901f69fd5cc866ff2eecf744f40ec10cce493"
+    },
+    "register": {
+      "address": "0x48fd30",
+      "size": 206,
+      "sha256": "1c530cb9853df559ab57e2e2f64a7d7010c01b747dfd72b0e27ce56aff62174b"
+    },
+    "register_array": {
+      "address": "0x4919e0",
+      "size": 73,
+      "sha256": "db555f3feaa3d861d5fac73c1e4af01fdfb5889e0713dea9f05c18590cb5541c"
+    },
+    "unregister_array": {
+      "address": "0x491a30",
+      "size": 143,
+      "sha256": "4d6d2d0d4908f4d84903ee1896bf2f5730f7a8719792a86d74a117a73527641d"
+    },
+    "find_loaded": {
+      "address": "0x48fe00",
+      "size": 92,
+      "sha256": "87e7e52442158208f18b8c214141079d3a86b4f5c1d6e2b7ddf7ff6eb3d2901a"
+    },
+    "lookup": {
+      "address": "0x4901d0",
+      "size": 244,
+      "sha256": "911c02d6c276a4d336e700fd92fbc2db98d1a8373e9e7fc7f79ecc56e55249c0"
+    },
+    "refresh": {
+      "address": "0x4902d0",
+      "size": 89,
+      "sha256": "b811eb70e35c2444d29527c3ceb704be7948b6d02094469585abb5ec02df3e4a"
+    },
+    "attach": {
+      "address": "0x494a50",
+      "size": 191,
+      "sha256": "56e8d936704c6ce4f8df2d45073b278c200d1a5ed5636538246f48ee9bebcdf3"
+    },
+    "detach": {
+      "address": "0x494b10",
+      "size": 246,
+      "sha256": "37c1e0d684ec83e9bec4e6c9dcc7def30f01575f52ce0241410953edb4d67f8d"
+    },
+    "set_state": {
+      "address": "0x5b9690",
+      "size": 9,
+      "sha256": "aa1d0523d277f6a14d7950c488982e29fa08fe5d88274b15a712c4427302720a"
+    },
+    "inventory": {
+      "address": "0x50d510",
+      "size": 3,
+      "sha256": "4bc724f3b1d0caf4fe369c18cba3102e6c4ea057f63fe1587e3973134a7f755e"
+    },
+    "inventory_release": {
+      "address": "0x4022c0",
+      "size": 1,
+      "sha256": "ae3f4619b0413d70d3004b9131c3752153074e45725be13b9a148978895e359e"
+    },
+    "load_slot": {
+      "address": "0x494c10",
+      "size": 102,
+      "sha256": "39099466ea4ffc172252d691c7846b040d7e088f2b649463dc0bc16c09d8f9d4"
+    },
+    "unload_slot": {
+      "address": "0x494c80",
+      "size": 164,
+      "sha256": "9f861e045c98e659464cd4c2dc922777c85a10be816db716096943df92e99371"
+    }
+  }
+}
