@@ -411,6 +411,45 @@ The SKYLINE demo completed 60 frames with `--no-audio --orbit 90`; the capture i
 `build/analysis/car-render-records/smoke.ppm` was inspected. The native build retains
 its existing non-standard-layout `offsetof` warnings.
 
+### Wheel facing helper (2026-10-26)
+
+`CarWheelFacing.cpp` recovers `0x60d700`. If `[0x802914]` is zero, it returns
+`[0x784250]` (1.0 in the reference image) without touching either argument; the
+previous native stub incorrectly returned zero. Otherwise it snapshots the view's
+axis at frame `+0x50`, copies the world matrix through `0x4012b0`, and transforms
+normal `(0x8a1c54, 0x802910, 0x8a1c58)` by the matrix's three basis columns.
+Each component sums Z, Y, then X products. X and Z are explicitly stored as floats
+at `0x60d7c2` and `0x60d7bc`; Y remains in x87 precision. The final sum is
+`(Z * axisZ + Y * axisY) + X * axisX`, returned directly in ST0.
+
+The declaration uses `long double` to preserve the native i386 x87 return and
+intermediate precision; legacy MSVC 7.1 treats that type as double while retaining
+its register precision. No binary32 return conversion is inserted. Globals are
+initialized to measured image values (enabled = 1, normal = 0/1/0); the native
+normal producer remains open. The current demo's LOD gate is zero, so this helper
+stays unreached there. Gate 6 uses it for rear-solid substitution; gate 3 uses it
+for the secondary draw.
+
+`tools/verify_pc_wheel_facing.py --mutation-checks` and the same command with
+`--gcc` compare the original with MSVC 7.1 `/Ox /Ob0 /EHsc` and native i386 GCC
+`-O1 -mfpmath=387 -fno-fast-math -ffp-contract=off` code. Each compiler passes
+8,392 comparisons with **exact raw ST0 significand/exponent equality**, both x87
+precision settings (`0x027f`, `0x037f`), and eight of eight mutations rejected.
+The verifier also checks matrix-copy calls, untouched fixture memory, stack
+cleanup, callee-saved registers and control-word preservation. Disabled cases
+use invalid argument pointers to check the early return. The executable, helper,
+copy routine and initial globals are pinned in `wheel-facing.json`. This is
+bounded finite-input numeric behavior; byte matching and exhaustive coverage
+are not claimed. The i386 demo build, the existing wheel verifier (512 layout and
+2,048 block cases), and a 60-frame SKYLINE `--no-audio --orbit 90` smoke run passed.
+The smoke validates integration with gate zero, not activation of the special draw.
+
+Related evidence corrects an earlier inventory label: `0x48f660` is render-record
+preparation, not a pure visibility/LOD test. It calls `0x48e6c0(record, arg6, world)`
+then `0x48a6a0(record, world, arg3, arg4)` and returns 1. Both callees write the extra
+record passed to DrawSolid. Their recovery and consumption remain open; ignoring
+the return value does not eliminate their side effects.
+
 ### Verification (pixel size and LOD)
 
 - `build/venv/bin/python tools/verify_pc_car_draw_lod.py --mutation-checks`, with `UG2_DIR` set. The executable's SHA-256
@@ -462,7 +501,7 @@ its existing non-standard-layout `offsetof` warnings.
 - `DrawSolid` (`0x5c5930`): the native seam draws the solid's GL list with the world matrix. It ignores the flags, the
   extra record and the zero argument, and does not set `glFrontFace` for the R180 wheels (GL backend seam).
 - Visibility `0x48f660` (native: visible; the block ignores its result), LOD helpers `0x60d700`/`0x620600` (the demo
-  gate is 0, so neither is called), solid slots `0x48d860` (no slot tables; the link values `ri+0x390`/`0x3ac` are zero
+  gate is 0, so neither is called), solid slots `0x48d860` (setter now recovered; no slot tables; the link values `ri+0x390`/`0x3ac` are zero
   in the demo), rim-part records `0x60fef0` (none in the demo; the `SPINNEROFFSET` offsets stay zero).
 - The spin term reads the car's sub-object bytes `+0x353`/`+0x354` (`0x59a420`). The block applies it only to wheels 0
   and 1 (tyre and brake frames, as a rotation about x; the table above). The demo has no such state, so the spin is zero

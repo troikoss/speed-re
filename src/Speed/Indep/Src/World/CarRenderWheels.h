@@ -151,10 +151,14 @@ void CarWheelDraw(CarWheelDrawInputs *in);
 
 // Platform seams (cdecl, original addresses in comments; the verifier links them by name).
 extern "C" {
-// 0x48f660 (cdecl): visibility or level-of-detail test. The original ignores its return value here.
+// 0x48f660 (cdecl): prepares the extra render record, then returns 1 (ignored here).
 unsigned int UG2WheelVisible(void *a1, void *a2, const void *a3, void *a4, void *a5, void *a6);
-// 0x60d700 (cdecl): float in ST0 for the matrix and the view; compared with 0x8a1c5c.
-float UG2WheelFn60d700(WheelMatrix *world, void *view);
+// 0x60d700 (cdecl): unrounded x87 ST0 for the matrix and view; compared with 0x8a1c5c.
+long double UG2WheelFn60d700(WheelMatrix *world, void *view);
+extern int ug2WheelFacingEnabled802914; // 0x802914
+extern float ug2WheelFacingX8A1C54;     // 0x8a1c54
+extern float ug2WheelFacingY802910;     // 0x802910
+extern float ug2WheelFacingZ8A1C58;     // 0x8a1c58
 // 0x401e80 (cdecl): allocation of four wheel matrices (the original passes 4).
 void *UG2WheelAllocMatrices(unsigned int count);
 // 0x401e30 (cdecl): allocation of 0x700 bytes (four per-wheel records of 0x1c0 bytes).

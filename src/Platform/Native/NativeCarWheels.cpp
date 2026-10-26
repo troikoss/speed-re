@@ -32,6 +32,10 @@ float ug2CarLodScale7A6700 = 0.7f;
 void *ug2CarLodRecords8A1CD4 = 0;
 int ug2CarLodRecordCount8A1CD8 = 0;
 CarRenderPartTable *ug2CarPartTable8A1CC8 = 0; // part-table loader remains a native seam
+int ug2WheelFacingEnabled802914 = 1; // original image default; normal producer remains open
+float ug2WheelFacingX8A1C54 = 0.0f;
+float ug2WheelFacingY802910 = 1.0f;
+float ug2WheelFacingZ8A1C58 = 0.0f;
 }
 
 // 0x5b98a0 (RET 0): the view mode global. The demo's view is mode 0, so the pixel size is not scaled.
@@ -99,8 +103,8 @@ void CarRenderWheelInfo::Fn620600(CarRenderView *view, WheelMatrix *world) {
     (void)world;
 }
 
-// 0x48f660 (cdecl): visibility or level-of-detail test. The original ignores its result in the block, and
-// the demo does not cull wheels, so the result is visible.
+// 0x48f660 (cdecl): original render-record preparation calls 0x48e6c0 then 0x48a6a0.
+// Their side effects remain absent here; the GL DrawSolid seam ignores the extra record.
 extern "C" unsigned int UG2WheelVisible(void *a1, void *a2, const void *a3, void *a4, void *a5, void *a6) {
     (void)a1;
     (void)a2;
@@ -109,14 +113,6 @@ extern "C" unsigned int UG2WheelVisible(void *a1, void *a2, const void *a3, void
     (void)a5;
     (void)a6;
     return 1;
-}
-
-// 0x60d700 (cdecl, float in ST0): compared with the threshold only under the LOD gates 3 and 6, which the
-// demo does not select.
-extern "C" float UG2WheelFn60d700(WheelMatrix *world, void *view) {
-    (void)world;
-    (void)view;
-    return 0.0f;
 }
 
 // 0x401e80 (cdecl) and 0x401e30 (cdecl): the block's two scratch allocations of each kind. The demo gives
