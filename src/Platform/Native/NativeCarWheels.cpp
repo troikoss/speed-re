@@ -15,6 +15,7 @@
 #include "../../Speed/Indep/Src/World/CarRenderInputs.h"
 #include "../../Speed/Indep/Src/World/CarRenderView.h"
 #include "../../Speed/Indep/Src/World/CarRenderConsume.h"
+#include "../../Speed/Indep/Src/World/CarRenderContext.h"
 #include "../../Speed/Indep/Src/Camera/Camera.h"
 #include "../../Speed/Indep/Src/Camera/CameraMatrix.h"
 
@@ -45,16 +46,6 @@ float ug2WheelFacingZ8A1C58 = 0.0f;
 WheelMatrix ug2WheelReflectionBasis871B50;
 }
 
-// 0x5b98a0 (RET 0): the view mode global. The demo's view is mode 0, so the pixel size is not scaled.
-extern "C" int UG2CarViewModeGlobal(void) {
-    return 0;
-}
-
-// 0x499db0 (RET 0): the zero flag of the LOD selection. The demo leaves it clear.
-extern "C" unsigned char UG2CarLodZeroFlag(void) {
-    return 0;
-}
-
 // Use original view-table entry 1 and its recovered matrix/plane storage. The
 // native session supplies its one finalized camera and viewport; 0x5c7ec0 now
 // produces the focal input consumed by the original pixel-size/LOD routines.
@@ -62,9 +53,12 @@ static CameraState gCarViewCamera;
 static CarRenderFrame &gCarViewFrame=*reinterpret_cast<CarRenderFrame *>(&gCarViewCamera);
 static CarRenderView &gCarView=*reinterpret_cast<CarRenderView *>(ug2RenderViews832DE0+1);
 static CarRenderViewport gCarViewport;
+static CarRenderDrawContext gCarContext;
 static bool gCarViewSet = false;
 
-// Original view+0x40 is the Camera (0x5c26e0/0x44ab90). Use the complete finalized
+const CarRenderDrawContext &NativeCarContext() { return gCarContext; }
+
+// Original view+0x40 is the Camera (0x44ab90). Use the complete finalized
 // prefix, rather than rebuilding a direction from target-eye. A null finalState
 // is the native orbit-inspection camera and builds its frame with recovered LookAt.
 void NativeSetCarView(const CameraState *finalState, const float eye[3], const float target[3],
@@ -96,7 +90,29 @@ void NativeSetCarView(const CameraState *finalState, const float eye[3], const f
     gCarView.viewport58=&gCarViewport;
     gCarView.active08=1;
     gCarView.clip00->Update(&gCarView,0,0,0);
+    CarRenderSetupContext(&gCarView,&gCarContext,0);
     gCarViewSet = true;
+    static bool reportedContext=false;
+    if (!reportedContext && getenv("UG2_DEBUG_VIEW_CONTEXT")) {
+        fprintf(stderr,"native draw context: view %d mode %d reverse %d flags %08x lod-zero %u\n",
+            gCarView.type04,UG2CarViewModeGlobal(),ug2RenderReverse89E7A4,gCarContext.flags44,UG2CarLodZeroFlag());
+        reportedContext=true;
+    }
+    static bool dumpedContext=false;
+    const char *contextDump=getenv("UG2_CAR_CONTEXT_DUMP");
+    if (!dumpedContext && contextDump) {
+        FILE *output=fopen(contextDump,"wb");
+        if (!output) { perror("UG2_CAR_CONTEXT_DUMP"); abort(); }
+        const int mode=UG2CarViewModeGlobal(),reverse=ug2RenderReverse89E7A4;
+        const unsigned char zero=UG2CarLodZeroFlag();
+        bool ok=fwrite("UG2CTX01",1,8,output)==8 &&
+            fwrite(&gCarView,1,sizeof(gCarView),output)==sizeof(gCarView) &&
+            fwrite(gCarView.clip00,1,sizeof(*gCarView.clip00),output)==sizeof(*gCarView.clip00) &&
+            fwrite(&gCarContext,1,sizeof(gCarContext),output)==sizeof(gCarContext) &&
+            fwrite(&mode,1,4,output)==4 && fwrite(&reverse,1,4,output)==4 && fwrite(&zero,1,1,output)==1;
+        if (fclose(output)!=0 || !ok) { fprintf(stderr,"incomplete native car-context dump\n"); abort(); }
+        dumpedContext=true;
+    }
     static bool dumped=false;
     const char *dump=getenv("UG2_CAR_VIEW_DUMP");
     if (!dumped && dump) {

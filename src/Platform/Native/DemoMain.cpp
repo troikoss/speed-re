@@ -751,22 +751,21 @@ int main(int argc, char **argv) {
         glMatrixMode(GL_MODELVIEW);
         glLoadIdentity();
         LookAt(camera.position, camera.target, up);
+        // Recover the frame's view/context before either scenery or car draws.
+        NativeSetCarView(orbit >= 0.0f ? 0 : &nativeCamera.current0, camera.position, camera.target,
+                          &vehicle.owner->State()->origin10.x, cameraView.fov,cameraView.nearPlane,width,height);
         if (haveTrack) {
             float view[3] = {camera.target[0] - camera.position[0], camera.target[1] - camera.position[1],
                              camera.target[2] - camera.position[2]};
             float norm = sqrtf(view[0] * view[0] + view[1] * view[1] + view[2] * view[2]);
             for (int i = 0; i < 3; ++i) view[i] /= norm > 1e-3f ? norm : 1.0f;
-            trackModel.Draw(camera.position, view, 2800.0f);
+            trackModel.Draw(camera.position, view, 2800.0f,NativeCarContext());
         }
         else glCallList(worldList);
         DrawSkidMarks();
         if (cameraView.attachedToCar && orbit < 0.0f) {
             // Camera +0x280 holds the car for the bumper and driver types: the car is not drawn.
         } else if (haveModel) {
-            // Use the finalized Camera prefix for lighting and LOD; the separate
-            // reflection basis targets this player's origin plus the original offset.
-            NativeSetCarView(orbit >= 0.0f ? 0 : &nativeCamera.current0, camera.position, camera.target,
-                              &vehicle.owner->State()->origin10.x, cameraView.fov,cameraView.nearPlane,width,height);
             DrawCarModel(&carModel, &vehicle);
         } else {
             DrawBody(&vehicle);

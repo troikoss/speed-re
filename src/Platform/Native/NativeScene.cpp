@@ -346,14 +346,11 @@ bool NativeTrackModel::Load(const char *gameDirectory, const char *region, Nativ
     std::map<unsigned int, std::vector<GLuint> > lists;
     std::map<unsigned int, const NativeSolid *> byHash;
     for (size_t i = 0; i < solids_.size(); ++i) byHash[solids_[i].hash] = &solids_[i];
-    // View flags as the view setup 0x4888a0 builds them for the player view: 0x10 always,
-    // 0x08 while 0x89e7a4 (race direction) is 0. Bits 0x02/0x01 come from eView +4 and
-    // 0x8707dc, which are not recovered, and are left clear. The instance test is the one
-    // in 0x5d6570: (instance +0x1a ^ 0x60) & (byte)view +0x44 skips the instance.
-    const unsigned int viewFlags = 0x10 | 0x08;
+    // 0x4888a0 always sets bit 0x10. Exclude only instances that no recovered
+    // context can admit; other flags are checked against each frame's context.
     for (size_t i = 0; i < instances_.size(); ++i) {
         const NativeInstance &instance = instances_[i];
-        if (((instance.flags ^ 0x60) & viewFlags & 0xff) != 0) continue;
+        if (((instance.flags ^ 0x60) & 0x10) != 0) continue;
         std::map<unsigned int, const NativeSolid *>::iterator solid = byHash.find(instance.solidHash);
         if (solid == byHash.end()) continue;
         std::vector<GLuint> &list = lists[instance.solidHash];
@@ -383,6 +380,8 @@ bool NativeTrackModel::Load(const char *gameDirectory, const char *region, Nativ
         return false;
     }
     currentSection_ = -2;
+    memset(&context_,0,sizeof(context_));
+    context_.flags44=0x10;
     return true;
 }
 
@@ -438,7 +437,16 @@ void NativeTrackModel::SelectSections(const float *eye) {
     }
 }
 
-void NativeTrackModel::Draw(const float *eye, const float *forward, float range) {
+void NativeTrackModel::Draw(const float *eye, const float *forward, float range,const CarRenderDrawContext &context) {
+    context_=context;
+    static bool reported=false;
+    if (!reported && getenv("UG2_DEBUG_VIEW_CONTEXT")) {
+        size_t admitted=0;
+        for (size_t i=0;i<placed_.size();++i)
+            if (context_.AdmitsInstance(instances_[placed_[i].instance].flags)) ++admitted;
+        fprintf(stderr,"native scenery context: flags %08x, %zu/%zu retained instances admitted\n",context_.flags44,admitted,placed_.size());
+        reported=true;
+    }
     SelectSections(eye);
     // Sky first, centred on the viewer, without depth. The dome is ~19 km wide, beyond the
     // demo's far plane, so it is drawn scaled down about the eye.
@@ -446,7 +454,7 @@ void NativeTrackModel::Draw(const float *eye, const float *forward, float range)
     glDepthMask(GL_FALSE);
     glDisable(GL_DEPTH_TEST);
     for (size_t i = 0; i < placed_.size(); ++i) {
-        if (!placed_[i].sky) continue;
+        if (!placed_[i].sky || !context_.AdmitsInstance(instances_[placed_[i].instance].flags)) continue;
         float m[16];
         memcpy(m, placed_[i].matrix, sizeof(m));
         for (int k = 0; k < 12; ++k) m[k] *= skyScale;
@@ -478,6 +486,7 @@ void NativeTrackModel::Draw(const float *eye, const float *forward, float range)
 void NativeTrackModel::DrawPlaced(const float *eye, const float *forward, float range, int pickShift, int pass) {
     for (size_t i = 0; i < placed_.size(); ++i) {
         const Placed &placed = placed_[i];
+        if (!context_.AdmitsInstance(instances_[placed.instance].flags)) continue;
         if (!placed.lists[pass]) continue;
         if (placed.sky || placed.section < 0 || placed.section >= (int)visible_.size() || !visible_[placed.section])
             continue;

@@ -2,11 +2,12 @@
 #define UG2_NATIVE_SCENE_H
 
 // Platform scaffolding: OpenGL drawing of UG2's own car and track assets. The original
-// render path (CarRenderInfo 0x638190, eSolid rendering 0x5cf420) is not recovered.
+// car GPU consumer is recovered but not activated; GL still draws display lists.
 #include "NativeAssets.h"
 #include "NativeSolidRecords.h"
 #include "NativeTextureRecords.h"
 #include "../../Speed/Indep/Src/World/CarRenderWheels.h"
+#include "../../Speed/Indep/Src/World/CarRenderContext.h"
 
 #include <GL/gl.h>
 #include <map>
@@ -57,6 +58,7 @@ void NativeRunCarWheelBlock(CarRenderWheelInfo *ri, const unsigned char *carType
 // orbit inspection camera. Call before NativeCarModel::Draw each frame.
 void NativeSetCarView(const CameraState *finalState, const float eye[3], const float target[3],
                       const float carPosition[3], unsigned short fov,float nearPlane,int width,int height);
+const CarRenderDrawContext &NativeCarContext();
 
 class NativeCarModel {
 public:
@@ -97,7 +99,7 @@ class NativeTrackModel {
 public:
     bool Load(const char *gameDirectory, const char *region, NativeTextureCache *textures, char *error,
               int errorSize);
-    void Draw(const float *eye, const float *forward, float range);
+    void Draw(const float *eye, const float *forward, float range,const CarRenderDrawContext &context);
     int InstanceCount() const { return (int)instances_.size(); }
     int SolidCount() const { return (int)solids_.size(); }
     // Prints the instances whose bounds contain (x, y) with their solids and textures.
@@ -126,6 +128,7 @@ private:
     std::vector<NativeDrivableSection> drivable_;
     std::vector<bool> visible_;  // by section number
     int currentSection_;
+    CarRenderDrawContext context_;
     NativeTextureCache *textures_;
 };
 

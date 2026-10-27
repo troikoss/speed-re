@@ -240,11 +240,11 @@ Read from the original and applied by the demo (behaviour, not byte matching):
   `+0x14`). The nearest-boundary fallback `0x5db770` is not recovered.
   Drawing every section put the low-detail panoramas (`PAN_*`, sections X9x) over the
   detailed scenery: that was the smeared ground and the black rectangle.
-- View flags, view setup `0x4888a0`: `view +0x44` is 0x10 always, 0x08/0x04 by
+- Draw-context flags, setup `0x4888a0`: context `+0x44` is 0x10 always, 0x08/0x04 by
   `0x89e7a4` (0 for the forward direction), 0x02 for eView `+4` types 1/2, 0x01 when
   `0x8707dc` is 3 or 4, 0x40 for 0x1800 (mirror) views, 0x20 for type 3. The per-instance
-  test in `0x5d6570` skips an instance when `(instance +0x1a ^ 0x60) & (byte)view +0x44`;
-  the demo uses 0x18 for the player view. Instances flagged 0x10 (race barriers, shop
+  test in `0x5d6570` skips an instance when `(instance +0x1a ^ 0x60) & (byte)context +0x44`;
+  the recovered setup now supplies 0x1a for the native player view. Instances flagged 0x10 (race barriers, shop
   beams, start/finish graphics) are therefore hidden in every view.
 - Instance flag 0x100 queues the model with no matrix (its vertices are in world space).
 - Scenery is reached through the `0x34104` 0x24-byte tree nodes (bounds, child count
@@ -351,8 +351,9 @@ Evidence and limits:
   `0x622184` (float), `0x626466`. `frame+0xf4`: `0x62115b`, `0x621184`, `0x62119e`, `0x621208`; the block itself clamps it to
   2 at `0x627653`. `frame+0x1ac`: `0x62111c`, `0x621142`. `frame+0xe8`: `0x621115`, `0x62113b`; the block overwrites it with
   its record allocation at `0x6274ea`.
-- The view mode `0x8707dc` and the zero flag `0x836352` are image globals (both 0 in the image). They are the seams
-  `UG2CarViewModeGlobal` and `UG2CarLodZeroFlag`; the gate `0x8654a4` is the block's gate.
+- The view mode `0x8707dc` and the zero flag `0x836352` are image globals (both 0 in the image).
+  `UG2CarViewModeGlobal` and `UG2CarLodZeroFlag` now execute their recovered global reads;
+  the globals' full game-state producers remain separate. The gate `0x8654a4` is the block's gate.
 - Open, slot index `k` (`frame+0xd8`, the block's `slotD8`): at `0x626476`..`0x626486` the car draw loads `k = [obj+0x2c10]`
   with `obj` = `frame+0x60`, which holds an object pointer on that path (stores of `ESI` at `0x622455`, `0x6243f7` and
   `0x622551`). `ri+0x2c10` is also written by `0x634800` (`ri+0x2c04`..`+0x2c10`, the results of four hashed lookups in
@@ -977,14 +978,15 @@ containing functions:
   the reflection basis as fifth argument. Existing callers pass the stock profile
   at `0x7f3f00`. The builder still applies its original view-frame override.
 
-The camera binding is supported by `0x5c26e0`, which stores the Camera pointer at
-view+0x40, and base-mover constructor `0x44ab90`, which retrieves that same object.
+Base-mover constructor `0x44ab90` retrieves the Camera through eView `+0x40`.
+The separately recovered `0x5c26e0` instead stores an eView pointer at draw-context
+`+0x40`; those two records must not be conflated.
 `CameraState` already has the finalized matrix at +0, position at +0x40 and depth
 axis at +0x50. `CarRenderFrame` now exposes that matrix with all offsets retained.
 Native drive views copy the finalized prefix, including camera shake/debug state,
 instead of rebuilding an axis from target−eye. The native orbit inspection camera
-uses recovered LookAt to supply its own prefix. The focal-length formula remains
-the existing GL viewport/projection seam.
+uses recovered LookAt to supply its own prefix. The later view-producer checkpoint
+below replaces the focal-length scaffold with the original calculation.
 
 `probe_pc_car_draw_inputs.py` checks **6,721 reachable instruction states**, with
 no conflicting ESP depths and depth zero on entering `0x62700e`. It pins the
@@ -2219,8 +2221,9 @@ entry 1 with the complete finalized Camera prefix and SDL viewport dimensions.
 The native orbit camera still supplies its scaffold pose through recovered
 LookAt. Every car-draw frame calls the recovered producer, so the original focal
 feeds `CarLodPixelSize`/`CarLodSelect` and the view table holds live matrices and
-planes. Full original camera binding/flags, multi-view ownership and frame/cache
-scheduling (`0x4888a0`, `0x5c26e0`, `0x5d2850`) remain open. GPU effects and
+planes. The following checkpoint recovers draw-context binding/flags
+(`0x4888a0`, `0x5c26e0`). Full camera/multi-view ownership and frame/cache
+scheduling (`0x5d2850`) remain open. GPU effects and
 dispatch/consumer activation remain separate work; GL still draws its lists.
 
 `UG2_CAR_VIEW_DUMP` optionally captures the first native car view for original
@@ -2246,6 +2249,94 @@ retains 12,288 passing comparisons; the existing LOD verifier also passes its
 512 producer and 2,048 selection cases. These are bounded numeric and native input/
 producer checks, not complete rendering equivalence, optimized-library parity,
 malformed/OOM/exception coverage or proof for another architecture.
+
+### Draw-context binding, flags and live scenery admission (2026-10-27)
+
+`CarRenderContext.cpp` recovers four complete routines and one conditional fragment:
+
+| Address | Recovery |
+| --- | --- |
+| `0x5c26e0` | Bind the selected eView to a separate draw context |
+| `0x4888a0` | Derive context flags, bind the view, then store the flags |
+| `0x5b98a0` | Read mode dword `0x8707dc` |
+| `0x499db0` | Read LOD-zero byte `0x836352` |
+| `0x5d65bc..0x5d65cf` | Twenty-byte instance admission gate within `0x5d6570` |
+
+The draw context is distinct from the `0x70`-byte eView. Its checked binding
+prefix preserves the unknown first `0x40` bytes, stores an eView pointer at
+`+0x40` and flags at `+0x44`. This does not identify the complete context size,
+its later queues or visibility-index ownership. An eView's own `+0x40` still
+points to the Camera, and its `+0x44` remains its list head.
+
+Binding retains the heading call on view-matrix elements 2/0, identity setup,
+Z-rotation call and aliased scalar matrix product even though that local product
+is discarded. Only the context's view pointer is written. Context setup snapshots
+the mode and view type before binding, then writes flags afterwards. It preserves
+incoming flags and adds `0x10` unconditionally; type 1/2 adds `0x02`, mode 3/4 adds
+`0x01`, reverse value 0 adds `0x08`, reverse value 1 adds `0x04`, any `0x1800`
+input adds `0x40`, and type 3 adds `0x20`. Other reverse values add neither
+direction bit. No render-cache reset is introduced by either routine.
+
+The instance gate admits exactly when
+`(byte(context.flags44) & byte(instanceFlags ^ 0x60)) == 0`. It ignores the high
+bytes. This fragment does not recover the rest of `0x5d6570`, which also performs
+visibility, LOD selection, allocation and queueing.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_context.py --gcc --cases 4096 --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_context.py --cases 4096 --mutation-checks
+```
+
+Each compiler passes **81,920 comparisons** and rejects **25 mutations**:
+4,096 per complete routine plus 65,536 admission comparisons. The latter cover
+every pair of context/instance low bytes, all unsigned-short instance values
+and varied higher context bits; 6,561 pairs admit and 58,975 reject. Fixtures
+also cover context/view/storage aliases, arbitrary incoming flags, mode/reverse
+branches, all LOD-zero byte values and x87 control words `0x027f`/`0x037f`.
+Comparisons include complete fixture/global bytes, typed returns, heading and
+rotation arguments, matrix input bytes/aliases, stack cleanup, preserved registers
+and x87 control/empty-stack state for full function calls. Rotation angles are
+compared by their consumed low 16 bits. The instruction fragment is checked by
+its branch destination and memory effects, not by a fabricated function ABI.
+
+The original heading and Z-rotation bodies execute on both sides of this
+verifier. The rebuilt binding executes the recovered scalar matrix body; this
+checkpoint does not extend numeric claims for the older native heading/rotation
+adapters. Seeded texture/technique/UV/world/view/vertex/index caches are preserved;
+a mutation adding a texture-cache clear is rejected. Complete original spans,
+the fragment and executable SHA-256 are pinned by `car-render-context.json`.
+Reports are generated under `build/analysis/car-render-context/`. Instruction-byte
+identity, arbitrary malformed/OOM/exception behavior and full renderer equivalence
+are not established.
+
+Native frame setup now runs before both scenery and car draws, including views
+where the car is hidden. Recovered context setup selects original view-table
+entry 1 and currently produces flags **0x1a** with mode/reverse zero. Scenery
+checks the recovered admission gate each frame, including sky and debug picking.
+Loading excludes only the `0x10` cases that every recovered context rejects;
+other candidates remain available for dynamic flags. L4RA retains 42,270
+candidates from 48,270 instances and admits 42,192 under the current context.
+The two LOD getters now read their original mapped globals instead of returning
+constant zero; their full game-state producers remain open.
+
+`UG2_CAR_CONTEXT_DUMP` optionally writes a versioned **489-byte** capture of the
+view, clip storage, context prefix and mode/reverse/LOD-zero inputs. The verifier
+remaps pointers and replays the original setup, comparing all **72 context bytes**.
+
+```sh
+UG2_CAR_CONTEXT_DUMP=build/analysis/car-render-context/native.bin build/native/ug2demo --game "$UG2_DIR" --car SKYLINE --no-audio --frames 60 --orbit 90
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_context.py --gcc --cases 1 --kind setup --native-dump build/analysis/car-render-context/native.bin
+```
+
+Orbit and scripted-drive captures replay exactly. Their source/record checksums
+remain `ca993eba`/`7141bcda` and `eb0428b7`/`69927c13`; the 60-frame orbit PPM is
+byte-identical before and after this activation. The separate view capture still
+matches all 292 matrix/plane/focal bytes against the original producer. Demo,
+simulator and record-probe builds pass; three late-texture load cycles retain
+612 solids/829 textures, 500 → 534 → 500 matching slots and clean handles/pools.
+Full camera/multi-view ownership, frame scheduling, effect/API resources and
+native GPU dispatch/consumer activation remain open, along with the other wheel
+inventory rows and the separate legacy coefficient-transform precision gap.
 
 ### Verification (pixel size and LOD)
 
@@ -2804,7 +2895,8 @@ observations, not equivalence evidence.
 
 - Visible-section selection and the player-view flag test are applied (see
   [scenery visibility](#scenery-visibility-fourth-pass)). Pixel-size LOD `0x5d64d0`,
-  the nearest-boundary fallback `0x5db770`, and view flags 0x02/0x01 remain unresolved.
+  and the nearest-boundary fallback `0x5db770` remain unresolved. Context flags
+  and their byte admission gate are now recovered and active, as documented above.
   Blended draws are not depth-sorted; streaming, original shaders, and time-of-day
   colour selection remain unrecovered. Missing textures include 18 TRN_SH parts
   (`0x9c3ce745`) and four XS signs, as recorded in the scenery investigation.

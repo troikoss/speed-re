@@ -1,0 +1,32 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "bind": {
+      "address": "0x5c26e0",
+      "size": 203,
+      "sha256": "8034e1cedfb912b85538b57e5068b24119c00bb88996dca5610a221dceffa3c8"
+    },
+    "setup": {
+      "address": "0x4888a0",
+      "size": 108,
+      "sha256": "4e33d8ed04bbd16456fb4f0364d303c1487b7da67e74b80957b7273a89d1c539"
+    },
+    "mode": {
+      "address": "0x5b98a0",
+      "size": 6,
+      "sha256": "7abff7f02f6b82b6cca39e742b254bad1aab99939a39645f060f43b460af0f57"
+    },
+    "zero": {
+      "address": "0x499db0",
+      "size": 6,
+      "sha256": "a6ab27e6fdb311a6a17aebad8da9903f82f7f0c3550871bb7d5a8f1980d29850"
+    }
+  },
+  "fragments": {
+    "admit": {
+      "address": "0x5d65bc",
+      "size": 20,
+      "sha256": "1adb9684236cede71c31159be98c63789d2c9245f892d6d79660c05e27e65759"
+    }
+  }
+}
