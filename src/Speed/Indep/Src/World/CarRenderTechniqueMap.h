@@ -10,6 +10,9 @@ struct CarRenderTechniqueMapList {
     unsigned int count08;
     void Erase(CarRenderTechniqueMapNode **output,CarRenderTechniqueMapNode *first,
         CarRenderTechniqueMapNode *last); // 0x5cf140, RET 12
+    CarRenderTechniqueMapNode *CreateNode(CarRenderTechniqueMapNode *next,
+        CarRenderTechniqueMapNode *previous,const CarRenderTechniqueMapPair *pair); // 0x5ce090, RET 12
+    void Grow(unsigned int count); // 0x5d06c0, RET 4; exception construction is a boundary
 };
 UG2_CHECK_SIZE(CarRenderTechniqueMapList, 0xc);
 struct CarRenderTechniqueMapVector {
@@ -17,6 +20,9 @@ struct CarRenderTechniqueMapVector {
     CarRenderTechniqueMapNode **begin04,**end08,**capacity0C;
     void Initialise(unsigned int count,CarRenderTechniqueMapNode *const *value); // 0x5d0250
     void Assign(unsigned int count,CarRenderTechniqueMapNode *const *value); // 0x5d0c50
+    void Resize(unsigned int count,CarRenderTechniqueMapNode *value); // 0x5d0b30, RET 8
+    void Erase(CarRenderTechniqueMapNode ***result,CarRenderTechniqueMapNode **first,
+        CarRenderTechniqueMapNode **last); // 0x5d02d0, RET 12
     void Insert(CarRenderTechniqueMapNode **position,unsigned int count,
         CarRenderTechniqueMapNode *const *value); // 0x5d0890, RET 12
     CarRenderTechniqueMapNode **Copy(CarRenderTechniqueMapNode **first,
@@ -38,4 +44,5 @@ void CarRenderTechniqueMapCopyBackward(CarRenderTechniqueMapNode ***result,
     CarRenderTechniqueMapNode **output); // 0x5ce0c0
 // Exception-object construction and Windows unwinding remain a CRT boundary.
 extern "C" void UG2TechniqueVectorTooLong(); // 0x5d07e0, does not return in UG2
+extern "C" void UG2TechniqueListTooLong(); // inline exception path 0x5d06ec..0x5d0754
 #endif

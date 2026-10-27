@@ -160,3 +160,136 @@ void CarRenderTechniqueParameters::Reset() {
     map960.mask20 = 1;
     map960.buckets24 = 1;
 }
+
+// Original 0x5ce090, RET 12. Pair loads follow allocation and the link stores.
+CarRenderTechniqueMapNode *CarRenderTechniqueMapList::CreateNode(CarRenderTechniqueMapNode *next,
+    CarRenderTechniqueMapNode *previous,const CarRenderTechniqueMapPair *pair) {
+    CarRenderTechniqueMapNode *node = static_cast<CarRenderTechniqueMapNode *>(UG2TextureMalloc(0x10));
+    if (node) {
+        node->next00 = next;
+        node->previous04 = previous;
+        node->key08 = pair->hash00;
+        node->value0C = pair->value04;
+    }
+    return node;
+}
+
+// Original 0x5d06c0, normal path and unsigned length guard. The inline error
+// block constructs/throws a Windows library exception; it is a runtime seam.
+void CarRenderTechniqueMapList::Grow(unsigned int count) {
+    if (0x1fffffff-count08<count) { UG2TechniqueListTooLong(); return; }
+    count08 += count;
+}
+
+// Original 0x5d02d0. Forward-copy the suffix, then write the result iterator.
+void CarRenderTechniqueMapVector::Erase(CarRenderTechniqueMapNode ***result,
+    CarRenderTechniqueMapNode **first,CarRenderTechniqueMapNode **last) {
+    if (first!=last) {
+        CarRenderTechniqueMapNode **oldEnd = end08;
+        CarRenderTechniqueMapNode **output = first;
+        for (;last!=oldEnd;++last,++output) *output = *last;
+        end08 = output;
+    }
+    *result = first;
+}
+
+// Original 0x5d0b30. The fill argument is passed by value, including for growth.
+void CarRenderTechniqueMapVector::Resize(unsigned int count,CarRenderTechniqueMapNode *value) {
+    unsigned int size = begin04 ? static_cast<unsigned int>(end08-begin04) : 0;
+    if (size<count) {
+        size = begin04 ? static_cast<unsigned int>(end08-begin04) : 0;
+        Insert(end08,count-size,&value);
+        return;
+    }
+    if (begin04 && count<static_cast<unsigned int>(end08-begin04)) {
+        CarRenderTechniqueMapNode **result;
+        Erase(&result,begin04+count,end08);
+    }
+}
+
+// Original 0x5d0cf0, RET 8. One linear-hash bucket may split before lookup,
+// including on a duplicate. Preserve the bucket updates and list-splice order.
+CarRenderTechniqueMapResult *CarRenderTechniqueMap::Insert(CarRenderTechniqueMapResult *result,
+    const CarRenderTechniqueMapPair *pair) {
+    unsigned int bucket = buckets24;
+    if (bucket<=(count0C>>2)) {
+        unsigned int size = begin14 ? static_cast<unsigned int>(end18-begin14) : 0;
+        if (bucket<size-1) {
+            if (mask20<bucket) mask20 = mask20*2+1;
+        } else {
+            size = begin14 ? static_cast<unsigned int>(end18-begin14) : 0;
+            mask20 = size*2-3;
+            reinterpret_cast<CarRenderTechniqueMapVector *>(&value10)->Resize(size*2-1,head08);
+        }
+        bucket = buckets24-(mask20>>1)-1;
+        CarRenderTechniqueMapNode *node = begin14[bucket];
+        if (node!=begin14[bucket+1]) {
+            do {
+                CarRenderTechniqueMapNode *next;
+                if ((node->key08&mask20)==bucket) {
+                    next = node->next00;
+                } else {
+                    unsigned int upper = buckets24;
+                    while (bucket<upper && begin14[upper]==head08) {
+                        begin14[upper] = node;
+                        --upper;
+                    }
+                    next = node->next00;
+                    if (next==head08) break;
+                    unsigned int lower = bucket;
+                    while (node==begin14[lower]) {
+                        begin14[lower] = begin14[lower]->next00;
+                        if (!lower) break;
+                        --lower;
+                    }
+                    CarRenderTechniqueMapNode *head = head08;
+                    if (node!=head08 && head!=node && head!=node->next00) {
+                        CarRenderTechniqueMapNode *following = node->next00;
+                        node->previous04->next00 = following;
+                        following->previous04->next00 = head;
+                        head->previous04->next00 = node;
+                        CarRenderTechniqueMapNode *previous = head->previous04;
+                        head->previous04 = following->previous04;
+                        following->previous04 = node->previous04;
+                        node->previous04 = previous;
+                    }
+                    begin14[buckets24+1] = head08;
+                }
+                node = next;
+            } while (node!=begin14[bucket+1]);
+        }
+        ++buckets24;
+    }
+    unsigned int key = pair->hash00;
+    bucket = key&mask20;
+    if (buckets24<=bucket) bucket += -1-(mask20>>1);
+    CarRenderTechniqueMapNode *node = begin14[bucket+1];
+    if (node!=begin14[bucket]) {
+        do {
+            node = node->previous04;
+            if (node->key08<=key) {
+                if (key<=node->key08) {
+                    result->node00 = node;
+                    result->inserted04 = 0;
+                    return result;
+                }
+                node = node->next00;
+                break;
+            }
+        } while (node!=begin14[bucket]);
+    }
+    CarRenderTechniqueMapList *list = reinterpret_cast<CarRenderTechniqueMapList *>(value00+4);
+    CarRenderTechniqueMapNode *created = list->CreateNode(node,node->previous04,pair);
+    list->Grow(1);
+    node->previous04 = created;
+    created->previous04->next00 = created;
+    CarRenderTechniqueMapNode *inserted = node->previous04;
+    while (node==begin14[bucket]) {
+        begin14[bucket] = inserted;
+        if (!bucket) break;
+        --bucket;
+    }
+    result->node00 = inserted;
+    result->inserted04 = 1;
+    return result;
+}

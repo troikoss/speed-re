@@ -70,6 +70,38 @@
       "address": "0x5cf140",
       "size": 75,
       "sha256": "8ec9295b221e096c1ee0d993b61f294c57b187027d14ba68a9829b448c65a149"
+    },
+    "node": {
+      "address": "0x5ce090",
+      "size": 45,
+      "sha256": "e4ec069bbaeaa495e1e51fcfdb24a7207756beefd06b531a774d0227dc74b396"
+    },
+    "grow": {
+      "address": "0x5d06c0",
+      "size": 171,
+      "sha256": "13621b49472bd6e8d0ae31b74df04933664d4858d9365b6c5158f2cc86957cd7"
+    },
+    "verase": {
+      "address": "0x5d02d0",
+      "size": 53,
+      "sha256": "3ade0ef584517d2e0856c216fd0d8433a047c157552b381bd0e572239d9aa0c6"
+    },
+    "resize": {
+      "address": "0x5d0b30",
+      "size": 120,
+      "sha256": "8c837f950d8684f6c0338f392c1db7ea63c59f3ed4c1fd0f4fae120ef9c63aed"
+    },
+    "hash_insert": {
+      "address": "0x5d0cf0",
+      "size": 560,
+      "sha256": "c7dc4b15cbe749309a582360f932097fc806a040201a85549b1c75f12ea966e7"
+    }
+  },
+  "linked_functions": {
+    "parameter_bind": {
+      "address": "0x5d1b70",
+      "size": 94,
+      "sha256": "4f9c8a2116700d0f7b7d488a92fee22c80674c2873a7017c764d8fc5e32eee63"
     }
   }
 }

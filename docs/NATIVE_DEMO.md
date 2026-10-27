@@ -2383,11 +2383,13 @@ UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_t
 UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_technique_map.py --mutation-checks
 ```
 
-Each compiler passes **7,680 comparisons**: 512 per body and 512 lifetime cycles.
+At the initial lifetime checkpoint, each compiler passed **7,680 comparisons**:
+512 per body and 512 lifetime cycles. The commands above now run the expanded
+hash-insertion verifier described in the following section.
 The cycles construct a real map, perform three batches of original hash insertions
 with duplicate/colliding keys, reset and repopulate it, then destroy it twice.
-All allocations are released. Hash insertion `0x5d0cf0` executes original PE code
-on both sides; neither it nor its split/rehash algorithm is claimed recovered.
+All allocations were released. Hash insertion `0x5d0cf0` executed original PE code
+on both sides at that checkpoint; its later recovery is described below.
 The vector-insertion cases include 18 oversized-vector handoffs, 84 zero-count
 operations, 137 growth cases, and 93/180 cases for the two in-place tail paths.
 Other cases include aliased and overlapping copies, partial ranges crossing the
@@ -2415,9 +2417,81 @@ rendering equivalence. Demo/simulator/solid-probe builds pass, the 60-frame SKYL
 orbit preserves source/record checksums `ca993eba`/`7141bcda`, and three late-texture
 load/unload cycles retain 612 solids/829 textures with clean final ownership.
 The existing technique verifier still tests its controlled map boundary; its GCC
-regression passes 12,416 comparisons. Remaining work includes hash insertion and
-splitting, effect resources/API adapters, full frame scheduling and native
-dispatch/consumer activation.
+regression passes 12,416 comparisons. Hash insertion and splitting are recovered
+in the following checkpoint. Effect resources/API adapters, full frame scheduling
+and native dispatch/consumer activation remain open.
+
+### Parameter-map insertion, splitting and linked binding (2026-10-27)
+
+`CarRenderTechniqueMap.cpp` now also recovers five normal-control-flow bodies:
+
+| Address | Recovered behavior |
+| --- | --- |
+| `0x5d0cf0` | Linear-hash insertion, duplicate lookup and one-bucket splitting |
+| `0x5ce090` | Allocate and populate an entry node after writing its links |
+| `0x5d06c0` | Check the unsigned list-length limit, then increment count |
+| `0x5d0b30` | Resize the bucket vector through insertion or range erasure |
+| `0x5d02d0` | Erase a vector range by forward-copying its suffix |
+
+Insertion splits before looking up the key when `buckets24 <= (count0C >> 2)`.
+Consequently a duplicate can split a bucket without increasing the entry count.
+Mask expansion, bucket-vector growth, propagation of shared bucket boundaries
+and movement of high-bucket nodes retain the original statement and call order.
+A high-bucket node already at the list tail takes the original early break.
+The unreachable self-list count-adjustment block at `0x5d0e08` is not fabricated
+in the recovered source; the original `CMP ECX,ECX` always skips it.
+
+Lookup masks/folds the unsigned key, searches backwards within its bucket, and
+uses unsigned comparisons for ordering. A duplicate returns the existing node
+with a zero insertion byte and preserves its value. A new entry is allocated
+before the length guard/count increment, linked into the list, and propagated
+through preceding shared bucket boundaries. Only the result pointer and byte
+are written; its three padding bytes remain untouched. Node key/value loads
+follow allocation and the link writes, including overlapping pair/node fixtures.
+
+The expanded `verify_pc_car_render_technique_map.py` compares all nineteen map,
+list and vector bodies and two linked chains. Rebuilt lifetime cycles execute
+the recovered insertion and every direct container callee. The new binding chain
+also executes recovered `0x5d1b70` against the real map, checking first matching
+static slots, unknown/duplicate hashes, handle updates, reset and repopulation.
+It links `CarRenderTechnique.cpp` and the string library; effect APIs are never
+called by this chain. The older technique/setup verifier retains its isolated
+controlled-map fixtures, so its evidence is distinct from these linked checks.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_technique_map.py --gcc --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_technique_map.py --mutation-checks
+```
+
+Each compiler passes **10,752 comparisons**: 512 per body, 512 lifetime cycles
+and 512 binding chains. Complete map/fixture/heap bytes and allocator observations
+are compared, with a state trace after every insertion/bind in the linked chains.
+Independent invariants check list links/counts, unique node ownership, contiguous
+bucket ranges, unsigned key order and masked/folded bucket membership. Fixtures
+include ascending/descending keys, heavy collisions, repeated keys, both sides
+of the signed-key boundary, terminal/nonterminal high-node splits and retained
+capacity after reset. All linked cycles release their allocations.
+Original instruction traces include 33,728 splits, 2,628 bucket-vector growths
+and 64 terminal high-node cases. Explicit hash-call fixtures record 360 duplicates
+that also split a bucket; nested parameter binds are included in the instruction
+counts rather than in that explicit-call result counter.
+
+Both compilers reject **48 mutations**. The 26 additions exercise node copy order,
+list limits, vector erasure/resizing, load threshold, mask/vector growth, split
+boundaries and splicing, duplicate-value preservation, unsigned ordering, count
+versus allocation order, result pointers and untouched padding. The manifest now
+fingerprints the five additional spans and the previously recovered binding body.
+Reports remain under `build/analysis/car-render-technique-map/`.
+
+List overflow compares the handoff at `0x5d06ec`, represented by
+`UG2TechniqueListTooLong`; the inline Windows exception-object construction and
+unwinding are still a runtime boundary. The existing vector exception boundary
+is unchanged. Allocation failure, malformed containers, exhaustive coverage and
+instruction-byte identity are not established. Native demo/simulator/probe builds
+and SKYLINE orbit/lifecycle checks pass. These bodies compile into the recovered
+archive; native effect setup, shader execution and GPU dispatch remain inactive.
+
+### Verification (pixel size and LOD)
 
 ### Verification (pixel size and LOD)
 
