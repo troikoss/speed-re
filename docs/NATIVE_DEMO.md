@@ -2875,6 +2875,111 @@ technique activation still requires deserialization `0x66f69c`, shader preparati
 backend. The recovered setup is currently exercised through explicit metadata
 fixtures rather than real effect activation.
 
+### Effect type validation, metadata construction and size walks (2026-10-27)
+
+`Libs/D3DX/EffectMetadata.cpp` and `EffectTypeValidation.cpp` recover fifteen
+complete constructor/helper bodies used by the compiled-effect deserializer:
+
+| Address | Recovered behavior |
+| --- | --- |
+| `0x401650` | Forward array construction through ECX callbacks |
+| `0x65b680`, `0x65b694`, `0x65b6c9`, `0x65b78d` | Use-link, base, group and resource-reference constructors |
+| `0x663ec5`, `0x663f4e`, `0x663f6c` | 0x64-byte record, 0x38-byte pass and 0xb4-byte technique constructors |
+| `0x664fb1` | Grow/reuse a group's record array |
+| `0x65bc5e`, `0x65bcba` | Validate a length-prefixed string and parameter name |
+| `0x65bf18`, `0x65c033` | Walk padded storage sizes and actual value sizes |
+| `0x65bd1e` | Populate/splice a use node and invalidate temporary grids |
+| `0x66548b` | Validate a type and construct its runtime metadata |
+
+Constructors preserve unspecified bytes, original bit masks and halfword stores.
+Use links start self-linked and leave unknown payload words intact. The forward
+array iterator retains the signed `count-1` guard and wrapped 32-bit address
+steps. Group growth compares low-word capacity with the requested low-word count,
+allocates and constructs a fresh cookie-counted array, then deletes the old array.
+Failure retains the old pointer/capacity/active count; shrinking changes only the
+active count. No vector copy or invented capacity policy replaces that behavior.
+
+String validation uses the original wrapped absolute-address checks. A zero
+length is accepted; nonzero lengths require a final NUL. Name validation requires
+a length of at least two and rejects `.`, `@`, `[` and `]` before the first NUL.
+The two recursive size walks remain distinct. Padded scalar/vector entries use
+16 bytes per element and matrix entries use 64, while actual values use the
+recorded dimensions times four. Object descriptors consume four data bytes per
+element, but types 10 through 14 contribute zero to the returned storage size.
+Structured descriptors walk their members once and scale the data extent/size
+for the element count. Cursor write order and wrapping arithmetic are preserved,
+including bounded fixtures with aliased size cursors.
+
+Type validation checks names/semantics, dimensions and nested structures, then
+performs the original metadata side effects. Types 10 through 14 reserve group
+slots and construct table-driven numeric/resource records. Types 15/16 claim
+resource references, create records with tags `0x0b000000`/`0x0a000000`, copy the
+parameter prefix, allocate use nodes and link their parameter rings. Record/use
+counts, flags, tags and pointers are written in the original order, including
+partial writes before failure. The 182-entry type table remains pinned original
+data at `0x7b582c`; it is not copied into the repository as invented declarations.
+Record names and remaining fields continue to use observed sizes/offsets.
+
+Two unusual ordering details are retained. Numeric extent checks compare the
+calculated byte count with the **descriptor start**, rather than the data cursor.
+The table lookup and record writes also precede the upper bound check on a
+record code. Fixtures preserve these behaviors instead of adding stronger checks.
+Use linking appends at the tail while retaining the ring head. It marks a dirty
+use and, except for the two shader tags, the record's secondary dirty word.
+Outside setup, an existing first grid triggers the recovered temporary cleanup.
+No replacement ring or grid algorithm is introduced.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_metadata.py --gcc --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_metadata.py --mutation-checks
+build/native/ug2effectinput_probe "$UG2_DIR/speed2.exe" /tmp/effect-input.bin /tmp/effect-metadata.bin
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_metadata.py --gcc --cases 1 --kind validate --native-metadata /tmp/effect-metadata.bin
+```
+
+Each compiler passes **15,589 comparisons**: 1,024 fixtures per recovered body
+plus **229 retail scalar descriptors** extracted independently from all 23 effect
+recipes. Both reject **40 mutations** spanning partial constructor stores, flag
+masks, array order/guards, growth/retirement, strings/names, size distinctions,
+ring links/dirty flags, setup gating, descriptor extents, resource ownership,
+lazy records, prefix copies, allocation sizes and the original storage-offset
+arithmetic. Failure positions vary independently of descriptor families, including
+record allocation and lazy-use allocation failures. Explicit fixtures cover
+zero-element defaults and the descriptor-relative extent check.
+
+The verifier compares complete arena/heap bytes, allocation/free-time state,
+cursors/results, live allocation maps, stack, nonvolatile registers and x87 state.
+All validation, constructors, growth, use linking, buffer/record lifetime and
+temporary cleanup dependencies execute original or recovered bodies; only the
+allocator/free boundary and the standalone generic iterator callback are
+controlled. Constructors are checked for normal completion/stores rather than
+unspecified EAX values. Function/table fingerprints are in
+`config/SPEED2_EXE_1_2/effect-metadata.json`; reports remain under
+`build/analysis/effect-metadata/`. This is bounded behavioral evidence, not byte
+identity, malformed-pointer safety, exception unwinding or proof for huge/cyclic
+descriptor graphs.
+
+The native probe selects the same 229 scalar descriptors using a diagnostic
+outer-header reader. That reader only selects test fixtures; it is not a game
+replacement for `0x66f69c`. `UG2FXMD1` captures recipe/parameter identity, input
+cursors, result, output cursors and source-blob hashes. Replay checks every result
+and cursor against the original retail validator and the rebuilt source. All
+229 native records match across 23 recipes, and the existing 46 resource captures
+still replay all **429,768 bytes** exactly.
+
+Two further native synthetic fixtures exercise metadata creation and full
+recovered destruction: two lazy records with a circular parameter-use ring, and
+a group containing table-driven numeric/resource records. They check flags,
+indices, ring neighbors, counts and the original unrounded storage offsets,
+then return to **zero allocations**. They create no GPU objects or shader result.
+The prior setup, effect/pool cleanup probes remain successful.
+
+Demo, simulator and both probes build successfully. Native orbit retains
+`ca993eba`/`7141bcda`; the three late-texture lifecycle cycles retain 612 solids/
+829 textures, slots 500 → 534 → 500 and clean ownership. The main deserializer
+`0x66f69c`, its record readers and relocation/shared-pool producers remain open,
+as do shader preparation/evaluation, source compilation and the GPU/API backend.
+Real effect/technique activation is still pending those dependencies.
+
 ### Verification (pixel size and LOD)
 
 ### Verification (pixel size and LOD)

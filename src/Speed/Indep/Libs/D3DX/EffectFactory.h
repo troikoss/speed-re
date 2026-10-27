@@ -32,6 +32,11 @@ struct D3DXEffectObject {
     int Setup(); // 0x66afe6
     int AdjustReferences(unsigned int group,int directDelta,int allDelta); // 0x65ae25
     int ResolveReferences(unsigned int group,int direct); // 0x66aa2f
+    int ValidateString(unsigned int offset); // 0x65bc5e
+    int ValidateName(unsigned int offset); // 0x65bcba
+    int ValidateType(unsigned int *type,unsigned int *data,unsigned int parameter); // 0x66548b
+    int LinkParameter(unsigned int group,unsigned int record,unsigned int use,
+        D3DXEffectParameter *parameter,unsigned int value); // 0x65bd1e
 };
 struct D3DXEffectPoolLink {
     unsigned int value00,value04;

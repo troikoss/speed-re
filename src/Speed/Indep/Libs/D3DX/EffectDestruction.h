@@ -28,7 +28,9 @@ struct D3DXEffectRecord64 {
     D3DXEffectBaseRecord value08;
     unsigned int value30;
     D3DXEffectRecord20 *array34;
-    unsigned int value38,value3C,value40,value44,value48,value4C,value50,value54,value58,value5C,value60;
+    unsigned int value38,value3C,value40,value44,value48;
+    unsigned short value4C,value4E,value50,value52,value54,value56;
+    unsigned int value58,value5C,value60;
     D3DXEffectRecord64 *DeleteArray(unsigned char flags); // 0x664f63
 };
 struct D3DXEffectGroup64 {
@@ -40,6 +42,7 @@ struct D3DXEffectGroup64 {
     unsigned short value34,value36,value38,value3A,value3C,value3E;
     unsigned int value40,value44,value48,value4C,value50,value54,value58,value5C,value60;
     D3DXEffectGroup64 *DeleteArray(unsigned char flags); // 0x66a4d5
+    int ResizeRecords(unsigned short count); // 0x664fb1
 };
 struct D3DXEffectRecord38 {
     D3DXEffectBaseRecord value00;

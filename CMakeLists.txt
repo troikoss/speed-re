@@ -33,7 +33,9 @@ list(APPEND UG2_RECOVERED_SOURCES
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectPool.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectFactory.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectDestruction.cpp
-    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectSetup.cpp)
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectSetup.cpp
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectMetadata.cpp
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectTypeValidation.cpp)
 # Verified separately by verify_pc_car_render_solid.py. NativeCarWheels still
 # supplies DrawSolid until native effect support and recovered GPU consumption are wired.
 list(REMOVE_ITEM UG2_RECOVERED_SOURCES ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Src/World/CarRenderSolid.cpp)
