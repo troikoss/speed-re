@@ -773,6 +773,8 @@ class VehicleMoverSlots {
 public:
     virtual void Slot00();
     virtual float Step(float duration);
+    virtual void Slot08();
+    virtual MoverBody *Body0C();
 };
 
 // PhysicsMover, 0x130 bytes, vtable 0x7a25e0; integrator subobject at +8.

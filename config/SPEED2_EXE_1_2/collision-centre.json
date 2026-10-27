@@ -1,0 +1,15 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "centre": {
+      "address": "0x5ed400",
+      "size": 39,
+      "sha256": "1b085a3f73d41e6ca9e961e83f3ce5a3765fba0b177184884a518a51e6a4ee05"
+    },
+    "null_body": {
+      "address": "0x50d510",
+      "size": 3,
+      "sha256": "4bc724f3b1d0caf4fe369c18cba3102e6c4ea057f63fe1587e3973134a7f755e"
+    }
+  }
+}

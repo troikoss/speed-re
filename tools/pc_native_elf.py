@@ -3,7 +3,7 @@ import struct
 import subprocess
 
 
-def link_native(source, build, root, bindings, entry, extra_objects=(), gc_sections=False, text_address=0x2400000):
+def link_native(source, build, root, bindings, entry, extra_objects=(), gc_sections=False, text_address=0x2400000, include_dirs=()):
     build.mkdir(parents=True, exist_ok=True)
     sources = source if isinstance(source, (list, tuple)) else [source]
     objects = []
@@ -13,7 +13,7 @@ def link_native(source, build, root, bindings, entry, extra_objects=(), gc_secti
         subprocess.run(['g++', '-std=c++11', '-m32', '-O1', '-fno-pie', '-mfpmath=387', '-fno-stack-protector',
                         '-fno-strict-aliasing', '-fno-fast-math', '-ffp-contract=off',
                         '-include', str(root / 'src/Platform/Native/NativeCompat.h'),
-                        '-Isrc/Speed/Indep/Src/World', '-c', str(item), '-o', str(obj)],
+                        '-Isrc/Speed/Indep/Src/World'] + ['-I'+str(p) for p in include_dirs] + ['-c', str(item), '-o', str(obj)],
                        cwd=root, check=True)
         objects.append(str(obj))
     subprocess.run(['ld', '-m', 'elf_i386', '-Ttext='+hex(text_address), '--entry=' + entry] +

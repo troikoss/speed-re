@@ -5,6 +5,7 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <vector>
+#include <string>
 
 namespace {
 
@@ -13,6 +14,12 @@ const uint32_t kImageBase = 0x400000;
 const uint32_t kMapStart = 0x783000;
 const uint32_t kMapEnd = 0x8bc000;
 const char kExpectedSha256[] = "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7";
+struct Resource {
+    unsigned int type,identifier;
+    std::string name;
+    std::vector<unsigned char> bytes;
+};
+std::vector<Resource> resources;
 
 struct Sha256 {
     uint32_t state[8];
@@ -84,9 +91,73 @@ uint32_t Read32(const std::vector<uint8_t> &file, size_t offset) {
     return file[offset] | file[offset + 1] << 8 | file[offset + 2] << 16 | (uint32_t)file[offset + 3] << 24;
 }
 
+uint16_t Read16(const std::vector<uint8_t> &file,size_t offset) {
+    return file[offset] | file[offset+1]<<8;
+}
+size_t RvaOffset(const std::vector<uint8_t> &file,uint32_t rva) {
+    size_t header=Read32(file,0x3c),table=header+24+Read16(file,header+20);
+    for (unsigned int i=0;i<Read16(file,header+6);++i) {
+        size_t entry=table+i*40;
+        uint32_t base=Read32(file,entry+12),length=Read32(file,entry+16);
+        if (rva>=base && rva-base<length) return Read32(file,entry+20)+rva-base;
+    }
+    return file.size();
+}
+bool RetainResources(const std::vector<uint8_t> &file,std::vector<Resource> &result) {
+    // This is native PE/Win32 scaffolding for the verified reference image,
+    // whose directories have numeric types and one language per resource.
+    size_t header=Read32(file,0x3c),root=RvaOffset(file,Read32(file,header+24+112));
+    if (root+16>file.size()) return false;
+    unsigned int types=Read16(file,root+12)+Read16(file,root+14);
+    for (unsigned int i=0;i<types;++i) {
+        size_t typeEntry=root+16+i*8;
+        unsigned int type=Read32(file,typeEntry),next=Read32(file,typeEntry+4);
+        if ((type&0x80000000) || !(next&0x80000000)) return false;
+        size_t names=root+(next&0x7fffffff);
+        unsigned int count=Read16(file,names+12)+Read16(file,names+14);
+        for (unsigned int j=0;j<count;++j) {
+            size_t nameEntry=names+16+j*8;
+            unsigned int name=Read32(file,nameEntry),languages=Read32(file,nameEntry+4);
+            if (!(languages&0x80000000)) return false;
+            Resource item;item.type=type;item.identifier=0;
+            if (name&0x80000000) {
+                size_t text=root+(name&0x7fffffff);unsigned int length=Read16(file,text);
+                for (unsigned int k=0;k<length;++k) {
+                    unsigned int ch=Read16(file,text+2+k*2);
+                    if (!ch || ch>127) return false;
+                    item.name.push_back(static_cast<char>(ch));
+                }
+            } else item.identifier=name;
+            size_t language=root+(languages&0x7fffffff);
+            if (Read16(file,language+12)+Read16(file,language+14)!=1) return false;
+            unsigned int dataEntry=Read32(file,language+20);
+            if (dataEntry&0x80000000) return false;
+            size_t data=root+dataEntry,offset=RvaOffset(file,Read32(file,data));
+            unsigned int length=Read32(file,data+4);
+            if (offset>file.size() || length>file.size()-offset) return false;
+            item.bytes.assign(file.begin()+offset,file.begin()+offset+length);
+            result.push_back(item);
+        }
+    }
+    return true;
+}
+
 }  // namespace
 
 bool IsOriginalImageMapped() { return originalImageMapped; }
+unsigned int FindOriginalResource(unsigned int type,const char *name,unsigned int identifier) {
+    for (size_t i=0;i<resources.size();++i) {
+        const Resource &r=resources[i];
+        if (r.type==type && (name ? r.name==name : r.name.empty() && r.identifier==identifier))
+            return static_cast<unsigned int>(i+1);
+    }
+    return 0;
+}
+const unsigned char *OriginalResourceData(unsigned int index,unsigned int *size) {
+    if (!index || index>resources.size()) return 0;
+    const Resource &r=resources[index-1];*size=static_cast<unsigned int>(r.bytes.size());
+    return r.bytes.data();
+}
 
 bool MapOriginalImage(const char *path, char *error, int errorSize) {
     FILE *input = fopen(path, "rb");
@@ -105,6 +176,11 @@ bool MapOriginalImage(const char *path, char *error, int errorSize) {
     Sha256Hex(file.data(), file.size(), digest);
     if (strcmp(digest, kExpectedSha256) != 0) {
         snprintf(error, errorSize, "%s is not UG2 PC v1.2 speed2.exe (SHA-256 %s)", path, digest);
+        return false;
+    }
+    std::vector<Resource> retained;
+    if (!RetainResources(file,retained)) {
+        snprintf(error,errorSize,"unsupported UG2 resource-directory layout");
         return false;
     }
     void *mapped = mmap((void *)(uintptr_t)kMapStart, kMapEnd - kMapStart, PROT_READ | PROT_WRITE,
@@ -132,6 +208,7 @@ bool MapOriginalImage(const char *path, char *error, int errorSize) {
         }
         memcpy((void *)(uintptr_t)virtualAddress, file.data() + rawPointer, size);
     }
+    resources.swap(retained);
     originalImageMapped = true;
     return true;
 }

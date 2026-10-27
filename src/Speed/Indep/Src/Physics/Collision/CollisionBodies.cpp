@@ -57,14 +57,6 @@ void MoverVelocitiesAt(MoverBody *body, WheelVector *velocity, WheelVector *angu
 float MoverSlot68(MoverBody *body, int a, int b);
 float CarSlot88(CarCollisionBody *body);
 
-// Original 0x5ed400: the mover body's centre of mass, else the car record's centre.
-WheelVector *CarCollisionCentre(MoverModeOwner *car) {
-    if (car->mover34 && car->mover34->GetBody()) {
-        return &car->mover34->GetBody()->centre1F0;
-    }
-    return reinterpret_cast<WheelVector *>(car->record20);
-}
-
 // Original 0x5ed1f0: the car's mover is in state 2.
 static int CarMoverFrozen(MoverModeOwner *car) {
     if (car->moverType28 == 1) {

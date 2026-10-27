@@ -27,6 +27,7 @@ file(GLOB UG2_RECOVERED_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/TimedAverage.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/bSlotPool.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Compression.cpp)
+list(APPEND UG2_RECOVERED_SOURCES ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectInput.cpp)
 # Verified separately by verify_pc_car_render_solid.py. NativeCarWheels still
 # supplies DrawSolid until native effect support and recovered GPU consumption are wired.
 list(REMOVE_ITEM UG2_RECOVERED_SOURCES ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Src/World/CarRenderSolid.cpp)
@@ -38,6 +39,8 @@ target_compile_options(ug2recovered PRIVATE ${UG2_ARCH_FLAGS} -O1 -g -w -ffuncti
 
 add_library(ug2native STATIC
     src/Platform/Native/OriginalImage.cpp
+    src/Platform/Native/NativeFxResource.cpp
+    src/Platform/Native/NativeFxBufferDispatch.cpp
     src/Platform/Native/NativeTechniqueDispatch.cpp
     src/Platform/Native/NativeVehicle.cpp
     src/Platform/Native/NativeWorld.cpp
@@ -78,6 +81,11 @@ target_link_libraries(ug2probe -Wl,--start-group ug2native ug2recovered -Wl,--en
 target_link_options(ug2probe PRIVATE ${UG2_LINK_FLAGS})
 
 # Player assets are explicit arguments; no display or retail files in the repo.
+add_executable(ug2effectinput_probe src/Platform/Native/EffectInputProbe.cpp)
+target_compile_options(ug2effectinput_probe PRIVATE ${UG2_ARCH_FLAGS} -O1
+    -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+target_link_libraries(ug2effectinput_probe -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
+target_link_options(ug2effectinput_probe PRIVATE ${UG2_LINK_FLAGS})
 add_executable(ug2solidrecords_probe src/Platform/Native/SolidRecordsProbe.cpp src/Platform/Native/NativeSolidRecords.cpp
     src/Platform/Native/NativeTextureRecords.cpp src/Platform/Native/NativeTextureUpload.cpp src/Platform/Native/NativeFormatting.cpp)
 target_compile_options(ug2solidrecords_probe PRIVATE ${UG2_ARCH_FLAGS} -O2 -Wall -UNDEBUG

@@ -316,6 +316,11 @@ void CarReplayState::RecordEvent48(int, int, int) { NativeTrap("replay event 0x4
 // Native vtable seam for PhysicsMover 0x7a25e0: slot 4 runs the recovered step.
 void VehicleMoverSlots::Slot00() { NativeTrap("mover slot 0x00"); }
 float VehicleMoverSlots::Step(float duration) { return reinterpret_cast<VehicleMover *>(this)->Update(duration); }
+void VehicleMoverSlots::Slot08() { NativeTrap("PhysicsMover slot 0x08"); }
+MoverBody *VehicleMoverSlots::Body0C() { return reinterpret_cast<VehicleMover *>(this)->body20; } // 0x503b00
+extern "C" MoverBody *UG2CollisionMoverGetBody(VehicleMover *mover) {
+    return reinterpret_cast<VehicleMoverSlots *>(mover)->Body0C();
+}
 // Force-feedback device manager (*0x870760) methods are unrecovered DirectInput effects.
 // Natively the manager pointer is null, so recovered 0x406460 never reaches them.
 bool ForceFeedbackManager::HasDevice5BFD70(int) { NativeTrap("force feedback 0x5bfd70"); return false; }
@@ -572,6 +577,9 @@ void *AllocateCarMemory(unsigned int size) { return calloc(1, size); }
 void FreeCarMemory(void *memory) { free(memory); }
 
 void CarNullMover::Slot00() { NativeTrap("null mover slot 0x00"); }
+void CarNullMover::Slot04() { NativeTrap("null mover slot 0x04"); }
+void CarNullMover::Slot08() { NativeTrap("null mover slot 0x08"); }
+MoverBody *CarNullMover::Body0C() { return 0; } // original 0x50d510
 // 0x5eb930 builds the base driver and its input (0x423330, vtable 0x7855d8). Car creation
 // replaces it at once through SetParticipantKind, so the native stand-in builds nothing.
 CarDriver::CarDriver(MoverModeOwner *) { input8 = 0; }

@@ -11,7 +11,10 @@
 class CarNullMover {
 public:
     CarNullMover(DrivetrainAuxiliary *state) : input4(0), state8(state) {}
-    virtual void Slot00(); // the vtable's slots are not recovered
+    virtual void Slot00(); // other null-mover slots remain unrecovered
+    virtual void Slot04();
+    virtual void Slot08();
+    virtual MoverBody *Body0C(); // original slot 0x0c: 0x50d510 returns zero
     MoverInput *input4;
     DrivetrainAuxiliary *state8;
 };

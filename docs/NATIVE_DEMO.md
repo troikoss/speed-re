@@ -2491,6 +2491,106 @@ instruction-byte identity are not established. Native demo/simulator/probe build
 and SKYLINE orbit/lifecycle checks pass. These bodies compile into the recovered
 archive; native effect setup, shader execution and GPU dispatch remain inactive.
 
+### Effect resource input, byte buffers and native ownership (2026-10-27)
+
+`Libs/D3DX/EffectInput.cpp` recovers fifteen routines from UG2's statically linked
+library. They provide the resource/byte-buffer inputs to effect creation; they
+do not deserialize effects or execute shaders.
+
+| Address | Recovered behavior |
+| --- | --- |
+| `0x670f13`, `0x670f20`, `0x670f2e` | Construct, destroy and clear the 12-byte resource record |
+| `0x670f4f` | Load an ANSI/UTF-16 resource, optionally trying bitmap before raw data |
+| `0x670e8e`, `0x670da2`, `0x670e24` | Construct, destroy and conditionally free the 16-byte byte buffer |
+| `0x670db2` | Allocate buffer storage and update size only on success |
+| `0x670e45`, `0x670dde`, `0x670df0` | Interface query, reference increment and release |
+| `0x6954f7`, `0x670e15` | Return buffer pointer and byte length |
+| `0x670ea6`, `0x670f08` | Create a buffer and forward the public creation entry |
+
+The resource record retains the original partial-state behavior. Loading clears
+old fields only when its old handle is nonzero, selects ANSI/UTF-16 by a nonzero
+flag, and optionally tries resource type 2 before type 10. A found bitmap with
+zero size does not trigger another raw-data search. Failed find/size/load/lock
+steps leave the corresponding stale or partial fields intact, query last error,
+and return `0x88760b59`. Destruction calls `DeleteObject` without clearing fields;
+Clear calls it before zeroing all three words.
+
+Buffers retain original class token `0x7b711c`, a wrapping unsigned reference
+count, a byte size and an allocation pointer. Interface queries clear output
+before comparing either full 16-byte identifier, then write the object pointer
+before the virtual AddRef call. Release decrements first and deletes only when
+the old count was one. Destruction reinstalls the class token and frees storage
+without clearing its dangling pointer; deleting flags bit zero controls the
+object free. Creation preserves the caller's output on invalid/output-allocation
+failure paths and releases a failed initialized object in the original order.
+Reallocation overwrites the data pointer without freeing earlier storage, as in
+the original allocation method; creation uses a newly constructed buffer.
+Native virtual dispatch is a separate bridge for this class token.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_input.py --gcc --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_input.py --mutation-checks
+```
+
+Each compiler passes **8,238 comparisons**: 512 per routine, 512 linked resource/
+buffer cycles, and 46 cycles using all 23 retail effect payloads through both
+lookup modes. Both reject **25 mutations**. Full fixture/heap bytes, allocation
+and resource-call observations, returns, stack cleanup, preserved registers and
+x87 state are compared. Cases cover bitmap/fallback selection, failed resource
+steps, callback writes during deletion, both identifiers, output/IID/reference
+aliases, unsigned refcount wrap, flags, null output, zero sizes and forced first/
+second allocation failures. Win32 calls and allocation outcomes are controlled;
+recovered direct/virtual buffer bodies execute. The executable, full function
+spans, vtable and identifiers are pinned in `effect-input.json`; reports are
+under `build/analysis/effect-input/`. Byte identity and arbitrary malformed/
+exception behavior are not established.
+
+`OriginalImage.cpp` now retains the PE resources from the same SHA-verified player
+image. `NativeFxResource.cpp` supplies bounded current-module lookup for exact
+ASCII names (ANSI or UTF-16), numeric identifiers and `#number` identifiers.
+The reference image has numeric types and one language per resource; general
+module/language/codepage/GDI behavior is outside this adapter. Loaded resource
+bytes remain immutable and retained with the module. Resource handles are not
+ordinary global-memory allocations ([Microsoft LoadResource contract](https://learn.microsoft.com/windows/win32/api/libloaderapi/nf-libloaderapi-loadresource)).
+The recovered DeleteObject call is preserved; the native adapter returns false
+for resource handles, which are not supported GDI objects ([Microsoft DeleteObject contract](https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-deleteobject)).
+
+```sh
+cmake -S . -B build/native
+cmake --build build/native --target ug2effectinput_probe
+build/native/ug2effectinput_probe "$UG2_DIR/speed2.exe" build/analysis/effect-input/native.bin
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_input.py --gcc --cases 1 --kind chain --native-dump build/analysis/effect-input/native.bin
+```
+
+The display-free native probe follows all 23 original recipe resource names,
+loads each through ANSI and UTF-16 paths, creates/copies/queries/releases real
+recovered byte buffers, reloads/clears resource records and checks numeric lookup.
+All **429,768 captured payload bytes** match an independent PE read exactly,
+with **zero live buffer allocations** after 46 cycles. This is input/ownership
+evidence, not an effect or rendered-image match. No retail payload is committed.
+
+Retaining resources exposed a pre-existing collision-centre dispatch error:
+the old helper read `body20` directly even while car `+0x34` held a 12-byte null
+mover. Reused resource-name bytes beyond that object became a bogus body pointer.
+`CollisionCentre.cpp` restores original `0x5ed400`'s two virtual slot-`0x0c` calls,
+including re-reading the mover between them and reading the record fallback
+after a failed query. Native null/PhysicsMover slots now supply the original
+zero (`0x50d510`) or `body20` (`0x503b00`) result.
+`verify_pc_collision_centre.py` passes **4,096 comparisons** and rejects **five
+mutations** per compiler: 1,024 zero-call, 1,317 one-call and 1,755 two-call cases,
+including poisoned null-mover padding, callback mover changes and fallback-record
+changes. The real null-return leaf executes; other virtual callback effects are
+controlled. `collision-centre.json` fingerprints the centre and null-return bodies.
+
+Demo/simulator/solid-probe builds pass. Native SKYLINE orbit and scripted drive
+preserve source/record checksums `ca993eba`/`7141bcda` and `eb0428b7`/`69927c13`;
+the 120-frame display-free simulator smoke also passes. The
+three late-texture load/unload cycles retain 612 solids/829 textures and finish
+with clean ownership. The full effect factory `0x640c02`, effect construction,
+deserialization `0x66f69c`, runtime setup `0x66afe6`, API/GPU backend and native
+technique/consumer activation remain open. The ramp's zero mip-level request
+also remains unsupported by native CPU texture staging.
+
 ### Verification (pixel size and LOD)
 
 ### Verification (pixel size and LOD)

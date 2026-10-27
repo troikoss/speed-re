@@ -1226,3 +1226,6 @@ engineSoundMixerDecodeMaster78BA1C = 0x78ba1c;
 engineSoundMixerDecodeSub78B9F0 = 0x78b9f0;
 engineSoundMixerScratch82BC9C = 0x82bc9c;
 engineSoundMixerScratch82BCA0 = 0x82bca0;
+/* UG2's linked D3DX byte-buffer interface identifiers. */
+ug2FxIUnknown7D9904 = 0x7d9904;
+ug2FxBufferIid7B7430 = 0x7b7430;
