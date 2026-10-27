@@ -1745,7 +1745,9 @@ complete original address spans, including alignment gaps in the producer.
 Reports are under `build/analysis/car-render-technique/`.
 
 D3D/D3DX methods, allocation, and the library container's construct/insert/reset
-remain controlled analysis boundaries. Opaque empty allocator/comparator tag
+remain controlled boundaries in this technique verifier. Container lifetime and
+vector bodies now have separate original/rebuilt evidence below; hash insertion
+remains unrecovered. Opaque empty allocator/comparator tag
 padding is not interpreted. String copy/hash and all seven recovered engine
 routines execute in the comparison chain. This establishes bounded behavioral
 and raw ramp-byte evidence; it does not establish byte identity, exception/OOM
@@ -2337,6 +2339,85 @@ simulator and record-probe builds pass; three late-texture load cycles retain
 Full camera/multi-view ownership, frame scheduling, effect/API resources and
 native GPU dispatch/consumer activation remain open, along with the other wheel
 inventory rows and the separate legacy coefficient-transform precision gap.
+
+### Parameter-map lifetime and bucket-vector recovery (2026-10-27)
+
+`CarRenderTechniqueMap.cpp` recovers the normal control flow of fourteen UG2
+library bodies used by technique parameter construction, reset and destruction:
+
+| Address | Recovered behavior |
+| --- | --- |
+| `0x5d0bb0` | Construct the map, sentinel and nine-pointer bucket vector |
+| `0x5d0660` | Free vector storage, erase entries, free the sentinel and clear ownership |
+| `0x5d0f20` | Reset map entries/buckets without changing the 60 parameter slots |
+| `0x5cf140` | Erase a list range, skipping the sentinel |
+| `0x5ce070` | Allocate the sentinel and set its forward/back links |
+| `0x5d0250` | Initialize the vector's live range |
+| `0x5d0c50` | Capture a fill value, clear the live range and assign new entries |
+| `0x5d0890` | Insert a repeated value, growing or shifting vector storage |
+| `0x5cf190`, `0x5cfbc0` | Allocator copy/fill wrappers |
+| `0x5ca630`, `0x5ce0f0` | Forward copy and counted fill |
+| `0x5ce0c0`, `0x5ca610` | Backward copy and range fill |
+
+The checked subobject layouts start at map `+4` (list) and `+0x10` (vector).
+Construction copies only the first byte from the first tag argument; the second
+tag and other opaque allocator bytes are untouched. Sentinel key/value bytes are
+also untouched. This is the UG2 layout; another title has not confirmed sharing.
+
+Vector insertion snapshots the supplied value before moving entries, including
+when that pointer aliases vector storage or the vector's end pointer. Growth
+uses the original capacity plus half its capacity, raised to the required size,
+with the original unsigned limit checks. The two in-place paths preserve the
+original forward/backward copy boundaries and fill order. These are explicit
+library bodies rather than calls to the host STL.
+
+Reset erases list nodes, assigns nine sentinel pointers, and restores mask and
+bucket count to one. It preserves the allocation capacity and all static parameter
+slots, including stale handles. Destruction frees bucket storage first, clears
+its three pointers, unlinks/frees entries, then frees/clears the sentinel and
+count. Unknown tag/allocator fields and mask/bucket words are not zeroed by
+destruction. List count decrements follow each free.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_technique_map.py --gcc --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_car_render_technique_map.py --mutation-checks
+```
+
+Each compiler passes **7,680 comparisons**: 512 per body and 512 lifetime cycles.
+The cycles construct a real map, perform three batches of original hash insertions
+with duplicate/colliding keys, reset and repopulate it, then destroy it twice.
+All allocations are released. Hash insertion `0x5d0cf0` executes original PE code
+on both sides; neither it nor its split/rehash algorithm is claimed recovered.
+The vector-insertion cases include 18 oversized-vector handoffs, 84 zero-count
+operations, 137 growth cases, and 93/180 cases for the two in-place tail paths.
+Other cases include aliased and overlapping copies, partial ranges crossing the
+sentinel, null heads, retained capacity, arbitrary opaque bytes and cached slots.
+
+Comparisons include full fixture/heap bytes, meaningful returns, allocation/free
+order and object/heap state at each allocator call. Normal returns check stack
+cleanup, preserved registers, x87 state and the Windows exception-list slot.
+Both compilers reject **22 mutations**, covering tags/opaque bytes, links/counts,
+growth, aliased fill capture, copy direction, cleanup order, cached slots and
+reset state. Complete contiguous original spans are fingerprinted in
+`car-render-technique-map.json`; reports are under
+`build/analysis/car-render-technique-map/`.
+
+Allocation is controlled and successful in bounded fixtures. The oversized-vector
+path compares only the handoff to `0x5d07e0`, exposed as
+`UG2TechniqueVectorTooLong`; exception-object construction, Windows unwinding,
+allocator failure and malformed-container behavior remain outside the evidence.
+The original sentinel allocator does not safely handle a null allocation.
+Instruction-byte matching and exhaustive input coverage are not established.
+
+The source compiles into the recovered native archive. Native effects remain
+inactive, so this checkpoint does not activate map-backed shader setup or claim
+rendering equivalence. Demo/simulator/solid-probe builds pass, the 60-frame SKYLINE
+orbit preserves source/record checksums `ca993eba`/`7141bcda`, and three late-texture
+load/unload cycles retain 612 solids/829 textures with clean final ownership.
+The existing technique verifier still tests its controlled map boundary; its GCC
+regression passes 12,416 comparisons. Remaining work includes hash insertion and
+splitting, effect resources/API adapters, full frame scheduling and native
+dispatch/consumer activation.
 
 ### Verification (pixel size and LOD)
 

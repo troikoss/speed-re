@@ -29,7 +29,7 @@ struct CarRenderTechniqueMapPair {
     unsigned int value04;
 };
 UG2_CHECK_SIZE(CarRenderTechniqueMapPair, 8);
-// Original library container records; their algorithms remain separate boundaries.
+// UG2's library-container layout. Sharing with another title is unverified.
 struct CarRenderTechniqueMap {
     unsigned char value00[8];
     CarRenderTechniqueMapNode *head08;
@@ -37,7 +37,7 @@ struct CarRenderTechniqueMap {
     unsigned int value10;
     CarRenderTechniqueMapNode **begin14, **end18, **capacity1C;
     unsigned int mask20, buckets24;
-    void Destroy(); // 0x5d0660, library-container lifetime boundary
+    void Destroy(); // 0x5d0660
     CarRenderTechniqueMap *Construct(const unsigned char *tagA,const unsigned char *tagB); // 0x5d0bb0, RET 8
     CarRenderTechniqueMapResult *Insert(CarRenderTechniqueMapResult *result,const CarRenderTechniqueMapPair *pair); // 0x5d0cf0, RET 8
 };
@@ -45,7 +45,7 @@ UG2_CHECK_SIZE(CarRenderTechniqueMap, 0x28);
 struct CarRenderTechniqueParameters {
     CarRenderTechniqueParameter slots00[60];
     CarRenderTechniqueMap map960;
-    void Reset(); // 0x5d0f20, library-container reset boundary
+    void Reset(); // 0x5d0f20; leaves slots00 unchanged
     void Destroy(); // 0x5d0880, tail-call into map960.Destroy()
     void Bind(unsigned int hash,unsigned int handle); // 0x5d1b70, RET 8
 };
