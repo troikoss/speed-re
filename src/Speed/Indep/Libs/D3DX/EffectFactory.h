@@ -8,10 +8,13 @@ struct D3DXEffectParameter {
     unsigned short value44,value46;
     unsigned int value48,value4C;
     void Construct(); // 0x664ecf, normal return leaves the other fields untouched
+    D3DXEffectParameter *Delete(unsigned char flags); // 0x664f42
+    D3DXEffectParameter *DeleteArray(unsigned char flags); // 0x6651bf
 };
 struct D3DXEffectValuePrefix {
     unsigned int value00,value04,value08,value0C,value10,value14,value18;
     void Construct(); // 0x65eb78; 0x1c-byte written/read prefix
+    D3DXEffectValuePrefix *Delete(unsigned char flags); // 0x66519e
 };
 struct D3DXEffectObject {
     unsigned int class00,interface04,value08,value0C,value10,value14,value18,value1C;
@@ -25,13 +28,14 @@ struct D3DXEffectObject {
     unsigned int valueFC,value100,value104,value108,value10C,value110,value114;
     unsigned int value118,value11C,value120,value124,value128,value12C;
     D3DXEffectObject *Construct(); // 0x66509e
-    D3DXEffectObject *Delete(unsigned char flags); // 0x66afc5; destructor remains a boundary
+    D3DXEffectObject *Delete(unsigned char flags); // 0x66afc5
 };
 struct D3DXEffectPoolLink {
     unsigned int value00,value04;
     void *data08;
     D3DXEffectPoolLink *previous0C,*next10;
     void Unlink(); // 0x641837
+    D3DXEffectPoolLink *Delete(unsigned char flags); // 0x6424e3
 };
 struct D3DXEffectPoolNode {
     unsigned int value00,value04,value08;
@@ -69,9 +73,9 @@ unsigned int UG2FxEffectAddRefVirtual(D3DXEffectObject *effect);
 unsigned int UG2FxEffectReleaseVirtual(D3DXEffectObject *effect);
 unsigned char *UG2FxBufferPointerVirtual(D3DXEffectBuffer *buffer);
 unsigned int UG2FxBufferReleaseVirtual(D3DXEffectBuffer *buffer);
+void UG2FxDestroyEffect(D3DXEffectObject *effect); // native ABI bridge to recovered 0x66adec
 // Unrecovered runtime/compiler boundaries. No native successful effect is
 // fabricated while these implementations and the GPU backend remain open.
-void UG2FxDestroyEffect(D3DXEffectObject *effect); // 0x66adec
 int UG2FxDeserializeEffect(D3DXEffectObject *effect,unsigned int device,D3DXEffectPool *pool,
     D3DXEffectBuffer *buffer,unsigned int *position); // 0x66f69c
 int UG2FxSetupEffect(D3DXEffectObject *effect); // 0x66afe6

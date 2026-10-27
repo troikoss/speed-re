@@ -2615,7 +2615,9 @@ ordered clears and initializes reference count `+0x24` to one. The high flag wor
 the halfword at `+0x32` and unspecified parameter/value fields are retained.
 The checked source layout names unknown fields by offset. Effect Release wraps
 the decrement and invokes the recovered deleting wrapper only at zero; that
-wrapper still delegates the full destructor `0x66adec` to a runtime boundary.
+wrapper delegates the full destructor `0x66adec` to a controlled boundary in the
+original factory suite. The next checkpoint below recovers that destructor and
+adds a factory mode that executes it.
 
 The factory clears output and diagnostics before validating device/name, allocates
 and constructs the effect, then runs the recovered resource loader. A resource
@@ -2674,16 +2676,102 @@ through **24 cycles**, including a synthetic three-node cleanup graph. All pool,
 node and data allocations are released, and the sentinel links return to self.
 The existing 23-recipe/46-cycle capture still matches all **429,768 bytes** against
 the player's executable with zero live allocations. Native pool code uses a
-separate ABI bridge for its original class token; no native effect object is
-fabricated by these tests.
+separate ABI bridge for its original class token. Effect construction and
+destruction are exercised natively in the next checkpoint below.
 
 Demo, simulator and both probes build successfully. Native SKYLINE orbit retains
 source/record checksums `ca993eba`/`7141bcda`; three late-texture load/unload cycles
 retain 612 solids/829 textures, matching slots 500 → 534 → 500, and clean ownership.
 The effect factory/constructor code compiles into the recovered archive. Native
-factory/technique activation still needs its deserializer, runtime setup, full
-effect destructor and API/GPU backend; source compilation remains an explicit
+factory/technique activation still needs its deserializer, runtime setup and
+API/GPU backend; source compilation remains an explicit
 library boundary. The other wheel-rendering inventory seams remain open.
+
+### Effect destruction, metadata ownership and native cleanup (2026-10-27)
+
+`Libs/D3DX/EffectDestruction.cpp` recovers the full effect destructor and its
+cleanup dependencies. Record names and unknown fields describe observed layouts;
+no undocumented D3DX semantic types are inferred.
+
+| Address | Recovered behavior |
+| --- | --- |
+| `0x66adec`, `0x65b7f0`, `0x65e4ff` | Full effect cleanup, temporary pointer grids and secondary interface cleanup |
+| `0x663e90`, `0x664efa`, `0x663fcf` | Common base, parameter and value-prefix destruction |
+| `0x65ee40`, `0x65b7ad` | Type-gated references in 8-byte and 24-byte records |
+| `0x663f15`, `0x66a419`, `0x665031`, `0x66a442` | Cleanup of 0x64-byte records/groups, 0x38-byte records and 0xb4-byte records |
+| `0x64b5ff`, `0x6996f4` | Reverse array iterator and shared empty destructor |
+| `0x65b6a8`, `0x664f42`, `0x66519e`, `0x6424e3` | Scalar deleting wrappers for base, parameter, value and pool-link records |
+| `0x661405`, `0x66238c`, `0x661453`, `0x6651bf`, `0x664f63`, `0x66a4d5`, `0x665050`, `0x66a523`, `0x660f55` | Nine vector deleting wrappers with original strides/cookies |
+
+The array iterator preserves 32-bit wrapped address multiplication and the signed
+`count-1` guard. Deleting wrappers inspect the low flag byte: bit `0x02` selects
+cookie-counted array destruction in reverse order, and bit `0x01` frees storage.
+The array path returns the cookie address; the scalar path returns its receiver.
+One-argument fastcall provides the original callbacks' ECX receiver and no stack
+arguments without assembly or member-function pointer casts.
+
+Disassembly at `0x663f45` passes **record +8** to common-base cleanup. That record
+clears its `+0x28`/`+0x2c` fields before releasing its `+0x38` COM reference. The
+parameter and other record bases use offset zero. Effect cleanup passes `+0xe0`,
+`+0x48` and `+4` to the embedded value, parameter and secondary-interface bodies.
+Linked children are detached before destruction; parameter pool links execute
+the already recovered free/unlink helper. Nested arrays execute every recovered
+cleanup body, rather than replacing metadata lifetime with a bulk free.
+
+Signed type codes `4..9`, `15` and `16` own the first COM reference in the two
+reference-record layouts. The 24-byte record's second reference is independent
+of that gate. Value-prefix data is freed for codes `0`, `2`, `4` and `6..10`.
+Other type codes retain that field. Cleanup preserves the original observable
+ordering, including COM fields `+0x88`, `+0x94`, `+0x8c`, `+0x98`, `+0x90` in the
+0xb4-byte record, and secondary fields `+0x0c` before `+8` relative to its receiver.
+Temporary grids retain their freed pointer slots and the final scratch row in
+`effect+0xb8`. Unconditional frees of `+0xbc` and `+0x108` leave those fields
+unchanged; the source deliberately does not clear every freed pointer.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_destruction.py --gcc --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_destruction.py --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_factory.py --gcc --real-destroy
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_factory.py --real-destroy
+```
+
+Each compiler passes **13,824 comparisons** across 27 complete bodies and rejects
+**28 mutations**. Fixtures compare complete arena/heap bytes, state at external
+calls, free/release order, returned addresses, live allocation maps, stack,
+nonvolatile registers and x87 state. They cover bounded nested/linked records,
+unknown bytes, signed type gates, deletion flags, zero/short arrays, and high-bit
+counts whose signed guard skips iteration. Controlled callbacks change a later
+COM reference, a temporary-grid stride, or the iterator's stored cookie to check
+selected rereads and retained loop state. The suite compares 97,174 free events,
+12,906 COM releases and 938 iterator callback events per compiler. Counts which
+would require billions of iterations, malformed graphs, exceptions and arbitrary
+callback mutations remain outside this evidence. Allocation/free and COM Release
+are controlled; every listed cleanup body executes original or recovered code.
+
+The additional factory mode passes **535 ownership chains per compiler**, including
+23 retail payloads. It executes the real destructor, buffer/pool lifetimes and
+native COM class dispatch; compiler creation/compilation/release, deserialization
+and runtime setup remain controlled. The original factory regression also passes
+8,727 comparisons per compiler. These are behavioral checks, not instruction-byte
+identity or evidence that real effect payloads have been parsed. Fingerprints are
+in `config/SPEED2_EXE_1_2/effect-destruction.json`; generated reports remain under
+`build/analysis/effect-destruction/` and `build/analysis/effect-factory/`.
+
+The native input probe now runs **24 outer-effect constructor/release cycles**,
+including synthetic nested effects, parameter/pool links, record arrays and shared
+buffer/pool references. All allocations return to zero and sentinel links return
+to self. This exercises the actual recovered constructors/destructors without
+fabricating shader results. `NativeFxDestroyDispatch.cpp` adapts the factory ABI;
+`NativeFxComDispatch.cpp` dispatches only the known recovered buffer, pool and
+effect classes and traps unsupported GPU/device classes. The existing 46 input
+cycles still replay all **429,768 bytes** exactly.
+
+Demo/simulator/probes build successfully. The native SKYLINE orbit retains
+checksums `ca993eba`/`7141bcda` and its prior camera/output values. Three late-texture
+load/unload cycles retain 612 solids/829 textures, slots 500 → 534 → 500 and clean
+ownership. Native factory/technique activation still requires deserialization
+`0x66f69c`, runtime setup `0x66afe6`, source compilation support and the GPU/API
+backend. No shader or draw activation is claimed by this checkpoint.
 
 ### Verification (pixel size and LOD)
 

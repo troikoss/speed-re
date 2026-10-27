@@ -26,7 +26,7 @@ D3DXEffectObject *D3DXEffectObject::Construct() {
     value120=0; value11C=0; value3C=0; refs24=1;
     return this;
 }
-// Original 0x66afc5. The full metadata/runtime destructor is a separate boundary.
+// Original 0x66afc5. Native ABI dispatch reaches the recovered full destructor.
 D3DXEffectObject *D3DXEffectObject::Delete(unsigned char flags) {
     UG2FxDestroyEffect(this);
     if (flags&1) UG2FxFree(this);

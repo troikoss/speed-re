@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Verify UG2 effect construction, resource factory and shared-pool lifetime.
 
-The deserializer, effect runtime setup/destructor and source compiler are explicit
-controlled boundaries. Recovered resources, buffers, constructors, references,
-pool/node cleanup and the complete factory execute in the comparison chain.
+The deserializer, effect runtime setup and source compiler are controlled
+boundaries. The default suite also controls destruction; --real-destroy links
+the recovered full destructor and COM dispatch into factory ownership chains.
+Recovered resources, buffers, constructors, references, pool/node cleanup and
+the complete factory execute in both modes.
 """
 import argparse
 from collections import Counter
@@ -48,12 +50,15 @@ NAMES=dict(destroy='UG2FxDestroyEffect',deserialize='UG2FxDeserializeEffect',set
 SHIMS={k:STOP+0x5000+i*16 for i,k in enumerate(RUNTIME)}
 
 
-def build(replace,gcc):
+def build(replace,gcc,real_destroy=False):
     BUILD.mkdir(parents=True,exist_ok=True)
     sources=[replace.get(p.name,p)for p in SOURCES]+[core.SOURCE,core.BRIDGE,
         ROOT/'src/Platform/Native/NativeFxPoolDispatch.cpp',ROOT/'src/Platform/Native/NativeFxEffectDispatch.cpp']
+    if real_destroy:
+        sources += [replace.get("EffectDestruction.cpp",LIB/"EffectDestruction.cpp"),
+            ROOT/"src/Platform/Native/NativeFxDestroyDispatch.cpp",ROOT/"src/Platform/Native/NativeFxComDispatch.cpp"]
     bindings=dict(GLOBALS,**core.APIS,UG2FxMalloc=0x575620,UG2FxFree=0x575630,abort=STOP+0x900)
-    bindings.update({NAMES[k]:a for k,a in SHIMS.items()})
+    bindings.update({NAMES[k]:a for k,a in SHIMS.items()if not(real_destroy and k=="destroy")})
     if gcc:
         linked=link_native(sources,BUILD,ROOT,bindings,FREE['factory'],text_address=0x5000000,include_dirs=[LIB])
         prefixes={k:'_ZN'+str(len(c))+c+str(len(m))+m for k,(c,m)in MEMBERS.items()};prefixes.update(FREE)
@@ -78,10 +83,11 @@ def build(replace,gcc):
 
 
 class Machine(core.Machine):
-    def __init__(self,image,linked=None,gcc=False):
+    def __init__(self,image,linked=None,gcc=False,real_destroy=False):
         super().__init__(image,linked,gcc);self.rebuilt=bool(linked)
         if not linked:self.entries.update({k:a for k,(a,n)in SPANS.items()})
         for k,(original,n)in RUNTIME.items():
+            if real_destroy and k=="destroy":continue
             a=SHIMS[k]if linked else original;self.u.hook_add(UC_HOOK_CODE,self.dependency,user_data=k,begin=a,end=a)
     def args_member(self,n):
         if self.rebuilt:
@@ -231,8 +237,8 @@ def cases(n):
         yield c
 
 
-def verify(image,linked,gcc,n,kinds,retail):
-    a,b=Machine(image),Machine(image,linked,gcc);counts=Counter();boundaries=Counter();returns=Counter();profiles=Counter()
+def verify(image,linked,gcc,n,kinds,retail,real_destroy=False):
+    a,b=Machine(image,real_destroy=real_destroy),Machine(image,linked,gcc,real_destroy);counts=Counter();boundaries=Counter();returns=Counter();profiles=Counter()
     fixtures=[(k,c)for c in cases(n)for k in kinds]
     for name,payload in retail:
         c=next(cases(1));c.update(payload=payload,device=0x31400000,module=0,null_name=False,null_effect_output=False,null_errors=False,
@@ -254,7 +260,11 @@ def verify(image,linked,gcc,n,kinds,retail):
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--gcc',action='store_true');p.add_argument('--cases',type=int,default=512)
     p.add_argument('--kind',choices=['all',*SPANS,'factory_chain'],default='all');p.add_argument('--replace',type=Path);p.add_argument('--source-name');p.add_argument('--mutation-checks',action='store_true')
-    args=p.parse_args();raw=EXE.read_bytes();pe=pefile.PE(data=raw);image=pe.get_memory_mapped_image();manifest=json.loads(MANIFEST.read_text())
+    p.add_argument('--real-destroy',action='store_true',help='Execute the full destructor; use factory or factory_chain fixtures')
+    args=p.parse_args()
+    if args.real_destroy and args.kind=='all':args.kind='factory_chain'
+    if args.real_destroy and args.kind not in ('factory','factory_chain'):p.error('--real-destroy requires factory or factory_chain')
+    raw=EXE.read_bytes();pe=pefile.PE(data=raw);image=pe.get_memory_mapped_image();manifest=json.loads(MANIFEST.read_text())
     assert hashlib.sha256(raw).hexdigest()==manifest['executable_sha256']
     for f in list(manifest['functions'].values())+manifest['data']:
         a=int(f['address'],16)-0x400000;assert hashlib.sha256(image[a:a+f['size']]).hexdigest()==f['sha256']
@@ -264,12 +274,16 @@ def main():
         for entry in t.directory.entries:
             d=entry.directory.entries[0].data.struct;retail.append((str(entry.name),pe.get_data(d.OffsetToData,d.Size)))
     replace={args.source_name:args.replace}if args.replace else{}
-    report=verify(image,build(replace,args.gcc),args.gcc,args.cases,[*SPANS,'factory_chain']if args.kind=='all'else[args.kind],retail if args.kind=='all'else[])
+    report=verify(image,build(replace,args.gcc,args.real_destroy),args.gcc,args.cases,[*SPANS,'factory_chain']if args.kind=='all'else[args.kind],
+        retail if args.kind=='all' or args.real_destroy else[],args.real_destroy)
     report.update(failures=0,compiler='GCC i386 -O1'if args.gcc else'MSVC 7.1 /Ox /Ob0',byte_identity='not established',
         limitations=['compiler creation/compilation/release, deserialization, runtime setup and full effect destruction are controlled boundaries',
         'resources/buffers and pool/node lifetimes execute recovered code; allocation and Win32 APIs remain controlled',
         'retail fixtures validate factory byte copies and ownership under controlled deserialization, not parsing or shaders',
         'finite bounded records and valid dependency objects; malformed pointers, arbitrary class identities and exceptions not established'])
+    if args.real_destroy:
+        report['full_destruction']='recovered source executes; COM class-token adapter dispatches recovered buffer/pool/effect releases'
+        report['limitations'][0]='compiler creation/compilation/release, deserialization and runtime setup are controlled boundaries'
     if args.mutation_checks:
         mutations={
             'erase-parameter-unknown':('parameter','EffectObject.cpp','value08=0xffffffff;','value08=0xffffffff; value0C=0;'),
@@ -321,7 +335,7 @@ def main():
             path.with_suffix('.log').write_text(r.stdout);assert r.returncode and 'effect factory mismatch'in r.stdout,(name,r.stdout)
             rejected.append(name)
         report['rejected_mutations']=rejected
-    (BUILD/('verification-'+('gcc'if args.gcc else'msvc')+'-'+args.kind+'.json')).write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
+    (BUILD/('verification-'+('gcc'if args.gcc else'msvc')+'-'+args.kind+('-real-destroy'if args.real_destroy else'')+'.json')).write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report,indent=2))
 
 
 if __name__=='__main__':main()

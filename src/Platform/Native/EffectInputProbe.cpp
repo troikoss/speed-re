@@ -1,6 +1,7 @@
 #include "OriginalImage.h"
 #include "NativeFxInput.h"
 #include "../../Speed/Indep/Libs/D3DX/EffectFactory.h"
+#include "../../Speed/Indep/Libs/D3DX/EffectDestruction.h"
 #include <stdio.h>
 #include <string.h>
 #include <vector>
@@ -11,6 +12,60 @@ unsigned int Checksum(const unsigned char *data,unsigned int size) {
     unsigned int hash=2166136261u;
     for (unsigned int i=0;i<size;++i) hash=(hash^data[i])*16777619u;
     return hash;
+}
+template<class T> T *CleanupArray(unsigned int count) {
+    unsigned int *cookie=static_cast<unsigned int *>(UG2FxMalloc(4+count*sizeof(T)));
+    *cookie=count;
+    T *elements=reinterpret_cast<T *>(cookie+1);
+    memset(elements,0,count*sizeof(T));
+    return elements;
+}
+bool ProbeEffectDestruction() {
+    for (unsigned int i=0;i<24;++i) {
+        D3DXEffectObject *effect=static_cast<D3DXEffectObject *>(UG2FxMalloc(sizeof(D3DXEffectObject)));
+        memset(effect,0xa5,sizeof(*effect));effect->Construct();
+        D3DXEffectBuffer *buffer=0;
+        D3DXEffectPool *pool=0;
+        if (D3DXEffectBufferCreate(17+i,&buffer) || D3DXEffectPoolCreate(&pool)) return false;
+        // Caller and effect each own a reference. These are CPU objects with
+        // recovered class identities, not fabricated GPU interfaces.
+        D3DXEffectBufferAddRef(buffer);UG2FxPoolAddRefVirtual(pool);
+        effect->value28=reinterpret_cast<unsigned int>(buffer);
+        effect->value38=reinterpret_cast<unsigned int>(pool);
+        D3DXEffectPoolLink sentinel={0};sentinel.previous0C=sentinel.next10=&sentinel;
+        if (i&1) {
+            D3DXEffectObject *nested=static_cast<D3DXEffectObject *>(UG2FxMalloc(sizeof(*nested)));
+            memset(nested,0xa5,sizeof(*nested));nested->Construct();
+            effect->value100=reinterpret_cast<unsigned int>(nested);
+            D3DXEffectParameter *parameters=CleanupArray<D3DXEffectParameter>(2);
+            effect->value9C=reinterpret_cast<unsigned int>(parameters);
+            D3DXEffectPoolLink *link=static_cast<D3DXEffectPoolLink *>(UG2FxMalloc(sizeof(*link)));
+            memset(link,0,sizeof(*link));link->data08=UG2FxMalloc(13);
+            link->previous0C=link->next10=&sentinel;sentinel.previous0C=sentinel.next10=link;
+            parameters[1].value40=reinterpret_cast<unsigned int>(link);
+            D3DXEffectReference18 *references=CleanupArray<D3DXEffectReference18>(3);
+            effect->value18=reinterpret_cast<unsigned int>(references);
+            for (unsigned int j=0;j<3;++j) {
+                references[j].value00=4;references[j].value04=reinterpret_cast<unsigned int>(buffer);
+                D3DXEffectBufferAddRef(buffer);
+            }
+            effect->valueE0.value00=0;
+            effect->valueE0.value0C=reinterpret_cast<unsigned int>(UG2FxMalloc(19));
+            D3DXEffectRecordB4 *records=CleanupArray<D3DXEffectRecordB4>(2);
+            effect->valueA4=reinterpret_cast<unsigned int>(records);
+            records[1].array38=CleanupArray<D3DXEffectRecord38>(2);
+            records[1].value8C[2]=reinterpret_cast<unsigned int>(buffer);D3DXEffectBufferAddRef(buffer);
+            records[0].data40=UG2FxMalloc(23);
+            D3DXEffectGroup64 *groups=CleanupArray<D3DXEffectGroup64>(2);
+            effect->value2C=reinterpret_cast<unsigned int>(groups);
+            groups[1].data00=UG2FxMalloc(11);groups[0].array04=CleanupArray<D3DXEffectRecord64>(2);
+            groups[0].array04[1].array34=CleanupArray<D3DXEffectRecord20>(2);
+        }
+        if (D3DXEffectRelease(effect) || buffer->refs04!=1 || pool->refs04!=1 ||
+            sentinel.previous0C!=&sentinel || sentinel.next10!=&sentinel) return false;
+        if (D3DXEffectBufferRelease(buffer) || D3DXEffectPoolRelease(pool) || NativeFxAllocationCount()) return false;
+    }
+    return true;
 }
 }
 int main(int argc,char **argv) {
@@ -99,6 +154,8 @@ int main(int argc,char **argv) {
             sentinel.next10!=&sentinel || sentinel.previous0C!=&sentinel) return 19;
     }
     if (capture && fclose(capture)!=0) return 15;
+    if (!ProbeEffectDestruction()) return 20;
+    printf("effect destruction: 24 constructor/release cycles, nested synthetic cleanup graphs, 0 live allocations\n");
     printf("effect pool: 24 query/release cycles, three-node cleanup, 0 live allocations\n");
     printf("effect inputs: 23 recipes, 46 ANSI/UTF16 buffer cycles, %u copied bytes, %u live allocations\n",total,static_cast<unsigned int>(NativeFxAllocationCount()));
     return 0;
