@@ -2586,10 +2586,104 @@ Demo/simulator/solid-probe builds pass. Native SKYLINE orbit and scripted drive
 preserve source/record checksums `ca993eba`/`7141bcda` and `eb0428b7`/`69927c13`;
 the 120-frame display-free simulator smoke also passes. The
 three late-texture load/unload cycles retain 612 solids/829 textures and finish
-with clean ownership. The full effect factory `0x640c02`, effect construction,
-deserialization `0x66f69c`, runtime setup `0x66afe6`, API/GPU backend and native
-technique/consumer activation remain open. The ramp's zero mip-level request
+with clean ownership. The following checkpoint recovers effect construction,
+factory control flow and pool lifetime. Deserialization `0x66f69c`, runtime setup
+`0x66afe6`, full effect destruction, the API/GPU backend and native technique/
+consumer activation remain open. The ramp's zero mip-level request
 also remains unsupported by native CPU texture staging.
+
+### Effect constructors, resource factory and shared-pool lifetime (2026-10-27)
+
+`Libs/D3DX/EffectObject.cpp`, `EffectFactory.cpp` and `EffectPool.cpp` recover
+sixteen complete constructor/controller/helper bodies:
+
+| Address | Recovered behavior |
+| --- | --- |
+| `0x664ecf`, `0x65eb78` | Initialize the parameter record and value prefix |
+| `0x66509e` | Construct the `0x130`-byte effect object |
+| `0x65b8c6`, `0x66c361`, `0x66afc5` | Effect AddRef, Release and scalar deleting wrapper |
+| `0x640c02` | Complete resource-factory control flow, compiled copy and compiler path |
+| `0x64285f`, `0x640aac` | Construct/create the `0x20`-byte effect pool |
+| `0x642556`, `0x642883` | Pool interface query and Release |
+| `0x642504`, `0x642535` | Pool destruction and conditional object free |
+| `0x641837`, `0x641878`, `0x641816` | Embedded-link cleanup and linked-node destruction/deletion |
+
+Effect construction preserves unknown bytes and fields. It installs class tokens
+`0x7b6fe0`/`0x7b6e00`, calls the parameter/value constructors at `+0x48`/`+0xe0`,
+masks only the low **word** at `+0x118` with `0xe478`, performs the original
+ordered clears and initializes reference count `+0x24` to one. The high flag word,
+the halfword at `+0x32` and unspecified parameter/value fields are retained.
+The checked source layout names unknown fields by offset. Effect Release wraps
+the decrement and invokes the recovered deleting wrapper only at zero; that
+wrapper still delegates the full destructor `0x66adec` to a runtime boundary.
+
+The factory clears output and diagnostics before validating device/name, allocates
+and constructs the effect, then runs the recovered resource loader. A resource
+shorter than four bytes returns `0x80004005`. Signature `0xfeff0901` selects a
+byte-for-byte copy into a recovered buffer, with dword copies followed by the
+remaining bytes. In this branch a null effect output returns the loader's result
+without allocating that buffer or invoking deserialization.
+
+Other signatures clear the resource before calling the source compiler. A
+successful compiler creation releases and clears an earlier diagnostic buffer;
+compilation receives flags masked with `0xffffffe7`. Its later diagnostics remain
+owned by the caller. Deserialization receives a zero cursor and the shared pool.
+The factory publishes the object and adds its reference only after both
+deserialization and runtime setup return nonnegative results. Cleanup retains
+the original compiler → buffer → effect → resource order, including partial
+outputs and failures. Positive success codes are preserved.
+
+Pool queries compare the pool identifier and IUnknown identifier and leave output
+untouched on failure. Pool AddRef uses original entry `0x670dde`, shared with the
+byte-buffer class. Destruction frees `+0x10` storage before the `+0x1c` node chain.
+Each node detaches its `+0x20` successor before recursive deletion. Disassembly
+at `0x641899` confirms that link cleanup receives **node +0x0c**; its data/neighbor
+fields are relative to that embedded link. The recovered code preserves this
+adjustment, the free-before-unlink order and flags-bit-zero deletion behavior.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_factory.py --gcc --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_factory.py --mutation-checks
+```
+
+Each compiler passes **8,727 comparisons**: 512 per body, 512 linked factory/
+caller-cleanup cases and 23 retail-payload factory cases. The factory fixtures
+include 256 cases each for randomized inputs, compiled allocation paths, compiled
+runtime outcomes and source-compiler outcomes, plus the 23 retail cases. Both
+compilers reject **38 mutations**, including whole-object zeroing, widened flag
+clears, reference offsets, failed-query output writes, the embedded-link offset,
+node detachment, pre-clears, signatures/short inputs, compiler flags, diagnostic
+ownership, copy tails, cursor initialization, early publication and release order.
+
+Full fixture/heap bytes, allocator-time object/link state, returns, dependency
+arguments and ownership, ABI and x87 state are compared. The controlled
+deserializer observes all copied bytes; it may retain the input buffer and pool,
+including on failure. The linked caller cleanup releases all modeled ownership.
+The recovered resource/buffer bodies, constructors, references and pool/node
+cleanup execute throughout. Compiler creation/compilation/release, deserialization,
+runtime setup and the full effect destructor are controlled dependencies. These
+checks establish factory input/copy/ownership behavior under those dependencies;
+they do not establish real effect parsing, shader creation or rendering parity.
+Function/vtable/identifier fingerprints are in `effect-factory.json`, and reports
+are under `build/analysis/effect-factory/`. Finite fixtures, class identities and
+forced allocation outcomes do not establish malformed-pointer, exception or
+instruction-byte equivalence.
+
+The native input probe now also creates/queries/releases real recovered pools
+through **24 cycles**, including a synthetic three-node cleanup graph. All pool,
+node and data allocations are released, and the sentinel links return to self.
+The existing 23-recipe/46-cycle capture still matches all **429,768 bytes** against
+the player's executable with zero live allocations. Native pool code uses a
+separate ABI bridge for its original class token; no native effect object is
+fabricated by these tests.
+
+Demo, simulator and both probes build successfully. Native SKYLINE orbit retains
+source/record checksums `ca993eba`/`7141bcda`; three late-texture load/unload cycles
+retain 612 solids/829 textures, matching slots 500 → 534 → 500, and clean ownership.
+The effect factory/constructor code compiles into the recovered archive. Native
+factory/technique activation still needs its deserializer, runtime setup, full
+effect destructor and API/GPU backend; source compilation remains an explicit
+library boundary. The other wheel-rendering inventory seams remain open.
 
 ### Verification (pixel size and LOD)
 

@@ -1,6 +1,6 @@
 #include "OriginalImage.h"
 #include "NativeFxInput.h"
-#include "../../Speed/Indep/Libs/D3DX/EffectInput.h"
+#include "../../Speed/Indep/Libs/D3DX/EffectFactory.h"
 #include <stdio.h>
 #include <string.h>
 #include <vector>
@@ -72,7 +72,34 @@ int main(int argc,char **argv) {
         numericTested=true;break;
     }
     if (!numericTested) return 14;
+    for (unsigned int i=0;i<24;++i) {
+        D3DXEffectPool *pool=0,*queried=0;
+        if (D3DXEffectPoolCreate(&pool)!=0 || pool->class00!=0x7ab4e8 || pool->refs04!=1 ||
+            pool->value08 || pool->value0C || pool->data10 || pool->value14 || pool->value18 || pool->node1C) return 16;
+        if (D3DXEffectPoolQuery(pool,ug2FxPoolIid7B7410,&queried)!=0 || queried!=pool || pool->refs04!=2) return 17;
+        if (D3DXEffectPoolRelease(queried)!=1) return 18;
+        D3DXEffectPoolLink sentinel={0};sentinel.previous0C=sentinel.next10=&sentinel;
+        if (i==23) {
+            // Native probe fixture for the recovered nonempty-node cleanup.
+            // Shared parameter population from real effects remains open.
+            D3DXEffectPoolNode *nodes[3];
+            for (unsigned int j=0;j<3;++j) {
+                nodes[j]=static_cast<D3DXEffectPoolNode *>(UG2FxMalloc(sizeof(D3DXEffectPoolNode)));
+                memset(nodes[j],0,sizeof(*nodes[j]));nodes[j]->link0C.data08=UG2FxMalloc(17+j);
+            }
+            for (unsigned int j=0;j<3;++j) {
+                nodes[j]->linked20=j<2 ? nodes[j+1] : 0;
+                nodes[j]->link0C.previous0C=j ? &nodes[j-1]->link0C : &sentinel;
+                nodes[j]->link0C.next10=j<2 ? &nodes[j+1]->link0C : &sentinel;
+            }
+            sentinel.next10=&nodes[0]->link0C;sentinel.previous0C=&nodes[2]->link0C;
+            pool->node1C=nodes[0];pool->data10=UG2FxMalloc(31);
+        }
+        if (D3DXEffectPoolRelease(pool)!=0 || NativeFxAllocationCount() ||
+            sentinel.next10!=&sentinel || sentinel.previous0C!=&sentinel) return 19;
+    }
     if (capture && fclose(capture)!=0) return 15;
+    printf("effect pool: 24 query/release cycles, three-node cleanup, 0 live allocations\n");
     printf("effect inputs: 23 recipes, 46 ANSI/UTF16 buffer cycles, %u copied bytes, %u live allocations\n",total,static_cast<unsigned int>(NativeFxAllocationCount()));
     return 0;
 }

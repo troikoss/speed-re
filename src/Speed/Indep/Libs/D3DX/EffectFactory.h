@@ -1,0 +1,83 @@
+#ifndef UG2_D3DX_EFFECT_FACTORY_H
+#define UG2_D3DX_EFFECT_FACTORY_H
+#include "EffectInput.h"
+
+struct D3DXEffectParameter {
+    unsigned int value00,value04,value08,value0C,value10,value14,value18,value1C;
+    unsigned int value20,value24,value28,value2C,value30,value34,value38,value3C,value40;
+    unsigned short value44,value46;
+    unsigned int value48,value4C;
+    void Construct(); // 0x664ecf, normal return leaves the other fields untouched
+};
+struct D3DXEffectValuePrefix {
+    unsigned int value00,value04,value08,value0C,value10,value14,value18;
+    void Construct(); // 0x65eb78; 0x1c-byte written/read prefix
+};
+struct D3DXEffectObject {
+    unsigned int class00,interface04,value08,value0C,value10,value14,value18,value1C;
+    unsigned int value20,refs24,value28,value2C;
+    unsigned short value30,value32;
+    unsigned int value34,value38,value3C,value40,value44;
+    D3DXEffectParameter value48;
+    unsigned int value98,value9C,valueA0,valueA4,valueA8,valueAC,valueB0,valueB4;
+    unsigned int valueB8,valueBC,valueC0,valueC4,valueC8,valueCC,valueD0,valueD4,valueD8,valueDC;
+    D3DXEffectValuePrefix valueE0;
+    unsigned int valueFC,value100,value104,value108,value10C,value110,value114;
+    unsigned int value118,value11C,value120,value124,value128,value12C;
+    D3DXEffectObject *Construct(); // 0x66509e
+    D3DXEffectObject *Delete(unsigned char flags); // 0x66afc5; destructor remains a boundary
+};
+struct D3DXEffectPoolLink {
+    unsigned int value00,value04;
+    void *data08;
+    D3DXEffectPoolLink *previous0C,*next10;
+    void Unlink(); // 0x641837
+};
+struct D3DXEffectPoolNode {
+    unsigned int value00,value04,value08;
+    D3DXEffectPoolLink link0C;
+    D3DXEffectPoolNode *linked20;
+    void Destroy(); // 0x641878
+    D3DXEffectPoolNode *Delete(unsigned char flags); // 0x641816
+};
+struct D3DXEffectPool {
+    unsigned int class00,refs04,value08,value0C;
+    void *data10;
+    unsigned int value14,value18;
+    D3DXEffectPoolNode *node1C;
+    D3DXEffectPool *Construct(); // 0x64285f
+    void Destroy(); // 0x642504
+    D3DXEffectPool *Delete(unsigned char flags); // 0x642535
+};
+typedef char D3DXEffectParameterSize[(sizeof(D3DXEffectParameter)==0x50)?1:-1];
+typedef char D3DXEffectObjectSize[(sizeof(D3DXEffectObject)==0x130)?1:-1];
+typedef char D3DXEffectPoolNodeSize[(sizeof(D3DXEffectPoolNode)==0x24)?1:-1];
+typedef char D3DXEffectPoolLinkSize[(sizeof(D3DXEffectPoolLink)==0x14)?1:-1];
+typedef char D3DXEffectPoolSize[(sizeof(D3DXEffectPool)==0x20)?1:-1];
+extern "C" {
+unsigned int __stdcall D3DXEffectAddRef(D3DXEffectObject *effect); // 0x65b8c6
+unsigned int __stdcall D3DXEffectRelease(D3DXEffectObject *effect); // 0x66c361
+int __stdcall D3DXEffectPoolCreate(D3DXEffectPool **output); // 0x640aac
+int __stdcall D3DXEffectPoolQuery(D3DXEffectPool *pool,const unsigned int *iid,D3DXEffectPool **output); // 0x642556
+unsigned int __stdcall D3DXEffectPoolRelease(D3DXEffectPool *pool); // 0x642883
+int __stdcall D3DXEffectCreateFromResource(unsigned int device,unsigned int module,const void *name,
+    const void *defines,void *includes,unsigned int flags,D3DXEffectPool *pool,
+    D3DXEffectObject **output,D3DXEffectBuffer **errors); // 0x640c02, RET 36
+extern const unsigned int ug2FxPoolIid7B7410[4];
+unsigned int UG2FxPoolAddRefVirtual(D3DXEffectPool *pool);
+unsigned int UG2FxEffectAddRefVirtual(D3DXEffectObject *effect);
+unsigned int UG2FxEffectReleaseVirtual(D3DXEffectObject *effect);
+unsigned char *UG2FxBufferPointerVirtual(D3DXEffectBuffer *buffer);
+unsigned int UG2FxBufferReleaseVirtual(D3DXEffectBuffer *buffer);
+// Unrecovered runtime/compiler boundaries. No native successful effect is
+// fabricated while these implementations and the GPU backend remain open.
+void UG2FxDestroyEffect(D3DXEffectObject *effect); // 0x66adec
+int UG2FxDeserializeEffect(D3DXEffectObject *effect,unsigned int device,D3DXEffectPool *pool,
+    D3DXEffectBuffer *buffer,unsigned int *position); // 0x66f69c
+int UG2FxSetupEffect(D3DXEffectObject *effect); // 0x66afe6
+int __stdcall UG2FxCompileResource(unsigned int module,const void *name,const void *defines,
+    void *includes,unsigned int flags,void **compiler,D3DXEffectBuffer **errors); // 0x640aef
+int __stdcall UG2FxCompilerCompile(void *compiler,unsigned int flags,D3DXEffectBuffer **buffer,D3DXEffectBuffer **errors); // vtable +0xf4
+unsigned int __stdcall UG2FxCompilerRelease(void *compiler); // vtable +8
+}
+#endif

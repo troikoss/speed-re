@@ -27,7 +27,11 @@ file(GLOB UG2_RECOVERED_SOURCES CONFIGURE_DEPENDS
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/TimedAverage.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/bSlotPool.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/bWare/Compression.cpp)
-list(APPEND UG2_RECOVERED_SOURCES ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectInput.cpp)
+list(APPEND UG2_RECOVERED_SOURCES
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectInput.cpp
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectObject.cpp
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectPool.cpp
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectFactory.cpp)
 # Verified separately by verify_pc_car_render_solid.py. NativeCarWheels still
 # supplies DrawSolid until native effect support and recovered GPU consumption are wired.
 list(REMOVE_ITEM UG2_RECOVERED_SOURCES ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Src/World/CarRenderSolid.cpp)
@@ -41,6 +45,8 @@ add_library(ug2native STATIC
     src/Platform/Native/OriginalImage.cpp
     src/Platform/Native/NativeFxResource.cpp
     src/Platform/Native/NativeFxBufferDispatch.cpp
+    src/Platform/Native/NativeFxPoolDispatch.cpp
+    src/Platform/Native/NativeFxEffectDispatch.cpp
     src/Platform/Native/NativeTechniqueDispatch.cpp
     src/Platform/Native/NativeVehicle.cpp
     src/Platform/Native/NativeWorld.cpp
