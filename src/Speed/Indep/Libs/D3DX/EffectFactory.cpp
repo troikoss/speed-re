@@ -1,7 +1,7 @@
 #include "EffectFactory.h"
 
-// Original 0x640c02, RET 36. Compiler, deserializer, runtime setup and full
-// effect destruction remain explicit dependencies, not native success stubs.
+// Original 0x640c02, RET 36. Compiler and deserializer remain explicit
+// boundaries. Native setup/destruction dispatch to their recovered bodies.
 extern "C" int __stdcall D3DXEffectCreateFromResource(unsigned int device,unsigned int module,const void *name,
     const void *defines,void *includes,unsigned int flags,D3DXEffectPool *pool,
     D3DXEffectObject **output,D3DXEffectBuffer **errors) {

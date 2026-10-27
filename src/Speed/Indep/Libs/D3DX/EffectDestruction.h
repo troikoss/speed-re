@@ -28,13 +28,17 @@ struct D3DXEffectRecord64 {
     D3DXEffectBaseRecord value08;
     unsigned int value30;
     D3DXEffectRecord20 *array34;
-    unsigned int value38,unknown3C[10];
+    unsigned int value38,value3C,value40,value44,value48,value4C,value50,value54,value58,value5C,value60;
     D3DXEffectRecord64 *DeleteArray(unsigned char flags); // 0x664f63
 };
 struct D3DXEffectGroup64 {
     void *data00;
     D3DXEffectRecord64 *array04;
-    unsigned int unknown08[23];
+    unsigned int value08,value0C,value10,value14;
+    unsigned short value18,value1A;
+    unsigned int value1C,value20,value24,value28,value2C,value30;
+    unsigned short value34,value36,value38,value3A,value3C,value3E;
+    unsigned int value40,value44,value48,value4C,value50,value54,value58,value5C,value60;
     D3DXEffectGroup64 *DeleteArray(unsigned char flags); // 0x66a4d5
 };
 struct D3DXEffectRecord38 {

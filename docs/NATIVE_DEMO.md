@@ -2769,9 +2769,111 @@ cycles still replay all **429,768 bytes** exactly.
 Demo/simulator/probes build successfully. The native SKYLINE orbit retains
 checksums `ca993eba`/`7141bcda` and its prior camera/output values. Three late-texture
 load/unload cycles retain 612 solids/829 textures, slots 500 → 534 → 500 and clean
-ownership. Native factory/technique activation still requires deserialization
-`0x66f69c`, runtime setup `0x66afe6`, source compilation support and the GPU/API
-backend. No shader or draw activation is claimed by this checkpoint.
+ownership. The following checkpoint recovers runtime setup `0x66afe6`. Native
+factory/technique activation still requires deserialization `0x66f69c`, shader
+preparation/evaluation, source compilation support and the GPU/API backend. No
+shader or draw activation is claimed by this checkpoint.
+
+### Effect runtime setup and recursive reference traversal (2026-10-27)
+
+`Libs/D3DX/EffectSetup.cpp` recovers three complete normal-control-flow bodies:
+
+| Address | Recovered behavior |
+| --- | --- |
+| `0x66afe6` (1,082 bytes) | Build per-technique/per-parameter reference grids |
+| `0x65ae25` (236 bytes) | Adjust two group counters and recursively adjust referenced groups |
+| `0x66aa2f` (488 bytes) | Prepare selected records, evaluate selectors and recursively resolve references |
+
+Setup sets byte `effect+0x119` bit `0x08`, allocates both `rows × parameters × 4`
+pointer grids and a `parameters`-byte array, then checks all three results. It
+zeros only the byte array. The row index occupies the low word at `+0x40`; its
+high word is retained. For each row, setup increments the groups named by its
+pass records and calls the recovered resolver. **The resolver's result is ignored
+by this caller.** It then visits each parameter's circular use ring, beginning
+with `head->previous18->next1C`, and classifies uses whose group counter `+0x3a`
+is nonzero by group flag `+8` bit `0x08`.
+
+The two temporary lists grow with capacities `2 * old + 1` and retain capacity
+across parameters and rows. Uses with the flag clear go into a persistent array followed
+by `secondCount + 1` zero words. Uses with the flag set also get a separate array
+with one zero terminator. Empty entries are null. Rows finish by reversing their
+initial counter increments. Successful traversal and row-allocation failure set
+the row word to `0xffff`; failure of an initial grid/byte allocation retains its
+prior value. Both paths free temporary lists in the original order and clear the
+setup flag. Partial grids, unknown bytes and uninitialized slots are preserved;
+no added clearing or invented failure recovery masks the binary's behavior.
+
+Reference adjustment sign-extends the low 16 bits of each delta. A counter is
+written only when its unsigned-word value plus that signed delta is nonnegative;
+positive overflow still wraps when stored to a word. The routine follows the
+record-index table and the pair at each record's `+0x48` offset. A zero descriptor
+element count means one element. The second delta recurses over all referenced
+elements; the first delta recurses to the selected element. Index arithmetic and
+the original 16-bit loop narrowing are retained.
+
+Resolution tests selected records with tags `0x0a000000` and `0x0b000000`, adjusts
+counters around their preparation calls, and preserves negative return codes.
+It walks reference records, copies a dirty record's `+4` value into `+0` before
+evaluation, calls the record's buffer-pointer interface, then reads the selector
+double through that returned description's `+0x0c` offset. It adds the original
+**0.001** double at `0x7a1e58`, truncates through a signed 64-bit integer and retains
+its low word. An unchanged selector bypasses the bounds check, matching the
+binary. Changed selectors must be below the effective element count. Recursive
+resolution preserves the original return propagation and evaluation order.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_setup.py --gcc --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_setup.py --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_factory.py --gcc --real-setup
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_factory.py --real-setup
+```
+
+Each compiler passes **6,144 comparisons**: 1,024 fixtures per body under each
+x87 control word (`0x027f`, `0x037f`). Both reject **31 mutations**, covering setup
+flags/word width, allocation sizes/order, partial failure state, row strides,
+classification, list growth/copies/terminators, count restoration, signed deltas,
+recursive defaults, preparation/evaluation failures, dirty clearing and selector
+bias/bounds behavior. Comparisons include complete arena/heap bytes, state at
+all external calls, allocation/free order, returns, live allocations, stack,
+nonvolatile registers and restored x87 control/tag state. Per compiler, fixtures
+observe 17,278 allocation requests, 7,668 frees, 1,442 preparation-A calls, 1,052
+preparation-B calls and 1,382 evaluations.
+
+Preparation `0x666df7`/`0x667d51` and evaluation `0x663a32` remain controlled
+boundaries in this suite. Buffer-pointer access and all three recovered bodies
+execute source. The original float-to-integer helper `0x75dd28` executes on the
+retail side and as the MSVC analysis runtime dependency; GCC uses its compiled
+conversion. Finite in-range doubles include conversion boundaries, negative
+values and values whose low integer word wraps. NaN/out-of-range conversion,
+exception unwinding, malformed pointers, cyclic group dependencies and loops
+requiring 65,536 or more element iterations remain unestablished. These checks
+establish bounded behavior, not byte identity or real shader preparation.
+Fingerprints, including the bias and conversion dependency, are in
+`config/SPEED2_EXE_1_2/effect-setup.json`; generated reports are under
+`build/analysis/effect-setup/`.
+
+The factory's `--real-setup` mode executes recovered setup and destruction in
+**535 chains per compiler**, including all 23 retail payload copies. Its controlled
+deserializer explicitly supplies empty count metadata. This checks linking,
+allocation and caller ownership; it does not parse those payloads or construct
+shaders. The normal controlled-runtime factory regression remains available.
+
+`ug2effectinput_probe` runs a separate native synthetic fixture with two rows,
+three parameters and four circular uses. It checks every grid entry, padding,
+terminator, byte-array clear, row sentinel/high word, restored counters and full
+recovered destruction to **zero allocations**. The existing 24 effect cleanup
+cycles and 46 input cycles still pass; all **429,768 input bytes** replay exactly.
+`NativeFxSetupDispatch.cpp` provides the native ABI bridge and the original bias.
+Unsupported preparation/evaluation calls trap explicitly; the fixture takes only
+metadata paths whose required routines are recovered.
+
+Demo, simulator and both probes build successfully. Native SKYLINE orbit checksums
+remain `ca993eba`/`7141bcda`; the three late-texture lifecycle cycles retain 612
+solids/829 textures, slots 500 → 534 → 500 and clean ownership. Native effect/
+technique activation still requires deserialization `0x66f69c`, shader preparation
+`0x666df7`/`0x667d51`, evaluation `0x663a32`, source compilation and the GPU/API
+backend. The recovered setup is currently exercised through explicit metadata
+fixtures rather than real effect activation.
 
 ### Verification (pixel size and LOD)
 

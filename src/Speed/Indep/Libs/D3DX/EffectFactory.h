@@ -29,6 +29,9 @@ struct D3DXEffectObject {
     unsigned int value118,value11C,value120,value124,value128,value12C;
     D3DXEffectObject *Construct(); // 0x66509e
     D3DXEffectObject *Delete(unsigned char flags); // 0x66afc5
+    int Setup(); // 0x66afe6
+    int AdjustReferences(unsigned int group,int directDelta,int allDelta); // 0x65ae25
+    int ResolveReferences(unsigned int group,int direct); // 0x66aa2f
 };
 struct D3DXEffectPoolLink {
     unsigned int value00,value04;
@@ -74,11 +77,11 @@ unsigned int UG2FxEffectReleaseVirtual(D3DXEffectObject *effect);
 unsigned char *UG2FxBufferPointerVirtual(D3DXEffectBuffer *buffer);
 unsigned int UG2FxBufferReleaseVirtual(D3DXEffectBuffer *buffer);
 void UG2FxDestroyEffect(D3DXEffectObject *effect); // native ABI bridge to recovered 0x66adec
+int UG2FxSetupEffect(D3DXEffectObject *effect); // native ABI bridge to recovered 0x66afe6
 // Unrecovered runtime/compiler boundaries. No native successful effect is
 // fabricated while these implementations and the GPU backend remain open.
 int UG2FxDeserializeEffect(D3DXEffectObject *effect,unsigned int device,D3DXEffectPool *pool,
     D3DXEffectBuffer *buffer,unsigned int *position); // 0x66f69c
-int UG2FxSetupEffect(D3DXEffectObject *effect); // 0x66afe6
 int __stdcall UG2FxCompileResource(unsigned int module,const void *name,const void *defines,
     void *includes,unsigned int flags,void **compiler,D3DXEffectBuffer **errors); // 0x640aef
 int __stdcall UG2FxCompilerCompile(void *compiler,unsigned int flags,D3DXEffectBuffer **buffer,D3DXEffectBuffer **errors); // vtable +0xf4

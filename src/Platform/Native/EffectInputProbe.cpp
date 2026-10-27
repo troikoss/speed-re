@@ -2,6 +2,7 @@
 #include "NativeFxInput.h"
 #include "../../Speed/Indep/Libs/D3DX/EffectFactory.h"
 #include "../../Speed/Indep/Libs/D3DX/EffectDestruction.h"
+#include "../../Speed/Indep/Libs/D3DX/EffectSetup.h"
 #include <stdio.h>
 #include <string.h>
 #include <vector>
@@ -66,6 +67,46 @@ bool ProbeEffectDestruction() {
         if (D3DXEffectBufferRelease(buffer) || D3DXEffectPoolRelease(pool) || NativeFxAllocationCount()) return false;
     }
     return true;
+}
+bool ProbeEffectSetup() {
+    // A synthetic metadata graph exercises setup and full cleanup together.
+    // Real effect deserialization and shader preparation remain separate work.
+    D3DXEffectObject *effect=static_cast<D3DXEffectObject *>(UG2FxMalloc(sizeof(*effect)));
+    memset(effect,0xa5,sizeof(*effect));effect->Construct();
+    D3DXEffectGroup64 *groups=CleanupArray<D3DXEffectGroup64>(3);
+    effect->value2C=reinterpret_cast<unsigned int>(groups);
+    for (unsigned int i=0;i<3;++i) {
+        groups[i].data00=UG2FxMalloc(4);groups[i].value18=groups[i].value1A=0xffff;
+    }
+    groups[1].value08=8;
+    D3DXEffectRecordB4 *techniques=CleanupArray<D3DXEffectRecordB4>(2);
+    effect->valueA4=reinterpret_cast<unsigned int>(techniques);effect->valueA0=2;
+    techniques[0].value34=2;techniques[0].array38=CleanupArray<D3DXEffectRecord38>(2);
+    techniques[1].value34=1;techniques[1].array38=CleanupArray<D3DXEffectRecord38>(1);
+    techniques[0].array38[0].value34=0;techniques[0].array38[1].value34=1;
+    techniques[1].array38[0].value34=2;
+    D3DXEffectParameter *parameters=CleanupArray<D3DXEffectParameter>(3);
+    effect->value9C=reinterpret_cast<unsigned int>(parameters);effect->valueAC=3;
+    D3DXEffectParameter **table=static_cast<D3DXEffectParameter **>(UG2FxMalloc(12));
+    effect->valueB0=reinterpret_cast<unsigned int>(table);
+    for (unsigned int i=0;i<3;++i) table[i]=parameters+i;
+    D3DXEffectUseLink links[4]={};
+    for (unsigned int i=0;i<3;++i) {
+        links[i].value14=i;links[i].previous18=&links[(i+2)%3];links[i].next1C=&links[(i+1)%3];
+    }
+    links[3].value14=1;links[3].previous18=links[3].next1C=&links[3];
+    parameters[0].value34=reinterpret_cast<unsigned int>(&links[0]);
+    parameters[1].value34=reinterpret_cast<unsigned int>(&links[3]);
+    if (UG2FxSetupEffect(effect)!=0 || effect->value40!=0xa5a5ffff || (effect->value118&0x800)) return false;
+    for (unsigned int i=0;i<3;++i) if (groups[i].value3A || groups[i].value3C || reinterpret_cast<unsigned char *>(effect->valueBC)[i]) return false;
+    D3DXEffectUseLink ***first=reinterpret_cast<D3DXEffectUseLink ***>(effect->valueB4);
+    D3DXEffectUseLink ***second=reinterpret_cast<D3DXEffectUseLink ***>(effect->valueC0);
+    if (!first[0] || first[0][0]!=&links[0] || first[0][1] || first[0][2] ||
+        !second[0] || second[0][0]!=&links[1] || second[0][1] ||
+        !first[1] || first[1][0] || first[1][1] || !second[1] || second[1][0]!=&links[3] || second[1][1] ||
+        first[2] || second[2] || !first[3] || first[3][0]!=&links[2] || first[3][1] || second[3] ||
+        first[4] || second[4] || first[5] || second[5]) return false;
+    return D3DXEffectRelease(effect)==0 && NativeFxAllocationCount()==0;
 }
 }
 int main(int argc,char **argv) {
@@ -155,6 +196,8 @@ int main(int argc,char **argv) {
     }
     if (capture && fclose(capture)!=0) return 15;
     if (!ProbeEffectDestruction()) return 20;
+    if (!ProbeEffectSetup()) return 21;
+    printf("effect setup: two rows, three parameters, four circular uses, exact grids and 0 live allocations\n");
     printf("effect destruction: 24 constructor/release cycles, nested synthetic cleanup graphs, 0 live allocations\n");
     printf("effect pool: 24 query/release cycles, three-node cleanup, 0 live allocations\n");
     printf("effect inputs: 23 recipes, 46 ANSI/UTF16 buffer cycles, %u copied bytes, %u live allocations\n",total,static_cast<unsigned int>(NativeFxAllocationCount()));

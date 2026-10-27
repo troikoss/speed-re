@@ -1,0 +1,32 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "setup": {
+      "address": "0x66afe6",
+      "size": 1082,
+      "sha256": "fca9cc47b3c92c59761fb4f9c4dd0e6cfec86c1b39a6aa13a4b0d83e58f8ac16"
+    },
+    "adjust": {
+      "address": "0x65ae25",
+      "size": 236,
+      "sha256": "872e9725cf6c53c01cb0e9c7fa7181d3ec69ad034013078d3bf8df475731b79e"
+    },
+    "resolve": {
+      "address": "0x66aa2f",
+      "size": 488,
+      "sha256": "ecc5ff8b67a2e31961d7acb55a0c4ddf9028be628e38d42bc59e5f3c357e0e9a"
+    }
+  },
+  "data": [
+    {
+      "address": "0x7a1e58",
+      "size": 8,
+      "sha256": "cb529eddce2ef8826d77d57b8acb0f1b648ed6a4b1b5358696939aab6ee2b17c"
+    },
+    {
+      "address": "0x75dd28",
+      "size": 39,
+      "sha256": "d0a2aca68648a0ae9d5cbfae1b276d4a64d4f797fc0c60f28b64096cdfa3148c"
+    }
+  ]
+}
