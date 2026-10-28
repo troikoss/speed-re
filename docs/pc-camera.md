@@ -408,7 +408,8 @@ Evidence worth recording:
   filled function pointer (initial value `0x63d119`, a loader stub, like `0x803e74` for the
   multiply); it is not in the PE import tables. The name `D3DXMatrixTranspose` is inferred: a
   two-argument matrix function whose output `0x447280` consumes as the transpose (rows 0..2 give
-  the position and the direction). Native: `D3DXMatrixTranspose` in `NativeVehicle.cpp`.
+  the position and the direction). Native: `D3DXMatrixTranspose` in `NativeVehicle.cpp`
+  now forwards to recovered scalar `0x63d132`; see the [separate transpose evidence](NATIVE_DEMO.md#scalar-d3dx-transpose-and-native-camera-bridge-2026-10-28).
 - `0x59fa30` (called with car `+0x40`) is `DrivetrainAuxiliary::GetNitrousIndex` (recovered);
   `0x5ecdb0` returns it when `|input +0x20c| <= 0.001` or `speed * 2.237 < 5`, else 0.
 - The sample curve of `0x452ed0` is built on the stack (count 5, spacing `PhysicsInfo +0x20` or
@@ -444,7 +445,8 @@ Limits and seams:
   recovered below (and its tick and reset); the request flag `0x8650c4` is still written by game
   events that are not recovered, and the native demo never sets it. The view shake gate
   `*0x890080 +0x108` is 1.0 from the native scaffold, as the world constructor `0x5ff490` sets it.
-- D3DX transpose: inferred from use; the real routine is not executed (stub in the verifier).
+- This camera-shake verifier still stubs D3DX transpose. Its scalar body and native
+  bridge are now recovered and [verified separately](NATIVE_DEMO.md#scalar-d3dx-transpose-and-native-camera-bridge-2026-10-28).
 - `volatile` appears where the original stores a binary32 and reloads it (noise products, bump sums,
   translation read-back) and to keep the eight noise calls in order; it is a verification-driven
   spelling, not original source evidence. Verification only: the nitrous recorder state read through

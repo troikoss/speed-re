@@ -1,0 +1,8 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "address": "0x63d132",
+  "size": 113,
+  "sha256": "34a1bd8bc09c848544bb47491f2f72808b828ad634d911aed0a904ba6b6a0059",
+  "dispatch_thunk": "0x63d12c",
+  "dispatch_pointer": "0x803f00"
+}

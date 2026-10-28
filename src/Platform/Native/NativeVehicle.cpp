@@ -7,6 +7,7 @@
 #include "../../Speed/Indep/Src/Physics/ForceFeedback.h"
 #include "OriginalImage.h"
 #include "../../Speed/Indep/Src/Physics/VehicleIntegrator.h"
+#include "../../Speed/Indep/Src/Physics/D3DXMatrixScalar.h"
 #include "../../Speed/Indep/Src/Physics/VehicleAllocation.h"
 #include "../../Speed/Indep/Src/Physics/PhysicsUpgradeSource.h"
 #include "../../Speed/Indep/Src/World/WCollision.h"
@@ -228,17 +229,10 @@ extern "C" WheelMatrix *__stdcall D3DXMatrixMultiply(WheelMatrix *output, WheelM
     return output;
 }
 
-// D3DX transpose (statically linked in the original, dispatched via 0x803f00, identified from the
-// use in 0x447280 which reads the result as the transposed matrix). Operands may alias the output.
+// Native ABI bridge to the recovered default scalar body at 0x63d132.
+// The original 0x63d12c thunk dispatches through 0x803f00.
 extern "C" WheelMatrix *__stdcall D3DXMatrixTranspose(WheelMatrix *output, WheelMatrix *input) {
-    WheelMatrix result;
-    for (int row = 0; row < 4; ++row) {
-        for (int column = 0; column < 4; ++column) {
-            result.elements[row * 4 + column] = input->elements[column * 4 + row];
-        }
-    }
-    *output = result;
-    return output;
+    return D3DXMatrixTransposeScalar(output,input);
 }
 
 unsigned int bGetTicker() {

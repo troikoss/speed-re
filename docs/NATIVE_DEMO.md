@@ -469,9 +469,10 @@ by the `0x48f660` chain. `CarRenderRecord.cpp` recovers three dependencies:
   retained in x87 precision. Only output XYZ is written; output W is untouched.
   A zero length produces 1/0/0. Original source Y/Z are captured before storing X.
   This is distinct from the existing three-component normalizer `0x43cf10`.
-- `0x5bb190`, `CarRenderDirectionMatrix`: call the D3DX transpose seam at
+- `0x5bb190`, `CarRenderDirectionMatrix`: call D3DX transpose through
   `0x63d12c`, then write zero to float indices 3, 7, 11, 15, 12, 13 and 14 in that
-  order and return the output. The existing native D3DX backend is reused.
+  order and return the output. The native ABI bridge now calls the recovered
+  scalar body; see [transpose evidence](#scalar-d3dx-transpose-and-native-camera-bridge-2026-10-28).
 
 Evidence comes from live Ghidra decompilation and original disassembly; the D3DX
 operation was confirmed against its default scalar body `0x63d132` (dispatch table
@@ -2251,6 +2252,60 @@ retains 12,288 passing comparisons; the existing LOD verifier also passes its
 512 producer and 2,048 selection cases. These are bounded numeric and native input/
 producer checks, not complete rendering equivalence, optimized-library parity,
 malformed/OOM/exception coverage or proof for another architecture.
+
+### Scalar D3DX transpose and native camera bridge (2026-10-28)
+
+`D3DXMatrixScalar.cpp` now recovers the default scalar transpose
+`0x63d132..0x63d1a2` (113 bytes). Live Ghidra memory reads and local instruction
+analysis establish its pair order and mixed x87/DWORD transfers; the body was
+undefined as a Ghidra function, and no project mutation was needed.
+`config/SPEED2_EXE_1_2/d3dx-transpose.json` pins the body and complete executable.
+The original `0x63d12c` thunk dispatches through `0x803f00`; native
+`D3DXMatrixTranspose` now forwards to this recovered scalar body.
+
+The body swaps `(1,4)`, `(2,8)`, `(3,12)`, `(6,9)`, `(7,13)` and `(11,14)`
+in that order. Both directions of the first pair pass through x87; the remaining
+pairs preserve the higher-index source as a raw DWORD and convert the lower-index
+source through x87. It copies diagonals 0/5/10/15 last, only for distinct pointers.
+Partial overlaps therefore retain sequential reads and stores rather than a
+whole-matrix snapshot. Volatile extended temporaries spell the observed x87
+conversions; this is recovered behavior, not evidence of original source spelling.
+Signaling NaNs passing through those conversions are quieted on native hardware.
+
+With `UG2_EXE` set to the reference executable, run:
+
+```sh
+build/venv/bin/python tools/verify_pc_d3dx_transpose.py --gcc --native-checks --mutation-checks
+build/venv/bin/python tools/verify_pc_d3dx_transpose.py --mutation-checks
+cmake -S . -B build/native
+cmake --build build/native
+build/native/ug2d3dxtranspose_native_test
+```
+
+Each compiler passes **35,840 original/rebuilt comparisons**, with zero failures:
+all 31 DWORD-aligned overlapping displacements, exact adjacency/separation in
+both directions, arbitrary DWORD payloads, zeros, subnormals, infinities, NaNs,
+two x87 precisions and four rounding modes. Checks cover the whole fixture arena,
+output write bounds, returned pointer, stack cleanup, preserved registers, x87
+control/exception bits and stack balance. Three structural/overlap mutations are
+rejected per compiler. The GCC hardware suite additionally rejects three
+conversion mutations and passes **1,920** lane/payload/alias/rounding fixtures.
+The CMake-built probe uses the recovered library linked by the demo and passes
+the same 1,920 hardware fixtures.
+
+Unicorn preserves signaling NaN payloads and does not raise x87 invalid for these
+loads/stores. The emulator comparisons alone do **not** establish NaN conversion
+behavior. The native probe checks expected payload bits and invalid flags against
+the conversion lanes read from the original instructions; it runs recovered GCC
+source, not original PE code or the MSVC body. Only masked exceptions are covered;
+CPU dispatch, optimized variants, byte identity and exhaustive coverage remain
+unverified. This recovery supplies the transpose dependency of effect relocation
+`0x6614a1`; the relocation/value-write chain itself remains open.
+
+The complete native build and 60-frame SKYLINE orbit and driving smoke runs pass.
+Orbit source/record checksums remain `ca993eba`/`7141bcda`, with camera
+`1696.05762 -878.670471 25.8273449` and output C0
+`0.676807225 -2.48764729 1.04016507 1`. Texture records release to zero.
 
 ### Draw-context binding, flags and live scenery admission (2026-10-27)
 

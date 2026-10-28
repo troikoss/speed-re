@@ -1,5 +1,46 @@
 #include "D3DXMatrixScalar.h"
 
+// Original scalar transpose 0x63d132..0x63d1a2. The first pair passes through
+// x87 in both directions; the other pairs preserve one DWORD and widen the
+// other through x87. Volatile extended temporaries retain those conversions
+// (including signaling NaN quieting) and the observed reads before stores.
+// Partial overlaps deliberately retain the original pair-by-pair order.
+WheelMatrix *__stdcall D3DXMatrixTransposeScalar(WheelMatrix *output,const WheelMatrix *input) {
+    unsigned int *to=reinterpret_cast<unsigned int *>(output->elements);
+    const unsigned int *from=reinterpret_cast<const unsigned int *>(input->elements);
+    volatile long double saved=input->elements[1];
+    volatile long double other=input->elements[4];
+    output->elements[1]=other;
+    output->elements[4]=saved;
+    unsigned int word=from[8];
+    saved=input->elements[2];
+    to[2]=word;
+    output->elements[8]=saved;
+    word=from[12];
+    saved=input->elements[3];
+    to[3]=word;
+    output->elements[12]=saved;
+    word=from[9];
+    saved=input->elements[6];
+    to[6]=word;
+    output->elements[9]=saved;
+    word=from[13];
+    saved=input->elements[7];
+    to[7]=word;
+    output->elements[13]=saved;
+    word=from[14];
+    saved=input->elements[11];
+    to[11]=word;
+    output->elements[14]=saved;
+    if (output!=input) {
+        to[0]=from[0];
+        to[5]=from[5];
+        to[10]=from[10];
+        to[15]=from[15];
+    }
+    return output;
+}
+
 // Original scalar D3DX library implementation 0x63cee1..0x63d118. Exact aliases
 // use a temporary; distinct partially overlapping records retain direct stores.
 WheelMatrix *__stdcall D3DXMatrixMultiplyScalar(WheelMatrix *output,const WheelMatrix *left,const WheelMatrix *right) {

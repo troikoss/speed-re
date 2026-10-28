@@ -153,6 +153,16 @@ target_compile_options(ug2recordprobe PRIVATE ${UG2_ARCH_FLAGS} -O2 -Wall
 target_link_libraries(ug2recordprobe ug2recovered m)
 target_link_options(ug2recordprobe PRIVATE ${UG2_LINK_FLAGS})
 
+# Hardware x87 payload checks supplement the emulator's NaN conversion limits.
+add_executable(ug2d3dxtranspose_native_test src/Platform/Native/D3DXTransposeNativeTest.cpp)
+target_compile_options(ug2d3dxtranspose_native_test PRIVATE ${UG2_ARCH_FLAGS} -O1 -g
+    -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+target_link_libraries(ug2d3dxtranspose_native_test ug2recovered m)
+target_link_options(ug2d3dxtranspose_native_test PRIVATE -m32 -no-pie)
+if(BUILD_TESTING)
+    add_test(NAME d3dx_transpose_native COMMAND ug2d3dxtranspose_native_test)
+endif()
+
 # Asset-free, display-free queue integration probe using the native thiscall bridge.
 add_executable(ug2fengqueue_native_test src/Platform/Native/FEngQueueNativeTest.cpp)
 target_compile_options(ug2fengqueue_native_test PRIVATE ${UG2_ARCH_FLAGS} -O1 -g
