@@ -5,6 +5,7 @@ struct D3DXEffectRecord38;
 struct D3DXEffectRecordB4;
 struct D3DXEffectReference18;
 struct D3DXEffectBaseRecord;
+struct D3DXEffectPoolLink;
 
 // Secondary interface at effect+4; offsets here are relative to that receiver.
 struct D3DXEffectSecondaryPrefix {
@@ -71,6 +72,15 @@ struct D3DXEffectObject {
     int BuildMembers(D3DXEffectBaseRecord *,unsigned int count); // 0x661c3e
     int ReadSymbol(unsigned int group,unsigned int record,D3DXEffectBuffer *,unsigned int *position); // 0x66c37e
     int ReadSymbolRecord(unsigned int group,unsigned int record,D3DXEffectBuffer *,unsigned int *position); // 0x66c645
+    int WriteShaderResource(unsigned int object,unsigned int index,D3DXEffectPoolLink *); // 0x65cc10
+    int WriteObjectResource(unsigned int object,unsigned int index,D3DXEffectPoolLink *); // 0x65ccc8
+    int WriteStringResource(const char *text,unsigned int index,D3DXEffectPoolLink *); // 0x65cd6c
+    int CopyTypedValue(unsigned int **type,unsigned int **output,const unsigned int **input,
+        unsigned int count,D3DXEffectBaseRecord *); // 0x65ddc8
+    int CopyValue(D3DXEffectBaseRecord *,const unsigned int *input); // 0x661fc6
+    int NotifyValue(D3DXEffectBaseRecord *); // 0x66055c
+    int RecordValue(unsigned int handle,const void *data,unsigned int bytes); // 0x666c81
+    int RelocateParameter(D3DXEffectParameter *,unsigned int *scalar,unsigned int *matrix,unsigned int *structure); // 0x6614a1
 };
 struct D3DXEffectPoolLink {
     unsigned int value00,value04;

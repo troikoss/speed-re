@@ -2300,7 +2300,7 @@ the conversion lanes read from the original instructions; it runs recovered GCC
 source, not original PE code or the MSVC body. Only masked exceptions are covered;
 CPU dispatch, optimized variants, byte identity and exhaustive coverage remain
 unverified. This recovery supplies the transpose dependency of effect relocation
-`0x6614a1`; the relocation/value-write chain itself remains open.
+`0x6614a1`; its complete value-write chain is now [recovered separately](#effect-value-writes-relocation-and-deferred-ownership-2026-10-28).
 
 The complete native build and 60-frame SKYLINE orbit and driving smoke runs pass.
 Orbit source/record checksums remain `ca993eba`/`7141bcda`, with camera
@@ -3539,6 +3539,119 @@ deserialization `0x66f69c`, relocation/shared-pool producers, the stated CRT loc
 services, debug mute, shader preparation/evaluation, source compilation and
 GPU/API activation remain open. Effects and the native queue consumer remain
 inactive in the demo.
+
+### Effect value writes, relocation and deferred ownership (2026-10-28)
+
+`Libs/D3DX/EffectValues.cpp` recovers the full value-write dependency chain of
+relocation `0x6614a1`, using live Ghidra decompilation, memory reads and original
+instruction order. No Ghidra project mutation was made. The native setter bridge
+recognizes the original effect class token and calls the recovered implementation;
+it does not treat the PE vtable as executable native code.
+
+| Address | Bytes | Recovered behavior |
+| --- | --- | --- |
+| `0x65cc10` | 184 | Shader-resource reference write and shared propagation |
+| `0x65ccc8` | 164 | Object-resource reference write and shared propagation |
+| `0x65cd6c` | 303 | String-buffer reuse/allocation, copying and shared ownership |
+| `0x65ddc8` | 928 | Recursive typed copy with descriptor/data/input cursors |
+| `0x661fc6` | 875 | Parameter value copy, indexed handles and struct arrays |
+| `0x66055c` | 153 | Local, selected-shared-effect or broadcast dirty notification |
+| `0x65ee33` | 13 | Eight-byte retained-reference constructor callback |
+| `0x65eb8f` | 644 | Recursive count/retention walk over compact input values |
+| `0x65ee13` | 32 | Value-reference wrapper with local cursors |
+| `0x666c81` | 374 | Deferred input copy, retained references and tail publication |
+| `0x66c8f5` | 108 | Effect vtable `+0x50` value-write entry |
+| `0x6614a1` | 428 | Scalar/vector, matrix and struct storage relocation |
+
+Scalar/vector writes copy raw DWORDs into sixteen-byte elements. Matrix writes
+transpose compact row-major input into sixty-four-byte elements, normalizing
+boolean DWORDs only for matrix kind 1. Struct copies recursively reset the
+member descriptor cursor for every element; padding remains untouched. Other
+matrix kinds preserve the original successful no-op paths rather than
+adding validation. Indexed handles force one element in the top-level copy.
+
+Resource writes retain the incoming object before releasing the old reference.
+Exact self-assignment skips shader/object propagation. Shared links map the same
+input index to each effect's reference array and skip null-effect nodes. Only the
+originating shader write sets effect bit `0x40`; each assigned shader reference
+sets bit 0. String writes count the terminator, reuse a sufficiently large buffer
+without clearing its tail, and preserve the local retain/release around publication
+to shared effects. Null strings clear the references. Allocation failure preserves
+the prior destination and the original partial state.
+
+Dirty notification respects shared-pool selection: zero active effects do nothing;
+a selected effect uses its own linked parameter and receiver; broadcast visits
+only effects with bit 0 of byte `+0x119`, then the originating effect. The recovered
+queue implementation executes, including duplicate suppression and growth failures.
+
+The setter accepts complemented record handles directly or resolves other handles
+through the recovered general resolver. A byte count below record `+0xc` fails
+with `0x8876086c`, except the original `0xffffffff` sentinel. State 3 records a
+deferred write. The deferred path copies DWORDs and trailing bytes, counts resource
+references, allocates the cookie array even for zero references, then performs the
+ownership pass before linking the new tail. String references own copied buffers;
+other references retain COM objects. The copied input still contains the original
+resource/string pointers. Failures clean up partially retained references and leave
+the old tail unchanged. This recovery does not execute deferred commands.
+
+Relocation reads the type from the owning local/shared descriptor while copying
+scalar/matrix source data from the local block. It expands compact data with the
+original padding, transposes each whole matrix through recovered scalar
+`0x63d132`, publishes `+0x30`, then advances the corresponding cursor. Structs use
+the recovered padded-size walk on local storage, rebind record `+0/+4`, and invoke
+the real value-write entry through the native ABI bridge. Shape 4 and unknown
+unsigned shapes retain the original no-op return.
+
+With `UG2_EXE` set to the reference executable, run MSVC/wibo jobs sequentially:
+
+```sh
+build/venv/bin/python tools/verify_pc_effect_values.py --gcc --cases 1 --write-native-fixtures /tmp/ug2-effect-values-fixtures.bin
+cmake -S . -B build/native
+cmake --build build/native
+build/native/ug2effectvalues_probe "$UG2_EXE" /tmp/ug2-effect-values-fixtures.bin /tmp/ug2-effect-values-native.bin
+build/venv/bin/python tools/verify_pc_effect_values.py --gcc --cases 1024 --mutation-checks --native-dump /tmp/ug2-effect-values-native.bin
+build/venv/bin/python tools/verify_pc_effect_values.py --cases 1024 --mutation-checks --native-dump /tmp/ug2-effect-values-native.bin
+```
+
+The verifier's recorded full run uses `--cases 1024`. Each compiler passes
+**12,288 per-body comparisons plus 24 complete native-model lifecycles**, rejecting
+**31 behavioral mutations** per compiler. The full
+fixture arena and heap, preserved bytes, returns, allocation sizes/failures,
+retain/release and buffer-getter event order, dirty-call receivers, transpose calls,
+stack cleanup, saved registers and x87 stack/control state are compared. Synthetic
+cases cover nested arrays/structs, numeric/resource kinds and invalid shapes,
+local/shared index maps, selected and broadcast dirty traversal, raw input/output
+aliases, zero dimensions/counts, trailing input bytes and partial allocation failures.
+Fingerprints are in `config/SPEED2_EXE_1_2/effect-values.json`; generated reports
+remain under `build/analysis/effect-values/`.
+
+The native probe runs 24 typed CPU graphs: scalar/vector and boolean/integer/float
+matrix writes, string reuse/reallocation/clearing, object/shader COM ownership,
+deferred numeric/string/object writes, struct copies, all three relocation paths,
+short-input rejection, named lookup, repeated writes, direct reference retention,
+and a zero-byte deferred write. Every graph destroys to **zero tracked allocations**. Full original/rebuilt
+model snapshots also match, including allocation and reference events through cleanup.
+`UG2FXVD1` captures normalized cursor/prefix fields, blob hashes, reference flags,
+counts and buffer hashes, and deferred bytes/reference contents. Captures match
+original and both rebuilt compilers. Pointer identities in deferred copies are
+normalized to fixture tokens; other pointer values are compared as offsets. The
+model and native probe seed preserved flag bytes identically. Native COM tests
+use recovered buffer classes to exercise ownership without creating GPU objects.
+
+Allocation/free is controlled in the comparative verifier. Shared rings and input
+metadata are bounded synthetic graphs, not output from the unrecovered shared-pool
+producer. The native captures cover local graphs; shared notification/propagation
+is covered by original/rebuilt execution. Arbitrary invalid pointers, giant counts,
+reentrant external COM implementations, unmasked exceptions, byte identity and
+exhaustive coverage remain unverified. Unicorn's signaling-NaN conversion limit
+also applies to matrix relocation; the [separate transpose hardware probe](#scalar-d3dx-transpose-and-native-camera-bridge-2026-10-28)
+checks those conversion lanes. Main deserialization, shared-pool binding, debug
+mute, shader preparation/evaluation, source compilation, command execution and
+GPU/API activation remain open. Native technique/draw activation is still inactive.
+
+The complete native build, existing 32-graph native handle/reader lifecycle probe
+and 60-frame SKYLINE orbit smoke run pass. Orbit source/record checksums remain
+`ca993eba`/`7141bcda`; all texture records release to zero.
 
 ### Verification (pixel size and LOD)
 
