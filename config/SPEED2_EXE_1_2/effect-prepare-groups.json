@@ -1,0 +1,38 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "prepare_a": {
+      "address": "0x666df7",
+      "size": 3930,
+      "sha256": "64d8da1eeaf60599281fbc80eff2e57c4c7a0d972c17a0328de57be7e91f3eb3"
+    },
+    "prepare_b": {
+      "address": "0x667d51",
+      "size": 3951,
+      "sha256": "cfcf245dcf637353b13fbbe67421dbe1b592792da8c4f6a2458c41dc0ce1cba0"
+    },
+    "compare_constants": {
+      "address": "0x65b64b",
+      "size": 53,
+      "sha256": "5aa0e5dc5e4a09ad0ef68544ada85b331a9cb4e2635905e2f1de6ae564d90720"
+    },
+    "short_sort": {
+      "address": "0x75cc00",
+      "size": 109,
+      "sha256": "a6a3144ddd14156a02768ebe0756af9102c0436bfbe40631746635d86902cfd7",
+      "instruction_body_bytes": 106
+    },
+    "sort": {
+      "address": "0x75cc70",
+      "size": 643,
+      "sha256": "fee27e49617c1b352af2df6abb09ddd84591519a1e85f5eb4772b53fe90be431"
+    }
+  },
+  "data": {
+    "constant_order": {
+      "address": "0x7b5048",
+      "size": 16,
+      "sha256": "f565169b16ba9172a376c4bbc695b7586add01dc1142cdbbdf803d30dc68a148"
+    }
+  }
+}

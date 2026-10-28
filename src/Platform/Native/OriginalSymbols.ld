@@ -1242,3 +1242,4 @@ ug2FxDoNotMuteName7B7278 = 0x7b7278;
 ug2FxRegistryPath7AB494 = 0x7ab494;
 ug2FxGetProcAddressImport783194 = 0x783194;
 ug2FxLoadLibraryImport783198 = 0x783198;
+ug2FxConstantOrder7B5048 = 0x7b5048;

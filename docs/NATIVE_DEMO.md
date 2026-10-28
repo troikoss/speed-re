@@ -4019,6 +4019,158 @@ The complete native build, the existing 110 parser lifecycles and the 60-frame
 SKYLINE orbit regression pass. Wheel source/record checksums remain
 `ca993eba`/`7141bcda`, and texture records/staged handles release to zero.
 
+### Complete shader group preparation and original constant sorting (2026-10-29)
+
+`EffectPrepareGroups.cpp` expands the common transcription in
+`EffectPrepareGroup.inc` into the two complete original members. Their constants
+and entries remain separate: vertex preparation `0x666df7..0x667d50` (3,930 bytes)
+and pixel preparation `0x667d51..0x668cbf` (3,951 bytes). `EffectSort.cpp` recovers
+their constant comparator `0x65b64b` (53 bytes), original CRT quicksort `0x75cc70`
+(643 bytes) and private short sort `0x75cc00` (109-byte span, 106 instruction-body
+bytes plus three padding bytes). The manifest pins the full spans and the bank
+priority words at `0x7b5048`: **2, 1, 0, 3**.
+
+Evidence is the saved reference Ghidra project's read-only decompilation and
+instructions, confirmed against the installed executable. The live MCP bridge
+was offline. Headless extraction used `-readOnly -noanalysis`; no project changes
+were saved. Instruction comparison established the stage differences rather than
+assuming that the routines were interchangeable. In particular, vertex uses
+bank maxima `+0x1c`, bulk bytes `+0x2c`, selector `+0x18`, ready bit `0x2` and sampler
+slot bias `0x101`; pixel uses `+0x24`, `+0x30`, `+0x1a`, preserves the existing
+ready bit and applies no sampler bias. Their generated constant and PRES record
+codes/tags also differ. No shared recovered helper call replaces either entry.
+
+Preparation first rebinds the primary record's data/type caches and selects its
+local resource index, including shared-pool index-map indirection. A nonpending
+reference can append matching second-grid use nodes to the first grid in row and
+node order; the second grid remains intact. The stage flag is then cleared.
+A pending reference obtains bytecode through the recovered capture member, or
+handles a missing shader through the original empty path. Prior generated uses
+are unlinked, and prior PRES buffers are released before the active record count
+and stage counters reset. All these calls execute recovered bodies.
+
+The original shader CTAB and optional nested PRES/PRSI are parsed. The code keeps
+three direct error returns that bypass the final `free(NULL)` call. It derives
+bulk flags from minimum/count/maximum words, retains 16-bit sums and reserves the
+original records. Reallocation transfers the primary use/code ownership before
+destroying the old array. The allocated cookie count is `CTAB count + prefix`
+(prefix one or two), while the **reported capacity is only `CTAB count + 1`**.
+This difference is preserved, including its effects on repeated preparation.
+
+Register storage, PRES masks/relative offsets and bank lists follow the binary's
+exact expressions; the shift/mask expressions that retain odd offsets are not
+replaced by inferred alignment. PRES metadata is copied into an owned byte buffer,
+its sections are parsed, and its CTAB binds through recovered `0x660f9c` before
+group storage allocation. Coverage flags, storage limits and packed register
+ranges retain their original widths and update order.
+
+Constants are sorted by the original bank priority and unsigned register start,
+then placed into float/int/bool/sampler ranges. Missing names preserve their
+original inactive-record behavior. Existing use arrays are reused where the
+binary permits it. Defaults are copied as raw DWORDs; integer registers without
+defaults receive **0/0/1/0**, with integer word 1. Float caches preserve the scalar,
+vector, supported matrix and vector-only struct tests, pointer and byte-count
+limits; matrix-containing structs are rejected by the original shape helper.
+Sampler storage, indices and stage-specific slot bias are retained. The original
+bulk coalescing clears earlier record bits as later records in a bank arrive.
+
+The CRT sort retains bytewise swaps, median-of-three comparisons, pivot movement,
+equal-value trimming, the threshold of eight and the explicit 30-slot partition
+stack. Equal keys are not given a new stable-order rule. The private short sort
+receives its high endpoint in **EAX**, with low/width/comparator on the original
+stack. The recovered C++ interface makes that private argument explicit; the
+emulator supplies EAX only when invoking the original ABI. No recovered source
+forces registers or claims instruction-byte identity. Both the final bytes and
+callback sequence/state are compared, so a host library sort is not substituted.
+
+`NativeFxSetupDispatch.cpp` now calls the recovered preparation members. Production
+shader GetDevice/GetFunction remain unsupported, and GPU creation is still an
+explicit boundary. `ug2effectpreparegroups_probe` links its own **test-only CPU
+readback adapters**, returning staged bytes and an owned CPU buffer device. It
+creates no GPU shader or rendering state. COM buffer ownership, the capture
+callers, parsers, binding, sorting, storage and destruction all run recovered code.
+These fixtures establish CPU behavior and composition, not D3D/GL equivalence.
+
+With `UG2_EXE` set to the installed reference executable, run:
+
+```sh
+build/venv/bin/python tools/verify_pc_effect_prepare_groups.py --gcc --cases 1 --write-native-fixtures /tmp/ug2-effect-groups-fixtures.bin
+cmake -S . -B build/native
+cmake --build build/native
+build/native/ug2effectpreparegroups_probe "$UG2_EXE" /tmp/ug2-effect-groups-fixtures.bin /tmp/ug2-effect-groups-native.bin
+build/venv/bin/python tools/verify_pc_effect_prepare_groups.py --gcc --cases 1024 --mutation-checks --native-dump /tmp/ug2-effect-groups-native.bin
+build/venv/bin/python tools/verify_pc_effect_prepare_groups.py --cases 1024 --mutation-checks --native-dump /tmp/ug2-effect-groups-native.bin
+```
+
+Run MSVC/wibo jobs sequentially. Each compiler checks **5,120 per-body comparisons**
+and **23 retail deserializer/preparation/destruction chains**. The retail graphs
+make **136 preparation calls**: 68 initial calls and 68 after changing the bytecode
+object through recovered `WriteShaderResource`. Alternate retail graphs use the
+actual recovered pool constructor/binder and complete pool ownership. The bounded
+retail service results include zero and the original positive success result 1;
+negative HRESULTs remain separately tested on synthetic graphs. Full original and
+rebuilt state/ownership is compared through cleanup.
+
+Each compiler also rejects **55 mutations** across cache rebinding, shared index
+maps, pending/grid gates, ownership transfer, bytecode/PRES failures, reported
+capacity, header masks/offsets, default registers, cache shape/span decisions,
+sampler bias/storage/indices, pixel layout/flags and CRT comparison/partition
+order. Directed fixtures keep nonzero primary dirty state, an owned spare use
+array and explicit integer/bool defaults, so preserved values and ownership are
+observable even when retail fixtures do not enter those cases.
+
+Cases cover pending and nonpending references, shared index layouts, row/node
+filtering, primary dirty-state/owned-array transfer, new/reused capacity, malformed/absent CTAB
+and PRES, register banks/defaults, matrix/array/struct cache decisions and allocation
+failures. Directed cases exercise each cache decision. Synthetic shared-index
+layout fixtures use a nonidentity slot map; they do not stand in for the recovered
+pool binder, which runs separately in the retail chains. Generic sort fixtures
+cover zero/singleton counts, sizes around the short-sort threshold, up to 257
+elements, widths 0/1/2/3/4/7/8/12, ascending/reversed/equal/tied/mixed values, and
+unsigned register starts across the word range.
+
+Final comparisons check exact arena/two-MiB heap bytes, live allocations, returns,
+register preservation, stack cleanup and x87 stack/control state. Boundary traces
+include arguments/order and SHA-256 arena/allocated-heap/debug-state digests, with
+callback/code addresses and the private short-sort ABI normalized. Allocation
+failures retain the original partially published state. Generated reports and
+mutation artifacts remain under `build/analysis/effect-prepare-groups/`.
+
+The native probe runs **87 CPU lifecycles**: 32 synthetic effect graphs, 32 generic
+sort traces and all 23 retail effect graphs. `UG2FXGD1` captures defined group
+fields, advertised versus cookie capacities, reference contents/ownership, bank
+ranges, generated record flags/types/default bytes, PRES headers/program hashes,
+cache offsets/spans, rings and grids. Generic sort captures include every callback's
+relative arguments, key bytes and full-array digest. Changed objects go through
+the recovered write producer before repeated preparation. Every lifecycle destroys
+to **zero tracked allocations**.
+
+Native summaries hash only written register/sampler storage slices and skip
+unwritten header/record fields and preserved heap high bits. Local relocated cache
+offsets use the main parser's next-32-byte-boundary partition normalization;
+shared offsets use their pool base. This permits different host allocation
+addresses while checking the original layout rule. Exact preservation of the
+excluded bytes remains an emulator check. Negative/partial preparation results
+are captured without interpreting uninitialized generated record types.
+
+Native build and regression checks also pass: the existing preparation probe's
+32 CPU lifecycles and deserializer probe's 110 lifecycles finish with zero tracked
+allocations. A 60-frame SKYLINE orbit at 90 degrees retains source/record
+fingerprints **`ca993eba` / `7141bcda`**, camera
+`1696.05762 -878.670471 25.8273449`, and output C0
+`0.676807225 -2.48764729 1.04016507 1`; all 829 texture records/staged handles
+retire to zero. This checkpoint changes CPU preparation, without activating
+native effect rendering.
+
+`config/SPEED2_EXE_1_2/effect-prepare-groups.json` pins the executable, all five
+function spans and priority data. These are finite behavioral and CPU lifetime
+checks. Byte identity, arbitrary malformed/giant inputs, unmasked exceptions,
+external COM reentrancy and rendered shader equivalence remain unestablished.
+Earlier sections' open group-preparation entries are superseded by this recovery.
+Record evaluation `0x663a32`, its shader VM `0x688e79` and conversion helpers,
+production GPU bytecode/resource/state services, source compilation and native
+technique/draw activation remain open.
+
 ### Verification (pixel size and LOD)
 
 ### Verification (pixel size and LOD)

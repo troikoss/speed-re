@@ -9,8 +9,8 @@ extern "C" void __cdecl abort(void) __attribute__((noreturn));
 extern "C" const double ug2FxIndexBias7A1E58=0.001;
 extern "C" int UG2FxSetupEffect(D3DXEffectObject *effect) { return effect->Setup(); }
 
-// These shader preparation/evaluation bodies remain unrecovered. Metadata-only
-// setup can run; reaching one of these boundaries must not fabricate success.
-extern "C" int UG2FxPrepareGroupA(D3DXEffectObject *,unsigned int) { abort(); }
-extern "C" int UG2FxPrepareGroupB(D3DXEffectObject *,unsigned int) { abort(); }
+// Group preparation reaches recovered bodies; shader readback still requires
+// GPU interfaces. Record evaluation remains an explicit unsupported boundary.
+extern "C" int UG2FxPrepareGroupA(D3DXEffectObject *effect,unsigned int group) { return effect->PrepareGroupA(group); }
+extern "C" int UG2FxPrepareGroupB(D3DXEffectObject *effect,unsigned int group) { return effect->PrepareGroupB(group); }
 extern "C" int UG2FxEvaluateRecord(D3DXEffectObject *,unsigned int,unsigned int) { abort(); }
