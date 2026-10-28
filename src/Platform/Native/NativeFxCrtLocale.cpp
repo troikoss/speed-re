@@ -14,3 +14,4 @@ extern "C" const void * __cdecl UG2FxCrtGetThreadData() {
 }
 extern "C" const void * __cdecl UG2FxCrtUpdateLocale() { abort(); }
 extern "C" unsigned int __cdecl UG2FxCrtClassify(const void *,unsigned int,unsigned int) { abort(); }
+extern "C" unsigned int __cdecl UG2FxCrtLowerLocale(const void *,unsigned int) { abort(); }

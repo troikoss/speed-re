@@ -93,6 +93,7 @@ struct D3DXEffectPoolNode {
     unsigned int value00,value04,value08;
     D3DXEffectPoolLink link0C;
     D3DXEffectPoolNode *linked20;
+    D3DXEffectPoolNode *Construct(); // 0x641862
     void Destroy(); // 0x641878
     D3DXEffectPoolNode *Delete(unsigned char flags); // 0x641816
 };
@@ -102,6 +103,8 @@ struct D3DXEffectPool {
     unsigned int value14,value18;
     D3DXEffectPoolNode *node1C;
     D3DXEffectPool *Construct(); // 0x64285f
+    int RefreshPointers(); // 0x6424b2
+    int Bind(D3DXEffectObject *,D3DXEffectParameter *); // 0x64259c
     void Destroy(); // 0x642504
     D3DXEffectPool *Delete(unsigned char flags); // 0x642535
 };

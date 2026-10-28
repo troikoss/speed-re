@@ -3645,13 +3645,134 @@ is covered by original/rebuilt execution. Arbitrary invalid pointers, giant coun
 reentrant external COM implementations, unmasked exceptions, byte identity and
 exhaustive coverage remain unverified. Unicorn's signaling-NaN conversion limit
 also applies to matrix relocation; the [separate transpose hardware probe](#scalar-d3dx-transpose-and-native-camera-bridge-2026-10-28)
-checks those conversion lanes. Main deserialization, shared-pool binding, debug
+checks those conversion lanes. Main deserialization and debug
 mute, shader preparation/evaluation, source compilation, command execution and
 GPU/API activation remain open. Native technique/draw activation is still inactive.
 
 The complete native build, existing 32-graph native handle/reader lifecycle probe
 and 60-frame SKYLINE orbit smoke run pass. Orbit source/record checksums remain
 `ca993eba`/`7141bcda`; all texture records release to zero.
+
+### Shared effect pools, binding and resource ownership (2026-10-28)
+
+`Libs/D3DX/EffectSharedPool.cpp` recovers pool binding `0x64259c` and its complete
+pool-side helper chain, with two original CRT comparison bodies. Evidence is live
+Ghidra decompilation/memory plus original instructions; no project mutation was
+made. `config/SPEED2_EXE_1_2/effect-shared-pool.json` pins all sixteen bodies and
+the reference executable.
+
+| Address | Bytes | Recovered behavior |
+| --- | --- | --- |
+| `0x767730` | 78 | ASCII case-insensitive comparison, exact -1/0/1 result |
+| `0x75dd6f` | 105 | CRT locale selection and case-comparison wrapper |
+| `0x6418a2` | 411 | Recursive descriptor/name/semantic compatibility |
+| `0x641a3d` | 35 | Compatibility wrapper and resource-flag initialization |
+| `0x641a60` | 438 | Pooled name, descriptor and padded-data sizing |
+| `0x641c16` | 690 | Pooled descriptor/name/data construction and resource IDs |
+| `0x641ec8` | 69 | Partitioned construction wrapper |
+| `0x641f0d` | 240 | Recursive local resource-index map extraction |
+| `0x641ffd` | 26 | Index extraction wrapper |
+| `0x642017` | 249 | Compact numeric refresh with resource skipping |
+| `0x642127` | 26 | Numeric refresh wrapper |
+| `0x642141` | 838 | Recursive COM resource/reference transfer |
+| `0x642487` | 43 | Resource transfer guard/wrapper |
+| `0x641862` | 22 | Pool-node constructor, preserving unspecified fields |
+| `0x6424b2` | 49 | Rebase existing parameter data pointers |
+| `0x64259c` | 707 | Match/create pooled metadata and bind an effect parameter |
+
+Compatibility requires equal kind, shape and array count. Names compare raw bytes,
+including null-name presence; semantics use the original case-insensitive CRT
+routine. Numeric shapes also compare row/column counts, while structs recursively
+compare member descriptors. Object/shader kinds 5..9 and 15/16 mark the type as
+device-bound; strings do not. A matching bound device-dependent node rejects an
+effect with a different `+0xc` device pointer.
+
+The original ASCII comparator folds only uppercase ASCII bytes on a raw mismatch
+and returns -1/0/1, including for bytes above `0x7f`. Its CRT wrapper fetches thread
+locale data, refreshes stale context and selects the original C-locale ASCII body
+or the locale lowercase service. Native code uses the existing original immutable
+C context. Non-C lowercase `0x75de10` remains an explicit unsupported native
+boundary, like the earlier dynamic locale/classification services; comparative
+tests control it and check arguments, call order and wrapped differences. No host
+`strcasecmp` or locale conversion replaces the original comparison.
+
+Sizing reserves DWORD-rounded name/semantic strings and four-byte prefixes.
+Names are required by sizing/construction, as in the original. Struct-array
+metadata and names are stored once while data repeats for each element. Numeric
+pool construction copies full sixteen-/sixty-four-byte elements, retaining all
+padding DWORDs; resource data becomes sequential shared IDs. Index extraction and
+numeric/resource refresh preserve their separate **compact rows × columns** skips.
+The source does not replace those distinct walks with a common inferred layout.
+Mixed-struct fixtures keep any numeric words reached as shared IDs inside the
+map range; this is a bounded fixture condition, not added runtime validation.
+
+Binding scans existing nodes, checks device compatibility, and refreshes numeric
+data when a matching node has no members. Otherwise it computes storage partitions
+and grows the pool when needed. Capacity is published before allocation as
+`max(0x10000, oldCapacity*2)`, without an added clamp to the requested total.
+Growth copies every used byte, clears the remaining capacity, frees the prior
+block and rebases **only parameter `+0`**. Type pointers deliberately remain at
+the previous block until a later caller rebinds them. Failed allocation retains
+the original partially published capacity.
+
+New nodes publish descriptor/data offsets and resource count before allocating
+the effect link and its index map. Links are prepended to the node's ring; the
+parameter is rebound before resource transfer. Transfer takes its source from the
+oldest member (`head.previous`), with a guard for self/empty destinations. It
+retains source objects before releasing destination slots. Shader kinds copy both
+owned slots, only flag bit 1, and `+0xc`; other resource kinds copy only the first
+slot. Failures preserve the original partial metadata/ownership state and release
+an unpublished link through the recovered cleanup path.
+
+With `UG2_EXE` set to the reference executable, run:
+
+```sh
+build/venv/bin/python tools/verify_pc_effect_shared_pool.py --gcc --cases 1 --kind bind --write-native-fixtures /tmp/ug2-effect-pool-fixtures.bin
+cmake -S . -B build/native
+cmake --build build/native
+build/native/ug2effectsharedpool_probe "$UG2_EXE" /tmp/ug2-effect-pool-fixtures.bin /tmp/ug2-effect-pool-native.bin
+build/venv/bin/python tools/verify_pc_effect_shared_pool.py --gcc --cases 1024 --mutation-checks --native-dump /tmp/ug2-effect-pool-native.bin
+build/venv/bin/python tools/verify_pc_effect_shared_pool.py --cases 1024 --mutation-checks --native-dump /tmp/ug2-effect-pool-native.bin
+```
+
+MSVC/wibo compilation remains sequential. Each compiler's full suite checks
+**16,384 per-body comparisons plus 21 complete model lifecycles**, rejecting
+**38 behavioral mutations** per compiler. Checks include full
+arena/heap bytes, returns, allocation sizes/failures, buffer retains/releases,
+locale service events, stack cleanup, saved registers and x87 stack/control state.
+Fixtures cover nested structs/arrays, invalid kinds/shapes, null and differing
+names/semantics, the byte comparison domain, distinct numeric inputs, ring aliases,
+empty-node reuse, shared indices, partial allocation failures and growth/rebasing.
+The native chains also compare full original/rebuilt state and ownership events
+through cleanup. Generated reports remain under `build/analysis/effect-shared-pool/`.
+
+`ug2effectsharedpool_probe` runs 21 typed lifecycles with two or three effects:
+scalar/vector/matrix and mixed struct pools, strings/objects/shaders, differing
+semantics/name case, matching-node reuse, empty-ring numeric refresh, rejected
+device mismatch and allowed string/device mismatch, 64-to-128-KiB growth,
+oldest-member selection, shared shader/setter writes and selected dirty notification.
+For the three-member case, the newest existing member owns different resource data
+so selecting it instead of the oldest member is observable. Native COM objects
+are recovered CPU buffers, not GPU devices or shaders. Every lifecycle destroys
+to **zero tracked allocations**. `UG2FXPD1` captures pool offsets/used bytes/capacity,
+ring member order and maps, data hashes, data/type rebase state, dirty bytes,
+resource flags/counts/content and final pool references. Local pointers are
+normalized to fixture tokens, pooled pointers to offsets; no native PE code runs.
+
+Allocation and non-C locale lowercase are controlled in the comparative verifier.
+The metadata and device/COM inputs are bounded synthetic CPU graphs, not a fully
+deserialized or GPU-backed effect. Arbitrary invalid pointers, missing required
+names during construction, giant counts/requests, unmasked exceptions, reentrant
+external COM implementations, instruction-byte identity and exhaustive coverage
+remain unverified. In particular, a request larger than the original growth rule
+can provide is not made safe by a new allocator algorithm. Main deserialization
+`0x66f69c`, debug mute, shader preparation/evaluation, source compilation, deferred
+command execution and GPU/API activation remain open. This closes the pool-binding
+dependency of the main deserializer, not native technique/draw activation.
+
+The complete native build, the existing 24-graph native value-write/relocation
+probe and 60-frame SKYLINE orbit smoke check pass. Wheel source/record checksums
+remain `ca993eba`/`7141bcda`, and all native texture records release to zero.
 
 ### Verification (pixel size and LOD)
 
