@@ -3774,6 +3774,132 @@ The complete native build, the existing 24-graph native value-write/relocation
 probe and 60-frame SKYLINE orbit smoke check pass. Wheel source/record checksums
 remain `ca993eba`/`7141bcda`, and all native texture records release to zero.
 
+### Complete effect deserialization, debug mute and native stream lifecycles (2026-10-28)
+
+`Libs/D3DX/EffectDeserialize.cpp` recovers the complete original main parser
+`0x66f69c..0x67064a` (4,015 bytes). `EffectDebug.cpp` also recovers debug mute
+`0x671aed` (213 bytes) and its registry helper `0x641539` (95 bytes). Evidence is
+live read-only Ghidra decompilation/disassembly and the original instructions.
+`config/SPEED2_EXE_1_2/effect-deserialize.json` pins the executable and all three
+bodies. Ghidra prototypes were checked against actual register/stack arguments
+and `RET` cleanup; the registry helper takes four arguments despite its inferred
+project prototype. No Ghidra project mutation was made.
+
+The parser now calls the recovered parameter/annotation/pass/technique readers,
+type validation, resource and compiled-payload/symbol readers, relocation,
+shared-pool binder, group storage and dirty notification bodies. It retains the
+original order of allocations, cookie-array construction, device/input/pool
+ownership and partial-state publication. Its array iterator receives an explicit
+native ECX-only bridge to the recovered parameter constructor. No successful GPU
+object or technique is fabricated.
+
+The original stream limit is the buffer's byte length, although the cursor and
+read extents are DWORD counts. This unusual comparison is preserved. Generic
+header reads reload the cursor after the virtual pointer getter; the magic and
+payload-selector reads instead retain their distinct cached cursor lifetimes.
+The blob-copy input cursor is read after the pointer getter. Controlled getter
+entry callbacks check these differences. A zero technique count returns `E_FAIL`
+at `0x66f957`; allocation failures return `E_OUTOFMEMORY`. The final `+0xac`
+parameter count is assigned even on early failure.
+
+The copied compact blob is extended with matrix, scalar and struct storage. The
+matrix start is **the next absolute 32-byte boundary**, even when the blob end
+is already aligned. Root parameters validate before relocation; annotations
+relocate/rebind before validation while retaining the old compact cursors for
+validation and sizing. Parameter identifiers, annotation chains, shader group
+counts, local/shared owner offsets and low-word selectors retain the original
+widths. Resource/payload trailers route to the original kind-specific readers.
+After optional shared binding, group storage is allocated/cleared and sampler
+selectors are packed. The parser sets its ready/selection words, marks the
+applicable roots dirty and rebinds all table and linked cache data/type pointers.
+This final rebasing includes shared-pool owners; it is separate from the binder's
+earlier data-only rebasing.
+
+Debug mute probes the release/debug D3D module names before checking the cached
+registry setting. Failed export discovery is retried while both slots are zero.
+The module import targets are cached after the first module query; the second
+probe retains those dispatch values across callback-time changes. Registry reads
+reuse the original data-pointer-valued initial type word, query the requested
+byte count, close an opened key even after query failure, and check the returned
+type. Only the initial `-1` setting is queried/normalized. Callback slots are
+reread before each call. The comparative verifier exercises module/load/export
+failures, cached callbacks/settings, changed imports, query/type/byte-count
+results and escaped-output mutations during close/callback calls.
+
+`NativeFxDebugPlatform.cpp` supplies the known Windows module/key absence path
+on Linux. The two D3D modules return absent and the known registry open returns
+`ERROR_FILE_NOT_FOUND`; other loader, registry and debug-export calls remain
+explicit unsupported boundaries. `NativeFxShaderDispatch.cpp` now reaches the
+recovered debug body. Native GPU creation remains unsupported. The factory's
+`UG2FxDeserializeEffect` ABI bridge now calls the recovered parser; runtime group
+preparation/evaluation still prevents complete native factory/technique activation.
+
+With `UG2_EXE` set to the locally installed reference executable, run:
+
+```sh
+build/venv/bin/python tools/verify_pc_effect_deserialize.py --gcc --cases 1 --write-native-fixtures /tmp/ug2-effect-deserialize-fixtures.bin
+cmake -S . -B build/native
+cmake --build build/native
+build/native/ug2effectdeserialize_probe "$UG2_EXE" /tmp/ug2-effect-deserialize-fixtures.bin /tmp/ug2-effect-deserialize-native.bin
+build/venv/bin/python tools/verify_pc_effect_deserialize.py --gcc --cases 512 --mutation-checks --native-dump /tmp/ug2-effect-deserialize-native.bin
+build/venv/bin/python tools/verify_pc_effect_deserialize.py --cases 512 --mutation-checks --native-dump /tmp/ug2-effect-deserialize-native.bin
+```
+
+Run MSVC/wibo jobs sequentially. Each compiler checks **1,647 case/stream
+comparisons plus 110 complete model lifecycles**: 512 per new body, 64 valid
+synthetic streams, sixteen getter/cursor changes, eight explicit import-cache/
+callback cases and all 23 retail streams. Both compiler builds compare against
+original machine code under Unicorn. All retail streams return success. Cases
+include numeric shapes/arrays and structs,
+strings, vertex/pixel resources, named and compiled-symbol bindings,
+parameter/technique/pass annotations and records, zero techniques, corrupt magic/type/blob markers, null device/buffer, truncated
+limits and allocation failures. Fifteen controlled GPU creation failures execute
+in the case suite; they do not stand in for real native GPU results.
+
+Final comparisons include exact full arena/two-MiB heap bytes, return values,
+tracked live allocations and debug globals/import slots. Boundary observations
+compare arguments, order and SHA-256 arena/allocated-heap/debug-state digests,
+including validation versus relocation and pool binding. Array callback addresses
+and stack-local output addresses are normalized where the compiler ABI requires it. Stack cleanup,
+saved registers and x87 stack/control state are checked. The native-chain model
+also compares full original/rebuilt state and ownership events through destruction.
+The suite rejects **39 behavioral mutations per compiler**, covering cursor
+reads, ownership, zero-technique errors, validation, alignment, resource routing,
+shared binding, sampler selectors, ready/dirty/rebase state and registry/debug
+ordering. Generated reports and mutation artifacts stay under
+`build/analysis/effect-deserialize/`.
+
+`ug2effectdeserialize_probe` runs **110 native lifecycles**: 64 synthetic streams
+and every retail stream both standalone and as two effects sharing a pool and
+the same device receiver. It uses the original `0x200` flag to disable GPU
+creation (plus `0x100` to exercise the dirty queue in pooled cases). COM device
+receivers are recovered CPU buffers. The parser retains actual serialized buffers,
+creates complete metadata/resource/payload graphs, and destroys every graph to
+**zero tracked allocations**. No setup/evaluation or PE function executes natively.
+
+`UG2FXDD1` captures normalized counts, flags, dirty queues, compact/relocated data
+hashes, parameter offsets and owner/cache relationships, resources and buffers,
+group/record storage and selectors, technique/pass summaries, shared storage and
+final caller/pool reference counts. Local relocated offsets are relative to the
+matrix partition so host allocation alignment can differ; absolute alignment is
+checked separately. Code-buffer summaries omit unwritten header slots. Native
+summaries also exclude original unwritten shader-group storage fields, the unused
+reference-zero group index and preserved heap high bits. Exact preservation of those bytes is checked in the emulator,
+not inferred from a host allocator's initial contents.
+
+These are finite behavioral and CPU ownership checks. Byte identity, arbitrary
+malformed pointers/giant counts, unmasked x87 exceptions, external COM reentrancy,
+non-C locale paths, D3D/GL equivalence and rendered effect output remain
+unestablished. Earlier sections' open main-parser/debug entries are superseded by
+this recovery. Shader preparation `0x666df7`/`0x667d51`, evaluation `0x663a32`,
+source compilation, deferred command execution, GPU resources/states and native
+technique/draw activation remain open.
+
+The complete native build, 60-frame SKYLINE orbit and three-load solid/texture
+lifecycle regression pass. Wheel source/record checksums remain
+`ca993eba`/`7141bcda`; each load has 612 solids and 829 textures, late texture
+slots return `500 → 534 → 500`, and unload leaves clean pools.
+
 ### Verification (pixel size and LOD)
 
 ### Verification (pixel size and LOD)

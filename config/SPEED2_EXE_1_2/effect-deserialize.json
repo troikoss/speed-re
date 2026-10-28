@@ -1,0 +1,20 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "deserialize": {
+      "address": "0x66f69c",
+      "size": 4015,
+      "sha256": "68065b7721e26688aa5575ec915be2fb493fb171cda50faa04d8283dad8b52ae"
+    },
+    "registry": {
+      "address": "0x641539",
+      "size": 95,
+      "sha256": "e40debd0f91cb38eecdb925077bbbf018b64c1809f0ee4965c7c98fd3225b4ec"
+    },
+    "mute": {
+      "address": "0x671aed",
+      "size": 213,
+      "sha256": "43377a0407b810c74a8bfc9b8d99d0f2794f9956a266a6fa55ee5707e2962d90"
+    }
+  }
+}

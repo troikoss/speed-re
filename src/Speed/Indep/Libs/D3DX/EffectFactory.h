@@ -6,6 +6,7 @@ struct D3DXEffectRecordB4;
 struct D3DXEffectReference18;
 struct D3DXEffectBaseRecord;
 struct D3DXEffectPoolLink;
+struct D3DXEffectPool;
 
 // Secondary interface at effect+4; offsets here are relative to that receiver.
 struct D3DXEffectSecondaryPrefix {
@@ -72,6 +73,7 @@ struct D3DXEffectObject {
     int BuildMembers(D3DXEffectBaseRecord *,unsigned int count); // 0x661c3e
     int ReadSymbol(unsigned int group,unsigned int record,D3DXEffectBuffer *,unsigned int *position); // 0x66c37e
     int ReadSymbolRecord(unsigned int group,unsigned int record,D3DXEffectBuffer *,unsigned int *position); // 0x66c645
+    int Deserialize(unsigned int device,D3DXEffectPool *,D3DXEffectBuffer *,unsigned int *position); // 0x66f69c
     int WriteShaderResource(unsigned int object,unsigned int index,D3DXEffectPoolLink *); // 0x65cc10
     int WriteObjectResource(unsigned int object,unsigned int index,D3DXEffectPoolLink *); // 0x65ccc8
     int WriteStringResource(const char *text,unsigned int index,D3DXEffectPoolLink *); // 0x65cd6c
@@ -133,8 +135,8 @@ unsigned int UG2FxBufferReleaseVirtual(D3DXEffectBuffer *buffer);
 unsigned int __stdcall UG2FxComAddRef(unsigned int object); // vtable +4 boundary
 void UG2FxDestroyEffect(D3DXEffectObject *effect); // native ABI bridge to recovered 0x66adec
 int UG2FxSetupEffect(D3DXEffectObject *effect); // native ABI bridge to recovered 0x66afe6
-// Unrecovered runtime/compiler boundaries. No native successful effect is
-// fabricated while these implementations and the GPU backend remain open.
+// ABI bridge to the recovered deserializer. Runtime preparation, compilation
+// and the GPU backend remain required for native technique activation.
 int UG2FxDeserializeEffect(D3DXEffectObject *effect,unsigned int device,D3DXEffectPool *pool,
     D3DXEffectBuffer *buffer,unsigned int *position); // 0x66f69c
 int __stdcall UG2FxCompileResource(unsigned int module,const void *name,const void *defines,

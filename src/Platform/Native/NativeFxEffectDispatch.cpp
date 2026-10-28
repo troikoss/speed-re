@@ -2,7 +2,7 @@
 extern "C" void __cdecl abort(void);
 
 // Native ABI bridges for the two known class tokens. The effect factory is
-// not activated until its compiler/deserializer/runtime dependencies exist.
+// not activated until compiler/runtime preparation and GPU support exist.
 extern "C" unsigned int UG2FxEffectAddRefVirtual(D3DXEffectObject *effect) {
     if (effect->class00!=0x7b6fe0) abort();
     return D3DXEffectAddRef(effect);
