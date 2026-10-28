@@ -1,0 +1,30 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "vector_only": {
+      "address": "0x65b098",
+      "size": 90,
+      "sha256": "676a3313ee91eba73e30fa97e5fb2d67dd9925ad32ba247a7da1473a013f688c"
+    },
+    "bind_prepare": {
+      "address": "0x660f9c",
+      "size": 518,
+      "sha256": "21b57b893b8c517ced18b4142ed0b70f851506bcdd65a619ed752b606cadcf8e"
+    },
+    "unlink_use": {
+      "address": "0x6611a2",
+      "size": 127,
+      "sha256": "1210b3ecc09a7be7dc850ec0523f52835850cf50285af909868eef853d4543ef"
+    },
+    "capture_vertex": {
+      "address": "0x661221",
+      "size": 242,
+      "sha256": "305f22e738a9aac58a9c379fd1541f08aa0739a951e68e40e32da1b8bdb63955"
+    },
+    "capture_pixel": {
+      "address": "0x661313",
+      "size": 242,
+      "sha256": "6b4610f301c89c3966b91c75b9bde248b391b3548b2383d1abe92e8a7b4a08f7"
+    }
+  }
+}

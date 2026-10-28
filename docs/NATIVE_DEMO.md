@@ -3900,6 +3900,125 @@ lifecycle regression pass. Wheel source/record checksums remain
 `ca993eba`/`7141bcda`; each load has 612 solids and 829 textures, late texture
 slots return `500 → 534 → 500`, and unload leaves clean pools.
 
+### Shader-preparation dependencies: constant binding, use removal and bytecode capture (2026-10-28)
+
+`Libs/D3DX/EffectPreparation.cpp` recovers five dependencies of the complete
+vertex/pixel group preparation routines. The live Ghidra MCP bridge was offline;
+evidence was extracted from the saved `speed-re` project using Ghidra headless
+`-readOnly -noanalysis`, without saving or changing the program. The saved
+program's executable SHA-256 matches the pinned reference. Decompilation and
+instruction listings were extracted locally; original executable bytes, actual
+stack cleanup and comparative execution establish the evidence. Generated
+listings and project files remain uncommitted.
+
+| Address | Bytes | Behavior |
+| --- | --- | --- |
+| `0x65b098` | 90 | Scalar/vector/struct-only descriptor test and cursor walk |
+| `0x660f9c` | 518 | Bind preparation CTAB constants and reserve register storage |
+| `0x6611a2` | 127 | Remove a parameter use and invalidate temporary grids |
+| `0x661221` | 242 | Capture vertex shader bytecode and handle device ownership |
+| `0x661313` | 242 | Corresponding pixel shader bytecode capture |
+
+The shape test accepts shapes 0/1 and recursively matching structs (shape 5).
+It ignores kind, dimensions and array count. It advances seven words for a
+scalar/vector, six before struct children, and leaves a failing child's cursor
+at the position reached so far. Matrices, objects and unknown/negative shapes
+return false. The source does not infer a stronger type validator.
+
+Preparation binding reads tokens at header `+0x68`, retaining the opaque header
+words elsewhere. It rejects an already allocated/nonzero-capacity use array,
+clears the record's queued flag and parses the original CTAB. Unlike the earlier
+compiled-record binder, absent parameter names are skipped. Successfully found
+names append actual use nodes through the recovered root lookup/link routines.
+The original allocates the cookie array for the CTAB count but records **twice
+that count in a 16-bit capacity word**; these are kept separate. Allocation and
+partial parsing/linking failures retain the original published state. Storage
+mask construction, bank widths, odd offsets and unsigned wrapping are preserved.
+The mask is written at header `+0x18`, and reserved bank offsets at `+0x34..+0x3c`.
+
+Use removal first splices both neighbors, selects the owning parameter through
+the child record's `+0x14`, and updates its head only when the removed node was
+the head. Singleton heads become zero; other heads select the successor. The
+removed node is reset to a self-ring without clearing its payload or decrementing
+the record counts. Existing temporary grids are destroyed only when the original
+setup flag permits it, through recovered `0x65b7f0`. That body retains its original
+scratch/dangling slot behavior.
+
+Each shader capture clears reference flag bit 0 before its first API call. The
+size variable initially contains the incoming reference pointer, matching the
+original reused argument slot. GetFunction queries the size, then GetDevice
+obtains an owned device reference. A sufficiently large byte buffer is reused;
+otherwise a recovered buffer is created before releasing/replacing the old one.
+The shader dispatch table is read **before** the code-buffer pointer getter and
+retained for the subsequent GetFunction call. After successful readback from a
+different device, the old shader is released and the original vertex/pixel
+creation caller runs. Temporary buffers and acquired devices are released on
+both success and failure, including output ownership published by a failed API.
+The two capture bodies retain distinct creation call boundaries.
+
+`NativeFxShaderReadback.cpp` declares GetDevice/GetFunction unsupported until
+there is an actual native GPU shader implementation. The recovered capture bodies
+are compiled into the native archive, but CPU probes do not enter those methods.
+Comparative fixtures control these API results; they do not claim GPU behavior
+or manufacture a successful native shader. They use recovered buffers for the
+remaining COM lifetime operations and execute the actual allocation, buffer,
+shader-creation caller and debug-mute bodies. GPU creation is disabled through
+the original flag when the recreation path is reached.
+
+With `UG2_EXE` set to the installed reference executable, run:
+
+```sh
+build/venv/bin/python tools/verify_pc_effect_preparation.py --gcc --cases 1 --write-native-fixtures /tmp/ug2-effect-preparation-fixtures.bin
+cmake -S . -B build/native
+cmake --build build/native
+build/native/ug2effectpreparation_probe "$UG2_EXE" /tmp/ug2-effect-preparation-fixtures.bin /tmp/ug2-effect-preparation-native.bin
+build/venv/bin/python tools/verify_pc_effect_preparation.py --gcc --cases 1024 --mutation-checks --native-dump /tmp/ug2-effect-preparation-native.bin
+build/venv/bin/python tools/verify_pc_effect_preparation.py --cases 1024 --mutation-checks --native-dump /tmp/ug2-effect-preparation-native.bin
+```
+
+Run MSVC/wibo jobs sequentially. Each compiler checks **5,120 per-body comparisons
+plus 32 complete CPU/model lifecycles and 128 complete shader-capture model
+lifecycles**. Comparisons include exact arena/two-MiB heap bytes, results, live
+allocations, debug state/import slots, call arguments/order and state digests,
+stack cleanup, preserved registers and x87 stack/control state. Cases cover
+nested/mismatching descriptors, CTAB banks/counts/names/default bounds, missing
+names, partial OOM, word/offset arithmetic, ring head/middle/singleton removal,
+child owners and temporary cleanup gates. Readback fixtures cover initial and
+second API failures, failed device queries with owned outputs, buffer growth and
+reuse, aliasing device/shader/code references, and cleanup/recreation order.
+Callback fixtures change the escaped size during GetDevice and the shader class
+during the buffer getter to check the cached dispatch. A size query that does not
+write its output is exercised with an error result; pointer-sized successful
+allocation requests are outside these bounded fixtures. No extra runtime guard
+or size clamp is added to the recovered source.
+
+`ug2effectpreparation_probe` runs **32 CPU lifecycles**: eight descriptor trees,
+twelve CTAB binding graphs and twelve use-removal graphs. `UG2FXQD1` captures byte
+cursor offsets, the full initialized opaque header, record flags/counts, CTAB
+presence, actual cookie counts, use ring order/entries, owner heads, detached
+self-links and remaining grids. Every graph destroys to **zero tracked
+allocations**. Captures replay against both original and rebuilt model results.
+The 128 readback lifecycles are emulator-only and also clean every tracked
+allocation; their controlled shader services are not native GPU evidence.
+
+The suite rejects **31 behavioral mutations per compiler**, covering descriptor
+advancement/failure, binding guards/capacity/missing names/storage, both ring
+neighbors and owner/head selection, readback flags/failures/buffer thresholds,
+cached dispatch, device comparison, releases and the distinct pixel caller.
+
+`config/SPEED2_EXE_1_2/effect-preparation.json` pins all five bodies and the
+executable. Reports and mutation artifacts remain under
+`build/analysis/effect-preparation/`. Finite comparisons do not establish byte
+identity, arbitrary malformed/giant inputs, external COM reentrancy, complete
+shader preparation, evaluation or rendered equivalence. The complete group
+preparation bodies `0x666df7`/`0x667d51`, their remaining helpers/sort, evaluator
+`0x663a32` and shader VM `0x688e79`, GPU resources/states and native technique/draw
+activation remain open.
+
+The complete native build, the existing 110 parser lifecycles and the 60-frame
+SKYLINE orbit regression pass. Wheel source/record checksums remain
+`ca993eba`/`7141bcda`, and texture records/staged handles release to zero.
+
 ### Verification (pixel size and LOD)
 
 ### Verification (pixel size and LOD)

@@ -73,6 +73,10 @@ struct D3DXEffectObject {
     int BuildMembers(D3DXEffectBaseRecord *,unsigned int count); // 0x661c3e
     int ReadSymbol(unsigned int group,unsigned int record,D3DXEffectBuffer *,unsigned int *position); // 0x66c37e
     int ReadSymbolRecord(unsigned int group,unsigned int record,D3DXEffectBuffer *,unsigned int *position); // 0x66c645
+    int BindPreparationConstants(unsigned int group,unsigned int record,unsigned int *data); // 0x660f9c
+    int UnlinkParameterUse(unsigned int group,unsigned int record,unsigned int use); // 0x6611a2
+    int CaptureVertexBytecode(D3DXEffectReference18 *); // 0x661221
+    int CapturePixelBytecode(D3DXEffectReference18 *); // 0x661313
     int Deserialize(unsigned int device,D3DXEffectPool *,D3DXEffectBuffer *,unsigned int *position); // 0x66f69c
     int WriteShaderResource(unsigned int object,unsigned int index,D3DXEffectPoolLink *); // 0x65cc10
     int WriteObjectResource(unsigned int object,unsigned int index,D3DXEffectPoolLink *); // 0x65ccc8
