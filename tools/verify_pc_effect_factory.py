@@ -59,7 +59,24 @@ def build(replace,gcc,real_destroy=False,real_setup=False):
         sources += [replace.get("EffectDestruction.cpp",LIB/"EffectDestruction.cpp"),
             ROOT/"src/Platform/Native/NativeFxDestroyDispatch.cpp",ROOT/"src/Platform/Native/NativeFxComDispatch.cpp"]
     if real_setup:
-        sources += [replace.get("EffectSetup.cpp",LIB/"EffectSetup.cpp"),ROOT/"src/Platform/Native/NativeFxSetupDispatch.cpp"]
+        # This suite deliberately supplies empty parsed metadata. Keep its
+        # nonempty group paths trapped instead of silently widening the test
+        # to the growing production preparation/evaluation/VM dependency graph.
+        # The composed preparation/evaluation/VM verifiers exercise that graph.
+        fixture=BUILD/'factory-setup-fixture.cpp'
+        fixture.write_text('''#include "EffectSetup.h"
+#ifdef _MSC_VER
+extern "C" __declspec(noreturn) void __cdecl abort(void);
+#else
+extern "C" void __cdecl abort(void) __attribute__((noreturn));
+#endif
+extern "C" const double ug2FxIndexBias7A1E58=0.001;
+extern "C" int UG2FxSetupEffect(D3DXEffectObject *p) { return p->Setup(); }
+extern "C" int UG2FxPrepareGroupA(D3DXEffectObject *,unsigned int) { abort(); }
+extern "C" int UG2FxPrepareGroupB(D3DXEffectObject *,unsigned int) { abort(); }
+extern "C" int UG2FxEvaluateRecord(D3DXEffectObject *,unsigned int,unsigned int) { abort(); }
+''')
+        sources += [replace.get("EffectSetup.cpp",LIB/"EffectSetup.cpp"),fixture]
     bindings=dict(GLOBALS,**core.APIS,UG2FxMalloc=0x575620,UG2FxFree=0x575630,abort=STOP+0x900)
     bindings.update({NAMES[k]:a for k,a in SHIMS.items()if not((real_destroy and k=="destroy")or(real_setup and k=="setup"))})
     if gcc:

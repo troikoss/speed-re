@@ -4011,8 +4011,9 @@ executable. Reports and mutation artifacts remain under
 `build/analysis/effect-preparation/`. Finite comparisons do not establish byte
 identity, arbitrary malformed/giant inputs, external COM reentrancy, complete
 shader preparation, evaluation or rendered equivalence. The complete group
-preparation bodies `0x666df7`/`0x667d51`, their remaining helpers/sort, evaluator
-`0x663a32` and shader VM `0x688e79`, GPU resources/states and native technique/draw
+preparation bodies `0x666df7`/`0x667d51`, their helpers/sort, evaluator
+`0x663a32` and shader VM `0x688e79` are recovered in later sections. Five VM
+CRT/operation dependencies, GPU resources/states and native technique/draw
 activation remain open.
 
 The complete native build, the existing 110 parser lifecycles and the 60-frame
@@ -4167,9 +4168,10 @@ function spans and priority data. These are finite behavioral and CPU lifetime
 checks. Byte identity, arbitrary malformed/giant inputs, unmasked exceptions,
 external COM reentrancy and rendered shader equivalence remain unestablished.
 Earlier sections' open group-preparation entries are superseded by this recovery.
-The evaluation caller and CRT control state are recovered below; its shader VM
-`0x688e79` and conversion helpers, production GPU bytecode/resource/state services, source compilation and native
-technique/draw activation remain open.
+The evaluation caller, CRT control state and VM dispatcher `0x688e79` are
+recovered below. Five VM CRT/operation dependencies, production GPU bytecode/
+resource/state services, source compilation and native technique/draw activation
+remain open.
 
 ### Effect evaluation input copies and recursive double storage (2026-10-29)
 
@@ -4268,8 +4270,9 @@ Native build and the 60-frame SKYLINE orbit regression pass. Source/record
 fingerprints remain **`ca993eba` / `7141bcda`**, and all 829 texture records/staged
 handles retire to zero. The copy chain is compiled into the recovered archive;
 it does not activate evaluation, the shader VM, GPU resources or native effects.
-The evaluator caller and CRT control mapping are recovered below. VM `0x688e79`,
-its conversion/math runtime and real effect rendering remain open. These finite
+The evaluator caller, CRT control mapping and VM `0x688e79` dispatcher are
+recovered below. Five VM CRT/operation dependencies and real effect rendering
+remain open. These finite
 CPU checks do not establish instruction-byte identity, arbitrary malformed/giant input behavior,
 external reentrancy or rendered shader equivalence.
 
@@ -4307,7 +4310,8 @@ three equal output pointers and three equal output masks, and the caller returns
 its result without suppressing positive or negative values. Argument order,
 cleared fields, source-copy order and the first-call FP transition are retained.
 `NativeFxSetupDispatch.cpp` now reaches this recovered member through the existing
-ABI bridge. The VM itself remains an explicit production boundary.
+ABI bridge. The VM dispatcher is recovered in the next section; its five
+CRT/operation dependencies remain explicit production boundaries.
 
 The CRT routines retain their actual bit mappings and return contract:
 
@@ -4384,14 +4388,145 @@ all 829 texture records/staged handles retire to zero. The preceding copy-only
 verifier's heap-size description is corrected to its actual 256 KiB; this
 verifier allocates the larger modeled heap for the 65,535-use fixture.
 
-The caller and control mapping are recovered; VM `0x688e79` is not. Source
-`NativeFxVmDispatch.cpp` aborts at production VM execution. Its inline x87 math,
-CRT math/conversion runtime, `0x688ce2`/`0x63f2b5` operation chain, full shader
-execution and native effect activation remain open. Finite checks do not prove
-instruction-byte identity, arbitrary malformed/aliasing/reentrant inputs,
-unmasked pending exceptions, thread changes or rendered shader equivalence.
+The caller and control mapping are recovered. The dispatcher, inline x87
+operations, indexed conversions and `0x688ce2` wrapper are recovered below.
+Five CRT/operation dependencies, full shader execution and native effect
+activation remain open. Finite checks do not prove instruction-byte identity,
+arbitrary malformed/aliasing/reentrant inputs, unmasked pending exceptions,
+thread changes or rendered shader equivalence.
 
-### Verification (pixel size and LOD)
+### Complete effect VM dispatcher and operation wrapper (2026-10-29)
+
+`EffectVm.cpp` recovers the complete **2,324-byte dispatcher `0x688e79`** and
+**74-byte operation wrapper `0x688ce2`**. `NativeFxVmDispatch.cpp` now calls the
+recovered dispatcher through its original fourteen-argument interface. This
+advances CPU effect evaluation; native effect/GPU rendering remains inactive.
+`config/SPEED2_EXE_1_2/effect-vm.json` fingerprints both bodies and four original
+double constants against the reference executable SHA-256.
+
+The dispatcher retains 256 uninitialized scratch doubles and 256 persistent
+operand pointers. Indexed terms multiply the previous low word by four before
+adding the next offset, truncate a selected double to signed 64-bit integer,
+and keep its low 32 bits. Scratch indices use `& 0xff`; literal indices use
+unsigned modulo the literal count. Banks 2/3/4/5/6 use masked eight-byte offsets;
+final bank 9 operands use masked **four-byte** offsets. Kind 9 is not an indexed
+term dereference. Unsupported operand kinds retain the preceding pointer for
+that slot; unsupported output kinds retain the preceding destination. Only
+banks 7/4/5/6 select destinations. Neither stale-state behavior nor unchecked
+sizes are replaced by new validation or initialization.
+
+The low twenty operation bits specify the width. The upper opcode selects:
+
+| Opcode (hex, bits 20–30) | Original operation |
+| --- | --- |
+| `100` / `101` | Forward DWORD copy / negate |
+| `103` / `104` / `105` | Reciprocal / input reloaded after floor call, minus its result / power with base two |
+| `106` / `107` | Guarded logarithm / reciprocal square root of absolute value |
+| `108` / `109` / `10a` / `10b` / `10c` | Sine / cosine / asin / acos / atan |
+| `200` / `201` / `202` / `203` | Minimum / maximum / less-than / greater-or-equal |
+| `204` / `205` / `206` | Add / multiply / atan2 |
+| `300` / `500` / `502` / `70e` | Conditional select / dot / operation wrapper / pairwise sum over two pointer-list halves |
+
+A negative operation word enables scalar broadcasting only for `200` through
+`206` and `500`; all other negative opcodes do nothing. Unknown positive opcodes
+also do nothing. Forward copies preserve overlapping DWORD behavior. Dot paths
+zero the destination before reading inputs, then reload both the destination
+and any broadcast scalar on every term. Odd `70e` input counts truncate when
+splitting the list. Min/max choose the right value on ties and unordered
+comparisons; unordered conditions choose the negative select branch.
+
+The logarithm's guard reads **`*inputs[lane]`**, while its actual value reads
+**`inputs[0][lane]`**. It computes the original `FLDLN2; FYL2X` product followed
+by multiplication by the stored double at `0x7baa88`; replacing this with host
+`log2` changes arithmetic and rounding. Native x86 instruction adapters live
+separately in `NativeFxVmIntrinsics.h`. They preserve FCOMP NaN behavior, x87
+range handling, memory operand order and direct destination stores. An extra
+double spill/reload can add a denormal exception to a newly underflowed result,
+so these adapters do not return a temporary double through the compiler.
+
+The `502` wrapper narrows at most the first three input doubles to floats,
+zero-fills unused float words, calls `0x63f2b5`, and stores its x87 result as a
+double. Its dependency takes a float pointer with **stdcall `RET 4`**; this ABI
+is confirmed from the original instructions and comparative stack checks.
+Count zero reads no input value. The 619-byte dependency itself is unrecovered.
+
+Verification commands (set `UG2_EXE` to the local reference executable):
+
+```sh
+build/venv/bin/python tools/verify_pc_effect_vm.py --gcc --cases 2048 --write-native-fixtures /tmp/ug2-effect-vm-fixtures.bin
+build/native/ug2effectvm_probe "$UG2_EXE" /tmp/ug2-effect-vm-fixtures.bin /tmp/ug2-effect-vm-native.bin
+build/venv/bin/python tools/verify_pc_effect_vm.py --gcc --cases 2048 --native-dump /tmp/ug2-effect-vm-native.bin --mutation-checks --native-mutation-checks
+build/venv/bin/python tools/verify_pc_effect_vm.py --cases 2048 --native-dump /tmp/ug2-effect-vm-native.bin --mutation-checks
+build/venv/bin/python tools/verify_pc_effect_vm.py --gcc --cases 128 --real-runtime
+build/venv/bin/python tools/verify_pc_effect_vm.py --cases 128 --real-runtime
+```
+
+Each compiler compares **4,096 body executions** with the original, checking
+complete modeled memory, call arguments/order, returns, preserved registers,
+stack cleanup, control word and live x87 stack/tag contents. Controlled math
+results expose ABI and call-order behavior, including a floor service that
+changes the input so the caller must reload it. Separate bounded runs execute
+the **actual original CRT and operation code** on both sides: 256 body
+comparisons per compiler. Each normal run also compares **128 complete evaluator
+graphs containing 224 calls to the recovered VM**, without redirecting the
+rebuilt dispatcher to the original. Native captures replay **368 graphs**,
+including 64 operation wrappers with test-only float-packet capture/results.
+GCC rejects **49 source mutations** and MSVC rejects **48**, covering instruction and
+operand cursors, indexed masks/conversion widths, overlap, broadcast arithmetic,
+selection, logarithm pointers, floor reload and wrapper layout. The hardware
+oracle independently rejects **nine native mutations**, including preloaded
+comparison/arithmetic operands, an extra double spill, broadcast load order,
+missing absolute value and narrowed indexed conversion. A compile/launch error
+is not counted as a behavioral rejection. MSVC emits the same `_ftol2`
+low-word conversion for the `int` and `__int64` casts here, so that source
+change is excluded from its mutant count; GCC and hardware tests distinguish
+the 32-bit conversion. Mutation workers cache unchanged MSVC dependencies
+using source/header/compiler hashes and verify cached object hashes. Ordinary
+verification always rebuilds all sources.
+
+Generated objects, fixtures, captures, mutation logs and JSON results stay in
+`build/analysis/effect-vm/` or `/tmp`.
+
+The native probe additionally checks **176,928 hardware opcode/value/alias/FP
+state cases**, **3,072 indexed conversions**, and **1,536 float-narrowing cases**.
+Its independent micro-oracles transcribe the original x87 instructions; they
+execute no retail PE code. All twelve combinations of 24/53/64-bit precision
+and rounding are exercised, with signed zeros, subnormals, finite extremes,
+infinities, quiet/signaling NaNs, scalar broadcast, zero/multiple widths and
+four/eight-byte overlaps. Buffer bytes, control word, stack TOP/full tags and
+six exception flags must agree; sine/cosine also compare C2 range status.
+This hardware evidence applies to the Linux i386 GCC build. MSVC source is
+compared under Unicorn; native MSVC exception-flag equivalence is not claimed.
+Legacy MSVC integer casts still link original compiler helper `0x75dd28` in
+the comparative harness. Native GCC lowers the signed-64 truncation to x87
+instructions, checked by the hardware probe. Recovery of that CRT helper
+itself is not claimed.
+
+Unicorn's zero-input FYL2X emulation leaves an extra stack value, unlike the
+physical instruction. Comparative logarithm fixtures therefore use positive
+actual values while varying negative/unordered pointer-list guards. The
+hardware oracle separately checks zero, negative and nonfinite logarithms and
+requires the proper empty stack. Neither that emulator defect nor a matching
+emulator result establishes hardware correctness by itself. All scratch and
+pointer counts in these fixtures stay within the original 256-slot arrays;
+unchecked out-of-range programs and first-use uninitialized pointers are not
+claimed safe or completely verified.
+
+Production `NativeFxVmCrtPlatform.cpp` still aborts at **floor `0x75eb50`, power
+`0x75c9b0`, asin `0x75eea0`, acos `0x75db80`, and operation `0x63f2b5`**. Private
+original x87 math arguments are adapted only in the comparative harness;
+there is no production host-libm replacement. Source compilation, GPU
+resources/readback/states, native effect activation and remaining wheel seams
+stay open. Behavioral agreement is separate from instruction-byte identity,
+which has not been established. Unmasked pending exceptions, arbitrary
+malformed/reentrant inputs and rendered shader equivalence remain unverified.
+
+The factory `--real-setup` regression uses an explicit test-only bridge with
+empty parsed metadata; unexpected preparation/evaluation calls abort. This
+keeps that fixture's original scope while composed evaluator/VM tests exercise
+the larger recovered graph. The native build and 60-frame SKYLINE smoke pass;
+wheel fingerprints remain `ca993eba` / `7141bcda`, and all 829 texture records
+and staged handles retire to zero.
 
 ### Verification (pixel size and LOD)
 

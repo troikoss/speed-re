@@ -43,7 +43,7 @@ CDECL=set()
 VOID=set(FREE)-{'padded','value_size'};core.MEMBERS.update(MEMBERS)
 
 
-def build(replace,gcc):
+def build(replace,gcc,reuse_dependencies=False):
     BUILD.mkdir(parents=True,exist_ok=True)
     sources=[replace.get(p.name,p)for p in SOURCES]+[LIB/'EffectObject.cpp',LIB/'EffectPool.cpp',LIB/'EffectDestruction.cpp',core.SOURCE,core.BRIDGE,
         ROOT/'src/Platform/Native/NativeFxPoolDispatch.cpp',ROOT/'src/Platform/Native/NativeFxEffectDispatch.cpp',
@@ -54,11 +54,27 @@ def build(replace,gcc):
         linked=link_native(sources,BUILD,ROOT,bindings,FREE['array'],text_address=0x5000000,include_dirs=[LIB])
         prefixes=dict(FREE,**{k:'_ZN'+str(len(c))+c+str(len(m))+m for k,(c,m)in MEMBERS.items()})
     else:
+        # Mutation workers may reuse unchanged compiler inputs. Include every
+        # source header, the compiler/runtime bytes and flags in the cache key;
+        # normal verification still rebuilds everything unconditionally.
+        context=hashlib.sha256(b'MSVC7.1 /nologo /c /Ox /Ob0 /EHsc /I'+str(LIB).encode())
+        if reuse_dependencies:
+            for p in sorted(p for p in (ROOT/'src').rglob('*')if p.suffix in('.h','.inc')):
+                context.update(str(p.relative_to(ROOT)).encode());context.update(p.read_bytes())
+            compiler=ROOT/'build/compilers/Win32/7.1'
+            for p in [ROOT/'build/tools/wibo']+sorted(p for p in compiler.iterdir()if p.suffix.lower()in('.exe','.dll')):
+                context.update(p.name.encode());context.update(p.read_bytes())
         objects=[]
         for i,p in enumerate(sources):
             obj=BUILD/('metadata-'+str(i)+'.obj');objects.append(obj)
+            key=hashlib.sha256(context.digest()+str(p).encode()+p.read_bytes()).hexdigest()
+            cache=obj.with_suffix('.compile-cache.json')
+            if reuse_dependencies and obj.exists()and cache.exists():
+                previous=json.loads(cache.read_text())
+                if previous==dict(key=key,object_sha256=hashlib.sha256(obj.read_bytes()).hexdigest()):continue
             subprocess.run([str(ROOT/'build/tools/wibo'),'build/compilers/Win32/7.1/cl.exe','/nologo','/c','/Ox','/Ob0','/EHsc',
                 '/I'+str(LIB.relative_to(ROOT)),'/Fo'+str(obj.relative_to(ROOT)),str(p.relative_to(ROOT))],cwd=ROOT,check=True)
+            if reuse_dependencies:cache.write_text(json.dumps(dict(key=key,object_sha256=hashlib.sha256(obj.read_bytes()).hexdigest())))
         bindings={'_'+k:v for k,v in bindings.items()}
         for name,n,_ in core.API_SPECS:bindings['_UG2Fx'+name+'@'+str(n*4)]=core.APIS['UG2Fx'+name]
         linked=link_objects(objects,bindings,start=0x5000000)

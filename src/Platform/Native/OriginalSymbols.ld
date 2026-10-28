@@ -1243,3 +1243,8 @@ ug2FxRegistryPath7AB494 = 0x7ab494;
 ug2FxGetProcAddressImport783194 = 0x783194;
 ug2FxLoadLibraryImport783198 = 0x783198;
 ug2FxConstantOrder7B5048 = 0x7b5048;
+
+ug2VmZero786E60 = 0x786e60;
+ug2VmOne786E68 = 0x786e68;
+ug2VmTwo787AD0 = 0x787ad0;
+ug2VmLogScale7BAA88 = 0x7baa88;

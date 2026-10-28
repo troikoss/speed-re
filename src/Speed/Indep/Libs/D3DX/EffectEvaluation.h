@@ -11,7 +11,7 @@ unsigned int __cdecl D3DXEffectControlFp(unsigned int,unsigned int); // 0x75db6a
 // Platform x87 instructions, separated from recovered CRT bit mapping.
 unsigned int __cdecl UG2FxReadControlWord();
 void __cdecl UG2FxWriteControlWord(unsigned int);
-// Unrecovered VM 0x688e79. Fourteen original stack arguments / RET 0x38.
+// ABI bridge to recovered VM 0x688e79. Fourteen stack arguments / RET 0x38.
 int __stdcall UG2FxExecuteVm(unsigned int *,unsigned int *,unsigned int,unsigned int,unsigned int,
     unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int);
 }

@@ -1,0 +1,37 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "vm": {
+      "address": "0x688e79",
+      "size": 2324,
+      "sha256": "75d35af8a85373a350b12ff6025bf773d9eba2723b5a974d1b34f2ddfaa58241"
+    },
+    "operation502": {
+      "address": "0x688ce2",
+      "size": 74,
+      "sha256": "7ce36263ca6b00d5e3d3ab513dccee19fb399e7acb6b8c11ac13f6530c8121fd"
+    }
+  },
+  "data": {
+    "0x786e60": {
+      "address": "0x786e60",
+      "size": 8,
+      "sha256": "af5570f5a1810b7af78caf4bc70a660f0df51e42baf91d4de5b2328de0e83dfc"
+    },
+    "0x786e68": {
+      "address": "0x786e68",
+      "size": 8,
+      "sha256": "6c3c396ed6b5c36dcae172271f462051b1266b851e92df3deea8ac65478fd712"
+    },
+    "0x787ad0": {
+      "address": "0x787ad0",
+      "size": 8,
+      "sha256": "3f710ac088db33363087de2b9a657541fe5447821debaa9fe5cbd538eb1a5f29"
+    },
+    "0x7baa88": {
+      "address": "0x7baa88",
+      "size": 8,
+      "sha256": "3a6b893bc9f35b0bff8d028a7e94afa0c8668037d3bc17ba19202409480baf32"
+    }
+  }
+}

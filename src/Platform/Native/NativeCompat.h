@@ -6,5 +6,6 @@
 #define __stdcall __attribute__((stdcall))
 #define __thiscall __attribute__((thiscall))
 #define __fastcall __attribute__((fastcall))
+#include "NativeFxVmIntrinsics.h"
 
 #endif

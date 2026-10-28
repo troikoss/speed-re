@@ -1,10 +1,7 @@
-#include "../../Speed/Indep/Libs/D3DX/EffectEvaluation.h"
-#ifdef _MSC_VER
-extern "C" __declspec(noreturn) void __cdecl abort(void);
-#else
-extern "C" void __cdecl abort(void) __attribute__((noreturn));
-#endif
-// VM 0x688e79 remains unrecovered. Do not substitute host math or a successful
-// shader result. Comparative verification executes the original VM separately.
-extern "C" int __stdcall UG2FxExecuteVm(unsigned int *,unsigned int *,unsigned int,unsigned int,unsigned int,
-    unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int) { abort(); }
+#include "../../Speed/Indep/Libs/D3DX/EffectVm.h"
+// Native ABI bridge. Original CRT/operation dependencies retain their own
+// unsupported boundaries; the complete VM dispatcher is recovered source.
+extern "C" int __stdcall UG2FxExecuteVm(unsigned int *program,unsigned int *literals,unsigned int a,unsigned int b,unsigned int c,
+    unsigned int d,unsigned int e,unsigned int f,unsigned int g,unsigned int h,unsigned int i,unsigned int j,unsigned int k,unsigned int l) {
+    return D3DXEffectVm(program,literals,a,b,c,d,e,f,g,h,i,j,k,l);
+}
