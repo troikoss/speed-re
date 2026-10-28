@@ -4171,6 +4171,108 @@ Record evaluation `0x663a32`, its shader VM `0x688e79` and conversion helpers,
 production GPU bytecode/resource/state services, source compilation and native
 technique/draw activation remain open.
 
+### Effect evaluation input copies and recursive double storage (2026-10-29)
+
+`EffectEvaluationCopy.cpp` expands `EffectEvaluationCopy.inc` into four complete
+original entries. The vector copy is `0x662ecc..0x663264` (921 bytes), scalar copy
+`0x663265..0x66356d` (777 bytes), recursive vector walker
+`0x65fab5..0x65febe` (1,034 bytes), and recursive scalar walker
+`0x65febf..0x660204` (838 bytes). All take seven stack arguments and return with
+`RET 0x1c`; ECX is unused in their bodies. Their ordinary source interfaces use
+`__stdcall`. No forced registers or extra recovered helper calls are introduced.
+
+The live Ghidra MCP bridge reported no instances. Evidence extraction used the
+saved reference project with `-readOnly -noanalysis` and no project save. Both
+instructions and decompilation were read; inferred decompiler float/pointer types
+were corrected from the actual `FILD dword`, `FLD float` and `FSTP double`
+instructions. `config/SPEED2_EXE_1_2/effect-evaluation-copy.json` pins the executable
+and four function spans. The source records only the UG2 PC v1.2 build.
+
+These routines feed record evaluation `0x663a32`. They read the parameter's data
+and type pointers, choose shape from the descriptor or an optional CTAB type,
+and widen values into double storage. Source kinds 1 and 2 use **signed integer
+loads**, including arbitrary raw boolean words; kind 3 uses float loads. An array
+count of `0xffffffff` selects the descriptor count with zero treated as one;
+an explicit count of zero remains zero. Shapes 0/1/2/3/5 retain distinct paths.
+Unknown shapes/kinds preserve the original cursor/no-write behavior.
+
+Struct walkers reset the child type cursor for each array, follow optional CTAB
+member offsets in eight-byte entries, and recurse with shared source/output/
+remaining-count cursors. Numeric leaves advance the type cursor by 28 bytes even
+when no values remain; structs publish their child cursor before the zero-count
+check. The top-level copies keep local cursors and report output distance in
+32-byte vector units or eight-byte scalar units. Recursive calls execute the
+recovered walkers, with no controlled conversion or traversal result.
+
+Several original layout quirks are retained:
+
+- Shape-2 matrices use 64-byte source-array strides. Integer matrix arrays reread
+  the first matrix's values, while their recursive source cursor still advances
+  by 64 bytes for each entered array. Float matrices advance their read base.
+- Vector matrices read transposed components at `row + column * 4`; scalar
+  matrices read one component per row. Partial limits consume original units.
+- Ordinary float paths write **four doubles**, including the scalar path. Scalar
+  output advances by only **one double**, so successive writes overlap. Integer
+  scalar paths write only one double; vector integer paths use the descriptor's
+  row count, preserving unwritten components.
+- Shape 3 adds `(4 - columns) * 4` source words after each array. This retains the
+  original byte stride rather than an inferred packed-array layout.
+
+Build and reproduce with `UG2_EXE` set to the installed reference executable:
+
+```sh
+build/venv/bin/python tools/verify_pc_effect_evaluation_copy.py --gcc --cases 1 --write-native-fixtures /tmp/ug2-evaluation-copy-fixtures.bin
+cmake -S . -B build/native
+cmake --build build/native
+build/native/ug2effectevaluationcopy_probe /tmp/ug2-evaluation-copy-fixtures.bin /tmp/ug2-evaluation-copy-native.bin
+build/venv/bin/python tools/verify_pc_effect_evaluation_copy.py --gcc --cases 2048 --mutation-checks --native-dump /tmp/ug2-evaluation-copy-native.bin
+build/venv/bin/python tools/verify_pc_effect_evaluation_copy.py --cases 2048 --mutation-checks --native-dump /tmp/ug2-evaluation-copy-native.bin
+```
+
+Run MSVC/wibo jobs sequentially. Each compiler passes **8,192 per-body comparisons**
+with **13,986 calls to each recursive walker**. Cases cover descriptor versus CTAB
+shape selection, explicit/default/zero array counts, scalar/vector/both matrix
+layouts, nested structs, unsupported kinds/shapes, partial/zero/full remaining
+counts, negative integer words, nonfinite float payloads and overlapping source/
+output. Final arena/two-MiB heap bytes, returns, stack/register preservation and
+x87 empty-stack/control-word state are checked. Recursive entry traces normalize
+local cursor addresses to their values and compare order, arguments and SHA-256
+arena/allocated-heap state. No allocator or GPU service is used by these bodies.
+
+Both compilers reject **36 mutations** covering shape/array gates, child resets,
+member offsets, recursive array counts, exhausted-member guards, matrix input/
+output strides, repeated integer reads, signed loads, four-lane float tails,
+overlapping scalar outputs, padding, published cursors, reported counts and
+scalar/vector callee selection. Generated reports and mutation artifacts remain
+under `build/analysis/effect-evaluation-copy/`.
+
+`ug2effectevaluationcopy_probe` replays **512 native CPU graphs** (128 fixtures
+through all four entries). Captures compare normalized type/source/output
+cursors, remaining/written counts, and the complete 32-KiB input/output/guard
+region, including overlapping writes. Source words in this replay use a bounded
+set of integer extrema, signed zeros, ordinary floats and quiet NaNs. It is kept
+separate from signaling-NaN hardware checks because Unicorn preserves signaling
+NaNs when these original load/store sequences quiet them on hardware.
+
+The same native executable runs **4,096 hardware copy checks** across all four
+entries under x87 24-bit and 53-bit precision, each checking four output lanes.
+Its oracle executes the original `FLD m32 / FSTP m64` micro-operation for edge and
+seeded raw float inputs, including denormals, infinities, signed quiet/signaling
+NaNs and their payloads. Recovered outputs, six masked exception-status bits,
+control-word preservation, cursors/counts and trailing guards match the oracle.
+This is a hardware conversion check, not native execution of mapped PE code or
+an exemption from the original/rebuilt comparisons. It does not establish all
+aliasing cases with signaling NaNs, unmasked exceptions or other rounding modes.
+
+Native build and the 60-frame SKYLINE orbit regression pass. Source/record
+fingerprints remain **`ca993eba` / `7141bcda`**, and all 829 texture records/staged
+handles retire to zero. The copy chain is compiled into the recovered archive;
+it does not activate evaluation, the shader VM, GPU resources or native effects.
+The evaluator caller `0x663a32`, VM `0x688e79`, its conversion/math/FP-control
+runtime and real effect rendering remain open. These finite CPU checks do not
+establish instruction-byte identity, arbitrary malformed/giant input behavior,
+external reentrancy or rendered shader equivalence.
+
 ### Verification (pixel size and LOD)
 
 ### Verification (pixel size and LOD)
