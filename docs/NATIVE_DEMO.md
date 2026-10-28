@@ -3164,6 +3164,98 @@ clean ownership. Main deserialization `0x66f69c`, relocation, shared-pool bindin
 compiled shader payload readers, shader preparation/evaluation and GPU/API
 activation remain open, along with the other wheel inventory seams.
 
+### Effect resource payloads and lazy shader records (2026-10-28)
+
+`Libs/D3DX/EffectShaderResources.cpp` recovers four complete UG2 bodies:
+
+| Address | Bytes | Recovered behavior |
+| --- | --- | --- |
+| `0x65b970` | 94 | Vertex-shader creation caller through device vtable `+0x16c` |
+| `0x65b9ce` | 94 | Pixel-shader creation caller through device vtable `+0x1a8` |
+| `0x65ba2c` | 562 | Serialized indexed resource payload reader |
+| `0x66520d` | 638 | Lazy shader-record payload reader and indirect-record conversion |
+
+The creation callers enable debug mute before testing bit 1 of effect byte
+`+0x119`. The disabled branch returns without a matching unmute. Otherwise they
+cache the device's vtable before calling the recovered byte-buffer pointer
+getter, then reread the device argument for the GPU call. Disassembly confirms
+that the output pointer already on the stack belongs to the GPU call; the
+buffer getter still takes one argument. Both success and failure unmute before
+updating the reference's low two flag bits. Failure clears its shader pointer.
+These callers return void, so readers retain their own HRESULT even when GPU
+creation fails. Incidental register values are not forced into the source.
+
+The indexed reader consumes index and byte size, validates the cursor and index,
+then allocates a temporary block, including for size zero. It stages DWORDs and
+the trailing bytes before checking whether the destination already owns either
+resource pointer. Empty unowned entries return success. Kind 4 requires the
+last payload byte to be zero and creates a recovered buffer in reference `+4`.
+Kinds 15/16 create a buffer in `+8`, copy the bytes, call the appropriate shader
+creation wrapper and update the group's selector/dirty record. Existing
+resources and unsupported nonempty kinds fail. Temporary allocation, buffer
+creation failures, cursor advancement and cleanup retain the original order.
+
+The record reader returns immediately for other type-table kinds. For 15/16 it
+reads size, resolves the owning parameter through `+0xb0`, and finds the resource
+index through either the local data block or the shared-pool link's index map.
+It publishes the new group word and increments the effect's group count before
+record growth can fail. The lazy target uses code `0x92`/`0x93`, tag `0x0a000000`/
+`0x0b000000`, the original selector/slot/unit fields and a ten-DWORD metadata
+copy followed by clearing its two owned base pointers. Zero size returns at
+this stage. A nonempty payload creates and fills a recovered buffer, calls
+shader creation, then converts the source to code `0xb3`, tag `0x0e000000`, slot
+`0xffff` and one unit. It increments group use count and appends four bytes of
+storage without introducing alignment rounding. Failures preserve partial state.
+
+As in the earlier readers, cursor units and comparisons with buffer length are
+kept exactly as observed. Explicit getter boundaries precede cursor rereads;
+there is no added division by four or stricter stream abstraction.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_shader_resources.py --gcc --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_shader_resources.py --mutation-checks
+cmake -S . -B build/native
+cmake --build build/native --target ug2effectshaderresources_probe
+build/native/ug2effectshaderresources_probe "$UG2_DIR/speed2.exe" /tmp/effect-shader-resources.bin
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_shader_resources.py --gcc --native-dump /tmp/effect-shader-resources.bin
+```
+
+Each compiler passes **4,096 comparisons**, 1,024 per body, and rejects **39
+mutations**. Comparisons include full mapped fixture arena/heap bytes,
+getter/allocation/free/mute/GPU call-time state, HRESULT, allocation ownership,
+stack, nonvolatile registers and restored x87 state. Fixtures cover truncated
+and wrapped cursors, byte tails, null/existing resources, valid and unterminated
+strings, local/shared index lookup, fresh/existing lazy records, group bounds,
+zero payloads, allocation failures, shader HRESULT signs and flag preservation.
+Callbacks perturb cursors at getter entry and device/flags at getter or mute
+entry. The recovered getter still executes; the tests check caller rereads and
+the cached-vtable/reread-device distinction. Mute and GPU results are controlled
+boundaries, not evidence of device or shader execution.
+
+`ug2effectshaderresources_probe` runs **12 CPU-only fixtures**: eight resource
+cases and four zero-byte/non-shader/group-bound record cases. It captures
+HRESULT/cursor, buffer presence/length/payload digest, resource/group fields and
+the lazy record's written fields in `UG2FXSR1`. Diagnostic source arrays are
+deliberately preseeded; unspecified high bits in a freshly allocated target's
+flags and native pointer values are excluded from normalization. Both original
+and rebuilt execution match all captures. Full recovered destruction returns
+every fixture to **zero tracked allocations**. No fixture enters debug mute or
+GPU creation; shader bytecode is not interpreted by this probe.
+
+Fingerprints are in `config/SPEED2_EXE_1_2/effect-shader-resources.json`;
+generated reports remain under `build/analysis/effect-shader-resources/`.
+Finite mapped cases do not establish arbitrary malformed-pointer, exception or
+giant-loop behavior. Instruction-byte identity is unproven. The native build,
+23 retail metadata chains and eight storage graphs pass. SKYLINE orbit retains
+checksums `ca993eba`/`7141bcda`; three late-texture cycles retain 612 solids/829
+textures, slots 500 → 534 → 500 and clean pools.
+
+`NativeFxShaderDispatch.cpp` explicitly traps the still-unrecovered debug-mute
+`0x671aed` and GPU creation calls. Main deserializer `0x66f69c`, relocation,
+shared-pool producers, compiled payload readers `0x66c37e`/`0x66c645`, shader
+preparation/evaluation, source compilation and GPU/API integration remain open.
+These recovered readers do not activate effects or the native queue consumer.
+
 ### Verification (pixel size and LOD)
 
 ### Verification (pixel size and LOD)

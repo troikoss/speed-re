@@ -1,0 +1,32 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "vertex": {
+      "address": "0x65b970",
+      "size": 94,
+      "sha256": "1a29a5382f3116dbf6d345c82287b3dd60fac5242a9f8144bb582571446e427d"
+    },
+    "pixel": {
+      "address": "0x65b9ce",
+      "size": 94,
+      "sha256": "60f3acaf6dd29bc74be46fd0df8583c69ddbe1417c084b52379e6fb4f616be92"
+    },
+    "resource": {
+      "address": "0x65ba2c",
+      "size": 562,
+      "sha256": "4f72c28b65d42c41224793e45a7819d5be13d5a9b7cef7df03ccf45b48fe7ba9"
+    },
+    "shader_record": {
+      "address": "0x66520d",
+      "size": 638,
+      "sha256": "dc2dc76fcf105452c7c0f4a01270978a5c5e6253f026b2551358a981b37bbd56"
+    }
+  },
+  "data": [
+    {
+      "address": "0x7b582c",
+      "size": 5096,
+      "sha256": "1f7bbe2e594dea4909c941578b6ed6e848bb7130ff802008a243d8f0c876634d"
+    }
+  ]
+}

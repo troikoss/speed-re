@@ -3,6 +3,7 @@
 #include "EffectInput.h"
 struct D3DXEffectRecord38;
 struct D3DXEffectRecordB4;
+struct D3DXEffectReference18;
 
 // Secondary interface at effect+4; offsets here are relative to that receiver.
 struct D3DXEffectSecondaryPrefix {
@@ -53,6 +54,10 @@ struct D3DXEffectObject {
     int ResetDirtyQueue(); // 0x65b92d
     int GrowDirtyQueue(); // 0x65aaaa
     int MarkParameterDirty(D3DXEffectParameter *); // 0x65ab14
+    void CreateVertexShader(D3DXEffectReference18 *); // 0x65b970
+    void CreatePixelShader(D3DXEffectReference18 *); // 0x65b9ce
+    int ReadResource(D3DXEffectBuffer *,unsigned int *position); // 0x65ba2c
+    int ReadShaderRecord(unsigned int group,unsigned int record,D3DXEffectBuffer *,unsigned int *position); // 0x66520d
 };
 struct D3DXEffectPoolLink {
     unsigned int value00,value04;
