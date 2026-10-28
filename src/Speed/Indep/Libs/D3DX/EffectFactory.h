@@ -4,6 +4,12 @@
 struct D3DXEffectRecord38;
 struct D3DXEffectRecordB4;
 
+// Secondary interface at effect+4; offsets here are relative to that receiver.
+struct D3DXEffectSecondaryPrefix {
+    unsigned int class00,value04,value08,value0C;
+    int SetDevice(unsigned int device); // 0x65e591
+};
+
 struct D3DXEffectParameter {
     unsigned int value00,value04,value08,value0C,value10,value14,value18,value1C;
     unsigned int value20,value24,value28,value2C,value30,value34,value38,value3C,value40;
@@ -44,6 +50,9 @@ struct D3DXEffectObject {
     int ReadPass(D3DXEffectRecord38 *,D3DXEffectBuffer *,unsigned int *position); // 0x66a6af
     int ReadRecord(unsigned short group,unsigned short record,D3DXEffectBuffer *,unsigned int *position); // 0x66164d
     int ReadTechnique(D3DXEffectRecordB4 *,D3DXEffectBuffer *,unsigned int *position); // 0x66b60d
+    int ResetDirtyQueue(); // 0x65b92d
+    int GrowDirtyQueue(); // 0x65aaaa
+    int MarkParameterDirty(D3DXEffectParameter *); // 0x65ab14
 };
 struct D3DXEffectPoolLink {
     unsigned int value00,value04;
@@ -69,6 +78,7 @@ struct D3DXEffectPool {
     D3DXEffectPool *Delete(unsigned char flags); // 0x642535
 };
 typedef char D3DXEffectParameterSize[(sizeof(D3DXEffectParameter)==0x50)?1:-1];
+typedef char D3DXEffectSecondaryPrefixSize[(sizeof(D3DXEffectSecondaryPrefix)==0x10)?1:-1];
 typedef char D3DXEffectObjectSize[(sizeof(D3DXEffectObject)==0x130)?1:-1];
 typedef char D3DXEffectPoolNodeSize[(sizeof(D3DXEffectPoolNode)==0x24)?1:-1];
 typedef char D3DXEffectPoolLinkSize[(sizeof(D3DXEffectPoolLink)==0x14)?1:-1];
@@ -89,6 +99,7 @@ unsigned int UG2FxEffectReleaseVirtual(D3DXEffectObject *effect);
 unsigned char *UG2FxBufferPointerVirtual(D3DXEffectBuffer *buffer);
 unsigned int UG2FxBufferLengthVirtual(D3DXEffectBuffer *buffer);
 unsigned int UG2FxBufferReleaseVirtual(D3DXEffectBuffer *buffer);
+unsigned int __stdcall UG2FxComAddRef(unsigned int object); // vtable +4 boundary
 void UG2FxDestroyEffect(D3DXEffectObject *effect); // native ABI bridge to recovered 0x66adec
 int UG2FxSetupEffect(D3DXEffectObject *effect); // native ABI bridge to recovered 0x66afe6
 // Unrecovered runtime/compiler boundaries. No native successful effect is

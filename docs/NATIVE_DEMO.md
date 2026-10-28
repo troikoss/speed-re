@@ -3079,6 +3079,91 @@ and compiled shader-payload dependencies, shader preparation/evaluation, source
 compilation and the GPU/API backend. Real technique/consumer activation and the
 other wheel-rendering inventory seams remain open.
 
+### Effect dirty queues, group storage and device ownership (2026-10-28)
+
+`Libs/D3DX/EffectRuntimeStorage.cpp` recovers five complete UG2 bodies used by
+deserialization and subsequent parameter updates:
+
+| Address | Bytes | Recovered behavior |
+| --- | --- | --- |
+| `0x65b92d` | 67 | Reset the effect's dirty-record queue |
+| `0x65aaaa` | 106 | Grow that queue |
+| `0x65ab14` | 465 | Mark parameter uses/records dirty and optionally enqueue records |
+| `0x65b733` | 90 | Allocate group data and append storage for index halfwords |
+| `0x65e591` | 53 | Set device references through the secondary interface at effect `+4` |
+
+Queue reset frees the old allocation before requesting `0x400` bytes, then stores
+the returned pointer. Failure leaves the old count/capacity intact. Growth
+**doubles capacity before allocation**, including on failure; success copies the
+original wrapped DWORD count, frees old storage and publishes the new pointer.
+No defensive saturation, rollback or extra initialization changes these states.
+
+Before runtime setup, dirty notification resolves the owner through `+0xb0`,
+walks its circular use ring from the head's predecessor and locates records
+through the use's group/record halfwords. With `+0xb4` present, it checks the
+parameter index against `+0xac`, sets the byte in `+0xbc` and walks the selected
+null-terminated row from `+0xb8`; each use supplies its direct record pointer.
+Bit 0 of effect byte `+0x119` enables queueing. Record bit 1 at `+0x30` suppresses
+duplicates. Use and record dirty fields are written **before** queue growth,
+so an allocation failure retains those writes without setting the queued bit or
+incrementing the queue length. Entries retain separate group/record word stores.
+
+Group allocation preserves the observed shift/mask expression, which retains an
+odd data offset rather than rounding it. It appends two bytes per index, writes
+`+0x14`/`+0x0c` before the unsigned capacity test, and allocates before freeing
+old data. It does not copy old bytes. Failed growth retains the old allocation
+and capacity alongside the new size fields. Size arithmetic wraps as x86 DWORDs.
+
+The secondary-interface setter retains the incoming device first, then rereads
+and releases its previous owned pointer at relative `+8`. It finally stores
+both relative `+8` and `+4`, including on self-assignment. The native COM bridge
+supports only the recovered buffer, pool and effect class tokens. GPU device
+classes remain unsupported; a buffer fixture tests ownership without pretending
+to supply a GPU implementation.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_storage.py --gcc --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_storage.py --mutation-checks
+cmake -S . -B build/native
+cmake --build build/native --target ug2effectstorage_probe
+build/native/ug2effectstorage_probe "$UG2_DIR/speed2.exe" /tmp/effect-storage.bin
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_storage.py --gcc --native-dump /tmp/effect-storage.bin
+```
+
+Each compiler passes **5,120 comparisons**, 1,024 per body, and rejects **32
+mutations**. Comparisons include the full fixture arena/heap, allocation/free/
+synthetic-COM call-time state, HRESULT, allocation ownership, stack, nonvolatile
+registers and restored x87 state. Fixtures cover allocation failures, wrapped
+counts/sizes, odd offsets, repeated notifications, existing queued bits, ring/
+grid order, inactive/null rows, direct versus indexed record pointers, and
+null/self/distinct device assignment. Synthetic virtual callbacks perturb the
+old device during AddRef and fields during Release to check rereads and final
+stores; known buffer COM methods execute recovered bodies.
+
+`ug2effectstorage_probe` runs eight synthetic native graphs combining ring/grid
+selection, queue enablement and the active-parameter bound. The `UG2FXST1`
+capture's normalized queue entries, dirty fields, group sizes/capacities and
+reference counts match both original and rebuilt execution. All eight graphs
+return tracked allocations to **zero**. Graph nodes are diagnostic stack
+fixtures, not fully deserialized effects; their queue and group allocations
+are released explicitly. Native pointer values and uninitialized allocation
+contents are excluded from this capture; full mapped-byte comparisons belong
+to the separate Unicorn tests.
+
+Allocation outcomes and synthetic COM callbacks are controlled. Counter fixtures
+include wrap and count/capacity mismatches in mapped guard storage; they are not
+a memory-safety claim. Finite tests do not establish arbitrary malformed-pointer,
+exception or unbounded-loop behavior. Instruction-byte identity is unproven.
+Fingerprints are in `config/SPEED2_EXE_1_2/effect-storage.json`, with generated
+reports under `build/analysis/effect-storage/`.
+
+The native build, all 23 retail metadata reader chains, SKYLINE orbit and three
+late-texture lifecycle cycles pass. Orbit checksums remain `ca993eba`/`7141bcda`;
+the lifecycle retains 612 solids/829 textures and slots 500 → 534 → 500 with
+clean ownership. Main deserialization `0x66f69c`, relocation, shared-pool binding,
+compiled shader payload readers, shader preparation/evaluation and GPU/API
+activation remain open, along with the other wheel inventory seams.
+
 ### Verification (pixel size and LOD)
 
 ### Verification (pixel size and LOD)

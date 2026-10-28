@@ -1,0 +1,30 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "reset": {
+      "address": "0x65b92d",
+      "size": 67,
+      "sha256": "8db3ce0ad87faf91583f41f369ad063822ea7cc2c444559e8113f32acfb6b266"
+    },
+    "grow": {
+      "address": "0x65aaaa",
+      "size": 106,
+      "sha256": "4fa65c18e9c55a4c2c1f76d91690aaf9afdc05229cf1c7c3e38660db9051f4f6"
+    },
+    "group": {
+      "address": "0x65b733",
+      "size": 90,
+      "sha256": "13d50f3418a9855ff533cc07e12b6e3796c5dd38f619cd1e0ae598ce42f01b9e"
+    },
+    "device": {
+      "address": "0x65e591",
+      "size": 53,
+      "sha256": "a6d2b257414f58a624c774fa2e65311dd0f783143fc8da6094bb75e0de3ec15c"
+    },
+    "dirty": {
+      "address": "0x65ab14",
+      "size": 465,
+      "sha256": "f74d3f4c4db4cadbbd9032875b1981fa04066e618dfef0bd6918a72181c8f174"
+    }
+  }
+}

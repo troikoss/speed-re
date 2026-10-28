@@ -43,6 +43,7 @@ struct D3DXEffectGroup64 {
     unsigned int value40,value44,value48,value4C,value50,value54,value58,value5C,value60;
     D3DXEffectGroup64 *DeleteArray(unsigned char flags); // 0x66a4d5
     int ResizeRecords(unsigned short count); // 0x664fb1
+    int AllocateData(); // 0x65b733
 };
 struct D3DXEffectRecord38 {
     D3DXEffectBaseRecord value00;
