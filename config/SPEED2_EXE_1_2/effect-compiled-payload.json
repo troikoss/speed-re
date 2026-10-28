@@ -1,0 +1,45 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "comment": {
+      "address": "0x671db5",
+      "size": 231,
+      "sha256": "57aa1463ff30bd8d8cdefa991438840b7090bc0b8f0e21fc3f98357dfc6b729d"
+    },
+    "constants": {
+      "address": "0x65b3f7",
+      "size": 596,
+      "sha256": "64648cc9aa347a74b6569e54a83c95c402d36f0fdf7efe9d83fddcb76d9e1c9b"
+    },
+    "operands": {
+      "address": "0x688d2c",
+      "size": 96,
+      "sha256": "22ca15cb8a855efcb26bd3eb6470227ea34b473e24c917e5b1e2b810cc752159"
+    },
+    "result": {
+      "address": "0x688d8c",
+      "size": 61,
+      "sha256": "ca3f1ccfcf3f0b5a82e6a49bd2960953f567372249bbaa56e2691f69021f5d80"
+    },
+    "sections": {
+      "address": "0x688dc9",
+      "size": 176,
+      "sha256": "86a26e74779b9991cd1d7142a557a8bc1e344842994a522d9f869e38f1758e81"
+    },
+    "root": {
+      "address": "0x65be0d",
+      "size": 267,
+      "sha256": "02eaee707e0382c713509a9cbdcda7738e79c2b1b958958908447d94b7ca838f"
+    },
+    "bind": {
+      "address": "0x660d4e",
+      "size": 519,
+      "sha256": "99a50d099b1c344885d8d7fdd6bacf191d3385b52d93accf7cb8b506665f0b7f"
+    },
+    "read": {
+      "address": "0x661a40",
+      "size": 485,
+      "sha256": "3ec2db5fcc1c44649103679bdb35cfb09817dce87d8c054f3a5964d5f77cd3c9"
+    }
+  }
+}

@@ -58,6 +58,9 @@ struct D3DXEffectObject {
     void CreatePixelShader(D3DXEffectReference18 *); // 0x65b9ce
     int ReadResource(D3DXEffectBuffer *,unsigned int *position); // 0x65ba2c
     int ReadShaderRecord(unsigned int group,unsigned int record,D3DXEffectBuffer *,unsigned int *position); // 0x66520d
+    D3DXEffectParameter *FindRootParameter(unsigned int handle,unsigned int depth); // 0x65be0d, RET 8
+    int BindCompiledRecord(unsigned int group,unsigned int record,unsigned int *data); // 0x660d4e
+    int ReadCompiledRecord(unsigned int group,unsigned int record,D3DXEffectBuffer *,unsigned int *position); // 0x661a40
 };
 struct D3DXEffectPoolLink {
     unsigned int value00,value04;

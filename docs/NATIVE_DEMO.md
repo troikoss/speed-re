@@ -3256,6 +3256,123 @@ shared-pool producers, compiled payload readers `0x66c37e`/`0x66c645`, shader
 preparation/evaluation, source compilation and GPU/API integration remain open.
 These recovered readers do not activate effects or the native queue consumer.
 
+### Compiled effect tokens, constant tables and record linking (2026-10-28)
+
+`Libs/D3DX/EffectCompiledPayload.cpp` recovers an eight-body compiled-record chain:
+
+| Address | Bytes | Recovered behavior |
+| --- | --- | --- |
+| `0x671db5` | 231 | Find a tagged comment in a compiled token stream |
+| `0x65b3f7` | 596 | Extract/validate CTAB metadata and register-bank totals/limits |
+| `0x688d2c` | 96 | Walk compiled operand records |
+| `0x688d8c` | 61 | Walk/check a compiled result record |
+| `0x688dc9` | 176 | Find FXLC/CLIT sections and validate the operand/result walks |
+| `0x65be0d` | 267 | Find a root parameter by name or complemented handle |
+| `0x660d4e` | 519 | Bind CTAB entries to parameter-use rings and reserve storage |
+| `0x661a40` | 485 | Read a compiled record, parse sections, bind constants and reserve units |
+
+The comment scanner clears optional outputs before reading the stream, accepts
+the original six version prefixes, skips negative tokens and uses the token's
+comment/instruction lengths. It retains the legacy `0x51` six-DWORD step and
+the distinct null/format/not-found results. It does not add a byte limit or a
+general instruction decoder. The separate diagnostic fixture locator bounds
+its own walk to each resource so only terminated inputs reach native probing.
+
+CTAB extraction initializes all four word arrays and the table output in the
+original order. Missing/unsupported comment streams leave an empty successful
+table result; malformed found metadata fails. The original header bound uses
+`constantCount * 4 + 0x1c`; it is not strengthened to the entry's actual
+20-byte stride. Names must terminate within the declared comment. Register sets
+0/1/2/3 map to the original array banks 1/2/0/3, with word count overflow,
+unsigned minimum/maximum comparisons and truncation only at the observed
+stores. Nonzero default-data spans use a **strict** end bound; equality fails.
+All partial totals/minima/maxima survive an ensuing error.
+
+Operand and result walkers publish their cursor advances before tag checks.
+Intermediate operand kind 9 fails, while final operand kinds 1 through 9 are
+accepted. Results require a zero prefix and kind 4/5/6/7; a nonzero prefix
+advances only one DWORD. FXLC/CLIT parsing accepts the original three complete
+version words, publishes section pointers and executes those walks. It does not
+evaluate compiled arithmetic or claim that a GPU shader is executable.
+
+Root lookup preserves the small-integer handle gate and complemented-address
+checks, including the root kind, owner bound, zero offsets, unindexed value and
+annotation flag. The unused second stack argument is retained (`RET 8`). Name
+lookup follows the local/shared descriptor base and its length-prefixed name;
+it remains byte-exact and does not add case folding or annotation filtering.
+
+Constant binding refuses an existing count/use array, changes dirty fields
+before parsing, allocates the cookie-backed use array even for zero constants,
+and links each resolved CTAB entry in order. A missing later name retains prior
+links and counts. Register maxima drive the original bit-spread mask and the
+separate float/bool/int storage reservations. Odd offsets and wrapped DWORD
+arithmetic are retained without adding alignment rounding or saturation.
+
+The compiled-record reader allocates a `0x20`-byte header plus payload, initially
+clears only header `+8`, and returns early for zero payload. It parses sections
+**twice**, around the final stream-length check, before binding CTAB entries.
+It then uses the recovered unit-count helper and the original mask/reservation
+arithmetic. Allocation, parse and lookup failures preserve the cursor, owned
+buffer and earlier metadata writes. All getters remain explicit boundaries
+followed by cursor rereads, with the original cursor/length unit comparisons.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_compiled_payload.py --gcc --mutation-checks --write-native-fixtures /tmp/effect-compiled-fixtures.bin
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_compiled_payload.py --mutation-checks
+cmake -S . -B build/native
+cmake --build build/native --target ug2effectcompiledpayload_probe
+build/native/ug2effectcompiledpayload_probe "$UG2_DIR/speed2.exe" /tmp/effect-compiled-fixtures.bin /tmp/effect-compiled-native.bin
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_compiled_payload.py --gcc --native-dump /tmp/effect-compiled-native.bin
+```
+
+Each compiler passes **8,644 case/chain comparisons**: 1,024 synthetic fixtures
+per recovered body plus **452 retail parser chains**. Both reject **61 mutations**
+covering output clears, versions, token stepping, comment lengths, names,
+register mapping/overflow/bounds, operand/result cursors, handle gates, local/
+shared lookup, use ownership/counts, masks, storage offsets, allocation sizes,
+zero payloads and the second parse. Known parser/metadata/buffer/link/destructor
+bodies execute on both paths. Only allocation/free and stated getter-entry
+cursor perturbations are controlled. Comparison includes full mapped fixture
+bytes, dependency/allocator call-time state, HRESULT, ownership, stack,
+nonvolatile registers and restored x87 state; incidental unreturned values are
+not forced into the source.
+
+The fixture locator identifies 452 terminated streams with recognized comment
+tags across the 23 retail effect resources. CTAB is present in **368**; all
+constant-table calls return the original successful result, with the other 84
+leaving an empty table. **378** accept FXLC/CLIT section parsing; the remaining
+74 retain the original format rejection for that parser. These are bounded
+embedded token candidates, not proof that every shader or possible input is
+covered. Reports retain recipe/offset/size, payload fingerprints and normalized
+parser results. The generated fixture file contains retail offsets/sizes and
+synthetic inputs; the native probe loads retail bytes from the player's EXE.
+No retail payloads are committed.
+
+`ug2effectcompiledpayload_probe` replays all **452 native parser chains** and
+**sixteen native linked-record graphs**. Its `UG2FXCP1` capture normalizes parser
+pointer offsets, word arrays, HRESULT/cursor, known header fields, use-ring
+entries, storage counters and root lookup results. Unspecified header bytes and
+native addresses are excluded; zero placeholders for unwritten header fields
+are capture conventions, not game writes. Both original and rebuilt execution
+match every capture. Graphs exercise successful and partial linking, missing
+sections/names, strict bounds, sampler word overflow, zero payloads, format/tag
+failures and alternate accepted versions. Full recovered destruction leaves
+**zero tracked allocations** after every graph. Parser checks neither invoke
+GPU APIs nor evaluate FXLC instructions.
+
+Fingerprints are in `config/SPEED2_EXE_1_2/effect-compiled-payload.json`; generated
+reports remain under `build/analysis/effect-compiled-payload/`. Finite mapped
+fixtures do not establish arbitrary malformed pointers, unterminated token
+walks, exceptions or giant counts. Instruction-byte identity is unproven.
+Native metadata/resource/storage probes, SKYLINE orbit and three late-texture
+lifecycle cycles pass. Orbit checksums remain `ca993eba`/`7141bcda`; lifecycle
+slots remain 500 → 534 → 500 with 612 solids/829 textures and clean pools.
+
+Main deserializer `0x66f69c`, relocation/shared-pool producers, general handle
+resolution and symbol readers `0x66c37e`/`0x66c645`, debug mute, shader
+preparation/evaluation, source compilation and GPU/API activation remain open.
+The recovered parsing/linking chain does not activate native rendering effects.
+
 ### Verification (pixel size and LOD)
 
 ### Verification (pixel size and LOD)
