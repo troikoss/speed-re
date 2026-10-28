@@ -75,6 +75,7 @@ struct D3DXEffectObject {
     int ReadSymbolRecord(unsigned int group,unsigned int record,D3DXEffectBuffer *,unsigned int *position); // 0x66c645
     int PrepareGroupA(unsigned int group); // 0x666df7
     int PrepareGroupB(unsigned int group); // 0x667d51
+    int EvaluateRecord(unsigned int group,unsigned int record); // 0x663a32
     int BindPreparationConstants(unsigned int group,unsigned int record,unsigned int *data); // 0x660f9c
     int UnlinkParameterUse(unsigned int group,unsigned int record,unsigned int use); // 0x6611a2
     int CaptureVertexBytecode(D3DXEffectReference18 *); // 0x661221

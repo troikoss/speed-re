@@ -48,7 +48,9 @@ list(APPEND UG2_RECOVERED_SOURCES
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectPreparation.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectSort.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectPrepareGroups.cpp
-    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectEvaluationCopy.cpp)
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectEvaluationCopy.cpp
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectFpControl.cpp
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectEvaluation.cpp)
 # Verified separately by verify_pc_car_render_solid.py. NativeCarWheels still
 # supplies DrawSolid until native effect support and recovered GPU consumption are wired.
 list(REMOVE_ITEM UG2_RECOVERED_SOURCES ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Src/World/CarRenderSolid.cpp)
@@ -72,6 +74,8 @@ add_library(ug2native STATIC
     src/Platform/Native/NativeFxDeserializeDispatch.cpp
     src/Platform/Native/NativeFxDebugPlatform.cpp
     src/Platform/Native/NativeFxShaderReadback.cpp
+    src/Platform/Native/NativeFxFpControl.cpp
+    src/Platform/Native/NativeFxVmDispatch.cpp
     src/Platform/Native/NativeFxSetupDispatch.cpp
     src/Platform/Native/NativeTechniqueDispatch.cpp
     src/Platform/Native/NativeVehicle.cpp
@@ -173,6 +177,11 @@ target_compile_options(ug2effectevaluationcopy_probe PRIVATE ${UG2_ARCH_FLAGS} -
     -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
 target_link_libraries(ug2effectevaluationcopy_probe -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
 target_link_options(ug2effectevaluationcopy_probe PRIVATE ${UG2_LINK_FLAGS})
+add_executable(ug2effectevaluation_probe src/Platform/Native/EffectEvaluationProbe.cpp)
+target_compile_options(ug2effectevaluation_probe PRIVATE ${UG2_ARCH_FLAGS} -O1
+    -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+target_link_libraries(ug2effectevaluation_probe -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
+target_link_options(ug2effectevaluation_probe PRIVATE ${UG2_LINK_FLAGS})
 add_executable(ug2solidrecords_probe src/Platform/Native/SolidRecordsProbe.cpp src/Platform/Native/NativeSolidRecords.cpp
     src/Platform/Native/NativeTextureRecords.cpp src/Platform/Native/NativeTextureUpload.cpp src/Platform/Native/NativeFormatting.cpp)
 target_compile_options(ug2solidrecords_probe PRIVATE ${UG2_ARCH_FLAGS} -O2 -Wall -UNDEBUG

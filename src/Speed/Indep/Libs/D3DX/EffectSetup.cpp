@@ -28,8 +28,8 @@ int D3DXEffectObject::AdjustReferences(unsigned int group,int directDelta,int al
     }
     return 0;
 }
-// Original 0x66aa2f. Lazy shader preparation/evaluation remains at its own
-// boundary; all selection, count adjustment and recursive traversal is here.
+// Original 0x66aa2f. Preparation/evaluation calls retain their ABI bridges;
+// all selection, count adjustment and recursive traversal is here.
 int D3DXEffectObject::ResolveReferences(unsigned int group,int direct) {
     int result=0;
     D3DXEffectGroup64 *p=reinterpret_cast<D3DXEffectGroup64 *>(value2C)+group;

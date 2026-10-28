@@ -4167,8 +4167,8 @@ function spans and priority data. These are finite behavioral and CPU lifetime
 checks. Byte identity, arbitrary malformed/giant inputs, unmasked exceptions,
 external COM reentrancy and rendered shader equivalence remain unestablished.
 Earlier sections' open group-preparation entries are superseded by this recovery.
-Record evaluation `0x663a32`, its shader VM `0x688e79` and conversion helpers,
-production GPU bytecode/resource/state services, source compilation and native
+The evaluation caller and CRT control state are recovered below; its shader VM
+`0x688e79` and conversion helpers, production GPU bytecode/resource/state services, source compilation and native
 technique/draw activation remain open.
 
 ### Effect evaluation input copies and recursive double storage (2026-10-29)
@@ -4234,7 +4234,7 @@ with **13,986 calls to each recursive walker**. Cases cover descriptor versus CT
 shape selection, explicit/default/zero array counts, scalar/vector/both matrix
 layouts, nested structs, unsupported kinds/shapes, partial/zero/full remaining
 counts, negative integer words, nonfinite float payloads and overlapping source/
-output. Final arena/two-MiB heap bytes, returns, stack/register preservation and
+output. Final arena/256-KiB heap bytes, returns, stack/register preservation and
 x87 empty-stack/control-word state are checked. Recursive entry traces normalize
 local cursor addresses to their values and compare order, arguments and SHA-256
 arena/allocated-heap state. No allocator or GPU service is used by these bodies.
@@ -4268,10 +4268,128 @@ Native build and the 60-frame SKYLINE orbit regression pass. Source/record
 fingerprints remain **`ca993eba` / `7141bcda`**, and all 829 texture records/staged
 handles retire to zero. The copy chain is compiled into the recovered archive;
 it does not activate evaluation, the shader VM, GPU resources or native effects.
-The evaluator caller `0x663a32`, VM `0x688e79`, its conversion/math/FP-control
-runtime and real effect rendering remain open. These finite CPU checks do not
-establish instruction-byte identity, arbitrary malformed/giant input behavior,
+The evaluator caller and CRT control mapping are recovered below. VM `0x688e79`,
+its conversion/math runtime and real effect rendering remain open. These finite
+CPU checks do not establish instruction-byte identity, arbitrary malformed/giant input behavior,
 external reentrancy or rendered shader equivalence.
+
+### Record evaluation caller and CRT x87 control state (2026-10-29)
+
+`EffectEvaluation.cpp` recovers `0x663a32..0x663bb0` (383 bytes).
+`EffectFpControl.cpp` recovers four original CRT entries: abstract control mapping
+`0x75da18` (146 bytes), hardware mapping `0x75daaa` (142 bytes), `control87`
+`0x75db38` (50 bytes), and `controlfp` `0x75db6a` (22 bytes). The manifest
+`config/SPEED2_EXE_1_2/effect-evaluation.json` pins all five spans and the reference
+executable. Read-only saved-project Ghidra extraction supplied decompilation and
+instructions; the live MCP bridge had no instances. No project mutation/save
+was performed. This evidence concerns UG2 PC v1.2 only.
+
+The caller reads its record buffer once, retains output offset/mask from its
+header, and initializes the original local copy counters. On the first call for
+an object (`value118 & 1` clear), it saves the **CRT abstract control value** into
+`value114`, clears precision bits `0x30000` through `controlfp`, then sets bit 0.
+This selects x87 extended precision. It does not restore the control word on
+return. A later call with the ready bit set skips the control operations, even
+if external code has changed the hardware precision in between.
+
+When the record has CTAB metadata, active use nodes publish `value00 = value04`
+**before** their bank is inspected. Bank 0 calls the recovered scalar converter
+with eight-byte register strides; bank 1 calls the vector converter at the header's
+integer offset with 32-byte strides; bank 2 uses the float-vector offset with the
+same 32-byte strides. Bank/start/count are narrowed from the original words.
+Other banks still retain the dirty publication but make no conversion call.
+Inactive nodes are skipped without reading their entry pointer. All four copy
+bodies and recursive walkers execute recovered source in comparative tests.
+
+After copying, the input pointer/mask come from header words 4/2. A record without
+CTAB passes zero input/mask. The VM receives the original **14 arguments**, with
+three equal output pointers and three equal output masks, and the caller returns
+its result without suppressing positive or negative values. Argument order,
+cleared fields, source-copy order and the first-call FP transition are retained.
+`NativeFxSetupDispatch.cpp` now reaches this recovered member through the existing
+ABI bridge. The VM itself remains an explicit production boundary.
+
+The CRT routines retain their actual bit mappings and return contract:
+
+- Abstract/hardware exception masks have different bit positions, including
+  denormal masking at abstract bit `0x80000`. Rounding and infinity-control bits
+  map separately. Unsupported precision encodings collapse as in the original.
+- `control87` merges `(old & ~mask) | (new & mask)`, writes the converted hardware
+  word, and returns the merged **abstract** value, including requested bits that
+  the hardware cannot represent. It does not reread the hardware for its return.
+- Even a zero-mask query rewrites the control word through both mappings, which
+  canonicalizes reserved precision encodings. `controlfp` always strips
+  `0x80000` from its mask before calling `control87`.
+
+The private mapping entries originally receive input in EBX; ordinary source
+interfaces make that argument explicit. The harness supplies EBX only for the
+original ABI and normalizes the otherwise irrelevant high hardware-word bits.
+No recovered source forces registers. `NativeFxFpControl.cpp` contains only the
+platform operations for the original waiting `FSTCW` and `FLDCW`; translation
+and mask/return logic stay in recovered C++.
+
+Reproduce with `UG2_EXE` set to the installed reference executable:
+
+```sh
+build/venv/bin/python tools/verify_pc_effect_evaluation.py --gcc --cases 1 --write-native-fixtures /tmp/ug2-evaluation-fixtures.bin
+cmake -S . -B build/native
+cmake --build build/native
+build/native/ug2effectevaluation_probe /tmp/ug2-evaluation-fixtures.bin /tmp/ug2-evaluation-native.bin
+build/venv/bin/python tools/verify_pc_effect_evaluation.py --gcc --cases 1024 --mutation-checks --native-dump /tmp/ug2-evaluation-native.bin
+build/venv/bin/python tools/verify_pc_effect_evaluation.py --cases 1024 --mutation-checks --native-dump /tmp/ug2-evaluation-native.bin
+```
+
+Run MSVC/wibo jobs sequentially. Each compiler passes **5,120 comparisons** across
+all five bodies and rejects **41 mutations**. The evaluator makes **1,791 VM
+calls**: **1,433 execute the original VM** on both sides for bounded move/add/multiply
+programs, while **358 explicitly controlled calls** check return propagation and
+output writes. The original VM runs in Unicorn, not natively. These composed
+checks make 1,669 vector-copy and 848 scalar-copy calls, including recursive
+struct walks. The final evaluator fixture walks **65,535 inactive uses** to check
+the full word-sized count. Cases also cover groups/records, header offsets/masks,
+absent CTAB, dirty-state values, unsupported banks, bank routing, nested types,
+repeated calls and precision changed externally between calls.
+
+Comparisons check the complete arena and modeled heap (`0x220000` bytes), live
+allocation state, returns, callee-saved registers, stack cleanup, x87 empty-stack
+state and the resulting control word. Call traces compare normalized arguments,
+order, control words and SHA-256 arena/used-heap state. Mutations cover selection,
+header fields, first-call gating/saving/precision, use publication, routing and
+strides, VM bank/mask arguments, negative results, both control mappings,
+unknown abstract return bits, zero-mask writes and denormal protection. Reports
+and generated mutation artifacts remain under `build/analysis/effect-evaluation/`.
+
+`ug2effectevaluation_probe` runs **64 native caller-contract graphs**, with
+recovered copies and control routines. A clearly test-only VM service captures
+the 14 arguments and pre-call FP/dirty/data state, performs a controlled optional
+write and returns the requested result. It does not implement shader execution.
+Native captures compare first/repeated returns, saved/ready state, full 16-KiB
+register-storage bytes, all use-node dirty words and callback summaries.
+
+The probe additionally checks **131,072 control mappings** against results from
+the original routines: every low hardware word (with varying ignored high bits),
+and all combinations of relevant abstract bits with ignored-bit variation.
+**2,048 physical control updates** compare returned abstract bits and actual x87
+words under every precision/rounding/infinity combination. The first 64 explicitly
+query with mask zero through both CRT wrappers; the rest use seeded new values
+and masks. Exception flags are cleared for these hardware-control fixtures.
+Native x87 forces reserved control bit 6 to one, while Unicorn retains the raw
+loaded bit. Only that hardware-fixed bit is normalized in native control-word
+summaries; saved abstract values, masks and returns are compared exactly.
+
+Native build and regression checks pass: preparation's 87 CPU lifecycles, the
+copy probe's 512 graphs and 4,096 conversion/exception/cursor checks, and the
+60-frame SKYLINE orbit. Wheel fingerprints remain **`ca993eba` / `7141bcda`**;
+all 829 texture records/staged handles retire to zero. The preceding copy-only
+verifier's heap-size description is corrected to its actual 256 KiB; this
+verifier allocates the larger modeled heap for the 65,535-use fixture.
+
+The caller and control mapping are recovered; VM `0x688e79` is not. Source
+`NativeFxVmDispatch.cpp` aborts at production VM execution. Its inline x87 math,
+CRT math/conversion runtime, `0x688ce2`/`0x63f2b5` operation chain, full shader
+execution and native effect activation remain open. Finite checks do not prove
+instruction-byte identity, arbitrary malformed/aliasing/reentrant inputs,
+unmasked pending exceptions, thread changes or rendered shader equivalence.
 
 ### Verification (pixel size and LOD)
 
