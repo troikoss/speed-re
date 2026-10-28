@@ -1,0 +1,42 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "operation": {
+      "address": "0x63f2b5",
+      "size": 619,
+      "sha256": "31040699691170d045797ac7117d6c794109d1c883578d13e8e0304c16af0324"
+    }
+  },
+  "data": {
+    "0x784250": {
+      "address": "0x784250",
+      "size": 4,
+      "sha256": "e00e5eb9444182f352323374ef4e08ebcb784725fdd4fd612d7730540b3e0c8c"
+    },
+    "0x784500": {
+      "address": "0x784500",
+      "size": 4,
+      "sha256": "e401200e5808438991b94233b3ee6b5b06df51f6af1cb25db1a7629a7d694dc9"
+    },
+    "0x787adc": {
+      "address": "0x787adc",
+      "size": 4,
+      "sha256": "ea2845900b5856c9bf354b1aa9761b5aa6888e5ed61738fe9579ca42bc0f6054"
+    },
+    "0x785110": {
+      "address": "0x785110",
+      "size": 4,
+      "sha256": "c0e336a5f371ef22cd534e094269f2c1a9635cd080b71ffa671086832d3b60b7"
+    },
+    "0x7a9460": {
+      "address": "0x7a9460",
+      "size": 2056,
+      "sha256": "1b5972faa44eb9d3ca43f2002f7e8ad99b9473837b4f729d0ad0b3f2c0e357a7"
+    },
+    "0x7a9c68": {
+      "address": "0x7a9c68",
+      "size": 6168,
+      "sha256": "640810a587ea6c7983de10194f0f4a5c69f49ed39a448d68986dcd66558882f8"
+    }
+  }
+}

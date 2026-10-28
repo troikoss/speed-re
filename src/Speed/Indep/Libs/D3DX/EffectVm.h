@@ -5,7 +5,9 @@ extern "C" {
 int __stdcall D3DXEffectVm(unsigned int *,unsigned int *,unsigned int,unsigned int,unsigned int,
     unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int); // 0x688e79
 void __stdcall D3DXEffectVmOperation502(unsigned int,double **,double *); // 0x688ce2
-// Unrecovered CRT math / operation dependencies. Ordinary source arguments
+long double __stdcall D3DXEffectVmOperation63F2B5(float *); // 0x63f2b5
+// Unrecovered CRT math dependencies and the recovered operation ABI bridge.
+// Ordinary source arguments
 // replace the private original x87 input ABI; no host-math substitute is used.
 long double __cdecl UG2FxVmFloor(double); // 0x75eb50
 long double __cdecl UG2FxVmPower(double,double); // 0x75c9b0

@@ -17,8 +17,9 @@ md=cp.md;ROOT,EXE,LIB=cp.ROOT,cp.EXE,cp.LIB;ARENA,HEAP,STOP,EFFECT=md.ARENA,md.H
 SOURCE=LIB/'EffectEvaluation.cpp';CONTROL=LIB/'EffectFpControl.cpp';BUILD=ROOT/'build/analysis/effect-evaluation';MANIFEST=ROOT/'config/SPEED2_EXE_1_2/effect-evaluation.json'
 SPANS=dict(evaluate=(0x663a32,383),abstract=(0x75da18,146),hardware=(0x75daaa,142),control87=(0x75db38,50),controlfp=(0x75db6a,22))
 GROUPS,RECORDS,DATA,TABLE,TYPE,PARAMETERS,INPUT,HEADER,BUFFER,CODE,LITERALS,ENTRIES=[ARENA+x for x in(0x2000,0x2200,0x3000,0x8000,0xa000,0xa800,0xb000,0xc000,0xc100,0xc200,0xc400,0xd000)]
-md.core.HSIZE=0x220000;md.SOURCES += [SOURCE,CONTROL,LIB/'EffectVm.cpp',ROOT/'src/Platform/Native/NativeFxFpControl.cpp',ROOT/'src/Platform/Native/NativeFxVmDispatch.cpp',ROOT/'src/Platform/Native/NativeFxVmCrtPlatform.cpp'];md.BUILD=BUILD
+md.core.HSIZE=0x220000;md.SOURCES += [SOURCE,CONTROL,LIB/'EffectVm.cpp',LIB/'EffectVmOperation.cpp',ROOT/'src/Platform/Native/NativeFxFpControl.cpp',ROOT/'src/Platform/Native/NativeFxVmDispatch.cpp',ROOT/'src/Platform/Native/NativeFxVmCrtPlatform.cpp'];md.BUILD=BUILD
 md.core.GLOBALS.update(ug2VmZero786E60=0x786e60,ug2VmOne786E68=0x786e68,ug2VmTwo787AD0=0x787ad0,ug2VmLogScale7BAA88=0x7baa88,_fltused=0,_ftol2=0x75dd28)
+md.core.GLOBALS.update(ug2VmOperationOne784250=0x784250,ug2VmOperationBias784500=0x784500,ug2VmOperationThree787ADC=0x787adc,ug2VmOperationScale785110=0x785110,ug2VmOperationPermutation7A9460=0x7a9460,ug2VmOperationGradients7A9C68=0x7a9c68)
 md.MEMBERS['evaluate']=('D3DXEffectObject','EvaluateRecord');md.FREE.update(abstract='D3DXEffectAbstractControl',hardware='D3DXEffectHardwareControl',control87='D3DXEffectControl87',controlfp='D3DXEffectControlFp');md.CDECL.update(('abstract','hardware','control87','controlfp'))
 
 
