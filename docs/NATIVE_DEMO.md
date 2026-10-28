@@ -3373,6 +3373,118 @@ resolution and symbol readers `0x66c37e`/`0x66c645`, debug mute, shader
 preparation/evaluation, source compilation and GPU/API activation remain open.
 The recovered parsing/linking chain does not activate native rendering effects.
 
+### Effect handles, dynamic annotations and symbol readers (2026-10-28)
+
+`Libs/D3DX/EffectHandles.cpp` recovers nine D3DX bodies and their original decimal
+conversion dependency:
+
+| Address | Bytes | Recovered behavior |
+| --- | --- | --- |
+| `0x66bbee` | 401 | General parameter resolution and suffix dispatch |
+| `0x65c123` | 465 | Indexed element creation and sorted cache lookup |
+| `0x66a83c` | 464 | Nested structure-member resolution |
+| `0x665a15` | 1,467 | Annotation lookup and dynamic numeric/string creation |
+| `0x65c61f` | 207 | Technique lookup by name or complemented handle |
+| `0x65c5de` | 65 | Pass lookup through the original technique/pass halfwords |
+| `0x661c3e` | 474 | Member-array construction and type/data offset walks |
+| `0x66c37e` | 711 | Symbol payload lookup, compatibility and use linking |
+| `0x66c645` | 688 | Symbol plus compiled-record payload reader |
+| `0x75d5d3` | 136 | CRT decimal conversion with locale access and wrapping arithmetic |
+| `0x75d65b` | 5 | Original decimal-conversion jump thunk |
+
+General lookup retains the small-integer gate, complemented-address checks,
+raw-pointer versus complemented-handle returns, and `.`, `@` and `[index]`
+dispatch. Annotation-create bit setup and clearing follow the original DWORD
+expression. Technique/pass lookup retains its unused depth argument, `RET 8`
+and low-word ordinal tests; no common stricter handle
+validator changes those routines' different preconditions.
+
+Member arrays are destroyed before replacement allocation. Both the packed
+value-size walk and padded-size walk retain their separate type/data cursors.
+Element nodes keep unsigned stride/size divisions, original offsets, sorted
+sibling insertion and repeat-lookup reuse. Structure-array members require an
+indexed parent when the original descriptor says so. Nested dot traversal and
+indexed/member/annotation suffixes retain the observed call boundaries.
+
+Annotation creation preserves its partial-publication order. It allocates the
+new parameter table, blob-pointer table and pending parameter, then installs
+the larger blob table and increments `+0x120` **before** validating/allocating
+the value descriptor. A later error can leave a published null slot while
+`+0xa8` and the annotation chain remain unchanged. Numeric descriptors retain
+their word arithmetic and zeroed payload; string descriptors transfer the old
+reference array by copying it, clearing the old records and deleting the old
+array without releasing transferred objects. Name bytes, padding, descriptor
+fields, table publication, tail linking and cleanup preserve their original
+order. The producer leaves the new parameter's `+0x38` count field untouched;
+the recovery does not add initialization.
+
+Symbol readers stage their names, resolve the complete handle path and retain
+the original kind-5/kind-10 compatibility ranges and kind-15/kind-16 equality
+checks. They copy the original ten-DWORD prefix and clear its owned child
+pointers before creating use links or converting to indirect records. The
+compiled-symbol path retains its header fields, storage counters, two section
+parses, CTAB binding and partial errors. No successful shader/GPU result is
+fabricated by these readers.
+
+The decimal body retains its CRT thread/locale accesses, byte classification,
+sign handling and **modulo-32-bit arithmetic**. For example, the digits in
+`p1[4294967297]` produce index 1; substituting host overflow saturation changes
+handle selection. `NativeFxCrtLocale.cpp` is separate platform scaffolding: it
+exposes only the observed thread `+0x64` locale pointer in the immutable initial
+UG2 C context, and the recovered body reads the original mapped locale/ctype
+data. The global locale pointer remains mutable in the recovered declaration.
+Thread-locale updates and multibyte classification remain explicit native traps;
+their service outcomes are controlled only in comparative tests. Other CRT
+thread fields and arbitrary locale implementations are not recovered here.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_handles.py --gcc --mutation-checks --write-native-fixtures /tmp/effect-handle-fixtures.bin
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_handles.py --mutation-checks
+cmake -S . -B build/native
+cmake --build build/native --target ug2effecthandles_probe
+build/native/ug2effecthandles_probe "$UG2_DIR/speed2.exe" /tmp/effect-handle-fixtures.bin /tmp/effect-handle-native.bin
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_handles.py --gcc --native-dump /tmp/effect-handle-native.bin
+```
+
+Each compiler passes **11,296 case/chain comparisons**: 1,024 per recovered body
+and 32 complete typed chains, including destruction. Both reject **44 mutations**
+covering CRT calls/arithmetic, lookup gates/offsets, sorted cache reuse, member
+storage, create-bit handling, annotation publication/ownership, untouched fields,
+symbol compatibility, use allocation and repeated compiled parsing. Full mapped
+arena/heap bytes, dependency/allocator-time state, results, live allocation maps,
+stack, nonvolatile registers and x87 state are compared. Recovered size walks,
+metadata/compiled parsers, buffer operations, linking and cleanup execute source.
+Only allocation/free, CRT thread/locale services and selected getter-entry cursor
+changes are controlled. The shared verifier's cdecl extension also passes both
+existing 15,589-case metadata regressions.
+
+`ug2effecthandles_probe` runs **32 native typed graphs** covering nested and
+indexed lookup, repeated cache reuse, numeric/string annotations, partial
+publication on unsupported descriptors, technique/pass handles, compatible
+symbols, empty/nonempty compiled records and decimal overflow. An existing
+buffer reference survives string-annotation transfer and is released once at
+cleanup. Every graph destroys to **zero tracked allocations**. `UG2FXHD1` captures
+normalized handles, known cache/annotation fields, blob hashes, reference counts,
+reader headers/cursors and storage counters. Native addresses, unwritten header
+fields and the untouched new-annotation count are excluded. Original and rebuilt
+execution match all captures; the separate Unicorn comparison still checks full
+fixture bytes, including preservation of unspecified fields.
+
+Fingerprints are in `config/SPEED2_EXE_1_2/effect-handles.json`, including the
+original locale/ctype and effect type-table data. Generated reports remain under
+`build/analysis/effect-handles/`. Fixtures are diagnostic typed graphs, not fully
+deserialized effects. Finite checks do not establish arbitrary invalid pointers,
+malformed unbounded graphs, exceptions, giant counts or unsupported locales.
+Instruction-byte identity remains unproven. Native orbit and repeated late-texture
+lifecycle checks retain `ca993eba`/`7141bcda`, 612 solids/829 textures, matching
+slots 500 → 534 → 500 and clean ownership.
+
+The two symbol readers and general handle family are now recovered. Main
+deserialization `0x66f69c`, relocation/shared-pool producers, the stated CRT locale
+services, debug mute, shader preparation/evaluation, source compilation and
+GPU/API activation remain open. Effects and the native queue consumer remain
+inactive in the demo.
+
 ### Verification (pixel size and LOD)
 
 ### Verification (pixel size and LOD)

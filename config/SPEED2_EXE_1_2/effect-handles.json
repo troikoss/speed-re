@@ -1,0 +1,82 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "resolve": {
+      "address": "0x66bbee",
+      "size": 401,
+      "sha256": "9e4a26182fa3e62c2c0067cbf949c8a6d0fc82ffe266e622f0b5a1e36bdab77a"
+    },
+    "element": {
+      "address": "0x65c123",
+      "size": 465,
+      "sha256": "c48457819498cf47aaab973b97e7fbaebca11eb29b61022dcb2e04e2dd5a3b6c"
+    },
+    "member": {
+      "address": "0x66a83c",
+      "size": 464,
+      "sha256": "16c3fc24bf9e206627c7ad63b5508e735c627a9dc0267fff87df3fe4c3b73794"
+    },
+    "annotation": {
+      "address": "0x665a15",
+      "size": 1467,
+      "sha256": "d0aa854eda3d34e4c9dd102cdf52f38d115683f937a97f491e1bd80a4e1d54fe"
+    },
+    "technique": {
+      "address": "0x65c61f",
+      "size": 207,
+      "sha256": "1952f80f9ef0852ca1e7cc764866941857172d07c52305f6b555e83aac206d9a"
+    },
+    "pass_find": {
+      "address": "0x65c5de",
+      "size": 65,
+      "sha256": "eae61c737d37fe515352bbf84d6f30906cc9fa48875c88268e1abd47e1c39bff"
+    },
+    "members": {
+      "address": "0x661c3e",
+      "size": 474,
+      "sha256": "26bffc1a11a95c8d3889df4c6e960655a36d5df3385713083f2da9d811593bed"
+    },
+    "symbol": {
+      "address": "0x66c37e",
+      "size": 711,
+      "sha256": "05b613f3b7c40073870f28616a2b9fe2c3709ceb3fcc2f15f9c6b80650ed8c3b"
+    },
+    "symbol_record": {
+      "address": "0x66c645",
+      "size": 688,
+      "sha256": "26bb557529905ded6af11343372d46ef8c778f1a2870beb9189ee96a17ac4e22"
+    },
+    "decimal_body": {
+      "address": "0x75d5d3",
+      "size": 136,
+      "sha256": "f606c5a030b3390b7b36460c1f94d13266801faca82e3113a667310b4d531df2"
+    },
+    "decimal": {
+      "address": "0x75d65b",
+      "size": 5,
+      "sha256": "1d9f3012786cefdd2917eb87854f10470c8f7f7cf7513c16a7ff279529297070"
+    }
+  },
+  "data": [
+    {
+      "address": "0x819d24",
+      "size": 4,
+      "sha256": "7285adbac48a787d3609c833a17d5444c5ecfad2b7b71e825d77f43d78f8e11f"
+    },
+    {
+      "address": "0x819cd0",
+      "size": 76,
+      "sha256": "484ac93c6c2a99f64911321e1d1ecd50f2fd5c555ac7b903654cd1b8f9bf3bb7"
+    },
+    {
+      "address": "0x7d7e4a",
+      "size": 512,
+      "sha256": "09d75887352cae7ff56c1be973d3136b1a888626a640def020350a4567bf0383"
+    },
+    {
+      "address": "0x7b582c",
+      "size": 5096,
+      "sha256": "1f7bbe2e594dea4909c941578b6ed6e848bb7130ff802008a243d8f0c876634d"
+    }
+  ]
+}

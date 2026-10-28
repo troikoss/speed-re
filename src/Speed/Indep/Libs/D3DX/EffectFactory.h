@@ -4,6 +4,7 @@
 struct D3DXEffectRecord38;
 struct D3DXEffectRecordB4;
 struct D3DXEffectReference18;
+struct D3DXEffectBaseRecord;
 
 // Secondary interface at effect+4; offsets here are relative to that receiver.
 struct D3DXEffectSecondaryPrefix {
@@ -61,6 +62,15 @@ struct D3DXEffectObject {
     D3DXEffectParameter *FindRootParameter(unsigned int handle,unsigned int depth); // 0x65be0d, RET 8
     int BindCompiledRecord(unsigned int group,unsigned int record,unsigned int *data); // 0x660d4e
     int ReadCompiledRecord(unsigned int group,unsigned int record,D3DXEffectBuffer *,unsigned int *position); // 0x661a40
+    D3DXEffectBaseRecord *ResolveParameter(unsigned int handle,unsigned int depth,unsigned int create); // 0x66bbee
+    unsigned int ResolveElement(unsigned int handle,unsigned int index,unsigned int depth); // 0x65c123
+    unsigned int ResolveMember(unsigned int handle,const char *name,unsigned int depth); // 0x66a83c
+    unsigned int ResolveAnnotation(unsigned int owner,const char *name,unsigned int depth); // 0x665a15
+    D3DXEffectRecordB4 *FindTechnique(unsigned int handle,unsigned int depth); // 0x65c61f
+    D3DXEffectRecord38 *FindPass(unsigned int handle,unsigned int depth); // 0x65c5de
+    int BuildMembers(D3DXEffectBaseRecord *,unsigned int count); // 0x661c3e
+    int ReadSymbol(unsigned int group,unsigned int record,D3DXEffectBuffer *,unsigned int *position); // 0x66c37e
+    int ReadSymbolRecord(unsigned int group,unsigned int record,D3DXEffectBuffer *,unsigned int *position); // 0x66c645
 };
 struct D3DXEffectPoolLink {
     unsigned int value00,value04;

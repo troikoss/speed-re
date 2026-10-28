@@ -1231,3 +1231,4 @@ ug2FxIUnknown7D9904 = 0x7d9904;
 ug2FxBufferIid7B7430 = 0x7b7430;
 ug2FxPoolIid7B7410 = 0x7b7410;
 ug2FxTypeTable7B582C = 0x7b582c;
+ug2FxCrtLocale819D24 = 0x819d24;
