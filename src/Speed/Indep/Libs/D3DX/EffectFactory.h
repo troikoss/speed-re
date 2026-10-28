@@ -1,6 +1,8 @@
 #ifndef UG2_D3DX_EFFECT_FACTORY_H
 #define UG2_D3DX_EFFECT_FACTORY_H
 #include "EffectInput.h"
+struct D3DXEffectRecord38;
+struct D3DXEffectRecordB4;
 
 struct D3DXEffectParameter {
     unsigned int value00,value04,value08,value0C,value10,value14,value18,value1C;
@@ -37,6 +39,11 @@ struct D3DXEffectObject {
     int ValidateType(unsigned int *type,unsigned int *data,unsigned int parameter); // 0x66548b
     int LinkParameter(unsigned int group,unsigned int record,unsigned int use,
         D3DXEffectParameter *parameter,unsigned int value); // 0x65bd1e
+    int ReadAnnotation(D3DXEffectParameter *,D3DXEffectBuffer *,unsigned int *position); // 0x66a574
+    int ReadParameter(D3DXEffectParameter *,D3DXEffectBuffer *,unsigned int *position); // 0x66b420
+    int ReadPass(D3DXEffectRecord38 *,D3DXEffectBuffer *,unsigned int *position); // 0x66a6af
+    int ReadRecord(unsigned short group,unsigned short record,D3DXEffectBuffer *,unsigned int *position); // 0x66164d
+    int ReadTechnique(D3DXEffectRecordB4 *,D3DXEffectBuffer *,unsigned int *position); // 0x66b60d
 };
 struct D3DXEffectPoolLink {
     unsigned int value00,value04;
@@ -80,6 +87,7 @@ unsigned int UG2FxPoolAddRefVirtual(D3DXEffectPool *pool);
 unsigned int UG2FxEffectAddRefVirtual(D3DXEffectObject *effect);
 unsigned int UG2FxEffectReleaseVirtual(D3DXEffectObject *effect);
 unsigned char *UG2FxBufferPointerVirtual(D3DXEffectBuffer *buffer);
+unsigned int UG2FxBufferLengthVirtual(D3DXEffectBuffer *buffer);
 unsigned int UG2FxBufferReleaseVirtual(D3DXEffectBuffer *buffer);
 void UG2FxDestroyEffect(D3DXEffectObject *effect); // native ABI bridge to recovered 0x66adec
 int UG2FxSetupEffect(D3DXEffectObject *effect); // native ABI bridge to recovered 0x66afe6

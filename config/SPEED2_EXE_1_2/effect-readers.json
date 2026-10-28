@@ -1,0 +1,42 @@
+{
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "annotation": {
+      "address": "0x66a574",
+      "size": 315,
+      "sha256": "84cf0ead4e7c778964d2dc2ca8faff473a833c165f6a820561c6da0bef45dfc7"
+    },
+    "parameter": {
+      "address": "0x66b420",
+      "size": 493,
+      "sha256": "7b454122879f077a3e5727523fcf652e523482854040e487ae6b9408cf9a8dda"
+    },
+    "pass_read": {
+      "address": "0x66a6af",
+      "size": 397,
+      "sha256": "7eaeeebf9cfd35041fae7e794641f0dd6104729d72efc18c74a558ea5b0a1480"
+    },
+    "record": {
+      "address": "0x66164d",
+      "size": 1011,
+      "sha256": "79243eb4c3c744b685a5afc3a95df27aea513bbc94bf49633033ed95a5f1dd33"
+    },
+    "technique": {
+      "address": "0x66b60d",
+      "size": 1505,
+      "sha256": "61bf52c000cd5f1cb75e3ba9cdabf8574c694fb1615e45d7c0788d25d4dabf9c"
+    },
+    "units": {
+      "address": "0x65b019",
+      "size": 127,
+      "sha256": "7c9f6a3debf55d50a08d31143a013b196ddb6e796df701a09c363635cf905015"
+    }
+  },
+  "data": [
+    {
+      "address": "0x7b582c",
+      "size": 5096,
+      "sha256": "1f7bbe2e594dea4909c941578b6ed6e848bb7130ff802008a243d8f0c876634d"
+    }
+  ]
+}

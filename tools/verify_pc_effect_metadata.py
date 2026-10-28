@@ -38,6 +38,7 @@ MEMBERS=dict(resize=('D3DXEffectGroup64','ResizeRecords'),string=('D3DXEffectObj
 FREE=dict(array='D3DXEffectConstructArray',use_construct='D3DXConstructUse',base_construct='D3DXConstructBase',
     group_construct='D3DXConstructGroup64',reference_construct='D3DXConstructReference18',record_construct='D3DXConstructRecord64',
     pass_construct='D3DXConstructRecord38',technique_construct='D3DXConstructRecordB4',padded='D3DXEffectPaddedSize',value_size='D3DXEffectValueSize')
+STDCALL=dict(array=16,padded=12,value_size=12)
 VOID=set(FREE)-{'padded','value_size'};core.MEMBERS.update(MEMBERS)
 
 
@@ -60,7 +61,7 @@ def build(replace,gcc):
         bindings={'_'+k:v for k,v in bindings.items()}
         for name,n,_ in core.API_SPECS:bindings['_UG2Fx'+name+'@'+str(n*4)]=core.APIS['UG2Fx'+name]
         linked=link_objects(objects,bindings,start=0x5000000)
-        prefixes={k:('_'+name+'@16'if k=='array'else'_'+name+'@12' if k in('padded','value_size')else'@'+name+'@4')for k,name in FREE.items()}
+        prefixes={k:('_'+name+'@'+str(STDCALL[k])if k in STDCALL else'@'+name+'@4')for k,name in FREE.items()}
         prefixes.update({k:'?'+m+'@'+c+'@@'for k,(c,m)in MEMBERS.items()})
     linked['entries']={}
     for k,p in prefixes.items():
@@ -81,7 +82,7 @@ class Machine(core.Machine):
         for r,v in zip(regs,seeds):u.reg_write(r,v)
         for r,v in [(xc.UC_X86_REG_ESP,sp),(xc.UC_X86_REG_ECX,receiver),(xc.UC_X86_REG_EFLAGS,0x202),
             (xc.UC_X86_REG_FPCW,0x27f),(xc.UC_X86_REG_FPTAG,0xffff)]:u.reg_write(r,v)
-        u.emu_start(self.entries[kind],STOP,count=200000)
+        u.emu_start(self.entries[kind],STOP,count=getattr(self,'instruction_limit',200000))
         assert u.reg_read(xc.UC_X86_REG_EIP)==STOP,('return',kind,hex(u.reg_read(xc.UC_X86_REG_EIP)))
         pop=0 if self.gcc and member else len(args)*4
         assert u.reg_read(xc.UC_X86_REG_ESP)==sp+4+pop,('stack',kind)

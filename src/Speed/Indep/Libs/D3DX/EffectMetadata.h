@@ -14,6 +14,7 @@ void __fastcall D3DXConstructRecord38(void *); // 0x663f4e
 void __fastcall D3DXConstructRecordB4(void *); // 0x663f6c
 unsigned int __stdcall D3DXEffectPaddedSize(unsigned int base,unsigned int *typeOffset,unsigned int *dataOffset); // 0x65bf18
 unsigned int __stdcall D3DXEffectValueSize(unsigned int base,unsigned int *typeOffset,unsigned int *dataOffset); // 0x65c033
+unsigned int __stdcall D3DXEffectUnitCount(unsigned int *type,unsigned int alignment); // 0x65b019
 extern const unsigned int ug2FxTypeTable7B582C[][7];
 }
 #endif

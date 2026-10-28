@@ -15,6 +15,10 @@ extern "C" unsigned char *UG2FxBufferPointerVirtual(D3DXEffectBuffer *buffer) {
     if (buffer->class00!=0x7b711c) abort();
     return D3DXEffectBufferPointer(buffer);
 }
+extern "C" unsigned int UG2FxBufferLengthVirtual(D3DXEffectBuffer *buffer) {
+    if (buffer->class00!=0x7b711c) abort();
+    return D3DXEffectBufferLength(buffer);
+}
 extern "C" unsigned int UG2FxBufferReleaseVirtual(D3DXEffectBuffer *buffer) {
     if (buffer->class00!=0x7b711c) abort();
     return D3DXEffectBufferRelease(buffer);

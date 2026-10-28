@@ -2980,6 +2980,105 @@ Demo, simulator and both probes build successfully. Native orbit retains
 as do shader preparation/evaluation, source compilation and the GPU/API backend.
 Real effect/technique activation is still pending those dependencies.
 
+### Serialized effect record readers and retail metadata chains (2026-10-28)
+
+`Libs/D3DX/EffectRecordReaders.cpp` recovers six complete bodies:
+
+| Address | Recovered behavior |
+| --- | --- |
+| `0x66a574` (315 bytes) | Read an annotation and accumulate its storage requirements |
+| `0x66b420` (493 bytes) | Read a parameter and its linked annotations |
+| `0x66a6af` (397 bytes) | Read a pass, annotations and its group records |
+| `0x66164d` (1,011 bytes) | Read/classify one table-driven group record |
+| `0x66b60d` (1,505 bytes) | Read a technique and aggregate slot/register requirements |
+| `0x65b019` (127 bytes) | Walk scalar/structured unit counts for a supplied divisor |
+
+Each stream read calls the buffer length getter, then reloads the word cursor for
+its comparison. If allowed, it calls the pointer getter and reloads that cursor
+again before loading the DWORD. The cursor advances even when a read is skipped;
+a separate final check rejects null/truncated input. The original comparison
+uses the getter's returned size directly with this cursor; no added division by
+four or stricter stream abstraction changes it. The source retains those call
+boundaries through typed native bridges to the recovered buffer getters.
+
+Parameters and annotations retain the original clears, flags and counter timing.
+New annotations are constructed, parsed and linked in order. A failed pending
+annotation is deleted while previously linked annotations remain owned. Scalar/
+vector, matrix and structured descriptors update the separate `+0x128`, `+0x124`
+and `+0x12c` storage totals. Structured data executes the recovered type validator
+and padded-size walk. Stream and descriptor failures preserve partial writes.
+
+Record reading starts with **unaligned DWORD stores at `+0x52` and `+0x54`**,
+crossing the code/slot/unit halfwords. This matters at subsequent getter calls
+and on truncated input; replacing them with narrow field stores changes observed
+state. The reader checks the 182-entry code limit, table slot bounds and the
+special `0x105` slot convention. It assigns resource kinds and shader selectors,
+normalizes register codes, computes units with the original ceiling division,
+and accumulates the group's storage offset without adding alignment rounding.
+Tags `0x0e000000`/`0x0f000000` increment group word `+0x34`. Unknown fields remain
+offset-named; no broader semantic types are inferred from those tags alone.
+
+Technique parsing preserves pass/group numbering and halfword writes. It finds
+unique category-8 slots in forward order, allocates the original `0x68`-byte
+records and temporary bookkeeping, then scans each pass's records **backward** to
+set dirty flags. Category 7 keeps the original last-record behavior; category 8
+uses the unique-slot map and retains the forced flag for tag `0x0800000d`.
+Register requirements update the original halfwords `+0xa4` through `+0xb2`,
+including the `0x100` sentinel/bank rules. Allocation order, partial failure state,
+unknown packing gaps and temporary free order are retained.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_readers.py --gcc --mutation-checks
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_readers.py --mutation-checks
+cmake -S . -B build/native
+cmake --build build/native --target ug2effectreaders_probe
+build/native/ug2effectreaders_probe "$UG2_DIR/speed2.exe" /tmp/effect-readers.bin
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_effect_readers.py --gcc --kind retail --native-dump /tmp/effect-readers.bin
+```
+
+Each compiler passes **6,167 comparisons**: 1,024 fixtures per recovered body and
+**23 retail reader chains**. Both reject **43 mutations** covering cursor/getter
+order, skipped reads, wide stores, name/type validation, annotation ownership,
+record allocation, slot bounds, resource kinds, selector/code normalization,
+unit counts, storage offsets, pass numbering, unique-slot counting, scan order,
+dirty flags, register banks and cleanup order. Structured element/member counts
+vary independently. Explicit fixtures cover the `0x100` convention and the first
+high-bank slot, rather than treating a behaviorally equivalent mutation as proof.
+
+Comparisons include complete arena/heap bytes, getter/allocation/free-time state,
+results/cursors, live allocation maps, stack, nonvolatile registers and restored
+x87 state. Selected synthetic cases perturb the cursor at getter entry to check
+caller reloads; the recovered getter bodies still execute. All reader, metadata,
+validation, constructor, size-walk and destruction dependencies execute source.
+Only allocator/free operations and those stated perturbations are controlled.
+Finite mapped streams do not establish malformed-pointer, arbitrary-interface,
+exception or giant-loop behavior, and instruction-byte identity is unproven.
+Fingerprints are in `config/SPEED2_EXE_1_2/effect-readers.json`; generated reports
+remain under `build/analysis/effect-readers/`.
+
+`ug2effectreaders_probe` supplies a diagnostic outer header, copies the owned blob
+and input buffer, constructs the original metadata arrays and runs the recovered
+parameter/technique readers for every retail recipe. Its `UG2FXRD1` capture records
+cursors, storage/count totals and a normalized summary of parsed fields, code/
+slot/unit data, category flags and register limits. Native addresses and unknown
+heap bytes are excluded from that format. Replay compares these results with
+both original x86 and rebuilt execution; the separate Unicorn comparison checks
+full fixture bytes. All **23 native chains match** and full recovered destruction
+returns tracked ownership to **zero allocations** for every recipe.
+
+The diagnostic header reader is test scaffolding, not an implementation of the
+main deserializer. Parsing stops before relocation, shared-pool binding and the
+remaining compiled shader payloads. No shader or successful effect/API result is
+fabricated. The existing input/metadata/setup probes remain available separately.
+Demo, simulator and all three probes build successfully. Native SKYLINE orbit
+retains `ca993eba`/`7141bcda`; three late-texture lifecycle cycles retain 612 solids/
+829 textures, slots 500 → 534 → 500 and clean ownership.
+
+The remaining effect path still includes `0x66f69c`, its relocation/shared-pool
+and compiled shader-payload dependencies, shader preparation/evaluation, source
+compilation and the GPU/API backend. Real technique/consumer activation and the
+other wheel-rendering inventory seams remain open.
+
 ### Verification (pixel size and LOD)
 
 ### Verification (pixel size and LOD)
