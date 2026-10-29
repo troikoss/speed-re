@@ -96,6 +96,8 @@ add_library(ug2native STATIC
     src/Platform/Native/NativeFxCrtThread.cpp
     src/Platform/Native/NativeFxSetupDispatch.cpp
     src/Platform/Native/NativeTechniqueDispatch.cpp
+    src/Platform/Native/NativeCarQuadPlatform.cpp
+    src/Platform/Native/NativeMatrixDispatch.cpp
     src/Platform/Native/NativeVehicle.cpp
     src/Platform/Native/NativeWorld.cpp
     src/Platform/Native/NativeCollision.cpp
@@ -241,6 +243,13 @@ target_compile_options(ug2crtpowersse_probe PRIVATE ${UG2_ARCH_FLAGS} -O1
     -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
 target_link_libraries(ug2crtpowersse_probe -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
 target_link_options(ug2crtpowersse_probe PRIVATE ${UG2_LINK_FLAGS})
+
+add_executable(ug2wheelsecondary_probe src/Platform/Native/WheelSecondaryProbe.cpp)
+target_compile_options(ug2wheelsecondary_probe PRIVATE ${UG2_ARCH_FLAGS} -O1
+    -fno-fast-math -ffp-contract=off
+    -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+target_link_libraries(ug2wheelsecondary_probe -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
+target_link_options(ug2wheelsecondary_probe PRIVATE ${UG2_LINK_FLAGS})
 
 add_executable(ug2solidrecords_probe src/Platform/Native/SolidRecordsProbe.cpp src/Platform/Native/NativeSolidRecords.cpp
     src/Platform/Native/NativeTextureRecords.cpp src/Platform/Native/NativeTextureUpload.cpp src/Platform/Native/NativeFormatting.cpp)

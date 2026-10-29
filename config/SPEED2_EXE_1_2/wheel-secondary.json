@@ -1,0 +1,63 @@
+{
+  "target": "UG2 PC v1.2",
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "secondary": {
+      "address": "0x620600",
+      "size": 1247,
+      "sha256": "de2544aa6e9161a535c0a6eb89a77e4cf37e557bd5490009d87d1ee8bbb327f9"
+    },
+    "attribute": {
+      "address": "0x61b500",
+      "size": 29,
+      "sha256": "93609d31cc9d12fa70ba8cd8dc99995e419cdb7037b0c525071d710473288717"
+    },
+    "rim": {
+      "address": "0x4fe120",
+      "size": 13,
+      "sha256": "707b6489682a3a237fdb003b8cb63ea40384d48eb9211269877231224974adfb"
+    },
+    "quad": {
+      "address": "0x5bb1c0",
+      "size": 94,
+      "sha256": "0dfd2af8d253b50ae7aeb6c7c1cdf49c2c302c26955eacd8b029dde955550014"
+    },
+    "wrapper": {
+      "address": "0x5c7e80",
+      "size": 31,
+      "sha256": "33f89e570a4a2bf689c37fe9c2a07d966168a1e8cbb49522e74a1a82dd6be62d"
+    },
+    "rotate_y": {
+      "address": "0x5bada0",
+      "size": 177,
+      "sha256": "d5ff0cce0804562b383d96dda578fdd55db701b3d0c85bb846260f4bfebb2a29"
+    }
+  },
+  "data": {
+    "scale": {
+      "address": "0x7a889c",
+      "size": 4,
+      "sha256": "89935fd640be1b7fd0d9c9748d986b748d4c3580a78779bb24a110ba21b608a8"
+    },
+    "expansion": {
+      "address": "0x7a6728",
+      "size": 4,
+      "sha256": "6a8e259d5cfb5822c30440a36c344da8f749269d606006aecf7e0bbd2188015c"
+    },
+    "height": {
+      "address": "0x7a672c",
+      "size": 4,
+      "sha256": "98339e0322cd3c4a64ac06a86f8a8ca128990e9545a2579805cd725351d3f590"
+    },
+    "texture": {
+      "address": "0x7a88a0",
+      "size": 9,
+      "sha256": "0e4d8ecded6fdee65bdfb0ec9183c767e8cff0ad11611a5e3c4019140609ee34"
+    }
+  },
+  "flag_fragment": {
+    "address": "0x622eee",
+    "size": 31,
+    "sha256": "2c7e3c5b901d43ed8d5409d2b9ce4884c9368086dec8e124db4ab470b9a4a63c"
+  }
+}

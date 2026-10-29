@@ -1287,3 +1287,9 @@ ug2CrtPowerZero7D7C7C = 0x7d7c7c;
 ug2CrtPowerInfinity81A470 = 0x81a470;
 
 ug2CrtPowerSseData7D4310 = 0x7d4310;
+
+ug2WheelSecondaryScale7A889C = 0x7a889c;
+ug2WheelSecondaryScale7A6728 = 0x7a6728;
+ug2WheelSecondaryY7A672C = 0x7a672c;
+ug2WheelSecondaryTexture7A88A0 = 0x7a88a0;
+ug2WheelLodGate = 0x8654a4;

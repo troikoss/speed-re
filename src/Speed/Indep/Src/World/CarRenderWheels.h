@@ -24,6 +24,8 @@ struct CarRenderTextureSlot;
 struct CarRenderTextureOverride;
 struct CarRenderLightPack;
 struct CarRenderTexturePack;
+struct CarRenderTexture;
+struct CarRenderQuad;
 
 struct CarRenderSlot {
     unsigned int key;
@@ -135,6 +137,7 @@ struct CarRenderView {
     CarRenderView *Construct(); // 0x491940
     int TestBounds(const float *minimum, const float *maximum, WheelMatrix *world); // 0x5bc300
     void DrawSolid(CarRenderSolid *solid, WheelMatrix *world, void *extra, unsigned int flags, unsigned int zero);
+    void DrawQuad(CarRenderQuad *,CarRenderTexture *,WheelMatrix *,unsigned int,unsigned int); // 0x5c7e80, RET 0x14; view/last argument unused
 };
 UG2_CHECK_OFFSET(CarRenderView, clip00, 0);
 UG2_CHECK_OFFSET(CarRenderView, focal0C, 0x0c);
@@ -150,6 +153,8 @@ struct CarRenderPart {
     unsigned char pad00[0x0a];
     unsigned short index0A;
     void *FindRecord(unsigned int hash, void *previous);
+    unsigned int AttributeRaw(unsigned int hash,unsigned int fallback); // 0x61b500
+    unsigned int RimValue(); // 0x4fe120; consumer sign-extends AL
 };
 UG2_CHECK_OFFSET(CarRenderPart, index0A, 0x0a);
 
@@ -232,7 +237,7 @@ struct CarWheelDrawInputs {
     int lod6C;                       // frame+0x6c: body LOD index (CarLodSelect). Above 2 draws no wheels; <= 1 enables the spin
     int slotD8;                      // frame+0xd8 (k, 0 or 1): selects the ri+0x400 / ri+0x438 column (k source: see docs)
     int lodF4;                       // frame+0xf4: view clamp, raw value, limited to 2 by the block
-    unsigned int flagsCC;            // frame+0xcc: DrawSolid flags, first part (tyre blocks; producer 0x60d1b0 not recovered)
+    unsigned int flagsCC;            // frame+0xcc: DrawSolid flags, first part (tyre blocks; gate-derived flag fragment at 0x622eee)
     unsigned int flags1AC;           // frame+0x1ac: DrawSolid flags, second part (all blocks; CarLodSelect)
     WheelMatrix *setDump;            // verification output: set0[0..3], set1[0..3], set2[0..3], set3[0..3] (0 in the game)
     const float *renderPosition;     // frame+0x790: camera XYZ and W=1, captured before source setup

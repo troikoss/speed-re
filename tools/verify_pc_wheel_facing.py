@@ -177,7 +177,7 @@ def main():
     report = {'comparisons': count, 'failures': 0, 'raw_x87_exact': True,
               'byte_identity': 'not established', 'compiler': 'GCC i386 -O1' if args.gcc else 'MSVC 7.1 /Ox /Ob0',
               'limitations': ['finite synthetic matrices/vectors; no exhaustive coverage',
-                              'native normal producer remains absent; demo gates stay at zero']}
+                              'normal uses original image defaults; direct xrefs show only reads; indirect ownership and native gate scheduling remain open']}
     if args.mutation_checks:
         source = SOURCE.read_text()
         mutations = {

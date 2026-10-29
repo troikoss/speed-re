@@ -211,30 +211,6 @@ MoverAero *NewMoverAero(MoverAeroSpec *spec, MoverBody *body) {
 }
 
 
-// D3DX runtime library (statically linked in the original, dispatched via 0x803e74).
-// Row-vector product: output = left * right; operands may alias the output.
-extern "C" WheelMatrix *__stdcall D3DXMatrixMultiply(WheelMatrix *output, WheelMatrix *left,
-                                                     WheelMatrix *right) {
-    WheelMatrix result;
-    for (int row = 0; row < 4; ++row) {
-        for (int column = 0; column < 4; ++column) {
-            float sum = 0.0f;
-            for (int k = 0; k < 4; ++k) {
-                sum += left->elements[row * 4 + k] * right->elements[k * 4 + column];
-            }
-            result.elements[row * 4 + column] = sum;
-        }
-    }
-    *output = result;
-    return output;
-}
-
-// Native ABI bridge to the recovered default scalar body at 0x63d132.
-// The original 0x63d12c thunk dispatches through 0x803f00.
-extern "C" WheelMatrix *__stdcall D3DXMatrixTranspose(WheelMatrix *output, WheelMatrix *input) {
-    return D3DXMatrixTransposeScalar(output,input);
-}
-
 unsigned int bGetTicker() {
     struct timespec now;
     clock_gettime(CLOCK_MONOTONIC, &now);

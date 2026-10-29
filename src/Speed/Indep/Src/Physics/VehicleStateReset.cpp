@@ -4,6 +4,7 @@
 extern float nitrousTicksPerSecond;
 extern float drivetrainClockScale;
 extern float wheelRenderAngleScale;
+void RotateMatrixY(WheelMatrix *,WheelMatrix *,unsigned int);
 
 // Statically linked D3DX helper reached through the dispatch pointer at 0x803e74.
 extern "C" WheelMatrix *__stdcall D3DXMatrixMultiply(WheelMatrix *output, WheelMatrix *left, WheelMatrix *right);
@@ -29,31 +30,6 @@ void MakeRotationZ(WheelMatrix *output, unsigned int angle) {
     m[13] = 0.0f;
     m[14] = 0.0f;
     m[15] = 1.0f;
-}
-
-// Original 0x5bada0: right-multiply by a rotation about Y.
-void RotateMatrixY(WheelMatrix *output, WheelMatrix *input, unsigned int angle) {
-    volatile float cosine = EngineSineUnits(angle + 0x4000);
-    float sine = EngineSineUnits(angle);
-    WheelMatrix rotation;
-    float *m = rotation.elements;
-    m[2] = -sine;
-    m[8] = sine;
-    m[0] = cosine;
-    m[10] = cosine;
-    m[1] = 0.0f;
-    m[3] = 0.0f;
-    m[4] = 0.0f;
-    m[5] = 1.0f;
-    m[6] = 0.0f;
-    m[7] = 0.0f;
-    m[9] = 0.0f;
-    m[11] = 0.0f;
-    m[12] = 0.0f;
-    m[13] = 0.0f;
-    m[14] = 0.0f;
-    m[15] = 1.0f;
-    D3DXMatrixMultiply(output, input, &rotation);
 }
 
 // Original 0x5bae60: right-multiply by a rotation about Z.

@@ -359,8 +359,9 @@ Evidence and limits:
   `0x622551`). `ri+0x2c10` is also written by `0x634800` (`ri+0x2c04`..`+0x2c10`, the results of four hashed lookups in
   `0x488fa0`, keys `0x90c81258`, `0x9b971511`, `0x0ee87ec4` and one earlier key). None of the candidate part names I tried
   hashes to these keys, so the value of `k` is not established. The demo uses 0.
-- Open, `frame+0xcc` (`flagsCC`): `0x621b9e` stores the result of `0x60d1b0` applied to the previous value. Not recovered;
-  the demo uses 0.
+- Recovered, `frame+0xcc` (`flagsCC`): `0x622eee..0x622f06` produces 0x8000 for gate 6 and zero otherwise.
+  The earlier `0x621b9e`/`0x60d1b0` result is geometry in a reused stack slot. Native code now executes the
+  recovered flag predicate; see [corrected provenance](pc-wheel-secondary.md#corrected-caller-provenance).
 - Open, LOD B and C solids: the wheel solids are the part-table entries `ri+0x1b48` (part `0x1d`) and `ri+0x1b68`
   (part `0x1e`), filled by `0x634800`. The letter-to-LOD mapping is not evidenced, so the demo keeps LOD A for every LOD
   index (the fallback).
@@ -430,7 +431,8 @@ The declaration uses `long double` to preserve the native i386 x87 return and
 intermediate precision; legacy MSVC 7.1 treats that type as double while retaining
 its register precision. No binary32 return conversion is inserted. Globals are
 initialized to measured image values (enabled = 1, normal = 0/1/0); the native
-normal producer remains open. The current demo's LOD gate is zero, so this helper
+normal has no identified direct original writer (read-only xrefs contain only reads); indirect ownership remains
+unverified. See [secondary wheel evidence](pc-wheel-secondary.md). The current demo's LOD gate is zero, so this helper
 stays unreached there. Gate 6 uses it for rear-solid substitution; gate 3 uses it
 for the secondary draw.
 
@@ -5123,6 +5125,19 @@ rejected native mutants are covered. See [SSE power evidence and reproduction](D
 for table fingerprints, source mutations and verification limits. CRT startup,
 actual OS/unmasked exception delivery and native GPU/effect activation remain open.
 
+### Secondary wheel quad and corrected caller flags (2026-10-29)
+
+The complete secondary producer `0x620600`, raw rim-attribute helpers, quad
+initializer/view wrapper and exact Y rotation are recovered. The native Y
+rotation now uses the recovered extended angle helpers, and its matrix ABI
+selects the recovered scalar D3DX product. The caller's flags come from gate
+comparison at `0x622eee..0x622f06`; the earlier `0x60d1b0` attribution was an
+incorrect stack-lifetime interpretation. Per compiler, 28,672 exact comparisons
+and ten source mutants pass; native replay checks 4,096 original quad captures
+and rejects five hardware mutants. See [evidence and reproduction](pc-wheel-secondary.md).
+Quad packing/render submission `0x5c5580` remains a visible unsupported backend
+boundary. The current demo gate stays zero; this pass does not activate shaders.
+
 ### Verification (pixel size and LOD)
 
 - `build/venv/bin/python tools/verify_pc_car_draw_lod.py --mutation-checks`, with `UG2_DIR` set. The executable's SHA-256
@@ -5176,8 +5191,8 @@ actual OS/unmasked exception delivery and native GPU/effect activation remain op
   needs texture/technique setup and GPU consumer `0x5cf420`; native car tables now load through recovered pack callbacks. The current native seam draws GL lists,
   ignores flags/extra/zero and does not set `glFrontFace` for R180 wheels; see the dispatcher evidence above.
 - Preparation `0x48f660` (recovered and active; GL record consumption remains open), facing helper
-  `0x60d700` (recovered) and secondary draw `0x620600` (open; the demo
-  gate is 0, so neither is called), solid slots `0x48d860` (setter and native retail table binding recovered; link values `ri+0x390`/`0x3ac` are zero
+  `0x60d700` and secondary quad producer `0x620600` (both recovered; packing/render submission
+  at `0x5c5580` remains open, and the demo gate is 0, so neither is called), solid slots `0x48d860` (setter and native retail table binding recovered; link values `ri+0x390`/`0x3ac` are zero
   in the demo), rim-part records `0x60fef0` (none in the demo; the `SPINNEROFFSET` offsets stay zero).
 - The spin term reads the car's sub-object bytes `+0x353`/`+0x354` (`0x59a420`). The block applies it only to wheels 0
   and 1 (tyre and brake frames, as a rotation about x; the table above). The demo has no such state, so the spin is zero
@@ -5189,7 +5204,7 @@ actual OS/unmasked exception delivery and native GPU/effect activation remain op
 - The layout inputs of the wheel block `ri+0x400..0x43c` come from `CarTypeInfo` and the parts. The other caller inputs
   are the body LOD (`frame+0x6c`), the view clamp (`frame+0xf4`) and the wheel flags (`frame+0x1ac`, with `arg8` `|0x800`)
   from the recovered selection; the slot index `k` (`frame+0xd8`) is zero in the demo, its source open (see above); and
-  `frame+0xcc` is zero in the demo (producer `0x60d1b0` not recovered).
+  `frame+0xcc` now comes from the recovered gate predicate (0x8000 only in gate 6; zero by default).
 - Widths `ri+0x430`/`ri+0x434` (the `MARKER_BRAKE` values, see the replacement inventory) are zero in the demo. They only
   feed `set2`, which no draw reads, so they do not change the drawn wheels.
 - Constants of the image are checked by the verifier (`IMAGE_CONSTANTS`). The LOD gate and threshold globals

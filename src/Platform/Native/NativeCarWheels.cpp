@@ -2,8 +2,10 @@
 // pixel size and LOD selection (src/Speed/Indep/Src/World/CarRenderLod.cpp). The unrecovered callees that the original
 // draw 0x620ae0 calls are implemented for the native demo here; record preparation
 // now executes recovered bodies. Each seam keeps the argument order of the original; the
-// native behaviour is listed per seam. Globals of the block are fixed to the demo's values (see below).
+// native behaviour is listed per seam. Gate state reads the original mapped word;
+// other block globals retain the demo's values (see below).
 #include "NativeScene.h"
+#include "../../Speed/Indep/Src/World/CarWheelSecondary.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,7 +26,7 @@
 // constants of the 0.184 scale, and the image values of the LOD globals (0x7fee4c = 1, overrides -1, the pixel
 // thresholds of 0x7a66dc and 0x7a66fc, the scale of 0x7a6700). The car record table (0x8a1cd4, 0x8a1cd8) is empty.
 extern "C" {
-int ug2WheelLodGate = 0;
+extern int ug2WheelLodGate; // mapped 0x8654a4, shared with recovered record/light preparation
 float ug2WheelLodThreshold = 0.0f;
 float ug2WheelWidthOverrideFront = 0.0f;
 float ug2WheelWidthOverrideRear = 0.0f;
@@ -39,7 +41,7 @@ float ug2CarLodScale7A6700 = 0.7f;
 void *ug2CarLodRecords8A1CD4 = 0;
 int ug2CarLodRecordCount8A1CD8 = 0;
 CarRenderPartTable *ug2CarPartTable8A1CC8 = 0; // part-table loader remains a native seam
-int ug2WheelFacingEnabled802914 = 1; // original image default; normal producer remains open
+int ug2WheelFacingEnabled802914 = 1; // original image default; no direct normal writer identified
 float ug2WheelFacingX8A1C54 = 0.0f;
 float ug2WheelFacingY802910 = 1.0f;
 float ug2WheelFacingZ8A1C58 = 0.0f;
@@ -166,13 +168,6 @@ void CarRenderView::DrawSolid(CarRenderSolid *solid, WheelMatrix *world, void *e
     glPopMatrix();
 }
 
-// 0x620600 (__thiscall on ri, RET 8): secondary draw of a tyre matrix. Reached only with the LOD gate 3,
-// which the demo does not select.
-void CarRenderWheelInfo::Fn620600(CarRenderView *view, WheelMatrix *world) {
-    (void)view;
-    (void)world;
-}
-
 // 0x48f660 (cdecl): original render-record preparation calls 0x48e6c0 then 0x48a6a0.
 // Execute the recovered preparation chain. GL consumption remains a separate seam.
 extern "C" unsigned int UG2WheelVisible(void *a1, void *a2, const void *a3, void *a4, void *a5, void *a6) {
@@ -254,7 +249,7 @@ void NativeRunCarWheelBlock(CarRenderWheelInfo *ri, const unsigned char *carType
     in.lod6C = lod.lod;          // frame+0x6c: body LOD
     in.slotD8 = 0;               // frame+0xd8 (k) = [obj+0x2c10] in the original; not modelled, see docs/NATIVE_DEMO.md
     in.lodF4 = lod.clamp;        // frame+0xf4: view clamp
-    in.flagsCC = 0;              // frame+0xcc: producer 0x60d1b0 not recovered, see docs/NATIVE_DEMO.md
+    in.flagsCC = CarWheelCallerFlags(ug2WheelLodGate); // 0x622eee..0x622f06: 0x8000 only in gate 6
     in.flags1AC = lod.flag1AC;   // frame+0x1ac: CarLodSelect
     in.setDump = 0;
     in.renderPosition = renderPosition;
