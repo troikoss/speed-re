@@ -43,6 +43,7 @@ def cases(n):
         if 24<=i<48 or 216<=i<240:
             c.update(width=1 if i<48 else 3,data_kind=0,input_kind=3,other_kind=2,output_kind=4,input_index=0,output_index=0,mask=255,terms=0,alias=0,math_write=False,empty=False)
         if i==3:c.update(width=1,data_kind=0,input_kind=3,input_index=0,output_kind=4,output_index=0,mask=255,terms=0,alias=0,math_write=True,empty=False)
+        if i==147:c.update(width=1,data_kind=0,input_kind=3,input_index=0,output_kind=4,output_index=0,mask=255,terms=0,alias=0,math_write=False,empty=False,floor_bits=0x7ff0000000001234)
         if c['empty']:c['literal_count']=0
         yield c
 
@@ -119,6 +120,7 @@ class Machine(md.Machine):
                 self.u.mem_write(DATA+bank*0x1000+i*8,struct.pack('<Q',bits))
         if c['opcode']==0x10600000:
             for i in range(256):self.u.mem_write(DATA+i*8,struct.pack('<d',0.25+(i%17)*0.125))
+        if c['opcode']==0x10400000 and 'floor_bits'in c:self.u.mem_write(DATA,struct.pack('<Q',c['floor_bits']))
         self.put(LITERALS,c['literal_count'])
         for i in range(256):self.u.mem_write(LITERALS+4+i*8,struct.pack('<d',(i%13-6)*0.5))
         if c.get('real_runtime'):
@@ -207,7 +209,7 @@ def mutation_checks(gcc):
         'forward-copy':('to[word]=from[word]','to[width*2-1-word]=from[width*2-1-word]'),
         'negation':('UG2_FX_VM_STORE_NEG(output[lane],inputs[0][lane])','UG2_FX_VM_STORE_LOAD(output[lane],inputs[0][lane])'),
         'reciprocal':('UG2_FX_VM_STORE_RECIP(output[lane],inputs[0][lane])','UG2_FX_VM_STORE_LOAD(output[lane],inputs[0][lane])'),
-        'floor-reload':('long double value=UG2FxVmFloor(inputs[0][lane]);UG2_FX_VM_STORE_FRACTION(output[lane],inputs[0][lane],value);','double saved=inputs[0][lane];long double value=UG2FxVmFloor(saved);UG2_FX_VM_STORE_FRACTION(output[lane],saved,value);'),
+        'floor-reload':('long double value=UG2FxVmFloor(argument);UG2_FX_VM_STORE_FRACTION(output[lane],inputs[0][lane],value);','long double value=UG2FxVmFloor(argument);UG2_FX_VM_STORE_FRACTION(output[lane],argument,value);'),
         'power-base':('UG2FxVmPower(ug2VmTwo787AD0,','UG2FxVmPower(ug2VmOne786E68,'),
         'log-pointer-guard':('*inputs[lane],ug2VmZero786E60','inputs[0][lane],ug2VmZero786E60'),
         'log-input-stride':('UG2_FX_VM_STORE_LOG(output[lane],inputs[0][lane])','UG2_FX_VM_STORE_LOG(output[lane],*inputs[0])'),
@@ -229,7 +231,8 @@ def mutation_checks(gcc):
     }
     # MSVC 7.1 emits the same _ftol2 call and consumes its low word for the
     # int and __int64 casts here. That source change is not a distinct mutant.
-    if not gcc:del mutations['term-index-width']
+    if not gcc:
+        del mutations['term-index-width']
     for bank in (2,3,4,5,6):
         mutations['term-mask-'+str(bank)]=(f'base{bank}+(index&mask{bank})*8',f'base{bank}+(index&1)*8')
         mutations['input-mask-'+str(bank)]=(f'inputs[input]=reinterpret_cast<double *>(base{bank}+(index&mask{bank})*8)',f'inputs[input]=reinterpret_cast<double *>(base{bank}+(index&1)*8)')

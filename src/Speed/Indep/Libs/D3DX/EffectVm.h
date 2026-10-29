@@ -6,8 +6,8 @@ int __stdcall D3DXEffectVm(unsigned int *,unsigned int *,unsigned int,unsigned i
     unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int); // 0x688e79
 void __stdcall D3DXEffectVmOperation502(unsigned int,double **,double *); // 0x688ce2
 long double __stdcall D3DXEffectVmOperation63F2B5(float *); // 0x63f2b5
-// Unrecovered CRT math dependencies and the recovered operation ABI bridge.
-// Ordinary source arguments
+// VM ABI bridges: floor and the table operation are recovered. Other math and
+// general FP exception handling retain explicit unsupported boundaries. Arguments
 // replace the private original x87 input ABI; no host-math substitute is used.
 long double __cdecl UG2FxVmFloor(double); // 0x75eb50
 long double __cdecl UG2FxVmPower(double,double); // 0x75c9b0
@@ -32,6 +32,7 @@ extern "C" double __cdecl sin(double),cos(double),atan(double),atan2(double,doub
 #define UG2_FX_VM_LT(a,b) ((a)<(b))
 #define UG2_FX_VM_GT(a,b) ((a)>(b))
 #define UG2_FX_VM_GE(a,b) ((a)>=(b))
+#define UG2_FX_VM_EQ(a,b) ((a)==(b))
 #define UG2_FX_VM_STORE_LOAD(to,a) do { volatile long double vmValue=(a);(to)=vmValue; } while (0)
 #define UG2_FX_VM_STORE_NEG(to,a) do { volatile long double vmValue=(a);(to)=-vmValue; } while (0)
 #define UG2_FX_VM_STORE_SIN(to,a) ((to)=UG2_FX_VM_SIN(a))

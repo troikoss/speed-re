@@ -12,7 +12,7 @@ struct D3DXEffectUseLink {
 typedef char D3DXEffectUseLinkSize[(sizeof(D3DXEffectUseLink)==0x20)?1:-1];
 extern "C" {
 // Native ABI bridges to recovered preparation/evaluation callers. The shader
-// VM dispatcher and operation are recovered; four CRT math dependencies remain open.
+// VM, floor and table operation are recovered; math/exception boundaries remain.
 int UG2FxPrepareGroupA(D3DXEffectObject *,unsigned int); // 0x666df7
 int UG2FxPrepareGroupB(D3DXEffectObject *,unsigned int); // 0x667d51
 int UG2FxEvaluateRecord(D3DXEffectObject *,unsigned int,unsigned int); // 0x663a32

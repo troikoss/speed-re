@@ -72,7 +72,7 @@ extern "C" int __stdcall D3DXEffectVm(unsigned int *program,unsigned int *litera
         } else if (opcode==0x10300000) {
             for (unsigned int lane=0;lane<width;++lane) UG2_FX_VM_STORE_RECIP(output[lane],inputs[0][lane]);
         } else if (opcode==0x10400000) {
-            for (unsigned int lane=0;lane<width;++lane) { long double value=UG2FxVmFloor(inputs[0][lane]);UG2_FX_VM_STORE_FRACTION(output[lane],inputs[0][lane],value); }
+            for (unsigned int lane=0;lane<width;++lane) { double argument;UG2_FX_VM_STORE_LOAD(argument,inputs[0][lane]);long double value=UG2FxVmFloor(argument);UG2_FX_VM_STORE_FRACTION(output[lane],inputs[0][lane],value); }
         } else if (opcode==0x10500000) {
             for (unsigned int lane=0;lane<width;++lane) output[lane]=UG2FxVmPower(ug2VmTwo787AD0,inputs[0][lane]);
         } else if (opcode==0x10600000) {

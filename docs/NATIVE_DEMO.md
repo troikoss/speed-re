@@ -4012,8 +4012,8 @@ executable. Reports and mutation artifacts remain under
 identity, arbitrary malformed/giant inputs, external COM reentrancy, complete
 shader preparation, evaluation or rendered equivalence. The complete group
 preparation bodies `0x666df7`/`0x667d51`, their helpers/sort, evaluator
-`0x663a32` and shader VM `0x688e79` are recovered in later sections. Four VM
-CRT math dependencies, GPU resources/states and native technique/draw
+`0x663a32` and shader VM `0x688e79` are recovered in later sections. Power/asin/acos, general FP
+exception handling, GPU resources/states and native technique/draw
 activation remain open.
 
 The complete native build, the existing 110 parser lifecycles and the 60-frame
@@ -4169,7 +4169,7 @@ checks. Byte identity, arbitrary malformed/giant inputs, unmasked exceptions,
 external COM reentrancy and rendered shader equivalence remain unestablished.
 Earlier sections' open group-preparation entries are superseded by this recovery.
 The evaluation caller, CRT control state and VM dispatcher `0x688e79` are
-recovered below. Four VM CRT math dependencies, production GPU bytecode/
+recovered below. Power/asin/acos, general FP exception handling, production GPU bytecode/
 resource/state services, source compilation and native technique/draw activation
 remain open.
 
@@ -4271,7 +4271,7 @@ fingerprints remain **`ca993eba` / `7141bcda`**, and all 829 texture records/sta
 handles retire to zero. The copy chain is compiled into the recovered archive;
 it does not activate evaluation, the shader VM, GPU resources or native effects.
 The evaluator caller, CRT control mapping and VM `0x688e79` dispatcher are
-recovered below. Four VM CRT math dependencies and real effect rendering
+recovered below. Power/asin/acos, general FP exception handling and real effect rendering
 remain open. These finite
 CPU checks do not establish instruction-byte identity, arbitrary malformed/giant input behavior,
 external reentrancy or rendered shader equivalence.
@@ -4310,8 +4310,8 @@ three equal output pointers and three equal output masks, and the caller returns
 its result without suppressing positive or negative values. Argument order,
 cleared fields, source-copy order and the first-call FP transition are retained.
 `NativeFxSetupDispatch.cpp` now reaches this recovered member through the existing
-ABI bridge. The VM dispatcher is recovered in the next section; its four
-CRT math dependencies remain explicit production boundaries.
+ABI bridge. The VM dispatcher is recovered in the next section; its remaining
+math/exception dependencies remain explicit production boundaries.
 
 The CRT routines retain their actual bit mappings and return contract:
 
@@ -4390,7 +4390,7 @@ verifier allocates the larger modeled heap for the 65,535-use fixture.
 
 The caller and control mapping are recovered. The dispatcher, inline x87
 operations, indexed conversions and `0x688ce2` wrapper are recovered below.
-Four CRT math dependencies, full shader execution and native effect
+Power/asin/acos, general FP exception handling, full shader execution and native effect
 activation remain open. Finite checks do not prove instruction-byte identity,
 arbitrary malformed/aliasing/reentrant inputs, unmasked pending exceptions,
 thread changes or rendered shader equivalence.
@@ -4513,9 +4513,9 @@ pointer counts in these fixtures stay within the original 256-slot arrays;
 unchecked out-of-range programs and first-use uninitialized pointers are not
 claimed safe or completely verified.
 
-Production `NativeFxVmCrtPlatform.cpp` still aborts at **floor `0x75eb50`, power
-`0x75c9b0`, asin `0x75eea0`, and acos `0x75db80`**. The operation bridge reaches
-the recovered body below. Private
+Production `NativeFxVmCrtPlatform.cpp` still aborts at **power `0x75c9b0`, asin
+`0x75eea0`, and acos `0x75db80`**. Floor and the operation bridge reach recovered
+bodies below; general FP exception handling remains an explicit boundary. Private
 original x87 math arguments are adapted only in the comparative harness;
 there is no production host-libm replacement. Source compilation, GPU
 resources/readback/states, native effect activation and remaining wheel seams
@@ -4536,8 +4536,9 @@ and staged handles retire to zero.
 production `UG2FxVmOperation63F2B5` bridge now calls this source, preserving its
 stdcall float-pointer argument, `RET 4`, and extended x87 return. Opcode `502`
 therefore reaches the recovered operation through the recovered narrowing
-wrapper and VM dispatcher. Floor, power, asin and acos remain four explicit
-production CRT boundaries; native GPU/effect rendering remains inactive.
+wrapper and VM dispatcher. Floor and its masked runtime are recovered in the following section. Power,
+asin/acos and general FP exception handling remain explicit production
+boundaries; native GPU/effect rendering remains inactive.
 
 The original reads three floats, adds the single-precision **10000.0** constant
 to each, truncates each extended sum to signed 64-bit integer, and uses the
@@ -4622,9 +4623,138 @@ The complete native build, existing VM dispatcher/evaluator regressions and
 `7141bcda`** and all 829 texture records/staged handles retire to zero. These
 finite behavioral checks do not establish instruction-byte identity, arbitrary
 invalid pointers/table mutation, unmasked pending exceptions, reentrancy or
-rendered shader equivalence. Four CRT math routines, source compilation,
-GPU resources/states, native effect activation and the other wheel seams remain
+rendered shader equivalence. Floor and its masked runtime are recovered below. Power/asin/acos, general FP
+exception handling, source compilation, GPU resources/states, native effect
+activation and the other wheel seams remain
 open.
+
+### CRT floor SSE/x87 dispatch, controls and matherr callers (2026-10-29)
+
+The complete floor body is recovered in `CrtFloor.cpp`: **289 bytes at
+`0x75eb50..0x75ec70` plus 209 bytes at `0x769764..0x769834`**, one discontiguous
+498-byte original function. Nine supporting bodies are also recovered:
+
+| Original address | Bytes | Recovered behavior |
+| --- | --- | --- |
+| `0x7676a4` | 36 | Raw hardware control merge; signed 16-bit previous-word return |
+| `0x76cc73` | 19 | Current-mode FRNDINT with an explicit double spill/reload |
+| `0x766ea9` | 91 | Integer-only infinity / quiet-NaN / signaling-NaN classification |
+| `0x7661ba` | 9 | CRT thread-data errno pointer at offset `+8` |
+| `0x767485` | 40 | Math error to errno mapping, including pointer-valued returns |
+| `0x727e6b` | 3 | Original default callback, returning zero |
+| `0x7674da` | 158 | 29-entry operation/name lookup, direct default callback and control restoration |
+| `0x767578` | 83 | Quiet-NaN dispatch or direct errno/control path |
+| `0x7694d0` | 660 | Complete SSE math-error selection, aliasing, callback and publication |
+
+The production floor bridge now calls recovered source. Its SSE2 gate reads
+`0x8ba480`, checks all MXCSR exception masks and the low seven x87 control bits.
+The fast path uses the original exponent/shift data, packed logical shifts,
+signaling packed comparisons, UCOMISD and scalar SSE subtraction. Negative
+values execute a comparison **before** the large-exponent gate; removing it
+changes the invalid flag for negative quiet NaNs. Negative tiny values also
+retain DAZ behavior: the SSE comparison can select negative zero when DAZ treats
+the input as zero. Positive values below one return positive zero without
+loading the input through x87. These paths are not replaced by host `floor`,
+x87 arithmetic or a bit-only approximation of SSE comparisons.
+
+The x87 path merges the original raw control value **`0x173f`** from `0x81aa60`,
+performs the original load/store preparation, classifies nonfinite arguments,
+and runs FRNDINT for finite values. It compares the spilled result with the
+original input, restores the saved control on the appropriate paths, or calls
+the original general-result boundary with operation **11** and flags **8** or
+**16**. This raw control helper returns the previous word **sign-extended from
+16 bits**; it is distinct from the earlier CRT abstract-control mapping.
+Hardware forces reserved control bits as usual; native tests compare actual
+hardware words rather than assuming all requested reserved bits survive.
+
+`CrtMathError.cpp` retains the original callback and ownership details. SSE
+errors copy selected inputs to the output before constructing the callback
+record, so whole/partial overlaps affect subsequent reads. Callback changes to
+the result and control word are preserved. Operation **162** has type 4 but
+still sets **ERANGE (34)** after a zero callback return; type-4 operations 15 and
+25 do not set errno. The general user-matherr caller searches all 29 names and
+calls the original default function directly, regardless of the indirect SSE
+callback token. Its three double payloads are copied with integer MOV semantics.
+The source uses explicit eight-byte word-pair arguments with the same CDECL
+stack layout, retaining signaling-NaN representations until an original FP
+load is required. The default callback has its own translation unit to retain
+the original direct call boundary.
+
+The VM fraction opcode also retains its original **load/store before floor**
+(`0x6892ec..0x6892f0`), then reloads the input for subtraction after the call.
+That preparation quiets signaling NaNs before SSE dispatch and is observable in
+both x87 and MXCSR flags. Keeping only the numerical subtraction would miss
+that behavior. The native hardware mutation suite detects its omission.
+
+Verification (set `UG2_EXE` to the reference executable, build native targets,
+and keep MSVC/wibo jobs sequential):
+
+```sh
+build/venv/bin/python tools/verify_pc_crt_floor.py --gcc --cases 8192 --write-native-fixtures /tmp/ug2-crt-floor-fixtures.bin --mutation-checks
+build/native/ug2crtfloor_probe "$UG2_EXE" /tmp/ug2-crt-floor-fixtures.bin /tmp/ug2-crt-floor-native.bin
+build/venv/bin/python tools/verify_pc_crt_floor.py --gcc --cases 8192 --native-dump /tmp/ug2-crt-floor-native.bin --native-mutation-checks
+build/venv/bin/python tools/verify_pc_crt_floor.py --cases 8192 --mutation-checks
+build/venv/bin/python tools/verify_pc_crt_floor.py --gcc --cases 1024 --real-result-runtime
+build/venv/bin/python tools/verify_pc_crt_floor.py --cases 1024 --real-result-runtime
+```
+
+Each compiler passes **81,920 per-body comparisons**, **512 composed VM fraction
+programs**, and **38 rejected source mutations**. Captures check returns and live
+x87 values/tags/TOP, control and MXCSR state, callee-saved registers, CDECL
+cleanup, input/output/thread bytes and callback payload/order. Cases include
+signed zeros, fractional and exponent boundaries, infinities, quiet/signaling
+NaNs, subnormals, arbitrary double/word patterns, all recognized selectors, unknown codes and
+all 29 name rows, partial output aliases, callback edits and independently
+requested control words. The main floor corpus takes **3,954 SSE paths and
+4,238 x87 paths**. The initial general-result service is explicitly controlled
+for call-contract verification; it is not a numerical substitute in production.
+
+Separate runs add **10,240 body comparisons per compiler** while executing the
+actual original shared result, exception-mask, status and exception-record code
+on both sides. Only OS RaiseException is controlled there, including bounded
+changes to its defined record fields and result. Uninitialized reserved record
+bits are excluded from those callback summaries. This is composed caller
+evidence for the unrecovered exception runtime, not recovery of that runtime.
+
+The native probe passes **8,192 exact return/physical-state cases**, **65,536 raw
+control updates**, **256 VM fraction graphs with zero/multiple widths and
+four-byte overlaps**, **192 integer-payload/control checks**, and **eight x87
+copy audits**. Independent instruction oracles compare all return bits, stored
+buffers, errno, control, empty stack/TOP/tags, six x87 exception flags and MXCSR.
+The payload checks ensure unused or integer-copied SNaN/subnormal arguments do
+not incur FP loads. Seven native mutants are rejected, including removal of
+the otherwise-dead negative comparison, a DAZ-ignoring test, floating payload
+copies, wrong raw control/errno, and the missing VM argument preparation.
+No retail PE code is executed natively. Physical flag claims apply to the GCC
+i386 build; native MSVC hardware equivalence is not established.
+
+The emulator audit records important limits: Unicorn fails to quiet SNaNs on
+FLD/FSTP, omits their hardware exception flags, and incorrectly applies MXCSR
+FTZ to an x87 double store. Eight physical copy checks independently confirm
+the real instruction behavior. Therefore native/original-emulator replay is
+restricted to **1,997 supported cases**; **6,195** SNaN or DAZ/FTZ cases are
+excluded from that replay, while **all 8,192** retain physical instruction-oracle
+checks. SSE sticky status flags are checked by the hardware oracle, not treated
+as an emulator-derived golden value. Emulated SNaNs can consequently take a different handler path; those traces
+do not establish physical branch behavior. The recovered production code is
+unchanged by these verifier exclusions. Reports, copy audits and mutation logs stay in
+`build/analysis/crt-floor/`.
+
+Native ownership remains explicit: a thread-local block provides only the
+original errno field at `+8`; Win32 CRT thread initialization is not recovered.
+The indirect callback adapter recognizes the recovered default PE token and
+traps other tokens. The original CRT CPU/SSE initialization is also open:
+production retains the copied zero BSS flag and uses the masked x87 path;
+fixtures select both evidenced dispatch states. **General FP result/exception
+handler `0x7675cb` remains a production trap**, as do power, asin and acos.
+Unmasked/pending exception delivery, arbitrary invalid pointers, custom callback
+porting, concurrency and rendered shader equivalence remain unverified. Finite
+behavioral agreement is separate from instruction-byte identity.
+
+The complete native build, affected VM dispatcher regressions and 60-frame
+SKYLINE smoke pass. Wheel fingerprints remain `ca993eba` / `7141bcda`; all 829
+texture records and staged handles retire to zero. Native GPU/effect activation
+and the other wheel-rendering seams remain open.
 
 ### Verification (pixel size and LOD)
 

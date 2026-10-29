@@ -8,6 +8,7 @@
 #define UG2_FX_VM_LT(a,b) ((UG2_FX_VM_COMPARE(a,b)&0x500)==0x100)
 #define UG2_FX_VM_GT(a,b) (!(UG2_FX_VM_COMPARE(a,b)&0x4100))
 #define UG2_FX_VM_GE(a,b) (!(UG2_FX_VM_COMPARE(a,b)&0x100))
+#define UG2_FX_VM_EQ(a,b) ((UG2_FX_VM_COMPARE(a,b)&0x4400)==0x4000)
 // Store directly to the original destination. A compiler-generated double
 // spill/reload can add a denormal exception after a newly underflowed result.
 #define UG2_FX_VM_STORE_UNARY(to,a,instructions) do { asm volatile("fldl %1; " instructions "; fstpl %0" : "=m"(to) : "m"(a) : "st"); } while (0)
