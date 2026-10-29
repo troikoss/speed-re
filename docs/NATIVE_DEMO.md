@@ -4861,7 +4861,7 @@ The production unsupported boundary is now the actual Win32 **RaiseException**
 service (IAT `0x7832a4`) in the separate
 `NativeFxCrtExceptionPlatform.cpp` object. Linux SEH delivery, unmasked/pending
 exceptions, CRT startup/thread lifecycle, arbitrary custom callback tokens,
-invalid pointers and concurrency remain open. Power/asin/acos and native shader/
+invalid pointers and concurrency remain open. Inverse trig is recovered in the following section. Power and native shader/
 GPU/effect activation remain open. Finite behavioral comparisons do not establish
 instruction-byte identity or complete game recovery.
 
@@ -4869,6 +4869,123 @@ The complete native build, existing floor/VM regressions and 60-frame SKYLINE
 smoke pass. Wheel fingerprints remain `ca993eba` / `7141bcda`, with all 829 texture
 records and staged handles retired. These are demo regressions; the recovered
 shader runtime is not yet active in rendering.
+
+### CRT inverse trig and shared one-argument error runtime (2026-10-29)
+
+`CrtInverse.cpp` recovers asin/acos and their remaining shared control/error chain.
+The native VM now calls these recovered routines through explicit ABI bridges.
+Power remains unsupported.
+
+| Address | Original bytes | Recovered behavior |
+| --- | ---: | --- |
+| `0x75eea0` / `0x75db80` | 20 each | Private x87 asin/acos wrappers and double argument-copy stores |
+| `0x75eebd` / `0x75db9d` | 174 each | Complete asin/acos cores, domain and endpoint handling |
+| `0x765748` | 22 | Exponent/nonfinite classification, including caller-visible ZF meaning |
+| `0x7656d5` | 23 | Temporary nearest control with retained precision and masked exceptions |
+| `0x7656ec` | 25 | Quiet-NaN classification and signaling/error arithmetic |
+| `0x765677` | 60 | One-argument matherr record, result spill/reload and second control restore |
+| `0x76575e` | 13 | Quick exit with saved-word restoration |
+| `0x76576b` | 42 | Precision-status exit and conditional error handling |
+| `0x76cb75` | 254 | Shared logical-error dispatch, exception record, callback and errno chain |
+
+`crt-inverse.json` fingerprints all **827 original bytes**, the two extended
+constants, NaN-add constant, both name strings and complete reference executable.
+Evidence comes from read-only Ghidra exports and original instructions. Neither
+Ghidra types nor guessed CRT names substitute for those bytes. Other SPEED builds
+remain unverified.
+
+The wrapper stores the incoming x87 value to a double argument slot while
+retaining its extended value for arithmetic. Classification uses the stored
+argument, including rounding near the unit endpoints. The core computes
+`(1+x)*(1-x)`, square root and FPATAN in the original order. Acos exchanges the
+final operands. Endpoint handling retains the original extended half-pi constant,
+sign change, FLDPI and positive zero. Domain errors load the original indefinite
+constant. Quiet NaNs skip the add; the other NaN path adds the original double
+constant and selects its original error kind.
+
+Temporary control keeps the saved precision bits, masks exceptions and selects
+nearest rounding. The exact `0x027f` fast path remains. The bypass flag at
+`0x8b8424` selects quick restoration; its producer/startup is not recovered.
+Normal math exit dispatches error type 8 only when the saved precision mask bit
+and current precision status bit are both set. The one-argument helper spills its
+result before dispatch, reloads it under the dispatcher's returned control, and
+then restores the original saved word again when required. Input payload copies
+remain integer operations; the second input is uninitialized in this original
+helper and is excluded from callback payload comparisons.
+
+The shared dispatcher maps types 1/5, 2, 3, 4 and 8 to logical flags 8, 4, 17, 18
+and 16. Type 7 changes to type 1 and skips mask repair. Type 8 skips the default
+matherr callback. Operations 16, 22 and 29 publish the second input and its valid
+record header before the OS call. The original local control snapshot is read
+before alias-sensitive error-field accesses; the supplied saved-word pointer is
+not updated. Record construction and OS decoding use the recovered preceding
+checkpoint. Callback/errno ordering and the two control restorations are retained.
+
+`NativeFxCrtExtended.cpp` supplies individual x87 instruction operations and
+10-byte value storage across C++ calls. It contains no host libm algorithms.
+The public bridges load the VM's double arguments and return the actual extended
+register result. A small MSVC ABI adapter avoids a compiler-generated double
+spill, since that compiler's `long double` storage is only 64-bit. The original wrapper-to-core calls remain separate source boundaries. Private
+register and stack inputs are represented explicitly in recovered interfaces; matching
+GPR choices or instruction bytes is not claimed.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_crt_inverse.py --gcc --cases 8192 --mutation-checks --write-native-fixtures /tmp/ug2-crt-inverse-fixtures.bin
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_crt_inverse.py --cases 8192 --mutation-checks
+cmake --build build/native --target ug2crtinverse_probe
+build/native/ug2crtinverse_probe "$UG2_DIR/speed2.exe" /tmp/ug2-crt-inverse-fixtures.bin
+# Add --native-mutation-checks to the GCC verifier command after building the probe.
+```
+
+Each compiler passes **90,112 comparisons** across eleven test entry points,
+**2,048 composed VM programs / 3,072 inverse calls**, and rejects **27 source
+mutations**. Cases cover all twelve precision/rounding modes, separately saved
+controls, bypass states, signed zero, unit endpoints and adjacent doubles,
+infinities, quiet/signaling NaNs, valid 80-bit values beyond double's mantissa and
+exponent range, extended subnormals, seeded arbitrary double payloads, error
+kinds and operations, OS edits/pointer replacement, and saved-control aliases
+within initialized error records. Composed VM cases include zero/multiple lanes
+and four-byte output overlaps. Checks include defined memory, ordered calls,
+errno, CDECL cleanup, preserved registers, control/MXCSR, exception flags and
+caller-owned x87 values/TOP/tags. Both public bridges also compare their complete extended returns under MSVC and
+GCC emulation. Dynamically generated private-ABI shims flush
+Unicorn's translation cache when their immediate arguments change.
+
+The native probe passes **73,728 body/instruction-model checks**, **16,384 exact
+extended-return bridge checks**, and **1,024 overlapping VM programs / 1,536 calls**.
+Its independent arithmetic oracle executes the original fused x87 stack sequence;
+policy models use only previously verified mask/exception-record/errno bodies as
+shared dependencies. It compares ten-byte values, initialized records, full second
+argument words, final and OS-call FP state, errno, aliases and output buffers.
+Hardware cases include DAZ/FTZ settings. Current hardware is masked during the
+arithmetic. Standalone dispatch varies saved masks and uses controlled finite OS
+results before restoration: **2,076 OS fixture calls**, including **689 records
+with a defined second argument**. This establishes record/caller behavior without
+claiming OS exception delivery. Seven hardware mutants reject early or final
+double narrowing, reversed subtraction/atan, a missing square root, floating
+input payload copies and skipped quick restoration.
+
+The extended storage API represents an already-loaded incoming ST0 value. Native
+fixtures perform that incoming load and its NaN quieting explicitly. Invalid x87
+encodings, artificial signaling-register states, actual pending/unmasked fault
+delivery and native MSVC hardware execution remain unverified. Reserved PC=1
+leaves precision bits uninitialized in these caller-local exception records; it
+is excluded from those comparisons. The preceding initialized-record suite checks
+the reserved encoding itself. Original compiler cookie infrastructure is outside
+this source-behavior claim.
+
+Unicorn's NaN-copy/flag and FTZ defects remain documented in the preceding
+sections. Transcendental emulation also cannot supply physical x87 golden bits;
+the native fused-instruction oracle supplies that evidence. No retail code is
+executed natively. Reports and mutation logs stay in `build/analysis/crt-inverse/`.
+
+The full native build, VM regressions and 60-frame SKYLINE smoke pass with wheel
+fingerprints `ca993eba` / `7141bcda` and clean retirement of all 829 textures and
+staged handles. Native shader/effect rendering remains inactive. Remaining math
+work includes power `0x75c9b0` and its SSE/private-x87 dependencies; CRT startup,
+OS exception delivery, GPU/effect activation and the other wheel seams remain
+open. Finite behavioral evidence remains separate from byte identity and complete
+game recovery.
 
 ### Verification (pixel size and LOD)
 

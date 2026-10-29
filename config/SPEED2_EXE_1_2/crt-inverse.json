@@ -1,0 +1,88 @@
+{
+  "target": "UG2 PC v1.2",
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "asin_entry": {
+      "address": "0x75eea0",
+      "size": 20,
+      "sha256": "026f607ac1f0882b2bf5ba5c27c6551be94a95f6fe51b212bbf0e0663485953c"
+    },
+    "acos_entry": {
+      "address": "0x75db80",
+      "size": 20,
+      "sha256": "39a691cb361a17a49a59e91aa18809e983ce5751f2854309738a613e302b1678"
+    },
+    "asin_core": {
+      "address": "0x75eebd",
+      "size": 174,
+      "sha256": "a2f1d2e39c26b247a4154774e358f12500bcc053a216009723e6278ea279d5d7"
+    },
+    "acos_core": {
+      "address": "0x75db9d",
+      "size": 174,
+      "sha256": "a6cf4d495f79238ad6520677b5f2c90e7df86c0917d2237394a4cdc2ddb37f9f"
+    },
+    "inspect": {
+      "address": "0x765748",
+      "size": 22,
+      "sha256": "4adcaaeddff7fc3980a56d0f0bd062f443e97ac27181910e7fc475851b93b5d9"
+    },
+    "prepare": {
+      "address": "0x7656d5",
+      "size": 23,
+      "sha256": "e6ec999d45c3c78e22ed722d9cdd003ca3e8685d7954a7d030915df1e55eb902"
+    },
+    "nan": {
+      "address": "0x7656ec",
+      "size": 25,
+      "sha256": "a23ac96606adf922bf696e81e75f081dbb573d31b809b41683e0f640b6a82f1a"
+    },
+    "start": {
+      "address": "0x765677",
+      "size": 60,
+      "sha256": "69db1385323f42468c5b7399242da5fbc86680306b91588b8fb4bc6b10c2cc2a"
+    },
+    "quick": {
+      "address": "0x76575e",
+      "size": 13,
+      "sha256": "b0971b5d2cb4945dc056293d2dac8d989fc1d1488b22edb4125e67fdf93c85bd"
+    },
+    "exit": {
+      "address": "0x76576b",
+      "size": 42,
+      "sha256": "c52b11c2f87cb280a857bc4f1442e274b39ddcfb68cb9167f941f707193e58da"
+    },
+    "dispatch": {
+      "address": "0x76cb75",
+      "size": 254,
+      "sha256": "6109341e760283fc1dfdbded96bd5f980529ca404ec6fa13db4f36bb90138454"
+    }
+  },
+  "data": {
+    "indefinite": {
+      "address": "0x81a4d0",
+      "size": 10,
+      "sha256": "0fcc362376c4ddd013c8ccedf9bea0af6d50faf7ea7df49e0ec0b37cab6a9c30"
+    },
+    "half_pi": {
+      "address": "0x81a4da",
+      "size": 10,
+      "sha256": "b005ac93ca05f2ec9073bffe3bf6e6bfb744c4b5b32ef1ff202a229ea01277f8"
+    },
+    "nan_add": {
+      "address": "0x7d7c40",
+      "size": 8,
+      "sha256": "6c3c396ed6b5c36dcae172271f462051b1266b851e92df3deea8ac65478fd712"
+    },
+    "asin_name": {
+      "address": "0x819f00",
+      "size": 5,
+      "sha256": "6d316e06bdb4a700e29ec99c8694e52cd715fcaaddcbb5ba4948949605f4111d"
+    },
+    "acos_name": {
+      "address": "0x819cc0",
+      "size": 5,
+      "sha256": "f9be389ee97a0bfbc0335c547ed63972a14a0e074fc88f54852da56a51be2d82"
+    }
+  }
+}

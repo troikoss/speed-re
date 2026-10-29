@@ -1269,3 +1269,8 @@ ug2CrtInfinity81A810 = 0x81a810;
 ug2CrtMaximum81A820 = 0x81a820;
 ug2CrtRaiseLarge81A920 = 0x81a920;
 ug2CrtRaiseTiny81A92C = 0x81a92c;
+
+ug2CrtBypassMathExit8B8424 = 0x8b8424;
+ug2CrtIndefinite81A4D0 = 0x81a4d0;
+ug2CrtHalfPi81A4DA = 0x81a4da;
+ug2CrtNanAdd7D7C40 = 0x7d7c40;

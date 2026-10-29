@@ -6,8 +6,8 @@ int __stdcall D3DXEffectVm(unsigned int *,unsigned int *,unsigned int,unsigned i
     unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int,unsigned int); // 0x688e79
 void __stdcall D3DXEffectVmOperation502(unsigned int,double **,double *); // 0x688ce2
 long double __stdcall D3DXEffectVmOperation63F2B5(float *); // 0x63f2b5
-// VM ABI bridges: floor and the table operation are recovered. Other math and
-// Win32 exception delivery retain explicit unsupported boundaries. Arguments
+// VM ABI bridges: floor, inverse trig and the table operation are recovered.
+// Power and Win32 exception delivery retain explicit unsupported boundaries. Arguments
 // replace the private original x87 input ABI; no host-math substitute is used.
 long double __cdecl UG2FxVmFloor(double); // 0x75eb50
 long double __cdecl UG2FxVmPower(double,double); // 0x75c9b0
