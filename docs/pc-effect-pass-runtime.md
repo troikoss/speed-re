@@ -84,8 +84,10 @@ read after the callback. Untouched value fields retain their previous bytes.
 
 `NativeCarRenderApi.cpp` validates the recovered effect class token before
 calling these four bodies. Fourteen other renderer API fallbacks still abort.
-`NativeFxPassDispatch.cpp` names five remaining state-dispatch boundaries:
-`0x66403c`, `0x664197`, `0x668dfd`, `0x669286` and `0x66a25f`.
+`NativeFxPassDispatch.cpp` now forwards cache gates `0x66403c` / `0x664197`
+through the subsequent [cache recovery](pc-effect-state-cache.md). Three
+record/group boundaries remain: `0x668dfd`, `0x669286` and `0x66a25f`. The
+pass-layer verification here retains all five as controlled services.
 Production group preparation still reaches its previously recovered bodies;
 its device services are separate. This is CPU integration, not GPU activation.
 

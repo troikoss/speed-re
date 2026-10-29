@@ -7,7 +7,8 @@ int __stdcall D3DXEffectBeginPass(D3DXEffectObject *,unsigned int); // 0x66acd2,
 int __stdcall D3DXEffectCommit(D3DXEffectObject *); // 0x66ac17, RET 4
 int __stdcall D3DXEffectEndPass(D3DXEffectObject *); // 0x65adcb, RET 4
 int __stdcall D3DXEffectSetTexture(D3DXEffectObject *,unsigned int,unsigned int); // 0x66d7d9, RET 12
-// Explicit ABI boundaries for original device-state routines still unrecovered.
+// Cache ABI bridges reach recovered gates. The three record/group application
+// routines below retain explicit boundaries until their recovery.
 int UG2FxPassCache66403C(D3DXEffectObject *,int,void *);
 int UG2FxPassCache664197(D3DXEffectObject *,int,void *);
 int UG2FxPassFastGroup668DFD(D3DXEffectObject *,D3DXEffectGroup64 *);

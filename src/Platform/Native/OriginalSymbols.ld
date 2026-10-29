@@ -1328,3 +1328,4 @@ ug2RenderWorldCalls872EF4 = 0x872ef4;
 ug2RenderWorldChanges872EF8 = 0x872ef8;
 ug2SolidViewMode870848 = 0x870848;
 ug2TechniqueBlend86EAD8 = 0x86ead8;
+ug2FxSamplerDefaults7B6C54 = 0x7b6c54;

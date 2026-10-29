@@ -5164,8 +5164,8 @@ EndPass, group application, texture assignment and deferred texture ownership.
 Four native effect API adapters execute this recovery. It preserves partial
 reference updates, dynamic dirty-queue reads, ignored Commit errors, precision
 restoration on BeginPass failures, shared texture maps and retain-before-tail
-publication. Five original state-dispatch routines remain explicit boundaries;
-actual GPU classes and activation remain open.
+publication. Two cache gates now reach the subsequent recovery below; three original
+record/group dispatch bodies and actual GPU classes/activation remain open.
 
 Per compiler: 28,672 comparisons, including 4,096 full pass/texture/commit/end
 cycles, and 44 rejected mutations. Native: 896 original captures (128 cycles),
@@ -5173,6 +5173,21 @@ full traces/arenas/bounded heaps, allocation/FP checks and fourteen rejected
 mutants. The full build, quad regression and gate-zero orbit/drive smokes pass.
 See [evidence, limits and reproduction](pc-effect-pass-runtime.md). No rendered
 parity or byte identity is claimed.
+
+### Effect state-block cache and reset chain (2026-10-29)
+
+Eleven complete bodies (2,846 bytes) now implement both cache gates, four state-
+block capture paths, shader/constant resets, sampler defaults and vertex boolean
+uploads. Native cache adapters execute the original two-block record/capture/
+apply/restore ownership sequence, failure cleanup and capacity updates. Reused
+scratch data and raw payload bits remain intact; vertex samplers begin at 0x101
+with thirteen defaults, versus zero and twelve defaults for pixel samplers.
+
+Each compiler passes 22,528 comparisons and 38 mutation checks. Native replay
+matches 1,364 original captures across 27,896 controlled GPU calls and rejects
+twenty mutations. Build, pass regression and gate-zero orbit/drive smokes pass.
+Actual GPU state-block/device operations and three record/group dispatcher bodies
+remain open. See [evidence, limits and reproduction](pc-effect-state-cache.md).
 
 ### Verification (pixel size and LOD)
 

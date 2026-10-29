@@ -1,0 +1,88 @@
+{
+  "target": "UG2 PC v1.2",
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "vertex_cache": {
+      "address": "0x66403c",
+      "size": 347,
+      "sha256": "dfc869b461029aaf72b5d83cbeef04706d0f42eb96828613771f9e209768099e"
+    },
+    "pixel_cache": {
+      "address": "0x664197",
+      "size": 347,
+      "sha256": "cf8a72701a66004ead618dfd96699451c3292703a9362649a0813af7f69cf7ee"
+    },
+    "capture_vertex_constants": {
+      "address": "0x66356e",
+      "size": 305,
+      "sha256": "f2a287a5d795705af756e88e61cc78ea7824df4f8ec1fa632e6b7f16451f6f37"
+    },
+    "capture_vertex_samplers": {
+      "address": "0x66369f",
+      "size": 305,
+      "sha256": "7878b4470f98c8f1d870ab7e1b16dd94324ff958a9c59581e010b655f4bb35a4"
+    },
+    "capture_pixel_constants": {
+      "address": "0x6637d0",
+      "size": 305,
+      "sha256": "02ed6bbecc340990bfd5e64162c520826cb1847748342faf086e0f6e1a7145a8"
+    },
+    "capture_pixel_samplers": {
+      "address": "0x663901",
+      "size": 305,
+      "sha256": "38df06536601e3df5f45af4f0354f854d260285f2bf677d150c049cc287c0afa"
+    },
+    "reset_vertex_constants": {
+      "address": "0x660205",
+      "size": 289,
+      "sha256": "bf0ab3d5eeb8f17227e772c80eed0963d03fde56820832546f09db11bb619668"
+    },
+    "reset_pixel_constants": {
+      "address": "0x6603b4",
+      "size": 293,
+      "sha256": "47063d8820797c0d3be18929c03d6da0e07adf4302fce848fa456ba82e675416"
+    },
+    "reset_vertex_samplers": {
+      "address": "0x660326",
+      "size": 142,
+      "sha256": "1af4e6c25a1470736471c62d3c53a72b233425588c5e831a8a05d7cc31280a81"
+    },
+    "reset_pixel_samplers": {
+      "address": "0x6604d9",
+      "size": 131,
+      "sha256": "6e90c5d22f24938094c2f9d22db1d0fa2e50f75e2a521f38c5b3512680f8b1e8"
+    },
+    "vertex_booleans": {
+      "address": "0x65aa5d",
+      "size": 77,
+      "sha256": "85b1c30fca09f75eee210a7fcdc7b722ef351bbf9aee23f97f048d8665e07f52"
+    }
+  },
+  "data": [
+    {
+      "address": "0x7b5068",
+      "size": 8,
+      "sha256": "eceb43d7488c6966096d6e7fb29e5f7750cc410d17de7af2c455a7174bbb5442"
+    },
+    {
+      "address": "0x7b5190",
+      "size": 8,
+      "sha256": "39b9ac0f423c2cf9a0d835a062b906894694d410dfd54c6732ecb6d20e72e661"
+    },
+    {
+      "address": "0x7b55c8",
+      "size": 8,
+      "sha256": "94d411f1e13bc8ea28346ae8ecba50fd43dcfa7f86ce7d062617b23390a81e6e"
+    },
+    {
+      "address": "0x7b6c2c",
+      "size": 8,
+      "sha256": "4dd0d31d02c1639e9dd9847e1945442cb7ecd43310d2fe97f9d340111a75a7d4"
+    },
+    {
+      "address": "0x7b6c54",
+      "size": 392,
+      "sha256": "9df092f7d423cd6af7e16538d500a61c89dfb10240d042dd32a0781d2107d64c"
+    }
+  ]
+}

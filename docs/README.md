@@ -29,6 +29,7 @@
 - [Secondary wheel quad](pc-wheel-secondary.md): tyre-mask geometry, corrected caller flags, exact Y rotation and native capture verification.
 - [Wheel quad submission](pc-wheel-quad-submit.md): original vertex packing, texture/world composition, effect-call ordering and native capture verification.
 - [Effect pass runtime](pc-effect-pass-runtime.md): original pass lifecycle, texture assignment/deferred ownership and native API integration.
+- [Effect state caches](pc-effect-state-cache.md): original state-block capture, shader/constant reset, sampler defaults and native cache integration.
 - [Wheel and body physics](pc-wheel-physics.md): vector math, wheel preparation/correction, coupling, and body verification.
 - [Ginsu engine sound](pc-ginsu.md): granular `.gin` data, EA-XA decoding and packet synthesis, with verification under both x87 precisions.
 

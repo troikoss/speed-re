@@ -39,6 +39,7 @@ list(APPEND UG2_RECOVERED_SOURCES
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectRecordReaders.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectRuntimeStorage.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectPassRuntime.cpp
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectStateCache.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectShaderResources.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectCompiledPayload.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectHandles.cpp
@@ -82,6 +83,7 @@ add_library(ug2native STATIC
     src/Platform/Native/NativeFxCrtLocale.cpp
     src/Platform/Native/NativeFxValueDispatch.cpp
     src/Platform/Native/NativeFxPassDispatch.cpp
+    src/Platform/Native/NativeFxStateCacheApi.cpp
     src/Platform/Native/NativeFxDeserializeDispatch.cpp
     src/Platform/Native/NativeFxDebugPlatform.cpp
     src/Platform/Native/NativeFxShaderReadback.cpp
@@ -286,6 +288,12 @@ target_compile_options(ug2effectpass_probe PRIVATE ${UG2_ARCH_FLAGS} -O1 -fno-fa
     -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
 target_link_libraries(ug2effectpass_probe -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
 target_link_options(ug2effectpass_probe PRIVATE ${UG2_LINK_FLAGS} -Wl,--wrap=UG2FxMalloc -Wl,--wrap=UG2FxFree)
+
+add_executable(ug2effectstatecache_probe src/Platform/Native/EffectStateCacheProbe.cpp)
+target_compile_options(ug2effectstatecache_probe PRIVATE ${UG2_ARCH_FLAGS} -O1 -fno-fast-math -ffp-contract=off
+    -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+target_link_libraries(ug2effectstatecache_probe -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
+target_link_options(ug2effectstatecache_probe PRIVATE ${UG2_LINK_FLAGS} -Wl,--wrap=UG2FxMalloc -Wl,--wrap=UG2FxFree)
 
 add_executable(ug2solidrecords_probe src/Platform/Native/SolidRecordsProbe.cpp src/Platform/Native/NativeSolidRecords.cpp
     src/Platform/Native/NativeTextureRecords.cpp src/Platform/Native/NativeTextureUpload.cpp src/Platform/Native/NativeFormatting.cpp)

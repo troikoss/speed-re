@@ -92,6 +92,16 @@ struct D3DXEffectObject {
     int RelocateParameter(D3DXEffectParameter *,unsigned int *scalar,unsigned int *matrix,unsigned int *structure); // 0x6614a1
     int ApplyPassGroup(unsigned int group,unsigned int index); // 0x6691a1
     int RecordTexture(unsigned int handle,unsigned int texture); // 0x666a68
+    int CacheVertexState(int enabled,unsigned short *sizes); // 0x66403c
+    int CachePixelState(int enabled,unsigned short *sizes); // 0x664197
+    int CaptureVertexConstants(int enabled,unsigned short *sizes); // 0x66356e
+    int CaptureVertexSamplers(int enabled,unsigned short *sizes); // 0x66369f
+    int CapturePixelConstants(int enabled,unsigned short *sizes); // 0x6637d0
+    int CapturePixelSamplers(int enabled,unsigned short *sizes); // 0x663901
+    int ResetVertexConstants(int enabled,unsigned short *sizes); // 0x660205
+    int ResetPixelConstants(int enabled,unsigned short *sizes); // 0x6603b4
+    int ResetVertexSamplers(int enabled,unsigned short *sizes); // 0x660326
+    int ResetPixelSamplers(int enabled,unsigned short *sizes); // 0x6604d9
 };
 struct D3DXEffectPoolLink {
     unsigned int value00,value04;
