@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Verify UG2's complete x87 power family and dispatch/SSE argument wrapper.
 
-The original SSE body 0x764749 remains an explicit controlled boundary here.
-Its arithmetic is NOT claimed recovered. All x87 helpers, environment save/
+The SSE body 0x764749 is an explicit controlled boundary in this caller suite;
+verify_pc_crt_power_sse.py checks its recovered arithmetic separately. All x87 helpers, environment save/
 restore, exceptional-value handling and CRT error dispatch execute on both sides.
 """
 import argparse

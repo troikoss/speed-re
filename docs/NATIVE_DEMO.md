@@ -4983,17 +4983,17 @@ The full native build, VM regressions and 60-frame SKYLINE smoke pass with wheel
 fingerprints `ca993eba` / `7141bcda` and clean retirement of all 829 textures and
 staged handles. Native shader/effect rendering remains inactive. Remaining math
 work at that checkpoint included power `0x75c9b0`; its x87 family is recovered
-in the following section. The SSE body, CRT startup,
-OS exception delivery, GPU/effect activation and the other wheel seams remain
-open. Finite behavioral evidence remains separate from byte identity and complete
+in the following section; the [SSE body is recovered subsequently](D3DX_CRT_POWER_SSE.md).
+CRT startup, OS exception delivery, GPU/effect activation and the other wheel seams
+remain open. Finite behavioral evidence remains separate from byte identity and complete
 game recovery.
 
 ### X87 power dispatch, reconstruction and exceptional helpers (2026-10-29)
 
 `CrtPower.cpp` recovers the power entry, complete x87 fallback and its remaining
 helpers. The production VM bridge now executes recovered x87 power. The original
-SSE arithmetic body at `0x764749` is still an explicit unsupported boundary;
-this checkpoint does not claim complete recovery of both power branches.
+SSE arithmetic body was an explicit unsupported boundary in this x87 checkpoint;
+it is recovered by the subsequent [SSE power pass](D3DX_CRT_POWER_SSE.md).
 
 | Address | Original bytes | Recovered behavior |
 | --- | ---: | --- |
@@ -5011,7 +5011,8 @@ this checkpoint does not claim complete recovery of both power branches.
 
 `crt-power-x87.json` pins these **1,490 original bytes**, the previously recovered
 51-byte shared error tail, referenced constants/name and full reference executable.
-It also identifies and fingerprints the **unrecovered 2,861-byte SSE body**. Read-only
+It also fingerprints the **2,861-byte SSE body**, subsequently recovered in
+[SSE power evidence](D3DX_CRT_POWER_SSE.md). Read-only
 Ghidra exports and original instructions provide the evidence. Source presence and
 these finite comparisons do not establish byte identity or other SPEED builds.
 
@@ -5019,8 +5020,8 @@ The entry keeps the original CPU flag, all six MXCSR mask bits and low x87
 control-word gate. The x87 fallback spills the base to double, copies the exponent
 to double for classification, and retains the incoming extended exponent for
 arithmetic. The separate SSE wrapper spills both incoming operands before its
-body call. `NativeFxCrtPowerSsePlatform.cpp` traps at that body; it supplies no
-replacement formula. Production retains the original zero BSS CPU flag because
+body call. The subsequent SSE recovery replaces the body trap with a recovered
+value-flow implementation. Production retains the original zero BSS CPU flag because
 CRT CPU initialization is still open, so the recovered x87 path is active.
 Tests explicitly select both gate outcomes.
 
@@ -5106,9 +5107,21 @@ encoding itself. Reports and mutation logs stay in `build/analysis/crt-power/`.
 
 The full native build, existing VM regressions and 60-frame SKYLINE smoke pass.
 Wheel fingerprints remain `ca993eba` / `7141bcda`, and all 829 texture records and
-staged handles retire to zero. The remaining power work is recovery of the full
-SSE body and its table/edge behavior. Native GPU/effect activation and the other
-wheel-rendering seams remain open.
+staged handles retire to zero. The subsequent pass recovers the full SSE body
+and its table/edge behavior; see the following evidence. Native GPU/effect
+activation and the other wheel-rendering seams remain open.
+
+### SSE power reduction, packed arithmetic and exceptional exits (2026-10-29)
+
+`CrtPowerSse.cpp` recovers the complete 2,861-byte body at `0x764749`. Both power
+branches now execute recovered arithmetic. Verification includes 32,768 direct
+and caller comparisons plus 1,024 composed VM programs / 1,536 power calls per
+compiler, an 8,192 × four incoming-XMM-state audit, and 8,192 native body checks
+against hardware-assisted original control flow. All seven error selectors,
+packed lane/rounding/flag behavior, 3,676 physical callback records and five
+rejected native mutants are covered. See [SSE power evidence and reproduction](D3DX_CRT_POWER_SSE.md)
+for table fingerprints, source mutations and verification limits. CRT startup,
+actual OS/unmasked exception delivery and native GPU/effect activation remain open.
 
 ### Verification (pixel size and LOD)
 

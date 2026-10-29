@@ -1,0 +1,63 @@
+{
+  "target": "UG2 PC v1.2",
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "sse_body": {
+      "address": "0x764749",
+      "size": 2861,
+      "sha256": "6ac9d8ae4708e2a0caf48162f6fd476eba8d29c6b3d5c32c05744c7010f6fc7f"
+    }
+  },
+  "data": {
+    "reciprocal1": {
+      "address": "0x7d4310",
+      "size": 1032,
+      "sha256": "5a70804f1d6200faa2a82bebf5aa99a099a6c41e0a2da039778502397a55f92b"
+    },
+    "log1": {
+      "address": "0x7d4720",
+      "size": 2064,
+      "sha256": "5312085c0487bf1ee82b64bfcce72138ad4dd08c3704e0d7b9f63323f36ea55b"
+    },
+    "reciprocal2": {
+      "address": "0x7d4f30",
+      "size": 1032,
+      "sha256": "f3cec7b10a1566371de4de769ed209115216cd85801c2b176a4b6b2f186a8b0a"
+    },
+    "log2": {
+      "address": "0x7d5340",
+      "size": 2064,
+      "sha256": "eb2354c9ffd33210c4b18f0f44a33541293fc67aa6481b86f2e327e570d593c9"
+    },
+    "reciprocal3": {
+      "address": "0x7d5b50",
+      "size": 2056,
+      "sha256": "af9db4fe7528766696bc3b8ab48645981de6f61c7c7ca5ec4f6789a5a8d95f59"
+    },
+    "log3": {
+      "address": "0x7d6360",
+      "size": 4112,
+      "sha256": "e6e13a4f11ded76a7e26cdf7d610aeb103f5793d4837668d3cde497f8f3e5aa0"
+    },
+    "log_coefficients": {
+      "address": "0x7d7370",
+      "size": 32,
+      "sha256": "984152d99bd5c9f1e00e1e8e721b868521e60aa93b92efd47f2b77379e9b849f"
+    },
+    "exp_table": {
+      "address": "0x7d7390",
+      "size": 2048,
+      "sha256": "aa9bdce67ff0ad6b09eebe38e3e763a22fb5ab8e39e7533eebcd645325ae4671"
+    },
+    "constants": {
+      "address": "0x7d7b90",
+      "size": 168,
+      "sha256": "d836275e0c24c1b8e6dc31cae11519c898f8972c8aa0a1d7b62f7e758a95d2fd"
+    },
+    "mapped_blob": {
+      "address": "0x7d4310",
+      "size": 14632,
+      "sha256": "e36452f607bdaaf1093d05153d9d4dd96c8b47ed5bd046087bf4bb01ae2b8adb"
+    }
+  }
+}

@@ -58,7 +58,8 @@ list(APPEND UG2_RECOVERED_SOURCES
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/CrtMathCallback.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/CrtExceptions.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/CrtInverse.cpp
-    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/CrtPower.cpp)
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/CrtPower.cpp
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/CrtPowerSse.cpp)
 # Verified separately by verify_pc_car_render_solid.py. NativeCarWheels still
 # supplies DrawSolid until native effect support and recovered GPU consumption are wired.
 list(REMOVE_ITEM UG2_RECOVERED_SOURCES ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Src/World/CarRenderSolid.cpp)
@@ -87,6 +88,7 @@ add_library(ug2native STATIC
     src/Platform/Native/NativeFxVmCrtPlatform.cpp
     src/Platform/Native/NativeFxCrtPowerInstructions.cpp
     src/Platform/Native/NativeFxCrtPowerSsePlatform.cpp
+    src/Platform/Native/NativeFxCrtSseInstructions.cpp
     src/Platform/Native/NativeFxCrtExtended.cpp
     src/Platform/Native/NativeFxCrtInstructions.cpp
     src/Platform/Native/NativeFxCrtDispatch.cpp
@@ -233,6 +235,13 @@ target_compile_options(ug2crtpower_probe PRIVATE ${UG2_ARCH_FLAGS} -O1
     -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
 target_link_libraries(ug2crtpower_probe -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
 target_link_options(ug2crtpower_probe PRIVATE ${UG2_LINK_FLAGS})
+add_executable(ug2crtpowersse_probe src/Platform/Native/CrtPowerSseProbe.cpp)
+target_compile_options(ug2crtpowersse_probe PRIVATE ${UG2_ARCH_FLAGS} -O1
+    -fno-fast-math -ffp-contract=off
+    -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+target_link_libraries(ug2crtpowersse_probe -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
+target_link_options(ug2crtpowersse_probe PRIVATE ${UG2_LINK_FLAGS})
+
 add_executable(ug2solidrecords_probe src/Platform/Native/SolidRecordsProbe.cpp src/Platform/Native/NativeSolidRecords.cpp
     src/Platform/Native/NativeTextureRecords.cpp src/Platform/Native/NativeTextureUpload.cpp src/Platform/Native/NativeFormatting.cpp)
 target_compile_options(ug2solidrecords_probe PRIVATE ${UG2_ARCH_FLAGS} -O2 -Wall -UNDEBUG

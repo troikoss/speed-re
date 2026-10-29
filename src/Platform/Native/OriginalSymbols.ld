@@ -1285,3 +1285,5 @@ ug2CrtPowerScaleUp7D7C6C = 0x7d7c6c;
 ug2CrtPowerInfinity7D7C74 = 0x7d7c74;
 ug2CrtPowerZero7D7C7C = 0x7d7c7c;
 ug2CrtPowerInfinity81A470 = 0x81a470;
+
+ug2CrtPowerSseData7D4310 = 0x7d4310;

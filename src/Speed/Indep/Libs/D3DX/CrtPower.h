@@ -14,7 +14,7 @@ int __cdecl D3DXCrtFpClass(D3DXCrtDoubleBits); // 0x75dc8e
 int __cdecl D3DXCrtPowerSpecial(D3DXCrtDoubleBits,D3DXCrtDoubleBits,double *); // 0x7658b6
 void __cdecl D3DXCrtTwoArgError(unsigned int,unsigned int,const char *,D3DXCrtDoubleBits,D3DXCrtDoubleBits,unsigned int,D3DXCrtExtended *); // 0x765660 + shared tail 0x765680
 void __cdecl D3DXCrtPowerMathExit(unsigned int,const char *,D3DXCrtDoubleBits,D3DXCrtDoubleBits,unsigned int,D3DXCrtExtended *); // 0x7657a9
-// Instruction semantics and the remaining original SSE body boundary.
+// Instruction semantics and the raw-double service for the recovered SSE body.
 void __cdecl UG2FxCrtExtendedLoad(D3DXCrtExtended *,const D3DXCrtExtended *);
 void __cdecl UG2FxCrtExtendedAdd(D3DXCrtExtended *,const D3DXCrtExtended *,const D3DXCrtExtended *);
 void __cdecl UG2FxCrtExtendedRound(D3DXCrtExtended *,const D3DXCrtExtended *);
@@ -29,7 +29,7 @@ unsigned int __cdecl UG2FxCrtExtendedCompare(const D3DXCrtExtended *,const D3DXC
 unsigned int __cdecl UG2FxCrtExtendedCompareDouble(const D3DXCrtExtended *,const double *);
 void __cdecl UG2FxCrtSaveEnvironment(D3DXCrtSavedEnvironment *);
 void __cdecl UG2FxCrtRestoreEnvironment(const D3DXCrtSavedEnvironment *);
-void __cdecl UG2FxCrtPowerSseBody(double *,D3DXCrtDoubleBits,D3DXCrtDoubleBits); // 0x764749 remains unsupported
+void __cdecl UG2FxCrtPowerSseBody(double *,D3DXCrtDoubleBits,D3DXCrtDoubleBits); // 0x764749, final FLD performed by wrapper
 extern const double ug2CrtPowerHalf819C80,ug2CrtPowerIndefinite81A818,ug2CrtPowerNegativeZero81A830;
 extern const double ug2CrtPowerMaximum7D7C54,ug2CrtPowerMinimum7D7C5C,ug2CrtPowerScaleDown7D7C64,ug2CrtPowerScaleUp7D7C6C,ug2CrtPowerInfinity7D7C74,ug2CrtPowerZero7D7C7C;
 extern const D3DXCrtExtended ug2CrtPowerInfinity81A470;

@@ -25,6 +25,7 @@
 - [Vehicle physics](pc-vehicle-physics.md): timestep, integrator, engine, and drivetrain investigation.
 - [Human steering](pc-human-steering.md): timed-average and rate-helper recovery, constructor integration and remaining physics dependencies.
 - [Camera](pc-camera.md): view-matrix helpers and the drive camera's world/car collision pushes.
+- [SSE power](D3DX_CRT_POWER_SSE.md): original table-driven power, packed arithmetic, exception exits and hardware-assisted verification.
 - [Wheel and body physics](pc-wheel-physics.md): vector math, wheel preparation/correction, coupling, and body verification.
 - [Ginsu engine sound](pc-ginsu.md): granular `.gin` data, EA-XA decoding and packet synthesis, with verification under both x87 precisions.
 
