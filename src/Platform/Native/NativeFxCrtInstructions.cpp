@@ -1,4 +1,4 @@
-#include "../../Speed/Indep/Libs/D3DX/CrtFloor.h"
+#include "../../Speed/Indep/Libs/D3DX/CrtExceptions.h"
 // Instruction semantics only. Selection, bit arithmetic and CRT policy stay
 // in recovered source. SSE2 adapters are reached only through its CPU gate.
 #ifdef _MSC_VER
@@ -87,5 +87,80 @@ extern "C" void __cdecl UG2FxCrtRoundStore(double *out,const double *value) {
         fstp qword ptr [eax] }
 #else
     asm volatile("fldl %1; frndint; fstpl %0" : "=m"(*out) : "m"(*value) : "st");
+#endif
+}
+// The status-generator's arithmetic is original x87 instruction behavior;
+// exception selection and priority stay in CrtExceptions.cpp.
+extern "C" unsigned int __cdecl UG2FxCrtReadStatusWait() {
+    unsigned short value;
+#ifdef _MSC_VER
+    __asm { fstsw value }
+#else
+    asm volatile("fstsw %0" : "=m"(value));
+#endif
+    return value;
+}
+extern "C" unsigned int __cdecl UG2FxCrtClearStatusNoWait() {
+    unsigned short value;
+#ifdef _MSC_VER
+    __asm { fnstsw value
+        fnclex }
+#else
+    asm volatile("fnstsw %0; fnclex" : "=m"(value));
+#endif
+    return value;
+}
+extern "C" void __cdecl UG2FxCrtRaiseInvalid() {
+    int scratch;
+#ifdef _MSC_VER
+    __asm { fld tbyte ptr [ug2CrtRaiseLarge81A920]
+        fistp scratch
+        fwait }
+#else
+    asm volatile("fldt %1; fistpl %0; fwait" : "=m"(scratch) : "m"(ug2CrtRaiseLarge81A920) : "st");
+#endif
+}
+extern "C" void __cdecl UG2FxCrtRaiseOverflow() {
+    double scratch;unsigned short status;
+#ifdef _MSC_VER
+    __asm { fstsw status
+        fld tbyte ptr [ug2CrtRaiseLarge81A920]
+        fstp scratch
+        fwait
+        fstsw status }
+#else
+    asm volatile("fstsw %0; fldt %2; fstpl %1; fwait; fstsw %0" : "=m"(status),"=m"(scratch) : "m"(ug2CrtRaiseLarge81A920) : "st");
+#endif
+}
+extern "C" void __cdecl UG2FxCrtRaiseUnderflow() {
+    double scratch;
+#ifdef _MSC_VER
+    __asm { fld tbyte ptr [ug2CrtRaiseTiny81A92C]
+        fstp scratch
+        fwait }
+#else
+    asm volatile("fldt %1; fstpl %0; fwait" : "=m"(scratch) : "m"(ug2CrtRaiseTiny81A92C) : "st");
+#endif
+}
+extern "C" void __cdecl UG2FxCrtRaiseZeroDivide() {
+#ifdef _MSC_VER
+    __asm { fldz
+        fld1
+        fdivrp st(1),st(0)
+        fstp st(0)
+        fwait }
+#else
+    // GNU's no-operand FDIVP encodes Intel FDIVRP (DE F1): 1 / 0.
+    asm volatile("fldz; fld1; fdivp; fstp %%st(0); fwait" : : : "st");
+#endif
+}
+extern "C" void __cdecl UG2FxCrtRaisePrecision() {
+    double scratch;
+#ifdef _MSC_VER
+    __asm { fldpi
+        fstp scratch
+        fwait }
+#else
+    asm volatile("fldpi; fstpl %0; fwait" : "=m"(scratch) : : "st");
 #endif
 }

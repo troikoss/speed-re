@@ -1,4 +1,4 @@
-#include "../../Speed/Indep/Libs/D3DX/CrtFloor.h"
+#include "../../Speed/Indep/Libs/D3DX/CrtExceptions.h"
 #ifdef _MSC_VER
 extern "C" __declspec(noreturn) void __cdecl abort(void);
 #else
@@ -10,5 +10,8 @@ extern "C" int __cdecl UG2FxCrtCallMathError(unsigned int token,D3DXCrtMathExcep
     if (token==0x727e6b) return D3DXCrtDefaultMathError(error);
     abort();
 }
-// Original general FP exception/result runtime 0x7675cb remains unsupported.
-extern "C" long double __cdecl UG2FxCrtHandleResult(unsigned int,unsigned int,double,double,unsigned int) { abort(); }
+// Preserve the caller's raw CDECL payload before the recovered body chooses
+// which values to load. In particular, unused SNaNs must not be quieted here.
+extern "C" long double __cdecl UG2FxCrtHandleResult(unsigned int flags,unsigned int operation,D3DXCrtDoubleBits first,D3DXCrtDoubleBits result,unsigned int control) {
+    return D3DXCrtHandleResult(flags,operation,first,result,control);
+}

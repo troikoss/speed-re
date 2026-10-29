@@ -64,11 +64,13 @@ extern "C" long double __cdecl D3DXCrtFloor(double value) {
             UG2_FX_VM_STORE_LOAD(prepared,value);return D3DXCrtHandleQnan(0xb,prepared,saved);
         }
         double result;UG2_FX_VM_STORE_ADD(result,value,ug2VmOne786E68);
-        UG2_FX_VM_STORE_LOAD(prepared,value);return UG2FxCrtHandleResult(8,0xb,prepared,result,saved);
+        UG2_FX_VM_STORE_LOAD(prepared,value);D3DXCrtDoubleBits first,output;UG2_CRT_COPY_DOUBLE_BITS(first,prepared);UG2_CRT_COPY_DOUBLE_BITS(output,result);
+        return UG2FxCrtHandleResult(8,0xb,first,output,saved);
     }
     double result=D3DXCrtRoundCurrent(prepared);
     if (UG2_FX_VM_EQ(result,value) || (saved&0x20)) {
         D3DXCrtRawControl(saved,0xffff);return result;
     }
-    UG2_FX_VM_STORE_LOAD(prepared,value);return UG2FxCrtHandleResult(0x10,0xb,prepared,result,saved);
+    UG2_FX_VM_STORE_LOAD(prepared,value);D3DXCrtDoubleBits first,output;UG2_CRT_COPY_DOUBLE_BITS(first,prepared);UG2_CRT_COPY_DOUBLE_BITS(output,result);
+    return UG2FxCrtHandleResult(0x10,0xb,first,output,saved);
 }

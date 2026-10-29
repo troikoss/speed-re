@@ -6,7 +6,7 @@ extern "C" __declspec(noreturn) void __cdecl abort(void);
 extern "C" void __cdecl abort(void) __attribute__((noreturn));
 #endif
 // Recovered floor and table-operation bridges. Other math entries stay traps;
-// general FP exception handling has its own explicit runtime boundary.
+// shared FP handling is recovered through the actual OS exception boundary.
 extern "C" long double __cdecl UG2FxVmFloor(double value) { return D3DXCrtFloor(value); }
 extern "C" long double __cdecl UG2FxVmPower(double,double) { abort(); }
 extern "C" long double __cdecl UG2FxVmAsin(double) { abort(); }

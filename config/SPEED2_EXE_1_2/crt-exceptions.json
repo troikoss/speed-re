@@ -1,0 +1,73 @@
+{
+  "target": "UG2 PC v1.2",
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "result": {
+      "address": "0x7675cb",
+      "size": 190,
+      "sha256": "ea9a0de2a88efc9e035a8235c03394e00ec8bbab5bbd3f690b02a8d80aa1309a"
+    },
+    "masks": {
+      "address": "0x767263",
+      "size": 546,
+      "sha256": "c35a6659fd71a47094cc0b3a302bf00cb80a311d9e91baebf99de5dbe67595bd"
+    },
+    "raise_record": {
+      "address": "0x766fbe",
+      "size": 677,
+      "sha256": "951e8c380c2cc45b1b5bb9526e13431b14cf9ad9a81a03d0821324a7ed2579a5"
+    },
+    "decompose": {
+      "address": "0x766f04",
+      "size": 186,
+      "sha256": "fcfccc0501499f7d3dcce14f4bbcbb3ea8433da1e54bae71b4a7a8972935777e"
+    },
+    "exponent": {
+      "address": "0x766e7f",
+      "size": 42,
+      "sha256": "a96bd4239072bf5565794cce8917077abafd7d0ed2db860514d23aeac84bec3f"
+    },
+    "error_code": {
+      "address": "0x7674ad",
+      "size": 45,
+      "sha256": "d2373b0fdcfadd6c1e4d021fdb348bcaad1707abc47b0a6615b9fa59dc750ca3"
+    },
+    "status": {
+      "address": "0x7676c8",
+      "size": 89,
+      "sha256": "8c74e5fa2364c942135c4a1264fafa243d25717ed61ffff6b1b9595ab241ad89"
+    },
+    "read_status": {
+      "address": "0x767689",
+      "size": 13,
+      "sha256": "bb08cc1e75cad356b7e00a9105dc2333a4a63e91dbd2c1222e3bd33fcecc3185"
+    },
+    "clear_status": {
+      "address": "0x767696",
+      "size": 14,
+      "sha256": "597d5fa52b7de8bf2de758d0af2c992ac1a4f0df30109644b772fa6ae20db5eb"
+    }
+  },
+  "data": {
+    "infinity": {
+      "address": "0x81a810",
+      "size": 8,
+      "sha256": "9402bb655bc3b7331a00f1219ef647565bbe517c74aa0e41026885785867d1cd"
+    },
+    "maximum": {
+      "address": "0x81a820",
+      "size": 8,
+      "sha256": "dd46fdd197731f40f29d789fd02be525b10ff16ea3b7830c9f2c5b28131420ff"
+    },
+    "large": {
+      "address": "0x81a920",
+      "size": 12,
+      "sha256": "e9e12c808fadec46d302ea636b9820a2fe879716f92283c335bd6e296b9dec6e"
+    },
+    "tiny": {
+      "address": "0x81a92c",
+      "size": 12,
+      "sha256": "c002f0e306b205048ef8ae6a1f528d2ff1e930e0d7707bea37ea6eb0f12ba817"
+    }
+  }
+}

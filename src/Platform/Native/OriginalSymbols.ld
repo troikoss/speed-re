@@ -1264,3 +1264,8 @@ ug2CrtFloorOne7D3C90 = 0x7d3c90;
 ug2CrtFloorNegativeOne7D3CB0 = 0x7d3cb0;
 ug2CrtFloorNegativeZero7D3CC0 = 0x7d3cc0;
 ug2CrtMathNames81A838 = 0x81a838;
+
+ug2CrtInfinity81A810 = 0x81a810;
+ug2CrtMaximum81A820 = 0x81a820;
+ug2CrtRaiseLarge81A920 = 0x81a920;
+ug2CrtRaiseTiny81A92C = 0x81a92c;

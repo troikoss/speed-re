@@ -4745,8 +4745,9 @@ original errno field at `+8`; Win32 CRT thread initialization is not recovered.
 The indirect callback adapter recognizes the recovered default PE token and
 traps other tokens. The original CRT CPU/SSE initialization is also open:
 production retains the copied zero BSS flag and uses the masked x87 path;
-fixtures select both evidenced dispatch states. **General FP result/exception
-handler `0x7675cb` remains a production trap**, as do power, asin and acos.
+fixtures select both evidenced dispatch states. At this checkpoint, **general FP result/exception handler `0x7675cb` remained a
+production trap**. The following section recovers it through the OS service.
+Power, asin and acos remain unsupported.
 Unmasked/pending exception delivery, arbitrary invalid pointers, custom callback
 porting, concurrency and rendered shader equivalence remain unverified. Finite
 behavioral agreement is separate from instruction-byte identity.
@@ -4755,6 +4756,119 @@ The complete native build, affected VM dispatcher regressions and 60-frame
 SKYLINE smoke pass. Wheel fingerprints remain `ca993eba` / `7141bcda`; all 829
 texture records and staged handles retire to zero. Native GPU/effect activation
 and the other wheel-rendering seams remain open.
+
+### Shared CRT FP result, masks and exception records (2026-10-29)
+
+`CrtExceptions.cpp` recovers the shared runtime previously controlled or executed
+as original dependencies by the floor verifier:
+
+| Address | Original bytes | Recovered body |
+| --- | ---: | --- |
+| `0x7675cb` | 190 | Shared floating result/error caller |
+| `0x767263` | 546 | Exception-mask handling and overflow/underflow result repair |
+| `0x766fbe` | 677 | Exception-record construction, OS call and record decoding |
+| `0x766f04` | 186 | Exponent decomposition, including subnormal normalization |
+| `0x766e7f` | 42 | Exponent replacement using original argument bits |
+| `0x7674ad` | 45 | Logical error-code classification |
+| `0x7676c8` | 89 | Raise x87 status through the original arithmetic |
+| `0x767689` / `0x767696` | 13 / 14 | Waiting status read / nonwaiting read and clear |
+
+`crt-exceptions.json` pins all **1,802 original bytes**, the four constant spans
+and the full UG2 PC v1.2 executable SHA-256. Read-only saved-project Ghidra exports
+and original disassembly supply the evidence; no project changes are required.
+These are CRT library routines observed in this UG2 binary; other SPEED builds
+are not verified.
+
+Mask handling preserves the original priority: invalid, divide-by-zero,
+overflow, then underflow, with only one primary branch taken. Precision handling
+follows independently. Its logical flag bits differ from hardware mask bits.
+Overflow chooses signed infinity or maximum finite double according to saved
+rounding bits and an ordered positive comparison. Underflow subtracts 1,536 from
+the decomposed exponent and shifts the two-DWORD significand, collecting discarded
+bits without a rounding increment. Signed-zero, tiny/subnormal and NaN paths
+retain the original floating loads, comparisons and stores. Decomposition returns
+positive zero for either input zero; nonfinite values undergo the same exponent
+replacement as other values. The replacement top word uses original input bits,
+even though the other bytes pass through an explicit floating copy.
+
+Status generation uses the original extended constants, invalid integer store,
+overflow/underflow stores, division and pi store in the observed order, including
+waiting instructions. Both status helpers sign-extend the complete 16-bit return.
+`NativeFxCrtInstructions.cpp` provides only these x87 instruction operations;
+selection, masks and record policy stay in recovered source.
+
+Exception-record fields retain their observed word offsets. Construction and
+return decoding preserve repeated alias-sensitive reads and writes. The OS
+receives one argument pointing to the record-pointer slot; the fixture handler
+can replace that pointer before return. The original precision decoder clears
+**rounding bits `0xc00`**, rather than precision bits `0x300`, in three branches.
+This behavior is preserved. Reserved precision encoding retains existing record
+bits; initialized standalone-record tests cover it. Caller-local record padding
+is uninitialized in the original. Comparisons include only fields it defines,
+then initialize unused padding before controlled handler edits. They never
+rewrite the original caller's stack cookie.
+
+The production CDECL bridge now calls the recovered shared result caller. Its
+8-byte input/result payloads use integer word pairs with the original stack ABI,
+so unused SNaNs are not loaded prematurely. Floor's two call sites retain their
+original argument-preparation loads. The handler either repairs the result,
+builds the exception record, or invokes the previously recovered matherr/errno
+chain and restores the control word. Compiler stack-cookie infrastructure is
+not claimed as part of this source recovery.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_crt_exceptions.py --gcc --cases 8192 --mutation-checks --write-native-fixtures /tmp/ug2-crt-exception-fixtures.bin
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_crt_exceptions.py --cases 8192 --mutation-checks
+cmake --build build/native --target ug2crtexceptions_probe
+build/native/ug2crtexceptions_probe "$UG2_DIR/speed2.exe" /tmp/ug2-crt-exception-fixtures.bin
+# Add --native-mutation-checks to the GCC verifier command after building the probe.
+```
+
+Each compiler passes **73,728 body comparisons**, **2,048 composed floor calls**
+and **512 composed VM fraction programs**, and rejects **27 source mutations**.
+The composed runs execute recovered result/mask/record helpers without redirecting
+them to the original runtime. Fixtures cover all low logical flags, independent
+saved masks, precision/rounding settings, signed/exponent/subnormal boundaries,
+quiet/signaling NaNs, seeded arbitrary payloads, high flag/control words, errno,
+callback edits, record-pointer replacement, and overlapping record/control/input/
+output storage. They compare defined memory and event payload/order, CDECL stack
+cleanup, preserved registers, control/MXCSR, x87 exception flags, TOP/tags and live
+values, including existing caller-owned stack values.
+
+The native probe passes **73,728 body/instruction-model checks** and **131,072
+status-word checks**. Its numerical oracle uses independent 64-bit payload models
+and original x87 instruction semantics. All nine bodies execute on physical x87;
+only actual OS exception delivery uses a test handler. Hardware controls stay
+masked, including on return from the general caller; mask-repair and standalone
+record cases still vary saved masks independently. It checks exact return bits,
+all initialized output/record bytes, errno, stack/TOP/tags, six exception flags,
+control and MXCSR, including DAZ/FTZ modes. Previously verified matherr/errno
+bodies are shared dependencies of this native oracle. The status sweep requests
+all 65,536 environment-word patterns for each helper and compares the hardware's
+normalized status and return. This does not establish pending/unmasked delivery.
+Seven native mutants are rejected, including wrong status operations, dropped
+underflow sticky bits, omitted exponent-copy loads, premature unused-input loads,
+reversed division and a precision-free replacement for the pi store.
+
+Unicorn still fails to quiet SNaNs on copies, omits hardware flags, and incorrectly
+applies MXCSR FTZ to x87 stores. Its comparisons establish agreement within those
+emulated semantics. Physical flag/quieting evidence comes from the native
+instruction/model probe, not an emulator-derived golden value. Physical claims
+apply to GCC i386; native MSVC hardware execution is not established. Reports and
+mutation logs remain in `build/analysis/crt-exceptions/`.
+
+The production unsupported boundary is now the actual Win32 **RaiseException**
+service (IAT `0x7832a4`) in the separate
+`NativeFxCrtExceptionPlatform.cpp` object. Linux SEH delivery, unmasked/pending
+exceptions, CRT startup/thread lifecycle, arbitrary custom callback tokens,
+invalid pointers and concurrency remain open. Power/asin/acos and native shader/
+GPU/effect activation remain open. Finite behavioral comparisons do not establish
+instruction-byte identity or complete game recovery.
+
+The complete native build, existing floor/VM regressions and 60-frame SKYLINE
+smoke pass. Wheel fingerprints remain `ca993eba` / `7141bcda`, with all 829 texture
+records and staged handles retired. These are demo regressions; the recovered
+shader runtime is not yet active in rendering.
 
 ### Verification (pixel size and LOD)
 

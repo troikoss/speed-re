@@ -28,7 +28,7 @@ void __cdecl UG2FxCrtSseTruncate(void *,const void *,const void *);
 void __cdecl UG2FxCrtRoundStore(double *,const double *);
 void *__cdecl UG2FxCrtThreadData();
 int __cdecl UG2FxCrtCallMathError(unsigned int,D3DXCrtMathException *);
-long double __cdecl UG2FxCrtHandleResult(unsigned int,unsigned int,double,double,unsigned int); // 0x7675cb remains open
+long double __cdecl UG2FxCrtHandleResult(unsigned int,unsigned int,D3DXCrtDoubleBits,D3DXCrtDoubleBits,unsigned int); // recovered 0x7675cb
 extern unsigned int ug2CrtSseEnabled8BA480,ug2CrtFloorControl81AA60,ug2CrtMathErrorFlag81ACE0,ug2CrtMathErrorCallback81AA5C;
 extern const unsigned int ug2CrtFloorShift7D3CA0[4],ug2CrtFloorExponentMask7D3CD0[4];
 extern const double ug2CrtFloorOne7D3C90,ug2CrtFloorNegativeOne7D3CB0,ug2CrtFloorNegativeZero7D3CC0;
