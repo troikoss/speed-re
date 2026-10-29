@@ -1,9 +1,7 @@
 #include "../../Speed/Indep/Src/World/CarWheelSecondary.h"
-#include <stdio.h>
-#include <stdlib.h>
-// Original quad producer and view wrapper execute recovered code. Packing and
-// rendering 0x5c5580 still require the effect/device backend. Fail visibly if
-// a future mode selects this path before that integration exists.
-void CarRenderSubmitQuad(CarRenderQuad *,CarRenderTexture *,WheelMatrix *,unsigned int) {
-    fprintf(stderr,"unimplemented native quad packing/render submission (UG2 0x5c5580)\n");abort();
+// Native ABI bridge. Context is consumed at the original call/read boundaries:
+// texture binding may initialize or replace it. Typed effect/device services
+// retain explicit unsupported boundaries until renderer integration.
+void CarRenderSubmitQuad(CarRenderQuad *quad,CarRenderTexture *texture,WheelMatrix *world,unsigned int fourth) {
+    CarRenderSubmitQuadRecovered(quad,texture,world,fourth);
 }

@@ -3,8 +3,9 @@
 `CarWheelSecondary.cpp` recovers the complete secondary tyre-quad producer
 `0x620600`, its raw rim-attribute helpers, quad initialization and view wrapper.
 The empty native method is removed. The producer and wrapper execute recovered
-code; native quad packing/render submission at `0x5c5580` remains an explicit
-unsupported boundary. Gate 3 is not selected by the current native session.
+code. A subsequent [quad submission recovery](pc-wheel-quad-submit.md) implements
+`0x5c5580`; its actual effect/device services remain unsupported native boundaries.
+Gate 3 is not selected by the current native session.
 This does not activate a replacement tyre effect or establish rendering parity.
 
 The reference is UG2 PC v1.2, executable SHA-256
@@ -52,9 +53,10 @@ flag comprise 97 compared bytes.
 
 The view wrapper ignores its receiver and fifth stack argument, forwards the
 first four arguments to `0x5c5580`, and uses the original RET 0x14 ABI. The native
-boundary currently reports unsupported quad packing/render submission rather
-than silently accepting the draw. The referenced 462-byte packing/render body
-and its effect/device interactions remain to be recovered and integrated.
+ABI bridge now forwards into the recovered 462-byte packing/render body; see
+[the subsequent evidence](pc-wheel-quad-submit.md). Its GPU services still fail
+visibly pending backend integration. The verification below retains submission
+as a controlled boundary to isolate this producer.
 
 `WheelRotateY.cpp` replaces the earlier Y-rotation approximation with the original
 extended sine/cosine entry points, independent positive/negative binary32 stores

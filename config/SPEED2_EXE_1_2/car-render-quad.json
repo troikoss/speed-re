@@ -1,0 +1,16 @@
+{
+  "target": "UG2 PC v1.2",
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "quad": {
+      "address": "0x5c5580",
+      "size": 462,
+      "sha256": "2cf791426f99b4e7ffbd455366c2977785d3609c1962c7f3bad7a36a68ccfdf0"
+    },
+    "finish": {
+      "address": "0x5bcfc0",
+      "size": 7,
+      "sha256": "f697a48d149fdd26c3e9f9704722e8b07812f3dac8a22bc783fc5a5b5884bf04"
+    }
+  }
+}

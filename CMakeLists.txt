@@ -97,6 +97,7 @@ add_library(ug2native STATIC
     src/Platform/Native/NativeFxSetupDispatch.cpp
     src/Platform/Native/NativeTechniqueDispatch.cpp
     src/Platform/Native/NativeCarQuadPlatform.cpp
+    src/Platform/Native/NativeCarRenderApi.cpp
     src/Platform/Native/NativeMatrixDispatch.cpp
     src/Platform/Native/NativeVehicle.cpp
     src/Platform/Native/NativeWorld.cpp
@@ -250,6 +251,22 @@ target_compile_options(ug2wheelsecondary_probe PRIVATE ${UG2_ARCH_FLAGS} -O1
     -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
 target_link_libraries(ug2wheelsecondary_probe -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
 target_link_options(ug2wheelsecondary_probe PRIVATE ${UG2_LINK_FLAGS})
+
+# Test-only names expose unchanged upload bodies to observation wrappers.
+add_library(ug2quad_material_probe OBJECT src/Speed/Indep/Src/World/CarRenderMaterial.cpp)
+add_library(ug2quad_world_probe OBJECT src/Speed/Indep/Src/World/CarRenderUploads.cpp)
+target_compile_definitions(ug2quad_material_probe PRIVATE CarRenderBindTexture=ProbeRecoveredBindTexture)
+target_compile_definitions(ug2quad_world_probe PRIVATE CarRenderUploadWorld=ProbeRecoveredUploadWorld)
+foreach(quad_target ug2quad_material_probe ug2quad_world_probe)
+    target_compile_options(${quad_target} PRIVATE ${UG2_ARCH_FLAGS} -O1 -fno-fast-math -ffp-contract=off
+        -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+endforeach()
+add_executable(ug2quadsubmit_probe src/Platform/Native/CarRenderQuadProbe.cpp
+    $<TARGET_OBJECTS:ug2quad_material_probe> $<TARGET_OBJECTS:ug2quad_world_probe>)
+target_compile_options(ug2quadsubmit_probe PRIVATE ${UG2_ARCH_FLAGS} -O1 -fno-fast-math -ffp-contract=off
+    -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+target_link_libraries(ug2quadsubmit_probe -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
+target_link_options(ug2quadsubmit_probe PRIVATE ${UG2_LINK_FLAGS})
 
 add_executable(ug2solidrecords_probe src/Platform/Native/SolidRecordsProbe.cpp src/Platform/Native/NativeSolidRecords.cpp
     src/Platform/Native/NativeTextureRecords.cpp src/Platform/Native/NativeTextureUpload.cpp src/Platform/Native/NativeFormatting.cpp)

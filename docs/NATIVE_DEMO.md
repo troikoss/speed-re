@@ -5135,8 +5135,27 @@ comparison at `0x622eee..0x622f06`; the earlier `0x60d1b0` attribution was an
 incorrect stack-lifetime interpretation. Per compiler, 28,672 exact comparisons
 and ten source mutants pass; native replay checks 4,096 original quad captures
 and rejects five hardware mutants. See [evidence and reproduction](pc-wheel-secondary.md).
-Quad packing/render submission `0x5c5580` remains a visible unsupported backend
-boundary. The current demo gate stays zero; this pass does not activate shaders.
+Quad packing/render submission `0x5c5580` is recovered in the following pass.
+Its effect/device services remain unsupported boundaries. The demo gate stays zero.
+
+### Wheel quad packing and submission (2026-10-29)
+
+`CarRenderQuadSubmit.cpp` recovers complete `0x5c5580` and counter tail
+`0x5bcfc0` (469 bytes). The native bridge forwards through recovered texture
+binding/world upload. It preserves all 96 defined vertex bytes, snapshots before
+callbacks, rereads mode/technique/gate at the original boundaries, invokes zero
+parameter handles, ignores HRESULTs and increments the counter even with drawing
+disabled. The remaining 32 vertex bytes are indeterminate in the original.
+Eighteen typed device/effect fallback services abort with a named diagnostic;
+actual GPU integration remains open.
+
+Each compiler passes 16,384 isolated calls, 512 composed submissions and nineteen
+source mutation checks. Native replay compares 1,152 original captures, including
+128 composed calls, full traces/arenas/globals and counter/FP state; nine native
+mutants are rejected. The view-index leaf moved unchanged to its own translation
+unit and both consume regressions pass. Native build, 4,096 secondary-wheel
+captures and orbit/drive smokes pass. These results establish finite CPU behavior,
+not byte identity or pixel parity. See [evidence and reproduction](pc-wheel-quad-submit.md).
 
 ### Verification (pixel size and LOD)
 
@@ -5192,7 +5211,7 @@ boundary. The current demo gate stays zero; this pass does not activate shaders.
   ignores flags/extra/zero and does not set `glFrontFace` for R180 wheels; see the dispatcher evidence above.
 - Preparation `0x48f660` (recovered and active; GL record consumption remains open), facing helper
   `0x60d700` and secondary quad producer `0x620600` (both recovered; packing/render submission
-  at `0x5c5580` remains open, and the demo gate is 0, so neither is called), solid slots `0x48d860` (setter and native retail table binding recovered; link values `ri+0x390`/`0x3ac` are zero
+  at `0x5c5580` is recovered, actual GPU services remain open, and the demo gate is 0, so neither is called), solid slots `0x48d860` (setter and native retail table binding recovered; link values `ri+0x390`/`0x3ac` are zero
   in the demo), rim-part records `0x60fef0` (none in the demo; the `SPINNEROFFSET` offsets stay zero).
 - The spin term reads the car's sub-object bytes `+0x353`/`+0x354` (`0x59a420`). The block applies it only to wheels 0
   and 1 (tyre and brake frames, as a rotation about x; the table above). The demo has no such state, so the spin is zero

@@ -19,8 +19,7 @@ void CarRenderCommandList::Clear() {
 void CarRenderTextureGroup::ClearCommands() {
     reinterpret_cast<CarRenderCommandList *>(&commands18)->Clear();
 }
-// Original 0x48b1e0 / 0x60fe00 / 0x60fde0.
-CarRenderViewRecord *CarRenderViewByIndex(int index) { return ug2RenderViews832DE0+index; }
+// Original 0x60fe00 / 0x60fde0. View lookup 0x48b1e0 is in CarRenderViewLookup.cpp.
 unsigned int CarRenderSkyIndex() { return ug2RenderSkyIndex8A1C94; }
 long double CarRenderSkyFraction() {
     return static_cast<long double>(ug2RenderSkyTime8A1C9C)/ug2RenderSkyPeriod802954;

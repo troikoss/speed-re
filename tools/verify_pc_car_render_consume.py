@@ -73,7 +73,7 @@ def build(source,gcc,pool_source=None,extra_sources=(),extra_globals=None,suppli
     for name in supplied:
         bindings.pop(name,None)
         cpp.pop(name,None)
-    sources=[source,solid.SOURCE,pool_source or ROOT/'src/Speed/Indep/Libs/bWare/bSlotPool.cpp']+list(extra_sources)
+    sources=[source,ROOT/'src/Speed/Indep/Src/World/CarRenderViewLookup.cpp',solid.SOURCE,pool_source or ROOT/'src/Speed/Indep/Libs/bWare/bSlotPool.cpp']+list(extra_sources)
     if gcc:
         bindings.update(gcc_bindings or {})
         bindings.update({k:symbols[k]for k in ('slotPoolRegistry828530','nodeSlotPool8284F0','nodeSlotPoolPendingDelete8284F4','nodeSlotPoolName786F40')})
