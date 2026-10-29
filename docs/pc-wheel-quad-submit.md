@@ -3,7 +3,8 @@
 `CarRenderQuadSubmit.cpp` recovers the complete `0x5c5580` body (462 bytes)
 and its counter tail `0x5bcfc0` (7 bytes). The native ABI bridge now forwards
 through this source and the previously recovered texture/world upload bodies.
-GPU device/effect services remain explicit unsupported boundaries in production.
+A subsequent [pass/texture recovery](pc-effect-pass-runtime.md) implements four
+effect methods; actual GPU device/state services remain unsupported boundaries.
 The demo still selects gate zero; this does not activate secondary-wheel pixels.
 
 The reference is UG2 PC v1.2, executable SHA-256
@@ -49,8 +50,8 @@ observed increment, not an exhaustive audit of its other users.
 `CarRenderViewByIndex` (`0x48b1e0`) moves unchanged into its own translation unit.
 This lets world upload link the view leaf without pulling queue/pool ownership
 into native callers. `OriginalSymbols.ld` binds the observed upload/cache globals.
-`NativeCarRenderApi.cpp` provides 18 typed fallback boundaries; each reports its
-name and aborts. Probe fixtures override these explicitly. No device operation
+`NativeCarRenderApi.cpp` originally supplied 18 typed fallback boundaries. Four now reach recovered
+pass/texture methods; the remaining 14 report their name and abort. Probe fixtures override these explicitly. No device operation
 returns fabricated success in production.
 
 ## Verification and limits

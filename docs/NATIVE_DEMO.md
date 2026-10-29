@@ -5146,8 +5146,8 @@ binding/world upload. It preserves all 96 defined vertex bytes, snapshots before
 callbacks, rereads mode/technique/gate at the original boundaries, invokes zero
 parameter handles, ignores HRESULTs and increments the counter even with drawing
 disabled. The remaining 32 vertex bytes are indeterminate in the original.
-Eighteen typed device/effect fallback services abort with a named diagnostic;
-actual GPU integration remains open.
+Four effect services now reach the recovered pass/texture methods below;
+fourteen other API fallbacks abort with a named diagnostic. GPU integration remains open.
 
 Each compiler passes 16,384 isolated calls, 512 composed submissions and nineteen
 source mutation checks. Native replay compares 1,152 original captures, including
@@ -5156,6 +5156,23 @@ mutants are rejected. The view-index leaf moved unchanged to its own translation
 unit and both consume regressions pass. Native build, 4,096 secondary-wheel
 captures and orbit/drive smokes pass. These results establish finite CPU behavior,
 not byte identity or pixel parity. See [evidence and reproduction](pc-wheel-quad-submit.md).
+
+### Effect pass lifecycle and texture assignment (2026-10-29)
+
+Six complete library bodies (1,179 bytes) now implement BeginPass, Commit,
+EndPass, group application, texture assignment and deferred texture ownership.
+Four native effect API adapters execute this recovery. It preserves partial
+reference updates, dynamic dirty-queue reads, ignored Commit errors, precision
+restoration on BeginPass failures, shared texture maps and retain-before-tail
+publication. Five original state-dispatch routines remain explicit boundaries;
+actual GPU classes and activation remain open.
+
+Per compiler: 28,672 comparisons, including 4,096 full pass/texture/commit/end
+cycles, and 44 rejected mutations. Native: 896 original captures (128 cycles),
+full traces/arenas/bounded heaps, allocation/FP checks and fourteen rejected
+mutants. The full build, quad regression and gate-zero orbit/drive smokes pass.
+See [evidence, limits and reproduction](pc-effect-pass-runtime.md). No rendered
+parity or byte identity is claimed.
 
 ### Verification (pixel size and LOD)
 

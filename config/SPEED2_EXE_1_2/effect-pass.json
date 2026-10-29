@@ -1,0 +1,48 @@
+{
+  "target": "UG2 PC v1.2",
+  "executable_sha256": "f9dd86c054878ce6276beb07c1fd61874f7a1e4bf1f241b084c65b73e24168a7",
+  "functions": {
+    "begin_pass": {
+      "address": "0x66acd2",
+      "size": 282,
+      "sha256": "8c6de3d8dae80308d0d9f8e66770170fbf926ce1848fa0e1e4009ca25a243a1a"
+    },
+    "commit": {
+      "address": "0x66ac17",
+      "size": 187,
+      "sha256": "51e6867a77c9f9102be9b4ce7aa990b197cec058c84124a66c3f375994dbace9"
+    },
+    "end_pass": {
+      "address": "0x65adcb",
+      "size": 90,
+      "sha256": "16ea38c8d895af94d4a57d641fd493bbf983c8f46e4149c6c2822417f47aa22d"
+    },
+    "group_apply": {
+      "address": "0x6691a1",
+      "size": 229,
+      "sha256": "f0246198a05b6f160f18a469577b9f37bc7f3e3f438d0365bf7055dc68bf0b78"
+    },
+    "record_texture": {
+      "address": "0x666a68",
+      "size": 179,
+      "sha256": "0908b7c27e54ae081eaae99d74ff072cbe03bb78a16a3a59ed03a8b49f8ab720"
+    },
+    "set_texture": {
+      "address": "0x66d7d9",
+      "size": 212,
+      "sha256": "0a36bb6a81d86214f8b05c9f6f4c247e2037cc11487eeb66446e1df3a202b710"
+    }
+  },
+  "data": [
+    {
+      "address": "0x7b70b0",
+      "size": 4,
+      "sha256": "f52f64fd9dff44051790cfccb932bf1317ea05719fe52c593f5ee4be47956415"
+    },
+    {
+      "address": "0x7b70e8",
+      "size": 12,
+      "sha256": "217146459d288cf61773554e6a7e3d1ebfc1d7b8c1b3aa9d423443e97968d9d4"
+    }
+  ]
+}

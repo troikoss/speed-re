@@ -28,6 +28,7 @@
 - [SSE power](D3DX_CRT_POWER_SSE.md): original table-driven power, packed arithmetic, exception exits and hardware-assisted verification.
 - [Secondary wheel quad](pc-wheel-secondary.md): tyre-mask geometry, corrected caller flags, exact Y rotation and native capture verification.
 - [Wheel quad submission](pc-wheel-quad-submit.md): original vertex packing, texture/world composition, effect-call ordering and native capture verification.
+- [Effect pass runtime](pc-effect-pass-runtime.md): original pass lifecycle, texture assignment/deferred ownership and native API integration.
 - [Wheel and body physics](pc-wheel-physics.md): vector math, wheel preparation/correction, coupling, and body verification.
 - [Ginsu engine sound](pc-ginsu.md): granular `.gin` data, EA-XA decoding and packet synthesis, with verification under both x87 precisions.
 

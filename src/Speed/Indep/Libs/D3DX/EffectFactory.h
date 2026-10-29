@@ -90,6 +90,8 @@ struct D3DXEffectObject {
     int NotifyValue(D3DXEffectBaseRecord *); // 0x66055c
     int RecordValue(unsigned int handle,const void *data,unsigned int bytes); // 0x666c81
     int RelocateParameter(D3DXEffectParameter *,unsigned int *scalar,unsigned int *matrix,unsigned int *structure); // 0x6614a1
+    int ApplyPassGroup(unsigned int group,unsigned int index); // 0x6691a1
+    int RecordTexture(unsigned int handle,unsigned int texture); // 0x666a68
 };
 struct D3DXEffectPoolLink {
     unsigned int value00,value04;

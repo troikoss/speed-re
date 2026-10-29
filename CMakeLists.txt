@@ -38,6 +38,7 @@ list(APPEND UG2_RECOVERED_SOURCES
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectTypeValidation.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectRecordReaders.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectRuntimeStorage.cpp
+    ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectPassRuntime.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectShaderResources.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectCompiledPayload.cpp
     ${CMAKE_SOURCE_DIR}/src/Speed/Indep/Libs/D3DX/EffectHandles.cpp
@@ -80,6 +81,7 @@ add_library(ug2native STATIC
     src/Platform/Native/NativeFxShaderDispatch.cpp
     src/Platform/Native/NativeFxCrtLocale.cpp
     src/Platform/Native/NativeFxValueDispatch.cpp
+    src/Platform/Native/NativeFxPassDispatch.cpp
     src/Platform/Native/NativeFxDeserializeDispatch.cpp
     src/Platform/Native/NativeFxDebugPlatform.cpp
     src/Platform/Native/NativeFxShaderReadback.cpp
@@ -267,6 +269,23 @@ target_compile_options(ug2quadsubmit_probe PRIVATE ${UG2_ARCH_FLAGS} -O1 -fno-fa
     -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
 target_link_libraries(ug2quadsubmit_probe -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
 target_link_options(ug2quadsubmit_probe PRIVATE ${UG2_LINK_FLAGS})
+
+# Unchanged recovered bodies under test-only names let the pass probe observe
+# their entry state while preserving the production control/ownership chain.
+foreach(pass_source Setup Handles Values)
+    add_library(ug2pass_${pass_source}_probe OBJECT src/Speed/Indep/Libs/D3DX/Effect${pass_source}.cpp)
+    target_compile_definitions(ug2pass_${pass_source}_probe PRIVATE
+        AdjustReferences=ProbeRecoveredAdjustReferences ResolveParameter=ProbeRecoveredResolveParameter
+        WriteObjectResource=ProbeRecoveredWriteObjectResource NotifyValue=ProbeRecoveredNotifyValue)
+    target_compile_options(ug2pass_${pass_source}_probe PRIVATE ${UG2_ARCH_FLAGS} -O1 -fno-fast-math -ffp-contract=off
+        -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+endforeach()
+add_executable(ug2effectpass_probe src/Platform/Native/EffectPassProbe.cpp
+    $<TARGET_OBJECTS:ug2pass_Setup_probe> $<TARGET_OBJECTS:ug2pass_Handles_probe> $<TARGET_OBJECTS:ug2pass_Values_probe>)
+target_compile_options(ug2effectpass_probe PRIVATE ${UG2_ARCH_FLAGS} -O1 -fno-fast-math -ffp-contract=off
+    -include ${CMAKE_SOURCE_DIR}/src/Platform/Native/NativeCompat.h)
+target_link_libraries(ug2effectpass_probe -Wl,--start-group ug2native ug2recovered -Wl,--end-group m)
+target_link_options(ug2effectpass_probe PRIVATE ${UG2_LINK_FLAGS} -Wl,--wrap=UG2FxMalloc -Wl,--wrap=UG2FxFree)
 
 add_executable(ug2solidrecords_probe src/Platform/Native/SolidRecordsProbe.cpp src/Platform/Native/NativeSolidRecords.cpp
     src/Platform/Native/NativeTextureRecords.cpp src/Platform/Native/NativeTextureUpload.cpp src/Platform/Native/NativeFormatting.cpp)
