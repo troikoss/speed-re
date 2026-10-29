@@ -1274,3 +1274,14 @@ ug2CrtBypassMathExit8B8424 = 0x8b8424;
 ug2CrtIndefinite81A4D0 = 0x81a4d0;
 ug2CrtHalfPi81A4DA = 0x81a4da;
 ug2CrtNanAdd7D7C40 = 0x7d7c40;
+
+ug2CrtPowerHalf819C80 = 0x819c80;
+ug2CrtPowerIndefinite81A818 = 0x81a818;
+ug2CrtPowerNegativeZero81A830 = 0x81a830;
+ug2CrtPowerMaximum7D7C54 = 0x7d7c54;
+ug2CrtPowerMinimum7D7C5C = 0x7d7c5c;
+ug2CrtPowerScaleDown7D7C64 = 0x7d7c64;
+ug2CrtPowerScaleUp7D7C6C = 0x7d7c6c;
+ug2CrtPowerInfinity7D7C74 = 0x7d7c74;
+ug2CrtPowerZero7D7C7C = 0x7d7c7c;
+ug2CrtPowerInfinity81A470 = 0x81a470;

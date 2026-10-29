@@ -4982,10 +4982,133 @@ executed natively. Reports and mutation logs stay in `build/analysis/crt-inverse
 The full native build, VM regressions and 60-frame SKYLINE smoke pass with wheel
 fingerprints `ca993eba` / `7141bcda` and clean retirement of all 829 textures and
 staged handles. Native shader/effect rendering remains inactive. Remaining math
-work includes power `0x75c9b0` and its SSE/private-x87 dependencies; CRT startup,
+work at that checkpoint included power `0x75c9b0`; its x87 family is recovered
+in the following section. The SSE body, CRT startup,
 OS exception delivery, GPU/effect activation and the other wheel seams remain
 open. Finite behavioral evidence remains separate from byte identity and complete
 game recovery.
+
+### X87 power dispatch, reconstruction and exceptional helpers (2026-10-29)
+
+`CrtPower.cpp` recovers the power entry, complete x87 fallback and its remaining
+helpers. The production VM bridge now executes recovered x87 power. The original
+SSE arithmetic body at `0x764749` is still an explicit unsupported boundary;
+this checkpoint does not claim complete recovery of both power branches.
+
+| Address | Original bytes | Recovered behavior |
+| --- | ---: | --- |
+| `0x75c9b0` | 84 | CPU/MXCSR/x87 gate, x87 argument copies and dispatch |
+| `0x764730` | 25 | Original SSE argument/stack wrapper |
+| `0x75ca0d` | 453 | Complete private x87 power core |
+| `0x765705` | 67 | Finite load or manually constructed extended nonfinite operand |
+| `0x7656c0` | 21 | Rounded exponent, fractional F2XM1 reconstruction and FSCALE |
+| `0x75cbd2` | 40 | Consuming extended parity helper and CL result |
+| `0x76584c` | 106 | Double parity, classification and narrowed half/integer tests |
+| `0x75dc8e` | 154 | CRT double classification, including explicit nonfinite copy |
+| `0x7658b6` | 354 | Exceptional infinite-base/exponent C helper |
+| `0x765660` | 23 | Two-argument error prefix, followed by shared tail `0x765680` |
+| `0x7657a9` | 163 | Power result classification, scaling and error/precision exit |
+
+`crt-power-x87.json` pins these **1,490 original bytes**, the previously recovered
+51-byte shared error tail, referenced constants/name and full reference executable.
+It also identifies and fingerprints the **unrecovered 2,861-byte SSE body**. Read-only
+Ghidra exports and original instructions provide the evidence. Source presence and
+these finite comparisons do not establish byte identity or other SPEED builds.
+
+The entry keeps the original CPU flag, all six MXCSR mask bits and low x87
+control-word gate. The x87 fallback spills the base to double, copies the exponent
+to double for classification, and retains the incoming extended exponent for
+arithmetic. The separate SSE wrapper spills both incoming operands before its
+body call. `NativeFxCrtPowerSsePlatform.cpp` traps at that body; it supplies no
+replacement formula. Production retains the original zero BSS CPU flag because
+CRT CPU initialization is still open, so the recovered x87 path is active.
+Tests explicitly select both gate outcomes.
+
+Normal x87 arithmetic uses the original FYL2X, FRNDINT, rounded-minus-input,
+FCHS, F2XM1, addition of one and FSCALE order. Negative bases call the original
+extended parity predicate before sign/domain handling. That predicate consumes
+its argument and uses SAHF's equality bit, including unordered outcomes. The
+separate double parity helper rejects subnormals before rounding and uses its
+original double copies, current-rounding helper and division by two. It is not
+replaced by a bit-only integer test. Nonfinite operand loading constructs the
+original extended payload and records its ECX scratch side effect before FLD.
+Signed-zero results, odd negative-zero poles, zero-to-zero, NaN combination
+priority and extended exponent information are retained.
+
+Exceptional infinite operands spill both arguments, **FSAVE** the x87 state,
+run the original C helper under the reset environment, and **FRSTOR** the caller's
+state before loading its result. The helper leaves output untouched on its
+unhandled inputs. Unit-magnitude/infinite-exponent cases retain the original
+indefinite result and error indication. Two-argument error handling copies both
+inputs with integer instructions and reloads its floating result before the
+second saved-control restoration, using the preceding recovered dispatcher.
+
+Power's normal precision exit requires a **clear saved precision mask bit** and
+set precision status bit. Its underflow/overflow paths classify a double copy but
+scale the retained extended value by +1,536 or -1,536 before comparing bounds.
+The original zero/infinity multipliers, ordered/unordered branch directions and
+one- versus two-argument error dispatch remain. They are distinct from the inverse
+trig exit at `0x76576b`.
+
+```sh
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_crt_power.py --gcc --cases 8192 --mutation-checks --write-native-fixtures /tmp/ug2-crt-power-fixtures.bin
+UG2_EXE="$UG2_DIR/speed2.exe" build/venv/bin/python tools/verify_pc_crt_power.py --cases 8192 --mutation-checks
+cmake --build build/native --target ug2crtpower_probe
+build/native/ug2crtpower_probe "$UG2_DIR/speed2.exe" /tmp/ug2-crt-power-fixtures.bin
+# Add --native-mutation-checks to the GCC command after building the probe.
+```
+
+Each compiler passes **98,304 comparisons**, **1,024 composed VM programs /
+1,536 power calls**, and rejects **30 source mutations**. The standalone corpus
+observes 10,526 x87 gate paths, 14,050 SSE-wrapper calls (including direct wrapper
+cases), 9,434 exceptional C-helper calls and 15,128 two-argument error calls.
+SSE body results are explicitly controlled in both original and rebuilt callers;
+those traces establish gate/copy/return contracts, not SSE numerical behavior.
+Other x87 helpers execute recovered source throughout the rebuilt chain.
+
+Fixtures include all twelve precision/rounding modes, separate saved masks,
+bypass and CPU flags, partially masked MXCSR gates, NaNs, infinities, signed zeros,
+integer/fractional and exponent limits, seeded raw doubles, valid extended-range
+inputs, low extended mantissa bits, OS edits/pointer replacement and overlapping
+VM lanes. Checks cover complete initialized memory, defined error-record fields,
+callback ordering and payloads, errno, CDECL/stdcall cleanup, preserved registers,
+control/MXCSR, exception flags and live caller-owned x87 values/TOP/tags. Shared
+uninitialized padding is excluded; one-argument exit fixtures avoid operations
+that would publish an uninitialized second input. The separate two-argument
+prefix and dispatcher fixtures cover the defined two-argument cases.
+
+The native probe passes **90,112 body/ISA/policy comparisons**, **8,192 exact
+extended-return bridges**, and **512 actual-x87 VM graphs / 768 calls**. Independent
+instruction oracles execute the original reconstruction and parity sequences;
+policy models use previously verified CRT mask/record/errno dependencies. Two
+caller-owned x87 values remain live through all helper and FSAVE/FRSTOR cases.
+Physical comparisons include their complete 80-bit values, output data, all six
+exception flags, FP stack/control state and MXCSR, including DAZ/FTZ settings.
+The run records **12,187 controlled SSE service calls** and **2,238 OS records**.
+Native VM graphs force the original x87 branch. Test services never supply a
+production numerical replacement for SSE or implement OS delivery.
+
+Eight hardware mutants reject omitted classifier copies, denormal rounding,
+a wrong F2XM1 operation, early fractional narrowing, missing FRSTOR, floating
+second-input copies, inverted precision masks and swapped SSE arguments. The
+emulator cannot detect some of those flag differences: in particular, its
+nonfinite copies and FRNDINT precision behavior do not provide physical golden
+status. The native instruction oracle supplies that evidence. No retail PE code
+executes natively; physical claims apply to GCC i386, with current hardware masked
+during arithmetic. Controlled finite OS results allow saved-mask restoration
+checks without actual unmasked fault delivery.
+
+Original cookie infrastructure, arbitrary invalid/stack-alias pointers, reserved
+PC=1 caller-local padding, invalid x87 encodings, native MSVC hardware execution,
+real exception delivery, startup/flag producers and custom callback porting remain
+unverified. The preceding initialized-record suite covers reserved precision
+encoding itself. Reports and mutation logs stay in `build/analysis/crt-power/`.
+
+The full native build, existing VM regressions and 60-frame SKYLINE smoke pass.
+Wheel fingerprints remain `ca993eba` / `7141bcda`, and all 829 texture records and
+staged handles retire to zero. The remaining power work is recovery of the full
+SSE body and its table/edge behavior. Native GPU/effect activation and the other
+wheel-rendering seams remain open.
 
 ### Verification (pixel size and LOD)
 
