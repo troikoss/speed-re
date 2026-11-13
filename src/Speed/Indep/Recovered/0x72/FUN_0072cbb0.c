@@ -1,0 +1,41 @@
+// Original UG2 PC v1.2 0x72cbb0, 61 bytes. Auto-matched: byte-identical to speed2.exe under
+// MSVC 7.1 (/Ox /Ob0 dat=undefined4), call targets masked. Source is Ghidra decompiler output with an inferred
+// prelude; names, types and callee conventions are NOT verified beyond the bytes.
+// Do not build into ug2recovered: globals are absolute-address macros.
+
+typedef unsigned char undefined, undefined1, byte, uchar, bool8;
+typedef unsigned short undefined2, ushort, word;
+typedef unsigned int undefined4, uint, dword;
+typedef unsigned __int64 undefined8, ulonglong;
+typedef __int64 longlong;
+typedef unsigned char bool;
+#define true 1
+#define false 0
+typedef void (*code)();
+typedef double float10;
+typedef unsigned short wchar_t16;
+int __cdecl FUN_00732d8e();
+int __cdecl FUN_00732f90();
+int __cdecl FUN_00733095();
+#define _DAT_008b4820 (*(undefined4 *)0x008b4820)
+#define _DAT_008b4880 (*(undefined4 *)0x008b4880)
+#define _DAT_008b4884 (*(undefined4 *)0x008b4884)
+#define _DAT_008b4824 (*(undefined4 *)0x008b4824)
+#define _DAT_008b4828 (*(undefined4 *)0x008b4828)
+#define _DAT_008b4888 (*(undefined4 *)0x008b4888)
+
+/* WARNING: Globals starting with '_' overlap smaller symbols at the same address */
+
+void FUN_0072cbb0(void)
+
+{
+  _DAT_008b4820 = FUN_00733095;
+  _DAT_008b4880 = 0x2c;
+  _DAT_008b4884 = 0x54;
+  _DAT_008b4824 = FUN_00732f90;
+  _DAT_008b4828 = FUN_00732d8e;
+  _DAT_008b4888 = 0x3c;
+  return;
+}
+
+
