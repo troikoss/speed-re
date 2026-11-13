@@ -76,6 +76,7 @@ def build(replace,gcc,reuse_dependencies=False):
                 '/I'+str(LIB.relative_to(ROOT)),'/Fo'+str(obj.relative_to(ROOT)),str(p.relative_to(ROOT))],cwd=ROOT,check=True)
             if reuse_dependencies:cache.write_text(json.dumps(dict(key=key,object_sha256=hashlib.sha256(obj.read_bytes()).hexdigest())))
         bindings={'_'+k:v for k,v in bindings.items()}
+        bindings.setdefault('_D3DXEffectDebugMute@4',0x671aed)  # original mute routine (source calls it directly)
         for name,n,_ in core.API_SPECS:bindings['_UG2Fx'+name+'@'+str(n*4)]=core.APIS['UG2Fx'+name]
         linked=link_objects(objects,bindings,start=0x5000000)
         prefixes={k:('_'+name if k in CDECL else'_'+name+'@'+str(STDCALL[k])if k in STDCALL else'@'+name+'@4')for k,name in FREE.items()}

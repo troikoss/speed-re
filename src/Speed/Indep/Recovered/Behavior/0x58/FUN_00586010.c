@@ -1,0 +1,52 @@
+// Original UG2 PC v1.2 0x586010, 71 bytes. BEHAVIOUR-VERIFIED ONLY (40 clean trials, 0 both-fault):
+// not byte-identical to speed2.exe; equivalent to the original on random inputs under
+// differential emulation (tools/diff_test.py). Decompiler output with an inferred prelude.
+typedef int maxExclusive;
+
+typedef unsigned char undefined, undefined1, byte, uchar, bool8;
+typedef unsigned short undefined2, ushort, word;
+typedef unsigned int undefined4, uint, dword;
+typedef unsigned __int64 undefined8, ulonglong;
+typedef __int64 longlong;
+typedef unsigned char bool;
+#define true 1
+#define false 0
+typedef void (*code)();
+typedef double float10;
+typedef unsigned short wchar_t16;
+typedef unsigned long DWORD;
+typedef unsigned short WORD;
+typedef void *HANDLE;
+typedef unsigned int size_t;
+typedef int BOOL;
+int __cdecl FUN_0043c1c0();
+#define DAT_00850088 (*(undefined4 *)0x00850088)
+#define DAT_007fbe80 (*(undefined4 *)0x007fbe80)
+#define DAT_008693c8 (*(undefined4 *)0x008693c8)
+
+void FUN_00586010(void)
+
+{
+  int iVar1;
+  int *piVar2;
+  int maxExclusive;
+  
+  maxExclusive = 6;
+  if (DAT_00850088 == 8) {
+    maxExclusive = 4;
+  }
+  do {
+    do {
+      iVar1 = FUN_0043c1c0(maxExclusive);
+    } while (iVar1 == DAT_007fbe80);
+    piVar2 = &DAT_008693c8;
+    while ((piVar2[1] == -1 || (*piVar2 != iVar1))) {
+      piVar2 = piVar2 + 8;
+      if (0x869467 < (int)piVar2) {
+        return;
+      }
+    }
+  } while( true );
+}
+
+

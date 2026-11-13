@@ -3,6 +3,9 @@
 ## Scope and development
 
 - [Decompilation scope](DECOMPILATION_SCOPE.md): the SPEED engine objective, the UG2 first-target milestone and required completion evidence.
+- [Architecture and code guide](ARCHITECTURE.md): layout, conventions, subsystem map, frame flow, verification workflow.
+- [Source index](SOURCE_INDEX.md) (generated): every source file, its purpose and cited original addresses.
+- [Coverage inventory](COVERAGE.md) (generated): which executable functions still have no recovered source.
 - [Repository guidelines](../AGENTS.md): contributor workflow, build commands, and recovery rules.
 - [Native modding](../modding/README.md): optional C SDK, native plugins, widescreen HUD/FOV, and physics-provider seams.
 - [Native demo](NATIVE_DEMO.md): recovered routines, platform seams, build/run instructions, and outstanding integration checks.

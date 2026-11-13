@@ -1,0 +1,40 @@
+// Original UG2 PC v1.2 0x5376b0, 49 bytes. Auto-matched: byte-identical to speed2.exe under
+// MSVC 7.1 (/Ox /Ob0 dat=undefined4), call targets masked. Source is Ghidra decompiler output with an inferred
+// prelude; names, types and callee conventions are NOT verified beyond the bytes.
+// Do not build into ug2recovered: globals are absolute-address macros.
+
+typedef unsigned char undefined, undefined1, byte, uchar, bool8;
+typedef unsigned short undefined2, ushort, word;
+typedef unsigned int undefined4, uint, dword;
+typedef unsigned __int64 undefined8, ulonglong;
+typedef __int64 longlong;
+typedef unsigned char bool;
+#define true 1
+#define false 0
+typedef void (*code)();
+typedef double float10;
+typedef unsigned short wchar_t16;
+int __cdecl FUN_0052cef0();
+
+
+void __fastcall FUN_005376b0(int param_1)
+
+{
+  undefined4 *puVar1;
+  int iVar2;
+  int iVar3;
+  
+  iVar3 = 0;
+  for (puVar1 = *(undefined4 **)(param_1 + 0x10); puVar1 != (undefined4 *)(param_1 + 0x10);
+      puVar1 = (undefined4 *)*puVar1) {
+    iVar2 = FUN_0052cef0(puVar1[2]);
+    puVar1[3] = iVar3;
+    if (iVar2 != 0) {
+      *(int *)(iVar2 + 0x18) = iVar3;
+    }
+    iVar3 = iVar3 + 1;
+  }
+  return;
+}
+
+
