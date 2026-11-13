@@ -78,7 +78,7 @@ SHARED = {'?carWorld890080@': 0x890080, '?participantRecords89E810@': 0x89e810, 
           '?physicsCurveSpacing7850B4@': 0x7850b4, '?carTable89CCF8@': 0x89ccf8, '?carMoverTypes89CD50@': 0x89cd50,
           '?carMovers89CDA8@': 0x89cda8, '?carKinds89CE00@': 0x89ce00, '?carParticipants89CE58@': 0x89ce58,
           '?carInputs89CEB0@': 0x89ceb0, '?EmptyRoutine4022C0@': 0x4022c0, '?Destroy@WRoadNav@': 0x4022c0,
-          '??3@YAXPAX@Z': 0x575630, '?Slot00@CarNullMover@': STUB_DTOR + 0x40,
+          '??3@YAXPAX@Z': 0x575630, '?Slot00@CarNullMover@': STUB_DTOR + 0x40, '?Slot04@CarNullMover@': STUB_DTOR + 0x44, '?Slot08@CarNullMover@': STUB_DTOR + 0x48, '?Body0C@CarNullMover@': 0x50d510,
           '?collisionIds86B2BC@': 0x86b2bc, '___CxxFrameHandler': 0x75bfd2, '__except_list': 0, '__fltused': 0}
 SHARED.update({p: a for a, (p, _, _, _, _) in CALLEES.items() if p})
 TARGETS = {  # name: (rebuilt symbol, original address key, convention, stack argument count, returns)
